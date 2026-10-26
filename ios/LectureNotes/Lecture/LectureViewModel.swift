@@ -1,5 +1,6 @@
 import Foundation
 import PDFKit
+import SwiftUI
 
 /// 강의 화면 하나의 상태: 보는 페이지, 녹음, 실시간 필기.
 @MainActor
@@ -135,7 +136,27 @@ final class LectureViewModel: ObservableObject {
 
     private func receive(_ annotation: Annotation) {
         guard !annotations.contains(where: { $0.id == annotation.id }) else { return }
-        annotations.append(annotation)
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.62)) {
+            annotations.append(annotation)
+        }
         latestAnnotationID = annotation.id
+    }
+
+    /// 데모 모드: 교수님 말이 자막으로 나오고, 필기가 하나씩 붙는 장면을 재생한다.
+    func runDemoLive() async {
+        phase = .recording
+        var elapsed: TimeInterval = 312
+        for (caption, annotation) in zip(DemoData.liveCaptions, DemoData.annotations.prefix(4)) {
+            var shown = ""
+            for word in caption.split(separator: " ") {
+                shown += (shown.isEmpty ? "" : " ") + word
+                elapsed += 0.35
+                recorder.showDemoCaption(shown, elapsed: elapsed, level: .random(in: 0.35...0.95))
+                try? await Task.sleep(for: .milliseconds(220))
+            }
+            try? await Task.sleep(for: .milliseconds(500))
+            receive(annotation)
+            try? await Task.sleep(for: .milliseconds(900))
+        }
     }
 }

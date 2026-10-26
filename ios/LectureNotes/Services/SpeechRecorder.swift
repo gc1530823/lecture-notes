@@ -10,6 +10,8 @@ final class SpeechRecorder: ObservableObject {
     @Published private(set) var isRecording = false
     @Published private(set) var partialText = ""
     @Published private(set) var elapsed: TimeInterval = 0
+    /// 지금 들어오는 소리 크기 (0~1). 파형 애니메이션에 쓴다.
+    @Published private(set) var level: CGFloat = 0
 
     /// 확정된 받아쓰기 (text, startMs, endMs). 시각은 녹음 시작 기준이다.
     var onSegment: ((String, Int, Int) -> Void)?
@@ -48,11 +50,23 @@ final class SpeechRecorder: ObservableObject {
         }
     }
 
-    /// 데모 모드: 녹음 중인 화면을 보여 주기 위해 자막과 시간만 채운다.
-    func showDemoCaption(_ text: String, elapsed: TimeInterval) {
+    /// 데모 모드: 녹음 중인 화면을 보여 주기 위해 자막, 시간, 소리 크기만 채운다.
+    func showDemoCaption(_ text: String, elapsed: TimeInterval, level: CGFloat = 0.6) {
         partialText = text
         self.elapsed = elapsed
+        self.level = level
         isRecording = true
+    }
+
+    /// 버퍼의 RMS를 dB로 바꿔 0~1로 맞춘다 (-50dB 이하는 0)
+    nonisolated static func normalizedLevel(of buffer: AVAudioPCMBuffer) -> CGFloat {
+        guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
+        let count = Int(buffer.frameLength)
+        var sum: Float = 0
+        for i in 0..<count { sum += samples[i] * samples[i] }
+        let rms = sqrt(sum / Float(count))
+        let db = 20 * log10(max(rms, 1e-7))
+        return CGFloat(min(max((db + 50) / 50, 0), 1))
     }
 
     static func requestPermissions() async -> Bool {
@@ -82,9 +96,11 @@ final class SpeechRecorder: ObservableObject {
         audioFile = file
 
         let feeder = feeder
-        input.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
+        input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
             feeder.append(buffer)
             try? file.write(from: buffer)
+            let level = Self.normalizedLevel(of: buffer)
+            Task { @MainActor in self?.level = level }
         }
         engine.prepare()
         try engine.start()
@@ -115,6 +131,7 @@ final class SpeechRecorder: ObservableObject {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         audioFile = nil
+        level = 0
         if let interruptionObserver { NotificationCenter.default.removeObserver(interruptionObserver) }
         interruptionObserver = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)

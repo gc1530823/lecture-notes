@@ -42,6 +42,14 @@ enum DemoData {
         ])
     }
 
+    /// live 데모에서 필기 하나가 붙기 전에 흐르는 자막
+    static let liveCaptions = [
+        "자 경사하강법은 산에서 눈을 감고 가장 가파른 쪽으로 한 걸음씩 내려가는 거예요",
+        "학습률이 너무 크면 최솟값을 지나쳐서 발산하고 너무 작으면 엄청 느려집니다",
+        "이거 중간고사에 꼭 나와요 학습률이 클 때와 작을 때 차이 기억하세요",
+        "과제 2번은 경사하강법을 직접 구현하는 거고 다음 주 금요일까지예요",
+    ]
+
     static let annotations: [Annotation] = [
         Annotation(id: 1, sessionId: sessionID, pageNo: 1, blockId: 10, type: .example,
                    text: "산에서 눈 감고 가장 가파른 쪽으로 한 걸음씩 내려가는 것과 같음", startMs: 4_000, editedByUser: false),
