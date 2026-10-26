@@ -8,8 +8,21 @@ struct LectureView: View {
     @State private var editing: Annotation?
     @State private var showingSummary = false
 
-    init(document: LocalDocument, store: DocumentStore, session: SavedSession?) {
-        _model = StateObject(wrappedValue: LectureViewModel(document: document, store: store, existingSession: session))
+    private let demoSummary: LectureSummary?
+
+    init(document: LocalDocument, store: DocumentStore, session: SavedSession?, demo: DemoScreen? = nil) {
+        let model = LectureViewModel(document: document, store: store, existingSession: session)
+        switch demo {
+        case .lecture:
+            model.applyDemo(annotations: DemoData.annotations, phase: .ended, caption: nil)
+        case .recording:
+            model.applyDemo(annotations: Array(DemoData.annotations.prefix(3)), phase: .recording,
+                            caption: "그래서 학습률은 보통 0.01이나 0.001부터 시작해서 줄여 가요")
+        default:
+            break
+        }
+        _model = StateObject(wrappedValue: model)
+        demoSummary = demo == nil ? nil : DemoData.summary
     }
 
     var body: some View {
@@ -61,7 +74,7 @@ struct LectureView: View {
         }
         .sheet(isPresented: $showingSummary) {
             if let session = model.session {
-                SummaryView(sessionID: session.id, onSelectPage: { page in
+                SummaryView(sessionID: session.id, initialSummary: demoSummary, onSelectPage: { page in
                     model.currentPage = page
                     showingSummary = false
                 })
@@ -72,7 +85,7 @@ struct LectureView: View {
         } message: {
             Text(model.errorMessage ?? "")
         }
-        .task { await model.loadExistingAnnotations() }
+        .task { if demoSummary == nil { await model.loadExistingAnnotations() } }
         .onDisappear { model.leave() }
         .navigationBarBackButtonHidden(model.phase == .recording || model.phase == .finishing)
     }

@@ -48,6 +48,13 @@ final class SpeechRecorder: ObservableObject {
         }
     }
 
+    /// 데모 모드: 녹음 중인 화면을 보여 주기 위해 자막과 시간만 채운다.
+    func showDemoCaption(_ text: String, elapsed: TimeInterval) {
+        partialText = text
+        self.elapsed = elapsed
+        isRecording = true
+    }
+
     static func requestPermissions() async -> Bool {
         let speech = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0 == .authorized) }

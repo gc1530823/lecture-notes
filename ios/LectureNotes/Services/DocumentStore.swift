@@ -9,8 +9,13 @@ final class DocumentStore: ObservableObject {
     private let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     private var indexURL: URL { root.appending(path: "documents.json") }
 
-    init() {
-        load()
+    init(demo: Bool = false) {
+        if demo {
+            DemoData.writePDF(to: root.appending(path: DemoData.pdfFileName))
+            documents = [DemoData.document]
+        } else {
+            load()
+        }
     }
 
     func pdfURL(for document: LocalDocument) -> URL {

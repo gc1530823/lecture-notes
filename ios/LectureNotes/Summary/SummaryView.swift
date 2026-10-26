@@ -9,6 +9,13 @@ struct SummaryView: View {
     @State private var summary: LectureSummary?
     @State private var errorMessage: String?
 
+    /// initialSummary가 있으면(데모 모드) 서버에 묻지 않고 그대로 보여 준다.
+    init(sessionID: String, initialSummary: LectureSummary? = nil, onSelectPage: @escaping (Int) -> Void) {
+        self.sessionID = sessionID
+        self.onSelectPage = onSelectPage
+        _summary = State(initialValue: initialSummary)
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -27,7 +34,7 @@ struct SummaryView: View {
             .navigationTitle("요약·퀴즈")
             .navigationBarTitleDisplayMode(.inline)
         }
-        .task { await poll() }
+        .task { if summary == nil { await poll() } }
     }
 
     private func content(_ summary: LectureSummary) -> some View {

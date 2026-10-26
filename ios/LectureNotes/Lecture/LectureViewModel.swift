@@ -126,6 +126,13 @@ final class LectureViewModel: ObservableObject {
         }
     }
 
+    /// 데모 모드: 서버 없이 필기와 화면 상태를 채운다.
+    func applyDemo(annotations: [Annotation], phase: Phase, caption: String?) {
+        self.annotations = annotations
+        self.phase = phase
+        if let caption { recorder.showDemoCaption(caption, elapsed: 754) }
+    }
+
     private func receive(_ annotation: Annotation) {
         guard !annotations.contains(where: { $0.id == annotation.id }) else { return }
         annotations.append(annotation)
