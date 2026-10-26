@@ -13,6 +13,8 @@ log = logging.getLogger(__name__)
 
 # tip = 강의에 직접 나오지 않은, AI가 덧붙이는 배경지식·공부 팁
 ANNOTATION_TYPES = ["explanation", "example", "emphasis", "exam", "notice", "tip"]
+# in_class = 수업 시간 안에 하는 것, homework = 숙제, report = 레포트·에세이, exam_prep = 시험 준비
+TASK_KINDS = ["in_class", "homework", "report", "exam_prep"]
 
 # 서버 측 fallbacks를 받는 모델. 다른 모델(예: Haiku)로 바꾸면 이 옵션을 보내지 않는다.
 FALLBACK_MODELS = {"claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"}
@@ -41,7 +43,15 @@ ANNOTATION_SYSTEM = """당신은 대학 강의를 듣는 학생 대신 강의자
   - notice: 과제, 일정, 공지, 질문과 답변
   - tip: 교수님이 짧게 언급하고 지나간 개념에 대해, 학생이 이해하는 데 꼭 도움이 되는 배경지식이나 공부 팁.
     교수님 발언이 아니라 당신이 덧붙이는 내용입니다. 확실히 맞는 내용일 때만, 한 번에 최대 1개만 씁니다.
-- 잡담, 인사, 필기할 가치가 없는 발언뿐이면 빈 목록을 반환합니다."""
+- 잡담, 인사, 필기할 가치가 없는 발언뿐이면 빈 목록을 반환합니다.
+
+과제 뽑기 (tasks):
+- 교수님이 학생에게 무언가를 하라고 요구하면 tasks에 넣습니다: 수업 중 활동("지금 5분 동안 써 보세요"), 숙제, 레포트, 발표, 시험 준비.
+- 이미 뽑은 과제(existing_tasks)와 같은 것은 다시 넣지 않습니다. 요구사항이 추가되면 새 과제로 넣지 말고 무시합니다.
+- kind: in_class(수업 시간 안에 하는 것) | homework | report | exam_prep
+- title: 한 줄 제목. instructions: 교수님이 말한 요구사항(주제, 분량, 형식, 제출 방법)을 빠짐없이.
+- due_text: 마감을 교수님이 말한 그대로("다음 주 금요일까지", "수업 끝나기 전"). 말하지 않았으면 빈 문자열.
+- 과제를 뽑아도 notice 필기는 그대로 함께 씁니다."""
 
 ANNOTATION_SCHEMA = {
     "type": "object",
@@ -59,9 +69,47 @@ ANNOTATION_SCHEMA = {
                 "required": ["page_no", "block_id", "type", "text"],
                 "additionalProperties": False,
             },
-        }
+        },
+        "tasks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "kind": {"type": "string", "enum": TASK_KINDS},
+                    "title": {"type": "string"},
+                    "instructions": {"type": "string"},
+                    "due_text": {"type": "string"},
+                },
+                "required": ["kind", "title", "instructions", "due_text"],
+                "additionalProperties": False,
+            },
+        },
     },
-    "required": ["annotations"],
+    "required": ["annotations", "tasks"],
+    "additionalProperties": False,
+}
+
+TASK_SYSTEM = """당신은 수업 중에 받은 과제를 빨리 끝낼 수 있게 돕는 조교입니다.
+과제 요구사항, 강의자료 페이지 텍스트, 받아쓰기, 필기를 받습니다.
+
+만들 것:
+- checklist: 교수님 요구사항을 빠짐없이 나눈 확인 목록 (분량, 형식, 포함할 내용, 마감)
+- outline: 답안·레포트의 구성 (각 항목 한 줄)
+- draft: 바로 고쳐 쓸 수 있는 초안. 수업 중 과제면 짧게, 레포트면 요구 분량에 맞춰 문단으로.
+  강의에서 나온 개념·예시·용어를 우선 쓰고, 강의에 없는 내용은 일반적으로 알려진 사실만 씁니다.
+- sources: 초안이 근거로 삼은 강의자료 페이지 번호들
+
+학생이 본인 말로 고쳐 제출할 초안이므로, 핵심 논리가 분명하고 고치기 쉬운 문장으로 씁니다. 한국어로 씁니다."""
+
+TASK_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "checklist": {"type": "array", "items": {"type": "string"}},
+        "outline": {"type": "array", "items": {"type": "string"}},
+        "draft": {"type": "string"},
+        "sources": {"type": "array", "items": {"type": "integer"}},
+    },
+    "required": ["checklist", "outline", "draft", "sources"],
     "additionalProperties": False,
 }
 
@@ -128,14 +176,16 @@ class LLMError(RuntimeError):
 
 
 class LLM(Protocol):
-    async def annotate(self, candidates: list[dict], transcript: str) -> list[dict]: ...
+    async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict]) -> dict: ...
+
+    async def draft_task(self, task: dict, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict: ...
 
     async def summarize(self, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict: ...
 
     async def research_tips(self, summary: dict) -> list[dict]: ...
 
 
-def _annotation_prompt(candidates: list[dict], transcript: str) -> str:
+def _annotation_prompt(candidates: list[dict], transcript: str, existing_tasks: list[dict] | None = None) -> str:
     """candidates: [{"page_no", "blocks": [{id, text}], "existing": [{type, text}]}]"""
     parts = []
     for page in candidates:
@@ -145,7 +195,8 @@ def _annotation_prompt(candidates: list[dict], transcript: str) -> str:
             f'<slide page_no="{page["page_no"]}">\n<blocks>\n{block_lines}\n</blocks>\n'
             f"<existing_notes>\n{existing_lines}\n</existing_notes>\n</slide>"
         )
-    return "\n\n".join(parts) + f"\n\n<new_speech>\n{transcript}\n</new_speech>"
+    tasks = "\n".join(f"- {t['title']}" for t in existing_tasks or []) or "(없음)"
+    return "\n\n".join(parts) + f"\n\n<existing_tasks>\n{tasks}\n</existing_tasks>\n\n<new_speech>\n{transcript}\n</new_speech>"
 
 
 def _summary_prompt(pages: list[dict], segments: list[dict], annotations: list[dict]) -> str:
@@ -162,6 +213,12 @@ def _summary_prompt(pages: list[dict], segments: list[dict], annotations: list[d
     if unmatched:
         parts.append(f"<speech_without_page>\n{unmatched}\n</speech_without_page>")
     return "\n\n".join(parts)
+
+
+def _task_prompt(task: dict, pages: list[dict], segments: list[dict], annotations: list[dict]) -> str:
+    request = (f"<task kind=\"{task['kind']}\" due=\"{task['due_text']}\">\n{task['title']}\n"
+               f"{task['instructions']}\n</task>")
+    return request + "\n\n" + _summary_prompt(pages, segments, annotations)
 
 
 def _tips_prompt(summary: dict) -> str:
@@ -219,17 +276,24 @@ class ClaudeLLM:
             params["fallbacks"] = "default"
         return params
 
-    async def annotate(self, candidates: list[dict], transcript: str) -> list[dict]:
+    async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict]) -> dict:
         params = self._request(
             settings.annotation_model,
             settings.annotation_effort,
             ANNOTATION_SYSTEM,
-            _annotation_prompt(candidates, transcript),
+            _annotation_prompt(candidates, transcript, existing_tasks),
             ANNOTATION_SCHEMA,
             max_tokens=8000,
         )
         response = await self.client.beta.messages.create(**params)
-        return _response_json(response)["annotations"]
+        return _response_json(response)
+
+    async def draft_task(self, task: dict, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict:
+        params = self._request(settings.summary_model, settings.summary_effort, TASK_SYSTEM,
+                               _task_prompt(task, pages, segments, annotations), TASK_SCHEMA, max_tokens=32000)
+        async with self.client.beta.messages.stream(**params) as stream:
+            response = await stream.get_final_message()
+        return _response_json(response)
 
     async def summarize(self, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict:
         params = self._request(
@@ -266,13 +330,22 @@ class ClaudeLLM:
 class FakeLLM:
     """API 키 없이 앱 흐름을 확인하기 위한 가짜 응답."""
 
-    async def annotate(self, candidates: list[dict], transcript: str) -> list[dict]:
+    async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict]) -> dict:
         if len(candidates) > 1 and "애매" in transcript:
-            return [{"page_no": -1, "block_id": -1, "type": "explanation", "text": transcript[:60]}]
+            return {"annotations": [{"page_no": -1, "block_id": -1, "type": "explanation", "text": transcript[:60]}],
+                    "tasks": []}
         page = candidates[0]
         block_id = page["blocks"][0]["id"] if page["blocks"] else -1
         type_ = "exam" if "시험" in transcript else "emphasis" if "중요" in transcript else "explanation"
-        return [{"page_no": page["page_no"], "block_id": block_id, "type": type_, "text": transcript[:60]}]
+        tasks = []
+        if "과제" in transcript and not existing_tasks:
+            tasks = [{"kind": "homework", "title": "과제", "instructions": transcript, "due_text": "다음 주 금요일까지"}]
+        return {"annotations": [{"page_no": page["page_no"], "block_id": block_id, "type": type_,
+                                 "text": transcript[:60]}], "tasks": tasks}
+
+    async def draft_task(self, task: dict, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict:
+        return {"checklist": [task["instructions"][:40], "마감 확인"], "outline": ["서론", "본론", "결론"],
+                "draft": f"{task['title']} 초안입니다. (가짜 응답)", "sources": [p["page_no"] for p in pages[:1]]}
 
     async def summarize(self, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict:
         spoken = [p for p in pages if any(s["page_no"] == p["page_no"] for s in segments)]

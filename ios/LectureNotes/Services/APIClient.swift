@@ -79,6 +79,25 @@ struct APIClient {
         return components.url!
     }
 
+    // 과제
+
+    func tasks(sessionId: String) async throws -> [LectureTask] {
+        try await send("GET", "sessions/\(sessionId)/tasks")
+    }
+
+    func setTaskDone(id: Int, done: Bool) async throws -> LectureTask {
+        try await send("PATCH", "tasks/\(id)", json: ["done": done])
+    }
+
+    /// 지금까지의 강의 내용으로 체크리스트·개요·초안을 만든다 (모델에 따라 수십 초 걸릴 수 있다)
+    func draftTask(id: Int) async throws -> LectureTask {
+        var request = URLRequest(url: baseURL.appending(path: "tasks/\(id)/draft"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 300
+        let (data, response) = try await URLSession.shared.data(for: request)
+        return try decode(data, response)
+    }
+
     // 필기 편집
 
     func updateAnnotation(id: Int, text: String) async throws -> Annotation {

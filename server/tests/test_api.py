@@ -32,13 +32,17 @@ def client():
         yield c
 
 
-def receive_annotation(ws) -> dict:
-    """page_estimate 같은 다른 이벤트는 건너뛰고 다음 필기를 받는다."""
+def receive(ws, kind: str = "annotation_added") -> dict:
+    """page_estimate 같은 다른 이벤트는 건너뛰고 원하는 이벤트를 받는다."""
     while True:
         event = ws.receive_json()
-        assert event["type"] in ("page_estimate", "annotation_added"), event
-        if event["type"] == "annotation_added":
-            return event["annotation"]
+        assert event["type"] in ("page_estimate", "annotation_added", "task_added"), event
+        if event["type"] == kind:
+            return event
+
+
+def receive_annotation(ws) -> dict:
+    return receive(ws)["annotation"]
 
 
 def upload(client) -> dict:
@@ -108,8 +112,9 @@ def test_claude_request_shape():
     assert params["fallbacks"] == "default"
     assert params["output_config"]["format"]["type"] == "json_schema"
     assert "fallbacks" not in ClaudeLLM._request("claude-haiku-5-5", "low", "s", "p", {}, 100)
-    prompt = _annotation_prompt([{"page_no": 2, "blocks": [{"id": 3, "text": "Gradient"}], "existing": []}], "설명")
-    assert '<slide page_no="2">' in prompt and "[3] Gradient" in prompt
+    prompt = _annotation_prompt([{"page_no": 2, "blocks": [{"id": 3, "text": "Gradient"}], "existing": []}], "설명",
+                                [{"title": "과제 1"}])
+    assert '<slide page_no="2">' in prompt and "[3] Gradient" in prompt and "- 과제 1" in prompt
 
 
 def test_uncertain_page_goes_to_pending_and_can_be_placed(client, monkeypatch):
@@ -136,3 +141,20 @@ def test_parse_tips_keeps_only_linked_items():
     text = '찾았어요.\n```json\n{"tips": [{"page_no": 1, "title": "a", "text": "b", "url": "https://x.org"},' \
            ' {"page_no": 2, "title": "c", "text": "d", "url": "없음"}]}\n```'
     assert parse_tips(text) == [{"page_no": 1, "title": "a", "text": "b", "url": "https://x.org"}]
+
+
+
+def test_task_is_detected_and_drafted(client):
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "transcript_final", "text": "과제는 경사하강법을 직접 구현해서 다음 주 금요일까지 내세요.",
+                      "start_ms": 0, "end_ms": 3000})
+        task = receive(ws, "task_added")["task"]
+    assert task["kind"] == "homework" and task["due_text"] == "다음 주 금요일까지" and task["done"] is False
+
+    drafted = client.post(f"/tasks/{task['id']}/draft").json()
+    assert drafted["draft"]["outline"] == ["서론", "본론", "결론"]
+    assert client.patch(f"/tasks/{task['id']}", json={"done": True}).json()["done"] is True
+    assert len(client.get(f"/sessions/{session['id']}/tasks").json()) == 1
+    assert client.post("/tasks/9999/draft").status_code == 404

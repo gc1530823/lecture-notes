@@ -23,12 +23,12 @@ def llm_returning(status: int, body: dict, seen: list) -> OllamaLLM:
 
 def test_annotate_sends_schema_and_parses_reply():
     seen: list = []
-    reply = {"annotations": [{"page_no": 1, "block_id": 7, "type": "exam", "text": "시험 출제"}]}
+    reply = {"annotations": [{"page_no": 1, "block_id": 7, "type": "exam", "text": "시험 출제"}], "tasks": []}
     llm = llm_returning(200, {"message": {"content": json.dumps(reply, ensure_ascii=False)}}, seen)
-    result = asyncio.run(llm.annotate(CANDIDATES, "이거 시험에 나와요"))
-    assert result == reply["annotations"]
+    result = asyncio.run(llm.annotate(CANDIDATES, "이거 시험에 나와요", []))
+    assert result == reply
     request = seen[0]
-    assert request["format"]["required"] == ["annotations"]
+    assert request["format"]["required"] == ["annotations", "tasks"]
     assert request["stream"] is False and request["think"] is False
     assert "[7] 경사하강법" in request["messages"][1]["content"]
 
@@ -36,7 +36,7 @@ def test_annotate_sends_schema_and_parses_reply():
 def test_missing_model_gives_pull_hint():
     llm = llm_returning(404, {"error": "model not found"}, [])
     with pytest.raises(LLMError, match="ollama pull"):
-        asyncio.run(llm.annotate(CANDIDATES, "설명"))
+        asyncio.run(llm.annotate(CANDIDATES, "설명", []))
 
 
 def test_no_web_tips_in_free_mode():

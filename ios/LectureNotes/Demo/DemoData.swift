@@ -75,6 +75,30 @@ enum DemoData {
         [1, 2, 3, 6, 5, 7].compactMap { id in annotations.first { $0.id == id } }
     }
 
+    static let taskCaption = "그럼 지금 5분 동안 학습률이 클 때랑 작을 때 예시를 하나씩 써서 내 보세요"
+
+    static let tasks: [LectureTask] = [
+        LectureTask(id: 1, sessionId: sessionID, pageNo: 1, kind: .inClass, title: "학습률이 클 때·작을 때 예시 쓰기",
+                    instructions: "학습률이 클 때와 작을 때 생기는 일을 예시와 함께 하나씩 쓰기. 5분 안에 LMS에 제출.",
+                    dueText: "수업 중 5분", done: false, draft: nil),
+        LectureTask(id: 2, sessionId: sessionID, pageNo: 2, kind: .homework, title: "과제 2: 경사하강법 직접 구현",
+                    instructions: "넘파이로 경사하강법을 구현하고 학습률 3가지로 손실 그래프를 비교. 코드와 1쪽 보고서 제출.",
+                    dueText: "다음 주 금요일까지", done: false, draft: nil),
+    ]
+
+    static let draft = TaskDraft(
+        checklist: ["학습률이 클 때의 예시 1개", "학습률이 작을 때의 예시 1개", "각각 무슨 일이 생기는지 한 문장", "5분 안에 LMS 제출"],
+        outline: ["학습률이 클 때: 최솟값을 지나쳐 발산", "학습률이 작을 때: 수렴은 하지만 매우 느림", "정리: 적절한 학습률이나 스케줄링이 필요"],
+        draft: """
+        학습률이 너무 크면, 예를 들어 η = 1.0으로 2차 함수의 최솟값을 찾을 때 한 번에 너무 멀리 이동해서 최솟값을 계속 지나치고, 손실이 오히려 커지며 발산한다.
+
+        반대로 학습률이 너무 작으면, 예를 들어 η = 0.0001일 때는 방향은 맞지만 한 걸음이 너무 작아 같은 지점에 도달하는 데 수천 번의 반복이 필요하다.
+
+        따라서 학습률은 너무 크지도 작지도 않게 정하거나, 처음에는 크게 시작해 점점 줄이는 방법을 쓴다.
+        """,
+        sources: [1]
+    )
+
     static let summary = LectureSummary(
         overview: "경사하강법으로 손실을 줄이는 원리와 학습률의 역할을 다루고, 역전파로 기울기를 계산하는 방법을 배웠다. 학습률이 클 때와 작을 때의 차이는 중간고사에 나온다.",
         pages: [

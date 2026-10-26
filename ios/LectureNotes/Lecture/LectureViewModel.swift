@@ -30,6 +30,10 @@ final class LectureViewModel: ObservableObject {
     /// 서버가 추정한 지금 설명 중인 페이지와 확신
     @Published private(set) var estimatedPage: Int?
     @Published private(set) var estimateConfidence: Double = 0
+    /// 이번 강의에서 교수님이 낸 과제
+    @Published private(set) var tasks: [LectureTask] = []
+    /// 방금 들어온 과제 (화면 위 배너로 알린다)
+    @Published var freshTask: LectureTask?
     @Published private(set) var annotations: [Annotation] = []
     @Published private(set) var phase: Phase = .ready
     @Published private(set) var session: SavedSession? = nil
@@ -60,6 +64,7 @@ final class LectureViewModel: ObservableObject {
         socket.onAnnotation = { [weak self] annotation in self?.receive(annotation) }
         socket.onError = { [weak self] message in self?.errorMessage = message }
         socket.onPageEstimate = { [weak self] page, confidence in self?.receiveEstimate(page: page, confidence: confidence) }
+        socket.onTask = { [weak self] task in self?.receive(task) }
     }
 
     var pages: [Page] { document.document.pages }
@@ -93,6 +98,49 @@ final class LectureViewModel: ObservableObject {
         }
     }
 
+    var isDemo: Bool { demoMode }
+
+    func setDone(_ task: LectureTask, _ done: Bool) async {
+        do {
+            var updated = task
+            updated.done = done
+            if !demoMode { updated = try await APIClient.current().setTaskDone(id: task.id, done: done) }
+            replace(updated)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// AI와 바로 하기: 강의 내용을 근거로 초안을 만든다
+    func draft(_ task: LectureTask) async -> LectureTask? {
+        do {
+            var updated = task
+            if demoMode {
+                try? await Task.sleep(for: .seconds(1.5))
+                updated.draft = DemoData.draft
+            } else {
+                updated = try await APIClient.current().draftTask(id: task.id)
+            }
+            replace(updated)
+            return updated
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    private func replace(_ task: LectureTask) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) { tasks[index] = task }
+    }
+
+    private func receive(_ task: LectureTask) {
+        guard !tasks.contains(where: { $0.id == task.id }) else { return }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+            tasks.append(task)
+            freshTask = task
+        }
+    }
+
     private func receiveEstimate(page: Int, confidence: Double) {
         estimatedPage = page
         estimateConfidence = confidence
@@ -111,7 +159,9 @@ final class LectureViewModel: ObservableObject {
     func loadExistingAnnotations() async {
         guard let session, phase == .ended else { return }
         do {
-            annotations = try await APIClient.current().annotations(sessionId: session.id)
+            let api = try APIClient.current()
+            annotations = try await api.annotations(sessionId: session.id)
+            tasks = try await api.tasks(sessionId: session.id)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -190,9 +240,10 @@ final class LectureViewModel: ObservableObject {
     }
 
     /// 데모 모드: 서버 없이 필기와 화면 상태를 채운다.
-    func applyDemo(annotations: [Annotation], phase: Phase, caption: String?) {
+    func applyDemo(annotations: [Annotation], phase: Phase, caption: String?, tasks: [LectureTask] = []) {
         demoMode = true
         self.annotations = annotations
+        self.tasks = tasks
         self.phase = phase
         if let caption { recorder.showDemoCaption(caption, elapsed: 754) }
     }
@@ -226,6 +277,13 @@ final class LectureViewModel: ObservableObject {
             }
             receive(annotation)
             try? await Task.sleep(for: .milliseconds(index == script.count - 1 ? 0 : 900))
+            // 시험 이야기 뒤에 교수님이 수업 중 과제를 낸다
+            if index == 2 {
+                recorder.showDemoCaption(DemoData.taskCaption, elapsed: elapsed + 3, level: 0.7)
+                try? await Task.sleep(for: .milliseconds(1200))
+                receive(DemoData.tasks[0])
+                try? await Task.sleep(for: .milliseconds(2500))
+            }
         }
     }
 }

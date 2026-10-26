@@ -9,6 +9,8 @@ final class LectureSocket {
     var onError: ((String) -> Void)?
     /// 서버가 추정한 "지금 설명 중인 페이지"와 확신 (0~1)
     var onPageEstimate: ((Int, Double) -> Void)?
+    /// 교수님이 낸 과제를 서버가 뽑아냈다
+    var onTask: ((LectureTask) -> Void)?
 
     private var url: URL?
     private var task: URLSessionWebSocketTask?
@@ -101,6 +103,8 @@ final class LectureSocket {
         switch event.type {
         case "annotation_added":
             if let annotation = event.annotation { onAnnotation?(annotation) }
+        case "task_added":
+            if let task = event.task { onTask?(task) }
         case "page_estimate":
             if let page = event.page, let confidence = event.confidence { onPageEstimate?(page, confidence) }
         case "error":
@@ -122,4 +126,5 @@ private struct ServerEvent: Decodable {
     let message: String?
     let page: Int?
     let confidence: Double?
+    let task: LectureTask?
 }

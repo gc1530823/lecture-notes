@@ -15,9 +15,12 @@ from .llm import (
     ANNOTATION_SYSTEM,
     SUMMARY_SCHEMA,
     SUMMARY_SYSTEM,
+    TASK_SCHEMA,
+    TASK_SYSTEM,
     LLMError,
     _annotation_prompt,
     _summary_prompt,
+    _task_prompt,
 )
 
 log = logging.getLogger(__name__)
@@ -63,10 +66,14 @@ class OllamaLLM:
         except httpx.HTTPError:
             log.warning("Ollama 모델을 미리 올리지 못했습니다 (%s)", settings.ollama_url)
 
-    async def annotate(self, candidates: list[dict], transcript: str) -> list[dict]:
-        data = await self._chat(ANNOTATION_SYSTEM, _annotation_prompt(candidates, transcript), ANNOTATION_SCHEMA,
-                                context_tokens=4096)
-        return data.get("annotations", [])
+    async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict]) -> dict:
+        data = await self._chat(ANNOTATION_SYSTEM, _annotation_prompt(candidates, transcript, existing_tasks),
+                                ANNOTATION_SCHEMA, context_tokens=4096)
+        return {"annotations": data.get("annotations", []), "tasks": data.get("tasks", [])}
+
+    async def draft_task(self, task: dict, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict:
+        return await self._chat(TASK_SYSTEM, _task_prompt(task, pages, segments, annotations), TASK_SCHEMA,
+                                context_tokens=32768)
 
     async def summarize(self, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict:
         return await self._chat(SUMMARY_SYSTEM, _summary_prompt(pages, segments, annotations), SUMMARY_SCHEMA,

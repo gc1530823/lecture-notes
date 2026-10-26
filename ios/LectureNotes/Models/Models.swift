@@ -165,3 +165,46 @@ struct SavedSession: Codable, Identifiable, Hashable {
     let startedAt: Date
     let recordingFileName: String
 }
+
+/// 수업 중에 교수님이 낸 과제
+enum TaskKind: String, Codable, CaseIterable {
+    case inClass = "in_class", homework, report, examPrep = "exam_prep"
+
+    var label: String {
+        switch self {
+        case .inClass: "수업 중 과제"
+        case .homework: "숙제"
+        case .report: "레포트"
+        case .examPrep: "시험 준비"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .inClass: "timer"
+        case .homework: "house"
+        case .report: "doc.richtext"
+        case .examPrep: "graduationcap"
+        }
+    }
+}
+
+struct LectureTask: Codable, Identifiable, Hashable {
+    let id: Int
+    let sessionId: String
+    let pageNo: Int?
+    let kind: TaskKind
+    let title: String
+    let instructions: String
+    let dueText: String
+    var done: Bool
+    var draft: TaskDraft?
+}
+
+/// AI가 강의 내용을 근거로 만든 과제 초안
+struct TaskDraft: Codable, Hashable {
+    let checklist: [String]
+    let outline: [String]
+    let draft: String
+    let sources: [Int]
+}

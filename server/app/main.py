@@ -45,6 +45,10 @@ class SessionCreate(BaseModel):
     document_id: str
 
 
+class TaskUpdate(BaseModel):
+    done: bool
+
+
 class AnnotationUpdate(BaseModel):
     text: str | None = None
     # 보류함의 필기를 붙일 페이지 (또는 다른 페이지로 옮길 때)
@@ -175,6 +179,44 @@ async def _summarize(session_id: str, document_id: str) -> None:
 def get_summary(session_id: str):
     session = _session_or_404(session_id)
     return {"status": session["status"], "summary": db().get_summary(session_id)}
+
+
+# 수업 중에 받은 과제
+
+
+@app.get("/sessions/{session_id}/tasks")
+def list_tasks(session_id: str):
+    _session_or_404(session_id)
+    return db().list_tasks(session_id)
+
+
+def _task_or_404(task_id: int) -> dict:
+    task = db().get_task(task_id)
+    if task is None:
+        raise HTTPException(404, "과제가 없습니다.")
+    return task
+
+
+@app.patch("/tasks/{task_id}")
+def update_task(task_id: int, body: TaskUpdate):
+    _task_or_404(task_id)
+    return db().set_task_done(task_id, body.done)
+
+
+@app.post("/tasks/{task_id}/draft")
+async def draft_task(task_id: int):
+    """지금까지의 강의 내용을 근거로 과제의 체크리스트·개요·초안을 만든다."""
+    task = _task_or_404(task_id)
+    session = db().get_session(task["session_id"])
+    try:
+        draft = await app.state.llm.draft_task(task, db().list_pages(session["document_id"]),
+                                               db().get_segments(session["id"]), db().list_annotations(session["id"]))
+    except anthropic.RateLimitError as exc:
+        raise HTTPException(429, "요청이 많아요. 잠시 뒤 다시 시도해 주세요.") from exc
+    except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError) as exc:
+        log.exception("과제 초안 생성 실패")
+        raise HTTPException(502, f"초안을 만들지 못했어요: {exc}") from exc
+    return db().save_task_draft(task_id, draft)
 
 
 # 필기 편집

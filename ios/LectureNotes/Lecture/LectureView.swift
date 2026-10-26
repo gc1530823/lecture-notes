@@ -8,6 +8,8 @@ struct LectureView: View {
     @State private var editing: Annotation?
     @State private var showingSummary = false
     @State private var showingPending = false
+    @State private var showingTasks = false
+    @State private var openTask: LectureTask?
     /// 방금 들어온 필기를 자료 위에 잠깐 펼쳐 보여 준다
     @State private var freshAnnotationID: Int?
     private let demo: DemoScreen?
@@ -25,10 +27,17 @@ struct LectureView: View {
         let model = LectureViewModel(document: document, store: store, existingSession: session)
         switch demo {
         case .lecture:
-            model.applyDemo(annotations: DemoData.annotations, phase: .ended, caption: nil)
+            model.applyDemo(annotations: DemoData.annotations, phase: .ended, caption: nil, tasks: DemoData.tasks)
         case .recording:
             model.applyDemo(annotations: Array(DemoData.annotations.prefix(3)), phase: .recording,
-                            caption: "그래서 학습률은 보통 0.01이나 0.001부터 시작해서 줄여 가요")
+                            caption: "그래서 학습률은 보통 0.01이나 0.001부터 시작해서 줄여 가요",
+                            tasks: [DemoData.tasks[0]])
+            model.freshTask = DemoData.tasks[0]
+        case .task:
+            var drafted = DemoData.tasks[0]
+            drafted.draft = DemoData.draft
+            model.applyDemo(annotations: DemoData.annotations, phase: .ended, caption: nil,
+                            tasks: [drafted, DemoData.tasks[1]])
         case .live:
             model.applyDemo(annotations: [], phase: .recording, caption: "")
         default:
@@ -56,6 +65,30 @@ struct LectureView: View {
             AnnotationEditSheet(annotation: annotation) { text in
                 Task { await model.update(annotation, text: text) }
             }
+        }
+        .overlay(alignment: .top) {
+            if let task = model.freshTask {
+                TaskBanner(task: task, onOpen: {
+                    openTask = task
+                    showingTasks = true
+                    withAnimation(.snappy) { model.freshTask = nil }
+                }, onClose: {
+                    withAnimation(.snappy) { model.freshTask = nil }
+                })
+                .padding(.top, 6)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: model.freshTask)
+        .task(id: model.freshTask?.id) {
+            // 데모 스크린샷용 배너는 그대로 두고, 실제로는 8초 뒤 접는다
+            guard model.freshTask != nil, demo != .recording else { return }
+            try? await Task.sleep(for: .seconds(8))
+            guard !Task.isCancelled else { return }
+            withAnimation(.snappy) { model.freshTask = nil }
+        }
+        .sheet(isPresented: $showingTasks, onDismiss: { openTask = nil }) {
+            TasksSheet(model: model, startWith: openTask)
         }
         .sheet(isPresented: $showingPending) {
             PendingTraySheet(model: model)
@@ -156,6 +189,19 @@ struct LectureView: View {
                 .foregroundStyle(Theme.accent)
                 .contentTransition(.numericText())
             Spacer()
+            if !model.tasks.isEmpty {
+                Button { showingTasks = true } label: {
+                    Label("과제 \(model.tasks.filter { !$0.done }.count)", systemImage: "checklist")
+                        .font(.caption.weight(.heavy))
+                        .foregroundStyle(Theme.record)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Theme.record.opacity(0.12), in: Capsule())
+                        .contentTransition(.numericText())
+                }
+                .buttonStyle(PressableStyle(scale: 0.9))
+                .transition(.scale.combined(with: .opacity))
+            }
             if !model.pendingAnnotations.isEmpty {
                 Button { showingPending = true } label: {
                     Label("보류 \(model.pendingAnnotations.count)", systemImage: "tray.full.fill")
@@ -179,6 +225,7 @@ struct LectureView: View {
         .padding(.horizontal, 20)
         .padding(.top, 6)
         .animation(.spring(response: 0.4, dampingFraction: 0.75), value: model.pendingAnnotations.count)
+        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: model.tasks.count)
         .animation(.snappy, value: count)
         .animation(.snappy, value: model.currentPage)
     }

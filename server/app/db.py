@@ -58,6 +58,18 @@ CREATE TABLE IF NOT EXISTS annotations (
     pending INTEGER NOT NULL DEFAULT 0,
     created_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL REFERENCES sessions(id),
+    page_id INTEGER REFERENCES pages(id),
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    instructions TEXT NOT NULL,
+    due_text TEXT NOT NULL DEFAULT '',
+    done INTEGER NOT NULL DEFAULT 0,
+    draft TEXT,
+    created_at REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS summaries (
     session_id TEXT PRIMARY KEY REFERENCES sessions(id),
     body TEXT NOT NULL
@@ -215,6 +227,41 @@ class Database:
         with self._lock, self._conn:
             return self._conn.execute("DELETE FROM annotations WHERE id = ?", (ann_id,)).rowcount > 0
 
+    # 과제
+
+    def add_task(self, session_id: str, page_id: int | None, kind: str, title: str, instructions: str,
+                 due_text: str) -> dict:
+        task_id = self._write(
+            """INSERT INTO tasks (session_id, page_id, kind, title, instructions, due_text, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (session_id, page_id, kind, title, instructions, due_text, time.time()),
+        )
+        return self.get_task(task_id)
+
+    def get_task(self, task_id: int) -> dict | None:
+        rows = self._query(
+            """SELECT t.id, t.session_id, p.page_no, t.kind, t.title, t.instructions, t.due_text, t.done, t.draft
+               FROM tasks t LEFT JOIN pages p ON p.id = t.page_id WHERE t.id = ?""",
+            (task_id,),
+        )
+        return _task(rows[0]) if rows else None
+
+    def list_tasks(self, session_id: str) -> list[dict]:
+        rows = self._query(
+            """SELECT t.id, t.session_id, p.page_no, t.kind, t.title, t.instructions, t.due_text, t.done, t.draft
+               FROM tasks t LEFT JOIN pages p ON p.id = t.page_id WHERE t.session_id = ? ORDER BY t.id""",
+            (session_id,),
+        )
+        return [_task(r) for r in rows]
+
+    def set_task_done(self, task_id: int, done: bool) -> dict | None:
+        self._write("UPDATE tasks SET done = ? WHERE id = ?", (int(done), task_id))
+        return self.get_task(task_id)
+
+    def save_task_draft(self, task_id: int, draft: dict) -> dict | None:
+        self._write("UPDATE tasks SET draft = ? WHERE id = ?", (json.dumps(draft, ensure_ascii=False), task_id))
+        return self.get_task(task_id)
+
     # 요약·퀴즈
 
     def save_summary(self, session_id: str, body: dict) -> None:
@@ -231,4 +278,10 @@ class Database:
 def _annotation(row: dict) -> dict:
     row["edited_by_user"] = bool(row["edited_by_user"])
     row["pending"] = bool(row["pending"])
+    return row
+
+
+def _task(row: dict) -> dict:
+    row["done"] = bool(row["done"])
+    row["draft"] = json.loads(row["draft"]) if row["draft"] else None
     return row

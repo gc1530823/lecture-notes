@@ -2,7 +2,7 @@ import SwiftUI
 
 /// `-demoScreen <이름>` 실행 인자로 고르는 데모 화면
 enum DemoScreen: String {
-    case empty, list, detail, lecture, recording, live, summary
+    case empty, list, detail, lecture, recording, live, summary, task
 
     static var current: DemoScreen? {
         let arguments = ProcessInfo.processInfo.arguments
@@ -31,7 +31,26 @@ struct DemoRootView: View {
             }
         case .summary:
             SummaryView(sessionID: DemoData.sessionID, initialSummary: DemoData.summary, onSelectPage: { _ in })
+        case .task:
+            DemoTaskScreen(store: store)
         }
+    }
+}
+
+/// 초안까지 만든 수업 중 과제 화면
+private struct DemoTaskScreen: View {
+    @StateObject private var model: LectureViewModel
+
+    init(store: DocumentStore) {
+        let model = LectureViewModel(document: DemoData.document, store: store, existingSession: nil)
+        var drafted = DemoData.tasks[0]
+        drafted.draft = DemoData.draft
+        model.applyDemo(annotations: [], phase: .ended, caption: nil, tasks: [drafted, DemoData.tasks[1]])
+        _model = StateObject(wrappedValue: model)
+    }
+
+    var body: some View {
+        NavigationStack { TaskDetailView(model: model, taskID: 1) }
     }
 }
 

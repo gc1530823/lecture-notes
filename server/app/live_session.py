@@ -12,7 +12,7 @@ import anthropic
 from .alignment import Estimate, PageIndex, PageTracker
 from .config import settings
 from .db import Database
-from .llm import ANNOTATION_TYPES, LLM, LLMError
+from .llm import ANNOTATION_TYPES, LLM, TASK_KINDS, LLMError
 
 log = logging.getLogger(__name__)
 
@@ -136,7 +136,8 @@ class LiveSession:
             })
         transcript = " ".join(batch.texts)
         try:
-            results = await self.llm.annotate(candidates, transcript)
+            existing_tasks = self.db.list_tasks(self.session_id)
+            results = await self.llm.annotate(candidates, transcript, existing_tasks)
         except anthropic.RateLimitError:
             log.warning("필기 생성: 요청 한도 초과")
             await self.send({"type": "error", "message": "요청이 많아 잠시 필기를 건너뜁니다."})
@@ -147,7 +148,16 @@ class LiveSession:
             return
 
         by_page = {c["page_no"]: c for c in candidates}
-        for item in results:
+        for item in results.get("tasks", []):
+            title = str(item.get("title", "")).strip()
+            if not title or item.get("kind") not in TASK_KINDS:
+                continue
+            page = by_page.get(batch.estimate.page_no) or candidates[0]
+            task = self.db.add_task(self.session_id, page["page_id"], item["kind"], title,
+                                    str(item.get("instructions", "")).strip(), str(item.get("due_text", "")).strip())
+            await self.send({"type": "task_added", "task": task})
+
+        for item in results.get("annotations", []):
             text = str(item.get("text", "")).strip()
             if not text or item.get("type") not in ANNOTATION_TYPES:
                 continue
