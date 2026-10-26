@@ -29,10 +29,10 @@ final class LectureSocket {
         task = nil
     }
 
-    func sendPageView(_ pageNo: Int) {
-        let message = encode(["type": "page_view", "page": pageNo])
-        lastPageView = message
-        send(message)
+    /// initial = 강의를 시작할 때 펴 둔 페이지 (직접 넘긴 것이 아님)
+    func sendPageView(_ pageNo: Int, initial: Bool = false) {
+        send(encode(["type": "page_view", "page": pageNo, "initial": initial]))
+        lastPageView = encode(["type": "page_view", "page": pageNo, "initial": true])
     }
 
     func sendTranscript(text: String, startMs: Int, endMs: Int) {

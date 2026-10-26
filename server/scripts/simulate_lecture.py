@@ -16,7 +16,7 @@ SLIDES = [
     ["역전파 (Backpropagation)", "연쇄 법칙으로 기울기를 계산", "출력층에서 입력층 방향으로 전달"],
 ]
 
-# (보고 있는 페이지, 교수님 발언)
+# (교수님이 실제로 설명 중인 페이지 — 참고용, 서버에는 보내지 않음, 교수님 발언)
 SPEECH = [
     (1, "자 오늘은 경사하강법부터 볼게요. 산에서 눈을 감고 내려간다고 생각하면 돼요."),
     (1, "학습률이 너무 크면 최솟값을 지나쳐서 발산하고, 너무 작으면 학습이 엄청 느려집니다."),
@@ -50,20 +50,23 @@ async def main(base: str) -> None:
             async def listen():
                 async for raw in ws:
                     event = json.loads(raw)
-                    if event["type"] == "annotation_added":
+                    if event["type"] == "page_estimate":
+                        if event["page"] != state.get("page"):
+                            state["page"] = event["page"]
+                            print(f"  [자동 추적] 지금 {event['page']}쪽 설명 중 (확신 {event['confidence']:.2f})")
+                    elif event["type"] == "annotation_added":
                         a = event["annotation"]
                         where = blocks.get(a["block_id"], "페이지 여백")
-                        print(f"  [필기 p.{a['page_no']}] ({a['type']}) {a['text']}  ← \"{where}\" 옆")
+                        tag = "보류함" if a["pending"] else f"p.{a['page_no']}"
+                        print(f"  [필기 {tag}] ({a['type']}) {a['text']}  ← \"{where}\" 옆")
                     else:
                         print(f"  [서버] {event}")
 
+            state: dict = {}
             listener = asyncio.create_task(listen())
-            page = None
-            for i, (page_no, text) in enumerate(SPEECH):
-                if page_no != page:
-                    page = page_no
-                    await ws.send(json.dumps({"type": "page_view", "page": page}))
-                    print(f"[페이지] {page}쪽으로 넘김")
+            # 학생은 1쪽을 펴 두기만 하고 넘기지 않는다: 페이지는 서버가 받아쓰기로 추적한다
+            await ws.send(json.dumps({"type": "page_view", "page": 1, "initial": True}))
+            for i, (_, text) in enumerate(SPEECH):
                 print(f"[받아쓰기] {text}")
                 start = i * 8000
                 await ws.send(json.dumps({"type": "transcript_final", "text": text,

@@ -130,7 +130,7 @@ final class LectureViewModel: ObservableObject {
             session = saved
 
             socket.connect(to: api.streamURL(sessionId: remote.id))
-            socket.sendPageView(currentPage)
+            socket.sendPageView(currentPage, initial: true)
             try recorder.start(recordingURL: store.recordingURL(for: saved))
             phase = .recording
         } catch {
@@ -181,7 +181,7 @@ final class LectureViewModel: ObservableObject {
     func delete(_ annotation: Annotation) async {
         do {
             if !demoMode { try await APIClient.current().deleteAnnotation(id: annotation.id) }
-            _ = withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 annotations.removeAll { $0.id == annotation.id }
             }
         } catch {

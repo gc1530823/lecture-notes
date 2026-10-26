@@ -61,3 +61,12 @@ def test_vague_speech_is_low_confidence_with_candidates():
     # 여러 페이지에 걸치는 애매한 말에는 페이지를 바꾸지 않고, 후보 3개를 함께 낸다
     assert est.page_no == 2
     assert len(est.candidates) == 3
+
+
+def test_next_phrase_moves_on_despite_page_opened_at_start():
+    t = tracker()
+    t.user_viewed(1, now=0.0, manual=False)
+    t.observe("경사하강법은 기울기 반대 방향으로 이동해요", 0, now=1.0)
+    t.observe("학습률이 이동 크기를 정해요", 5_000, now=6.0)
+    est = t.observe("다음 장, 역전파입니다. 연쇄 법칙을 반복해서 써요", 10_000, now=11.0)
+    assert est.page_no == 2

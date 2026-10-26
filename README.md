@@ -10,19 +10,36 @@ iPhone 앱 (SwiftUI)                        서버 (FastAPI)
                                 ◀── 새 필기 ──
 ```
 
+## 수업 중에 일어나는 일
+
+1. 녹음을 시작하면 교수님 말이 자막으로 흐른다 (iOS 음성 인식, 전문용어 힌트 적용).
+2. 서버가 받아쓰기로 **지금 설명 중인 페이지를 추적**하고, 화면이 그 페이지로 자동으로 넘어간다.
+   - 신호 A: 사용자가 직접 넘긴 페이지 (넘긴 뒤 20초는 가장 크게 믿고, 앱은 그동안 자동 넘김을 멈춘다)
+   - 신호 B: 최근 30초 받아쓰기와 페이지 텍스트의 유사도 (글자 2-gram TF-IDF)
+   - 신호 C: "다음 장", "앞에서 본 것처럼", "5페이지" 같은 전환 발언
+   - 세 신호를 HMM 전방 알고리즘으로 합치고, "강의는 대체로 앞으로 진행된다"는 전이 확률로 튀지 않게 한다.
+3. 80자 또는 8초마다 Claude가 필기를 만들고, **새 필기는 해당 문단 바로 옆에 포스트잇으로 5초간 펼쳐진 뒤** 깃발로 접힌다. 아래 보드에도 쌓인다.
+4. 페이지 확신이 낮으면(0.6 미만) 후보 3쪽을 Claude에게 보여 주고 고르게 한다. Claude도 확신하지 못하면 **보류함**에 넣고, 사용자가 한 번 눌러 원하는 페이지에 붙인다.
+5. 교수님이 짧게 짚고 지나간 개념에는 **AI 팁** 포스트잇(하늘색, "AI가 덧붙인 내용" 표시)이 붙는다.
+6. 강의가 끝나면 요약·퀴즈를 만들고, **웹 검색으로 찾은 추가 자료**("더 알아보기", 출처 링크)를 붙인다.
+
 ## 폴더 구성
 
 | 경로 | 내용 |
 | --- | --- |
 | `server/app/main.py` | REST API와 WebSocket 엔드포인트 |
 | `server/app/pdf_parser.py` | PDF를 페이지·텍스트 블록(0~1 좌표)으로 나누고 용어를 뽑음 |
-| `server/app/live_session.py` | 받아쓰기를 모았다가 필기를 만드는 실시간 세션 |
+| `server/app/alignment.py` | 자동 슬라이드 정렬 (신호 A·B·C + HMM) |
+| `server/app/live_session.py` | 페이지를 추정하며 받아쓰기를 모았다가 필기를 만드는 실시간 세션 |
+| `server/scripts/simulate_lecture.py` | iPhone 없이 강의 한 번을 흉내 내는 테스트 클라이언트 |
 | `server/app/llm.py` | Claude 호출 (필기, 요약·퀴즈)과 테스트용 가짜 응답 |
 | `server/app/db.py` | SQLite 저장소 |
 | `ios/LectureNotes/Services/SpeechRecorder.swift` | 녹음 + 실시간 받아쓰기 (말이 끊기면 문장 단위로 확정) |
 | `ios/LectureNotes/Services/LectureSocket.swift` | 서버 WebSocket (끊기면 자동 재연결, 못 보낸 메시지 재전송) |
 | `ios/LectureNotes/Lecture/` | 강의 화면: 페이지 + 필기 배지 + 필기 목록 |
-| `ios/LectureNotes/Summary/SummaryView.swift` | 요약과 퀴즈 |
+| `ios/LectureNotes/Summary/SummaryView.swift` | 요약, 퀴즈, 더 알아보기 |
+| `ios/LectureNotes/Design/` | 색·포스트잇 디자인 |
+| `ios/LectureNotes/Demo/` | 서버 없이 화면을 띄우는 데모 모드 (`-demoScreen lecture` 등) |
 
 ## 1. 서버 실행
 
@@ -55,8 +72,10 @@ export SUMMARY_MODEL=claude-sonnet-5-5     # 강의 후 요약·퀴즈 (강의�
 | 환경변수 | 기본값 | 설명 |
 | --- | --- | --- |
 | `ANNOTATION_EFFORT` / `SUMMARY_EFFORT` | `low` / `medium` | 모델의 생각 깊이 |
-| `MIN_CHARS_PER_CALL` | `120` | 받아쓰기가 이 글자 수를 넘으면 필기 생성 |
-| `MAX_WAIT_SECONDS` | `15` | 글자 수가 모자라도 이 시간이 지나면 필기 생성 |
+| `MIN_CHARS_PER_CALL` | `80` | 받아쓰기가 이 글자 수를 넘으면 필기 생성 |
+| `MAX_WAIT_SECONDS` | `8` | 글자 수가 모자라도 이 시간이 지나면 필기 생성 |
+| `PAGE_CONFIDENCE` | `0.6` | 페이지 추정 확신이 이보다 낮으면 후보 페이지를 Claude가 고름 |
+| `ENABLE_WEB_TIPS` | `1` | 강의 후 웹 검색으로 추가 자료 찾기 (`0`이면 끔) |
 | `DB_PATH` | `data/lecture_notes.db` | SQLite 파일 위치 |
 
 Opus·Sonnet 모델에는 안전 필터가 요청을 거절할 때 다른 모델로 자동 재시도하는 서버 측 `fallbacks: "default"` 옵션을 켜 두었습니다. 끄려면 `app/llm.py`의 `FALLBACK_MODELS`에서 모델을 빼면 됩니다.
@@ -80,6 +99,11 @@ open LectureNotes.xcodeproj
 
 > 시뮬레이터는 마이크 입력이 불안정하므로 녹음·받아쓰기는 실제 iPhone에서 확인하세요.
 
+### Mac 없이 화면 확인하기
+
+push할 때마다 GitHub Actions(macOS)가 앱을 빌드하고, 데모 모드로 화면마다 시뮬레이터 스크린샷과
+실시간 필기 동영상(`live.mp4`)을 찍어 `screenshots` 브랜치에 올린다. 빌드 경고·오류는 Actions 주석으로 남는다.
+
 ## API 요약
 
 | 메서드 | 경로 | 역할 |
@@ -87,15 +111,14 @@ open LectureNotes.xcodeproj
 | POST | `/documents` | PDF 업로드 (multipart `file`, `title`) → 페이지·블록·용어 |
 | GET | `/documents/{id}` | 강의자료 조회 |
 | POST | `/sessions` | 강의 세션 시작 (`{"document_id": ...}`) |
-| WS | `/sessions/{id}/stream` | 보내기: `page_view`, `transcript_final`, `flush` / 받기: `annotation_added`, `error` |
+| WS | `/sessions/{id}/stream` | 보내기: `page_view`(`initial`), `transcript_final`, `flush` / 받기: `page_estimate`, `annotation_added`, `error` |
 | POST | `/sessions/{id}/end` | 강의 종료, 요약·퀴즈 생성 시작 |
 | GET | `/sessions/{id}/summary` | `{status, summary}` (status: recording, processing, done, failed) |
 | GET | `/sessions/{id}/annotations` | 필기 목록 |
-| PATCH / DELETE | `/annotations/{id}` | 필기 수정 / 삭제 |
+| PATCH / DELETE | `/annotations/{id}` | 필기 수정(`text`)·페이지에 붙이기(`page_no`) / 삭제 |
 
 ## MVP에서 일부러 뺀 것 (다음 단계)
 
-- 자동 슬라이드 정렬: 지금은 사용자가 보고 있는 페이지에 필기를 붙입니다.
 - 서버 측 STT와 강의 후 재변환: 지금은 iPhone 음성 인식만 씁니다.
 - 필기를 누르면 그 시점의 녹음 재생 (필기마다 `start_ms`는 이미 저장됨)
 - 로그인·사용자 구분, PPTX 업로드, PostgreSQL 이전

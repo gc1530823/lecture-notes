@@ -47,7 +47,7 @@ class LiveSession:
     async def handle(self, message: dict) -> None:
         kind = message.get("type")
         if kind == "page_view":
-            await self._on_page_view(int(message["page"]))
+            await self._on_page_view(int(message["page"]), manual=not message.get("initial", False))
         elif kind == "transcript_final":
             await self._on_transcript(message)
         elif kind == "flush":
@@ -65,12 +65,15 @@ class LiveSession:
         if self._tasks:
             await asyncio.gather(*self._tasks, return_exceptions=True)
 
-    async def _on_page_view(self, page_no: int) -> None:
-        """신호 A: 사용자가 직접 페이지를 넘겼다."""
+    async def _on_page_view(self, page_no: int, manual: bool) -> None:
+        """신호 A: 사용자가 보고 있는 페이지 (manual = 직접 넘김)"""
         if not 1 <= page_no <= len(self.pages):
             await self.send({"type": "error", "message": f"{page_no}페이지가 없습니다."})
             return
-        self.tracker.user_viewed(page_no)
+        self.tracker.user_viewed(page_no, manual=manual)
+        # 사용자가 넘기면 쌓아 둔 받아쓰기는 이전 페이지 것이므로 먼저 필기로 만든다
+        if manual and self.batch and self.batch.estimate.page_no != page_no:
+            self._schedule_flush()
 
     async def _on_transcript(self, message: dict) -> None:
         text = str(message.get("text", "")).strip()

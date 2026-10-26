@@ -105,15 +105,19 @@ class PageTracker:
             self.belief = _normalize([2.0 if i == 0 else 1.0 for i in range(n)])
 
     # 신호 A
-    def user_viewed(self, page_no: int, now: float | None = None) -> None:
+    def user_viewed(self, page_no: int, now: float | None = None, manual: bool = True) -> None:
+        """manual=False는 강의 시작 때 펴 둔 페이지처럼 직접 넘긴 게 아닌 경우: 약하게만 믿는다."""
         if 1 <= page_no <= self.index.size:
             self.user_page = page_no
-            self.user_page_at = time.monotonic() if now is None else now
+            self.user_page_at = (time.monotonic() if now is None else now) if manual else -1e9
 
     def observe(self, text: str, start_ms: int, now: float | None = None) -> Estimate:
         """받아쓰기 한 문장을 반영하고 현재 페이지 추정을 돌려준다."""
         n = self.index.size
         now = time.monotonic() if now is None else now
+        # 전환 발언이 나오면 이전 페이지 이야기는 유사도 계산에서 뺀다
+        if NEXT_PATTERNS.search(text) or BACK_PATTERNS.search(text) or PAGE_NUMBER.search(text):
+            self.window = []
         self.window.append((start_ms, text))
         self.window = [(t, s) for t, s in self.window if t >= start_ms - WINDOW_MS]
 
@@ -121,7 +125,8 @@ class PageTracker:
 
         # 신호 B: 유사도가 높을수록 그 페이지일 가능성이 크다.
         # 겹치는 글자가 조금뿐인 약한 유사도(0.05 이하)는 무시해서 우연한 겹침에 흔들리지 않게 한다.
-        sims = self.index.similarities(" ".join(s for _, s in self.window))
+        # 방금 들어온 문장은 두 번 더 넣어 가중치를 준다: 페이지가 바뀐 직후 이전 페이지 이야기에 끌려가지 않게
+        sims = self.index.similarities(" ".join([s for _, s in self.window] + [text, text]))
         emission = [math.exp(max(s - SIM_FLOOR, 0.0) / SIM_TEMPERATURE) for s in sims]
 
         # 신호 A: 방금 직접 넘긴 페이지는 강하게, 시간이 지나면 약하게
