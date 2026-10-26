@@ -12,8 +12,8 @@ jobs:
       run:
         working-directory: server
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
@@ -25,15 +25,19 @@ jobs:
       run:
         working-directory: ios
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: brew install xcodegen
       - run: xcodegen
-      # 서명 없이 시뮬레이터용으로만 빌드해서 컴파일 오류를 확인한다
+      # 서명 없이 시뮬레이터용으로만 빌드해서 컴파일 오류를 확인한다.
+      # 경고·오류는 GitHub 주석(annotation)으로 남겨서 API로도 읽을 수 있게 한다.
       - run: |
           set -o pipefail
           xcodebuild build \
             -project LectureNotes.xcodeproj \
             -scheme LectureNotes \
             -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | grep -E "error:|warning:|BUILD" || true
+            CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || true
+          grep -E "^/.+:[0-9]+:[0-9]+: (warning|error): " build.log | sort -u | head -50 | \
+            sed -E "s#^$GITHUB_WORKSPACE/##; s#^([^:]+):([0-9]+):([0-9]+): (warning|error): (.*)#::\4 file=\1,line=\2,col=\3::\5#" || true
+          tail -5 build.log
           grep -q "BUILD SUCCEEDED" build.log
