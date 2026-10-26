@@ -8,9 +8,20 @@ struct LectureView: View {
     @State private var editing: Annotation?
     @State private var showingSummary = false
     @State private var showingPending = false
+    /// 방금 들어온 필기를 자료 위에 잠깐 펼쳐 보여 준다
+    @State private var freshAnnotationID: Int?
     private let demo: DemoScreen?
 
     init(document: LocalDocument, store: DocumentStore, session: SavedSession?, demo: DemoScreen? = nil) {
+        // StateObject의 값은 화면이 처음 나타날 때 한 번만 만든다 (NavigationLink 목적지는 미리 init되므로)
+        _model = StateObject(wrappedValue: Self.makeModel(document: document, store: store, session: session, demo: demo))
+        self.demo = demo
+        // 데모 강의 화면은 3번 필기를 펼친 상태로 보여 준다
+        _selectedAnnotationID = State(initialValue: demo == .lecture ? 3 : nil)
+    }
+
+    private static func makeModel(document: LocalDocument, store: DocumentStore, session: SavedSession?,
+                                  demo: DemoScreen?) -> LectureViewModel {
         let model = LectureViewModel(document: document, store: store, existingSession: session)
         switch demo {
         case .lecture:
@@ -23,8 +34,7 @@ struct LectureView: View {
         default:
             break
         }
-        _model = StateObject(wrappedValue: model)
-        self.demo = demo
+        return model
     }
 
     var body: some View {
@@ -72,6 +82,14 @@ struct LectureView: View {
             }
         }
         .sensoryFeedback(.impact(weight: .light), trigger: model.annotations.count)
+        .task(id: model.latestAnnotationID) {
+            // 새 필기는 5초 동안 자료 위에 펼쳐 두었다가 깃발로 접는다
+            guard let id = model.latestAnnotationID else { return }
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.72)) { freshAnnotationID = id }
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.3)) { freshAnnotationID = nil }
+        }
         .onDisappear { model.leave() }
         .navigationBarBackButtonHidden(model.phase == .recording || model.phase == .finishing)
     }
@@ -91,7 +109,8 @@ struct LectureView: View {
                         page: page,
                         pdfPage: model.pdf?.page(at: page.pageNo - 1),
                         annotations: model.annotations(onPage: page.pageNo),
-                        selectedAnnotationID: $selectedAnnotationID
+                        selectedAnnotationID: $selectedAnnotationID,
+                        spotlightID: selectedAnnotationID ?? freshAnnotationID
                     )
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)

@@ -163,7 +163,13 @@ final class LectureViewModel: ObservableObject {
 
     func update(_ annotation: Annotation, text: String) async {
         do {
-            let updated = try await APIClient.current().updateAnnotation(id: annotation.id, text: text)
+            var updated = annotation
+            if demoMode {
+                updated.text = text
+                updated.editedByUser = true
+            } else {
+                updated = try await APIClient.current().updateAnnotation(id: annotation.id, text: text)
+            }
             if let index = annotations.firstIndex(where: { $0.id == updated.id }) {
                 annotations[index] = updated
             }
@@ -174,8 +180,10 @@ final class LectureViewModel: ObservableObject {
 
     func delete(_ annotation: Annotation) async {
         do {
-            try await APIClient.current().deleteAnnotation(id: annotation.id)
-            annotations.removeAll { $0.id == annotation.id }
+            if !demoMode { try await APIClient.current().deleteAnnotation(id: annotation.id) }
+            _ = withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                annotations.removeAll { $0.id == annotation.id }
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

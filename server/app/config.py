@@ -19,8 +19,8 @@ class Settings:
     summary_effort: str = os.getenv("SUMMARY_EFFORT", "medium")
 
     # 필기 생성 조건: 새 받아쓰기가 이 글자 수를 넘거나, 이 시간이 지나면 호출
-    min_chars_per_call: int = int(os.getenv("MIN_CHARS_PER_CALL", "120"))
-    max_wait_seconds: float = float(os.getenv("MAX_WAIT_SECONDS", "15"))
+    min_chars_per_call: int = int(os.getenv("MIN_CHARS_PER_CALL", "80"))
+    max_wait_seconds: float = float(os.getenv("MAX_WAIT_SECONDS", "8"))
 
     # 자동 페이지 추정 확신이 이 값보다 낮으면 후보 페이지를 AI에게 보여 주고 고르게 한다
     page_confidence: float = float(os.getenv("PAGE_CONFIDENCE", "0.6"))
