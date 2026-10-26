@@ -300,4 +300,10 @@ class FakeLLM:
 
 
 def make_llm() -> LLM:
-    return FakeLLM() if settings.llm_mode == "fake" else ClaudeLLM()
+    if settings.llm_mode == "fake":
+        return FakeLLM()
+    if settings.llm_mode == "claude":
+        return ClaudeLLM()
+    from .ollama_llm import OllamaLLM
+
+    return OllamaLLM()

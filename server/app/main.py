@@ -50,7 +50,8 @@ class AnnotationUpdate(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "llm_mode": settings.llm_mode}
+    model = {"ollama": settings.ollama_model, "claude": settings.annotation_model}.get(settings.llm_mode)
+    return {"ok": True, "llm_mode": settings.llm_mode, "model": model}
 
 
 # 강의자료

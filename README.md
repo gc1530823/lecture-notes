@@ -43,26 +43,53 @@ iPhone 앱 (SwiftUI)                        서버 (FastAPI)
 
 ## 1. 서버 실행
 
-Python 3.11 이상이 필요합니다.
+Python 3.11 이상이 필요합니다. 서버는 세 가지 AI 모드 중 하나로 돕니다.
+
+| `LLM_MODE` | 비용 | 설명 |
+| --- | --- | --- |
+| `ollama` (기본값) | **무료** | 내 컴퓨터에서 공개 모델(Qwen 등)을 돌린다. 강의 내용이 밖으로 나가지 않는다 |
+| `claude` | 유료 | Claude API. 필기 품질이 가장 좋고 웹 검색 추가 자료도 만든다 |
+| `fake` | 무료 | 가짜 응답. 화면·기능 개발과 테스트용 |
+
+### 무료 모드 (Ollama)
+
+1. [ollama.com](https://ollama.com)에서 Ollama를 설치하고 실행합니다 (Windows·Mac·Linux).
+2. 컴퓨터 메모리에 맞는 모델을 받습니다.
+
+   | 메모리(RAM) | 모델 | 받기 |
+   | --- | --- | --- |
+   | 8GB | `qwen3:4b` (약 2.5GB) | `ollama pull qwen3:4b` |
+   | 16GB 이상 (추천) | `qwen3:8b` (약 5GB) | `ollama pull qwen3:8b` |
+   | 그래픽카드 VRAM 16GB 이상 | `qwen3:14b` | `ollama pull qwen3:14b` |
+
+3. 서버를 켭니다.
 
 ```bash
 cd server
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-
-# API 키 없이 흐름만 확인 (가짜 필기)
-LLM_MODE=fake .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-# 실제 Claude로 필기 생성
-export ANTHROPIC_API_KEY=sk-ant-...
-.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+.venv/bin/pip install -r requirements.txt          # Windows: .venv\Scripts\pip install -r requirements.txt
+OLLAMA_MODEL=qwen3:8b .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-테스트: `.venv/bin/python -m pytest`
+`http://localhost:8000/health`에 `"llm_mode": "ollama"`가 보이면 준비 완료입니다.
 
-### 모델 설정
+무료 모드의 한계:
+- 필기 품질과 속도가 Claude보다 떨어집니다. 그래픽카드가 없으면 필기 하나에 수십 초가 걸릴 수 있습니다.
+- 웹 검색을 못 해서 "더 알아보기" 추가 자료는 만들지 않습니다 (링크를 지어내지 않도록).
+- AI 팁은 모델 지식으로 만들기 때문에 작은 모델일수록 틀릴 수 있습니다.
 
-기본값은 필기·요약 모두 `claude-opus-5-5`입니다. 기획서의 비용 계획처럼 실시간 필기를 더 싼 모델로 돌리려면 환경변수로 바꿉니다.
+### 다른 모드
+
+```bash
+LLM_MODE=fake .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000      # 가짜 응답
+LLM_MODE=claude ANTHROPIC_API_KEY=sk-ant-... .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+테스트: `.venv/bin/python -m pytest` · 강의 흉내 내기: `.venv/bin/python scripts/simulate_lecture.py`
+
+### Claude 모드 모델 설정
+
+Claude 모드의 기본값은 필기·요약 모두 `claude-opus-5-5`입니다. 기획서의 비용 계획처럼 실시간 필기를 더 싼 모델로 돌리려면 환경변수로 바꿉니다.
 
 ```bash
 export ANNOTATION_MODEL=claude-haiku-5-5   # 실시간 필기 (강의 1시간에 수십~수백 번 호출)

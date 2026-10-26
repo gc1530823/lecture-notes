@@ -9,8 +9,12 @@ class Settings:
     db_path: str = os.getenv("DB_PATH", "data/lecture_notes.db")
     upload_dir: str = os.getenv("UPLOAD_DIR", "data/uploads")
 
-    # "claude" = 실제 Claude API 호출, "fake" = 테스트·로컬 개발용 가짜 응답
-    llm_mode: str = os.getenv("LLM_MODE", "claude")
+    # "ollama" = 내 컴퓨터의 무료 공개 모델 (기본값)
+    # "claude" = Claude API (유료, 품질 최고)
+    # "fake"   = 테스트·화면 개발용 가짜 응답
+    llm_mode: str = os.getenv("LLM_MODE", "ollama")
+    ollama_url: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    ollama_model: str = os.getenv("OLLAMA_MODEL", "qwen3:8b")
 
     # 실시간 필기용 모델과 강의 후 요약·퀴즈용 모델
     annotation_model: str = os.getenv("ANNOTATION_MODEL", "claude-opus-5-5")
