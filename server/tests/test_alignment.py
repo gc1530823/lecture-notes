@@ -70,3 +70,13 @@ def test_next_phrase_moves_on_despite_page_opened_at_start():
     t.observe("학습률이 이동 크기를 정해요", 5_000, now=6.0)
     est = t.observe("다음 장, 역전파입니다. 연쇄 법칙을 반복해서 써요", 10_000, now=11.0)
     assert est.page_no == 2
+
+
+def test_full_lecture_scenario_tracks_every_sentence():
+    # 시뮬레이터의 강의 시나리오: "다음 장" 없이 "자 이제 과적합 이야기"로 넘어가는 부분도 따라가야 한다
+    from scripts.simulate_lecture import SLIDES, SPEECH
+
+    t = PageTracker(PageIndex(["\n".join(lines) for lines in SLIDES]))
+    t.user_viewed(1, now=0.0, manual=False)
+    got = [t.observe(text, i * 1500, now=1.0 + i).page_no for i, (_, text) in enumerate(SPEECH)]
+    assert got == [page for page, _ in SPEECH]

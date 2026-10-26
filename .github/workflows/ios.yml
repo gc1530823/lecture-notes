@@ -1,24 +1,12 @@
-name: CI
+name: iOS
 
+# Mac 빌드는 무료 사용 시간을 10배로 쓰므로, 앱 코드가 바뀔 때만 돈다
 on:
   push:
-  pull_request:
+    paths: ["ios/**", ".github/workflows/ios.yml"]
   workflow_dispatch:
 
 jobs:
-  server:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - run: pip install -r requirements.txt
-      - run: python -m pytest -q
-
   ios:
     runs-on: macos-15
     permissions:

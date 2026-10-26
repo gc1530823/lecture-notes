@@ -1,0 +1,53 @@
+name: Free AI test
+
+# 무료 모드(Ollama + 공개 모델)로 강의 시뮬레이션을 돌리고, 결과를 reports 브랜치에 올린다.
+# 리눅스 빌드 서버(4코어, RAM 16GB, 그래픽카드 없음)에서 돌므로 실제 속도는 사용자 컴퓨터와 다를 수 있다.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Ollama 모델"
+        default: "qwen3:4b"
+  push:
+    paths: ["server/app/llm.py", "server/app/ollama_llm.py", "server/app/live_session.py",
+            "server/scripts/simulate_lecture.py", ".github/workflows/free-ai-test.yml"]
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      MODEL: ${{ inputs.model || 'qwen3:4b' }}
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Install Ollama and model
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          (ollama serve > /tmp/ollama.log 2>&1 &)
+          for i in $(seq 1 30); do curl -s localhost:11434 >/dev/null && break; sleep 1; done
+          ollama pull "$MODEL"
+      - name: Simulate lecture
+        run: |
+          (LLM_MODE=ollama OLLAMA_MODEL="$MODEL" MIN_CHARS_PER_CALL=60 \
+            uvicorn app.main:app --port 8000 > /tmp/server.log 2>&1 &)
+          for i in $(seq 1 30); do curl -s localhost:8000/health >/dev/null && break; sleep 1; done
+          mkdir -p /tmp/report
+          python scripts/simulate_lecture.py --wait 90 | tee /tmp/report/simulation.txt
+          cp /tmp/server.log /tmp/report/server.log
+      - name: Publish report
+        if: always()
+        run: |
+          cd /tmp/report
+          echo "model: $MODEL, commit: $GITHUB_SHA" > README.txt
+          git init -q -b reports
+          git add .
+          git -c user.name="ci" -c user.email="ci@users.noreply.github.com" commit -qm "free AI report for $GITHUB_SHA"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" reports

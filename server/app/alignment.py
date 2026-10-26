@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 WINDOW_MS = 30_000
 USER_TRUST_SECONDS = 20.0
 SIM_FLOOR = 0.05
+CURRENT_WEIGHT = 0.6
 SIM_TEMPERATURE = 0.1
 
 # 전이 확률 (현재 페이지 기준)
@@ -29,6 +30,8 @@ P_JUMP = 0.02   # 나머지 아무 페이지로
 
 NEXT_PATTERNS = re.compile(r"다음\s*(장|페이지|슬라이드|쪽|거|으로)|넘어가|넘길게|넘겨|그 다음 장")
 BACK_PATTERNS = re.compile(r"앞에서|아까\s*(본|봤|말한|했)|이전\s*(장|페이지|슬라이드)|다시 앞|돌아가")
+# 주제가 바뀌는 말: 이전 받아쓰기를 유사도 계산에서 빼기만 한다 (다음 장으로 넘어간다고 단정하지 않음)
+TOPIC_SHIFT = re.compile(r"자\s*이제|이번에는|이제\s*.{0,12}(이야기|얘기|볼게|봅시다|넘어)")
 PAGE_NUMBER = re.compile(r"(\d{1,3})\s*(페이지|쪽|번\s*슬라이드|슬라이드)")
 
 
@@ -116,7 +119,7 @@ class PageTracker:
         n = self.index.size
         now = time.monotonic() if now is None else now
         # 전환 발언이 나오면 이전 페이지 이야기는 유사도 계산에서 뺀다
-        if NEXT_PATTERNS.search(text) or BACK_PATTERNS.search(text) or PAGE_NUMBER.search(text):
+        if any(p.search(text) for p in (NEXT_PATTERNS, BACK_PATTERNS, PAGE_NUMBER, TOPIC_SHIFT)):
             self.window = []
         self.window.append((start_ms, text))
         self.window = [(t, s) for t, s in self.window if t >= start_ms - WINDOW_MS]
@@ -125,8 +128,10 @@ class PageTracker:
 
         # 신호 B: 유사도가 높을수록 그 페이지일 가능성이 크다.
         # 겹치는 글자가 조금뿐인 약한 유사도(0.05 이하)는 무시해서 우연한 겹침에 흔들리지 않게 한다.
-        # 방금 들어온 문장은 두 번 더 넣어 가중치를 준다: 페이지가 바뀐 직후 이전 페이지 이야기에 끌려가지 않게
-        sims = self.index.similarities(" ".join([s for _, s in self.window] + [text, text]))
+        # 방금 들어온 문장(60%)과 최근 30초 전체(40%)를 섞는다: 주제가 바뀌면 빨리 따라가고, 한 문장의 우연한 겹침에는 덜 흔들린다
+        current = self.index.similarities(text)
+        recent = self.index.similarities(" ".join(s for _, s in self.window))
+        sims = [CURRENT_WEIGHT * c + (1 - CURRENT_WEIGHT) * r for c, r in zip(current, recent)]
         emission = [math.exp(max(s - SIM_FLOOR, 0.0) / SIM_TEMPERATURE) for s in sims]
 
         # 신호 A: 방금 직접 넘긴 페이지는 강하게, 시간이 지나면 약하게
