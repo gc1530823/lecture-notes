@@ -194,6 +194,8 @@ struct LectureView: View {
             Button { showingSummary = true } label: {
                 Label("요약·퀴즈", systemImage: "sparkles")
                     .font(.system(.subheadline, design: .rounded).weight(.bold))
+                    .lineLimit(1)
+                    .fixedSize()
                     .foregroundStyle(.white)
                     .padding(.horizontal, 18)
                     .frame(height: 48)

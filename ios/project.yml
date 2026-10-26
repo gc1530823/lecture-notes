@@ -17,11 +17,15 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.lecturenotes
+        DEVELOPMENT_LANGUAGE: ko
         TARGETED_DEVICE_FAMILY: "1"
     info:
       path: LectureNotes/Info.plist
       properties:
         CFBundleDisplayName: 강의노트
+        # 날짜·시간 표기와 시스템 문구를 한국어로
+        CFBundleDevelopmentRegion: ko
+        CFBundleLocalizations: [ko]
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSMicrophoneUsageDescription: 강의를 녹음해서 받아쓰고 필기를 만들기 위해 마이크를 사용합니다.

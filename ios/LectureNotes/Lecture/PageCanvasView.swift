@@ -141,9 +141,16 @@ final class PageRenderer {
     static let shared = PageRenderer()
     private let cache = NSCache<NSString, UIImage>()
 
+    /// 목록 썸네일처럼 PDF 문서를 따로 들고 있지 않을 때: 문서를 열어 둔 채로 그린다
+    func image(for document: PDFDocument?, pageIndex: Int, width: CGFloat) async -> UIImage? {
+        guard let document, let page = document.page(at: pageIndex) else { return nil }
+        return await image(for: page, pageNo: pageIndex + 1, width: width)
+    }
+
     func image(for pdfPage: PDFPage?, pageNo: Int, width: CGFloat = 1200) async -> UIImage? {
-        guard let pdfPage, let document = pdfPage.document else { return nil }
-        let key = "\(document.documentURL?.lastPathComponent ?? "")#\(pageNo)@\(Int(width))" as NSString
+        guard let pdfPage else { return nil }
+        let name = pdfPage.document?.documentURL?.lastPathComponent ?? "\(ObjectIdentifier(pdfPage).hashValue)"
+        let key = "\(name)#\(pageNo)@\(Int(width))" as NSString
         if let cached = cache.object(forKey: key) { return cached }
 
         let bounds = pdfPage.bounds(for: .cropBox)

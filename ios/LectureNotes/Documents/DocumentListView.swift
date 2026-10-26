@@ -84,15 +84,15 @@ struct DocumentListView: View {
                 StickyNote(annotation: Annotation(id: 2, sessionId: "", pageNo: 1, blockId: nil, type: .exam,
                                                   text: "시험에 나온다고 한 부분은 빨간 포스트잇", startMs: 0, editedByUser: false),
                            number: 2)
-                    .frame(width: 190)
-                    .offset(x: 46, y: 34)
+                    .frame(width: 170)
+                    .offset(x: 78, y: 52)
                 StickyNote(annotation: Annotation(id: 1, sessionId: "", pageNo: 1, blockId: nil, type: .explanation,
                                                   text: "교수님 설명이 자료 옆에 자동으로 붙어요", startMs: 0, editedByUser: false),
                            number: 1)
-                    .frame(width: 190)
-                    .offset(x: -40, y: -20)
+                    .frame(width: 170)
+                    .offset(x: -70, y: -36)
             }
-            .frame(height: 220)
+            .frame(height: 250)
             .phaseAnimator([false, true]) { notes, up in notes.offset(y: up ? -4 : 4) } animation: { _ in .easeInOut(duration: 2) }
 
             VStack(spacing: 8) {
@@ -164,7 +164,7 @@ private struct DocumentCard: View {
         }
         .card(padding: 12)
         .task {
-            let image = await PageRenderer.shared.image(for: store.pdf(for: document)?.page(at: 0), pageNo: 1, width: 400)
+            let image = await PageRenderer.shared.image(for: store.pdf(for: document), pageIndex: 0, width: 400)
             withAnimation(.easeOut(duration: 0.25)) { thumbnail = image }
         }
     }
@@ -266,7 +266,7 @@ struct DocumentDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .fontDesign(.rounded)
             .task {
-                let image = await PageRenderer.shared.image(for: store.pdf(for: document)?.page(at: 0), pageNo: 1, width: 900)
+                let image = await PageRenderer.shared.image(for: store.pdf(for: document), pageIndex: 0, width: 900)
                 withAnimation(.easeOut(duration: 0.25)) { thumbnail = image }
             }
         }
