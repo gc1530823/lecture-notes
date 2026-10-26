@@ -57,11 +57,23 @@ def parse_pdf(data: bytes) -> list[dict]:
     return pages
 
 
+# 한국어 단어 끝의 조사를 떼어 용어만 남긴다 ("방향으로" → "방향")
+PARTICLES = ("으로", "에서", "에게", "까지", "부터", "보다", "은", "는", "이", "가", "을", "를", "의", "에", "로", "와", "과", "도")
+
+
+def _strip_particle(word: str) -> str:
+    for particle in PARTICLES:
+        if word.endswith(particle) and len(word) - len(particle) >= 2:
+            return word[: -len(particle)]
+    return word
+
+
 def extract_keywords(pages: list[dict], limit: int = 100) -> list[str]:
     """자주 나오는 용어를 뽑는다. iPhone 음성 인식에 힌트(contextualStrings)로 넘긴다."""
     counts: Counter[str] = Counter()
     for page in pages:
         for word in re.findall(r"[A-Za-z][A-Za-z0-9\-]{2,}|[가-힣]{2,}", page["text"]):
+            word = _strip_particle(word) if "가" <= word[0] <= "힣" else word
             if word.lower() not in STOPWORDS:
                 counts[word] += 1
     return [word for word, _ in counts.most_common(limit)]
