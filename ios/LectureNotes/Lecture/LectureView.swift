@@ -26,6 +26,18 @@ struct LectureView: View {
     }
 
     var body: some View {
+        GeometryReader { proxy in
+            content(pageHeight: pageAreaHeight(width: proxy.size.width, available: proxy.size.height))
+        }
+    }
+
+    /// 페이지는 화면 너비에 맞춘 높이만 차지하고 (최대 화면의 절반), 나머지는 필기 목록에 준다.
+    private func pageAreaHeight(width: CGFloat, available: CGFloat) -> CGFloat {
+        let aspect = model.pages.first?.aspectRatio ?? 16 / 9
+        return min((width - 24) / aspect + 24, available * 0.5)
+    }
+
+    private func content(pageHeight: CGFloat) -> some View {
         VStack(spacing: 0) {
             TabView(selection: $model.currentPage) {
                 ForEach(model.pages) { page in
@@ -40,8 +52,7 @@ struct LectureView: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(maxHeight: .infinity)
-            .layoutPriority(1)
+            .frame(height: pageHeight)
 
             if model.phase == .recording {
                 CaptionBar(recorder: model.recorder)
@@ -58,6 +69,7 @@ struct LectureView: View {
 
             bottomBar
         }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle(model.document.document.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

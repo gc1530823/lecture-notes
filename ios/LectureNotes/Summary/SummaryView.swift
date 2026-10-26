@@ -45,11 +45,16 @@ struct SummaryView: View {
             Section("페이지별 요약") {
                 ForEach(summary.pages, id: \.pageNo) { page in
                     Button { onSelectPage(page.pageNo) } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("\(page.pageNo)쪽").font(.caption.bold()).foregroundStyle(.secondary)
-                            Text(page.summary).foregroundStyle(.primary)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("\(page.pageNo)쪽").font(.caption.bold()).foregroundStyle(.tint)
+                                Text(page.summary).foregroundStyle(Color.primary)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary)
                         }
                     }
+                    .buttonStyle(.plain)
                 }
             }
             Section("복습 퀴즈 \(summary.quiz.count)문항") {
