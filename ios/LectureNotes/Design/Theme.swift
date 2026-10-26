@@ -28,6 +28,7 @@ extension AnnotationType {
         case .emphasis: Color(red: 1.00, green: 0.84, blue: 0.66)
         case .exam: Color(red: 1.00, green: 0.75, blue: 0.80)
         case .notice: Color(red: 0.85, green: 0.82, blue: 1.00)
+        case .tip: Color(red: 0.78, green: 0.92, blue: 1.00)
         }
     }
 
@@ -39,6 +40,7 @@ extension AnnotationType {
         case .emphasis: Color(red: 0.93, green: 0.45, blue: 0.07)
         case .exam: Color(red: 0.88, green: 0.18, blue: 0.33)
         case .notice: Color(red: 0.42, green: 0.33, blue: 0.90)
+        case .tip: Color(red: 0.05, green: 0.52, blue: 0.80)
         }
     }
 }

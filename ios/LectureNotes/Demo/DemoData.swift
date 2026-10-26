@@ -42,12 +42,14 @@ enum DemoData {
         ])
     }
 
-    /// live 데모에서 필기 하나가 붙기 전에 흐르는 자막
+    /// live 데모에서 필기 하나가 붙기 전에 흐르는 자막 (liveAnnotations와 짝)
     static let liveCaptions = [
         "자 경사하강법은 산에서 눈을 감고 가장 가파른 쪽으로 한 걸음씩 내려가는 거예요",
         "학습률이 너무 크면 최솟값을 지나쳐서 발산하고 너무 작으면 엄청 느려집니다",
         "이거 중간고사에 꼭 나와요 학습률이 클 때와 작을 때 차이 기억하세요",
-        "과제 2번은 경사하강법을 직접 구현하는 거고 다음 주 금요일까지예요",
+        "실제로는 학습률을 처음엔 크게 했다가 점점 줄이기도 해요",
+        "자 다음 장 역전파는 결국 연쇄 법칙을 반복해서 쓰는 거예요",
+        "아 이건 앞에서 한 거랑도 이어지는데 나중에 다시 볼게요",
     ]
 
     static let annotations: [Annotation] = [
@@ -57,11 +59,21 @@ enum DemoData {
                    text: "η가 너무 크면 최솟값을 지나쳐 발산, 너무 작으면 학습이 매우 느림", startMs: 21_000, editedByUser: false),
         Annotation(id: 3, sessionId: sessionID, pageNo: 1, blockId: 12, type: .exam,
                    text: "중간고사 출제: 학습률이 클 때와 작을 때의 차이", startMs: 38_000, editedByUser: false),
+        Annotation(id: 6, sessionId: sessionID, pageNo: 1, blockId: 12, type: .tip,
+                   text: "학습률 스케줄링(예: 코사인 감소)으로 처음엔 크게, 갈수록 작게 하면 안정적으로 수렴해요", startMs: 47_000,
+                   editedByUser: false),
         Annotation(id: 4, sessionId: sessionID, pageNo: 1, blockId: nil, type: .notice,
                    text: "과제 2: 경사하강법 직접 구현, 다음 주 금요일까지", startMs: 55_000, editedByUser: true),
         Annotation(id: 5, sessionId: sessionID, pageNo: 2, blockId: 21, type: .emphasis,
                    text: "결국 연쇄 법칙을 반복해서 쓰는 것뿐 — 꼭 기억", startMs: 80_000, editedByUser: false),
+        Annotation(id: 7, sessionId: sessionID, pageNo: 2, blockId: nil, type: .explanation,
+                   text: "앞 내용(기울기)과 이어짐 — 나중에 다시 다룰 예정", startMs: 92_000, editedByUser: false, pending: true),
     ]
+
+    /// live 데모에서 차례로 붙는 필기: 1쪽 필기 → AI 팁 → 2쪽으로 자동 넘김 → 보류함
+    static var liveAnnotations: [Annotation] {
+        [1, 2, 3, 6, 5, 7].compactMap { id in annotations.first { $0.id == id } }
+    }
 
     static let summary = LectureSummary(
         overview: "경사하강법으로 손실을 줄이는 원리와 학습률의 역할을 다루고, 역전파로 기울기를 계산하는 방법을 배웠다. 학습률이 클 때와 작을 때의 차이는 중간고사에 나온다.",
@@ -76,6 +88,14 @@ enum DemoData {
             QuizItem(pageNo: 2, question: "역전파가 기울기를 계산할 때 쓰는 원리는?",
                      choices: ["연쇄 법칙", "베이즈 정리", "중심 극한 정리", "라그랑주 승수법"],
                      answerIndex: 0, explanation: "합성 함수의 미분인 연쇄 법칙을 층마다 반복한다."),
+        ],
+        tips: [
+            WebTip(pageNo: 1, title: "Gradient descent — Wikipedia",
+                   text: "학습률과 수렴 조건을 수식으로 정리한 문서예요. 강의의 θ 갱신 식을 더 깊게 볼 수 있어요.",
+                   url: "https://en.wikipedia.org/wiki/Gradient_descent"),
+            WebTip(pageNo: 2, title: "CS231n: Backpropagation, Intuitions",
+                   text: "스탠퍼드 강의 노트로, 연쇄 법칙을 계산 그래프 그림으로 하나씩 따라가며 설명해요.",
+                   url: "https://cs231n.github.io/optimization-2/"),
         ]
     )
 

@@ -76,7 +76,7 @@ jobs:
           VIDEO_PID=$!
           sleep 2
           xcrun simctl launch "$UDID" com.example.lecturenotes -demoScreen live -AppleLanguages "(ko)" -AppleLocale ko_KR
-          sleep 26
+          sleep 34
           kill -INT "$VIDEO_PID"
           wait "$VIDEO_PID" || true
           xcrun simctl io "$UDID" screenshot shots/live-end.png

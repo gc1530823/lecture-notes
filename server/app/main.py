@@ -43,7 +43,9 @@ class SessionCreate(BaseModel):
 
 
 class AnnotationUpdate(BaseModel):
-    text: str
+    text: str | None = None
+    # 보류함의 필기를 붙일 페이지 (또는 다른 페이지로 옮길 때)
+    page_no: int | None = None
 
 
 @app.get("/health")
@@ -146,8 +148,7 @@ def end_session(session_id: str, background: BackgroundTasks):
 
 
 async def _summarize(session_id: str, document_id: str) -> None:
-    doc = db().get_document(document_id)
-    pages = [db().get_page(document_id, p["page_no"]) for p in doc["pages"]]
+    pages = db().list_pages(document_id)
     try:
         body = await app.state.llm.summarize(pages, db().get_segments(session_id), db().list_annotations(session_id))
     except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
@@ -155,6 +156,13 @@ async def _summarize(session_id: str, document_id: str) -> None:
         db().set_session_status(session_id, "failed")
         return
     body["quiz"] = [q for q in body["quiz"] if 0 <= q["answer_index"] < len(q["choices"])]
+    body["tips"] = []
+    if settings.enable_web_tips:
+        try:
+            body["tips"] = await app.state.llm.research_tips(body)
+        except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
+            # 추가 자료는 덤이므로 실패해도 요약·퀴즈는 저장한다
+            log.exception("추가 자료 검색 실패")
     db().save_summary(session_id, body)
     db().set_session_status(session_id, "done")
 
@@ -170,9 +178,17 @@ def get_summary(session_id: str):
 
 @app.patch("/annotations/{ann_id}")
 def update_annotation(ann_id: int, body: AnnotationUpdate):
-    annotation = db().update_annotation(ann_id, body.text.strip())
+    annotation = db().get_annotation(ann_id)
     if annotation is None:
         raise HTTPException(404, "필기가 없습니다.")
+    if body.page_no is not None:
+        session = db().get_session(annotation["session_id"])
+        page = db().get_page(session["document_id"], body.page_no)
+        if page is None:
+            raise HTTPException(400, f"{body.page_no}페이지가 없습니다.")
+        annotation = db().move_annotation(ann_id, page["id"])
+    if body.text is not None and body.text.strip():
+        annotation = db().update_annotation(ann_id, body.text.strip())
     return annotation
 
 

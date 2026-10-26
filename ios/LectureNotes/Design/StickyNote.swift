@@ -45,11 +45,13 @@ struct StickyNote: View {
                 Text(type.label)
                     .font(.caption.weight(.heavy))
                 Spacer(minLength: 4)
-                Text("\(number)")
-                    .font(.caption2.weight(.heavy))
-                    .foregroundStyle(.white)
-                    .frame(width: 20, height: 20)
-                    .background(type.inkColor, in: Circle())
+                if number > 0 {
+                    Text("\(number)")
+                        .font(.caption2.weight(.heavy))
+                        .foregroundStyle(.white)
+                        .frame(width: 20, height: 20)
+                        .background(type.inkColor, in: Circle())
+                }
             }
             .foregroundStyle(type.inkColor)
 
@@ -59,6 +61,11 @@ struct StickyNote: View {
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
 
+            if type == .tip {
+                Text("교수님 말씀이 아니라 AI가 덧붙인 내용이에요")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.noteInk.opacity(0.5))
+            }
             if annotation.editedByUser {
                 Label("직접 수정함", systemImage: "pencil")
                     .font(.caption2)

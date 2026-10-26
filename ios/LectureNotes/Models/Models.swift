@@ -32,6 +32,8 @@ struct LectureDocument: Codable, Identifiable, Hashable {
 
 enum AnnotationType: String, Codable, CaseIterable {
     case explanation, example, emphasis, exam, notice
+    /// 교수님 발언이 아니라 AI가 덧붙인 배경지식·공부 팁
+    case tip
 
     var label: String {
         switch self {
@@ -40,6 +42,7 @@ enum AnnotationType: String, Codable, CaseIterable {
         case .emphasis: "강조"
         case .exam: "시험"
         case .notice: "공지"
+        case .tip: "AI 팁"
         }
     }
 
@@ -50,6 +53,7 @@ enum AnnotationType: String, Codable, CaseIterable {
         case .emphasis: .orange
         case .exam: .red
         case .notice: .purple
+        case .tip: .cyan
         }
     }
 
@@ -60,6 +64,7 @@ enum AnnotationType: String, Codable, CaseIterable {
         case .emphasis: "exclamationmark.circle"
         case .exam: "star.fill"
         case .notice: "megaphone"
+        case .tip: "sparkles"
         }
     }
 }
@@ -73,6 +78,38 @@ struct Annotation: Codable, Identifiable, Hashable {
     var text: String
     let startMs: Int
     var editedByUser: Bool
+    /// 어느 페이지인지 확실하지 않아 보류함에 있는 필기
+    var pending: Bool = false
+
+    enum CodingKeys: String, CodingKey {
+        case id, sessionId, pageNo, blockId, type, text, startMs, editedByUser, pending
+    }
+
+    init(id: Int, sessionId: String, pageNo: Int, blockId: Int?, type: AnnotationType, text: String,
+         startMs: Int, editedByUser: Bool, pending: Bool = false) {
+        self.id = id
+        self.sessionId = sessionId
+        self.pageNo = pageNo
+        self.blockId = blockId
+        self.type = type
+        self.text = text
+        self.startMs = startMs
+        self.editedByUser = editedByUser
+        self.pending = pending
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        sessionId = try c.decode(String.self, forKey: .sessionId)
+        pageNo = try c.decode(Int.self, forKey: .pageNo)
+        blockId = try c.decodeIfPresent(Int.self, forKey: .blockId)
+        type = try c.decode(AnnotationType.self, forKey: .type)
+        text = try c.decode(String.self, forKey: .text)
+        startMs = try c.decode(Int.self, forKey: .startMs)
+        editedByUser = try c.decode(Bool.self, forKey: .editedByUser)
+        pending = try c.decodeIfPresent(Bool.self, forKey: .pending) ?? false
+    }
 }
 
 struct LectureSession: Codable, Hashable {
@@ -90,6 +127,15 @@ struct LectureSummary: Codable, Hashable {
     let overview: String
     let pages: [PageSummary]
     let quiz: [QuizItem]
+    /// 웹 검색으로 찾은 추가 자료 (예전 서버 응답에는 없을 수 있다)
+    var tips: [WebTip]? = nil
+}
+
+struct WebTip: Codable, Hashable {
+    let pageNo: Int
+    let title: String
+    let text: String
+    let url: String
 }
 
 struct PageSummary: Codable, Hashable {

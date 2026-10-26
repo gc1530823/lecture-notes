@@ -85,6 +85,11 @@ struct APIClient {
         try await send("PATCH", "annotations/\(id)", json: ["text": text])
     }
 
+    /// 보류함의 필기를 고른 페이지에 붙인다
+    func placeAnnotation(id: Int, pageNo: Int) async throws -> Annotation {
+        try await send("PATCH", "annotations/\(id)", json: ["page_no": pageNo])
+    }
+
     func deleteAnnotation(id: Int) async throws {
         var request = URLRequest(url: baseURL.appending(path: "annotations/\(id)"))
         request.httpMethod = "DELETE"

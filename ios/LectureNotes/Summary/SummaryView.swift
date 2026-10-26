@@ -87,6 +87,39 @@ struct SummaryView: View {
                     .buttonStyle(PressableStyle(scale: 0.98))
                 }
 
+                if let tips = summary.tips, !tips.isEmpty {
+                    section("더 알아보기")
+                    ForEach(tips, id: \.url) { tip in
+                        if let url = URL(string: tip.url) {
+                            Link(destination: url) {
+                                HStack(alignment: .top, spacing: 12) {
+                                    Image(systemName: "safari.fill")
+                                        .font(.title3)
+                                        .foregroundStyle(AnnotationType.tip.inkColor)
+                                        .frame(width: 32, height: 32)
+                                        .background(AnnotationType.tip.noteColor, in: RoundedRectangle(cornerRadius: 9))
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(tip.title)
+                                            .font(.subheadline.weight(.bold))
+                                            .foregroundStyle(Color.primary)
+                                        Text(tip.text)
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                        Text("\(tip.pageNo)쪽 · \(url.host() ?? tip.url)")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    .multilineTextAlignment(.leading)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    Image(systemName: "arrow.up.right").font(.caption.weight(.bold)).foregroundStyle(.tertiary)
+                                }
+                                .card(padding: 14)
+                            }
+                            .buttonStyle(PressableStyle(scale: 0.98))
+                        }
+                    }
+                }
+
                 HStack {
                     section("복습 퀴즈")
                     Spacer()

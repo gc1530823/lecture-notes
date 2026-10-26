@@ -7,6 +7,8 @@ import Foundation
 final class LectureSocket {
     var onAnnotation: ((Annotation) -> Void)?
     var onError: ((String) -> Void)?
+    /// 서버가 추정한 "지금 설명 중인 페이지"와 확신 (0~1)
+    var onPageEstimate: ((Int, Double) -> Void)?
 
     private var url: URL?
     private var task: URLSessionWebSocketTask?
@@ -99,6 +101,8 @@ final class LectureSocket {
         switch event.type {
         case "annotation_added":
             if let annotation = event.annotation { onAnnotation?(annotation) }
+        case "page_estimate":
+            if let page = event.page, let confidence = event.confidence { onPageEstimate?(page, confidence) }
         case "error":
             onError?(event.message ?? "알 수 없는 오류")
         default:
@@ -116,4 +120,6 @@ private struct ServerEvent: Decodable {
     let type: String
     let annotation: Annotation?
     let message: String?
+    let page: Int?
+    let confidence: Double?
 }

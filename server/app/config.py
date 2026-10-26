@@ -22,5 +22,10 @@ class Settings:
     min_chars_per_call: int = int(os.getenv("MIN_CHARS_PER_CALL", "120"))
     max_wait_seconds: float = float(os.getenv("MAX_WAIT_SECONDS", "15"))
 
+    # 자동 페이지 추정 확신이 이 값보다 낮으면 후보 페이지를 AI에게 보여 주고 고르게 한다
+    page_confidence: float = float(os.getenv("PAGE_CONFIDENCE", "0.6"))
+    # 강의 후 웹 검색으로 추가 자료 찾기 (1 = 켜기)
+    enable_web_tips: bool = os.getenv("ENABLE_WEB_TIPS", "1") == "1"
+
 
 settings = Settings()

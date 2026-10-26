@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS annotations (
     text TEXT NOT NULL,
     start_ms INTEGER NOT NULL,
     edited_by_user INTEGER NOT NULL DEFAULT 0,
+    pending INTEGER NOT NULL DEFAULT 0,
     created_at REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS summaries (
@@ -72,7 +73,15 @@ class Database:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.executescript(SCHEMA)
+        self._migrate()
         self._lock = threading.Lock()
+
+    def _migrate(self) -> None:
+        # 예전 DB 파일에 나중에 추가한 컬럼을 붙인다
+        columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(annotations)")}
+        if "pending" not in columns:
+            self._conn.execute("ALTER TABLE annotations ADD COLUMN pending INTEGER NOT NULL DEFAULT 0")
+            self._conn.commit()
 
     def _query(self, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
         with self._lock:
@@ -120,6 +129,9 @@ class Database:
         rows = self._query("SELECT * FROM pages WHERE document_id = ? AND page_no = ?", (doc_id, page_no))
         return rows[0] if rows else None
 
+    def list_pages(self, doc_id: str) -> list[dict]:
+        return self._query("SELECT * FROM pages WHERE document_id = ? ORDER BY page_no", (doc_id,))
+
     def get_blocks(self, page_id: int) -> list[dict]:
         return self._query("SELECT id, x, y, w, h, text FROM blocks WHERE page_id = ? ORDER BY id", (page_id,))
 
@@ -161,40 +173,42 @@ class Database:
     # 필기
 
     def add_annotation(
-        self, session_id: str, page_id: int, block_id: int | None, type_: str, text: str, start_ms: int
+        self, session_id: str, page_id: int, block_id: int | None, type_: str, text: str, start_ms: int,
+        pending: bool = False,
     ) -> dict:
         ann_id = self._write(
-            """INSERT INTO annotations (session_id, page_id, block_id, type, text, start_ms, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (session_id, page_id, block_id, type_, text, start_ms, time.time()),
+            """INSERT INTO annotations (session_id, page_id, block_id, type, text, start_ms, pending, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (session_id, page_id, block_id, type_, text, start_ms, int(pending), time.time()),
         )
         return self.get_annotation(ann_id)
 
     def get_annotation(self, ann_id: int) -> dict | None:
         rows = self._query(
-            """SELECT a.id, a.session_id, p.page_no, a.block_id, a.type, a.text, a.start_ms, a.edited_by_user
+            """SELECT a.id, a.session_id, p.page_no, a.block_id, a.type, a.text, a.start_ms, a.edited_by_user, a.pending
                FROM annotations a JOIN pages p ON p.id = a.page_id WHERE a.id = ?""",
             (ann_id,),
         )
         if not rows:
             return None
-        rows[0]["edited_by_user"] = bool(rows[0]["edited_by_user"])
-        return rows[0]
+        return _annotation(rows[0])
 
     def list_annotations(self, session_id: str, page_id: int | None = None) -> list[dict]:
-        sql = """SELECT a.id, a.session_id, p.page_no, a.block_id, a.type, a.text, a.start_ms, a.edited_by_user
+        sql = """SELECT a.id, a.session_id, p.page_no, a.block_id, a.type, a.text, a.start_ms, a.edited_by_user, a.pending
                  FROM annotations a JOIN pages p ON p.id = a.page_id WHERE a.session_id = ?"""
         params: tuple = (session_id,)
         if page_id is not None:
             sql += " AND a.page_id = ?"
             params += (page_id,)
-        rows = self._query(sql + " ORDER BY a.id", params)
-        for r in rows:
-            r["edited_by_user"] = bool(r["edited_by_user"])
-        return rows
+        return [_annotation(r) for r in self._query(sql + " ORDER BY a.id", params)]
 
     def update_annotation(self, ann_id: int, text: str) -> dict | None:
         self._write("UPDATE annotations SET text = ?, edited_by_user = 1 WHERE id = ?", (text, ann_id))
+        return self.get_annotation(ann_id)
+
+    def move_annotation(self, ann_id: int, page_id: int) -> dict | None:
+        """보류함의 필기를 사용자가 고른 페이지에 붙인다 (문단 연결은 풀고 페이지 여백에 둔다)."""
+        self._write("UPDATE annotations SET page_id = ?, block_id = NULL, pending = 0 WHERE id = ?", (page_id, ann_id))
         return self.get_annotation(ann_id)
 
     def delete_annotation(self, ann_id: int) -> bool:
@@ -212,3 +226,9 @@ class Database:
     def get_summary(self, session_id: str) -> dict | None:
         rows = self._query("SELECT body FROM summaries WHERE session_id = ?", (session_id,))
         return json.loads(rows[0]["body"]) if rows else None
+
+
+def _annotation(row: dict) -> dict:
+    row["edited_by_user"] = bool(row["edited_by_user"])
+    row["pending"] = bool(row["pending"])
+    return row

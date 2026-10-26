@@ -7,6 +7,7 @@ struct LectureView: View {
     @State private var selectedAnnotationID: Int?
     @State private var editing: Annotation?
     @State private var showingSummary = false
+    @State private var showingPending = false
     private let demo: DemoScreen?
 
     init(document: LocalDocument, store: DocumentStore, session: SavedSession?, demo: DemoScreen? = nil) {
@@ -45,6 +46,9 @@ struct LectureView: View {
             AnnotationEditSheet(annotation: annotation) { text in
                 Task { await model.update(annotation, text: text) }
             }
+        }
+        .sheet(isPresented: $showingPending) {
+            PendingTraySheet(model: model)
         }
         .sheet(isPresented: $showingSummary) {
             if let session = model.session {
@@ -133,10 +137,29 @@ struct LectureView: View {
                 .foregroundStyle(Theme.accent)
                 .contentTransition(.numericText())
             Spacer()
-            PageDots(count: model.pages.count, current: model.currentPage)
+            if !model.pendingAnnotations.isEmpty {
+                Button { showingPending = true } label: {
+                    Label("보류 \(model.pendingAnnotations.count)", systemImage: "tray.full.fill")
+                        .font(.caption.weight(.heavy))
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.orange.opacity(0.14), in: Capsule())
+                        .contentTransition(.numericText())
+                }
+                .buttonStyle(PressableStyle(scale: 0.9))
+                .transition(.scale.combined(with: .opacity))
+            }
+            if model.phase == .recording {
+                AutoFollowChip(isOn: $model.autoFollow, estimatedPage: model.estimatedPage,
+                               currentPage: model.currentPage)
+            } else {
+                PageDots(count: model.pages.count, current: model.currentPage)
+            }
         }
         .padding(.horizontal, 20)
         .padding(.top, 6)
+        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: model.pendingAnnotations.count)
         .animation(.snappy, value: count)
         .animation(.snappy, value: model.currentPage)
     }
@@ -325,5 +348,86 @@ private struct PageDots: View {
             }
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: current)
+    }
+}
+
+/// 자동 넘김 켜고 끄기. 끈 상태에서 교수님이 다른 페이지를 설명 중이면 알려 준다.
+private struct AutoFollowChip: View {
+    @Binding var isOn: Bool
+    let estimatedPage: Int?
+    let currentPage: Int
+
+    var body: some View {
+        Button { withAnimation(.snappy) { isOn.toggle() } } label: {
+            HStack(spacing: 4) {
+                Image(systemName: isOn ? "wand.and.stars" : "hand.raised.fill")
+                    .symbolEffect(.bounce, value: isOn)
+                if !isOn, let estimatedPage, estimatedPage != currentPage {
+                    Text("지금 \(estimatedPage)쪽 설명 중")
+                } else {
+                    Text(isOn ? "자동 넘김" : "직접 넘김")
+                }
+            }
+            .font(.caption.weight(.heavy))
+            .foregroundStyle(isOn ? Theme.accent : .secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background((isOn ? Theme.accent : Color.secondary).opacity(0.12), in: Capsule())
+        }
+        .buttonStyle(PressableStyle(scale: 0.9))
+        .accessibilityHint("교수님이 설명하는 페이지로 화면을 자동으로 넘깁니다")
+    }
+}
+
+/// 어느 페이지인지 확실하지 않은 필기를 모아 두고, 눌러서 원하는 페이지에 붙인다.
+private struct PendingTraySheet: View {
+    @ObservedObject var model: LectureViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    Text("AI가 어느 페이지 이야기인지 확신하지 못한 필기예요. 붙일 페이지를 골라 주세요.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    ForEach(model.pendingAnnotations) { annotation in
+                        VStack(alignment: .leading, spacing: 12) {
+                            StickyNote(annotation: annotation, number: 0)
+                            ScrollView(.horizontal) {
+                                HStack(spacing: 8) {
+                                    ForEach(model.pages) { page in
+                                        Button {
+                                            Task {
+                                                await model.place(annotation, onPage: page.pageNo)
+                                                if model.pendingAnnotations.isEmpty { dismiss() }
+                                            }
+                                        } label: {
+                                            Text("\(page.pageNo)쪽에 붙이기")
+                                                .font(.caption.weight(.bold))
+                                                .padding(.horizontal, 12)
+                                                .padding(.vertical, 8)
+                                                .background(Theme.accent.opacity(page.pageNo == annotation.pageNo ? 0.2 : 0.08),
+                                                            in: Capsule())
+                                        }
+                                        .buttonStyle(PressableStyle(scale: 0.92))
+                                    }
+                                }
+                            }
+                            .scrollIndicators(.hidden)
+                        }
+                        .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .padding(20)
+                .animation(.spring(response: 0.45, dampingFraction: 0.8), value: model.pendingAnnotations)
+            }
+            .background(Theme.paper.ignoresSafeArea())
+            .navigationTitle("보류함")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("닫기") { dismiss() } } }
+        }
+        .presentationDetents([.medium, .large])
+        .fontDesign(.rounded)
     }
 }

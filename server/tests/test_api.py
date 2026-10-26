@@ -1,3 +1,4 @@
+import dataclasses
 import os
 import tempfile
 import time
@@ -31,6 +32,15 @@ def client():
         yield c
 
 
+def receive_annotation(ws) -> dict:
+    """page_estimate 같은 다른 이벤트는 건너뛰고 다음 필기를 받는다."""
+    while True:
+        event = ws.receive_json()
+        assert event["type"] in ("page_estimate", "annotation_added"), event
+        if event["type"] == "annotation_added":
+            return event["annotation"]
+
+
 def upload(client) -> dict:
     res = client.post("/documents", files={"file": ("ml.pdf", make_pdf(), "application/pdf")})
     assert res.status_code == 200, res.text
@@ -62,10 +72,9 @@ def test_live_session_annotation_edit_and_summary(client):
         ws.send_json({"type": "page_view", "page": 1})
         ws.send_json({"type": "transcript_final", "text": "이 부분은 시험에 꼭 나옵니다. 학습률이 너무 크면 발산해요.",
                       "start_ms": 1000, "end_ms": 4000})
-        event = ws.receive_json()
-    assert event["type"] == "annotation_added"
-    ann = event["annotation"]
+        ann = receive_annotation(ws)
     assert ann["page_no"] == 1 and ann["block_id"] == block_id and ann["type"] == "exam"
+    assert ann["pending"] is False
     assert ann["start_ms"] == 1000
 
     res = client.patch(f"/annotations/{ann['id']}", json={"text": "학습률이 크면 발산"})
@@ -80,6 +89,7 @@ def test_live_session_annotation_edit_and_summary(client):
         time.sleep(0.05)
     assert summary["status"] == "done"
     assert summary["summary"]["quiz"][0]["page_no"] == 1
+    assert summary["summary"]["tips"][0]["url"].startswith("https://")
 
     assert client.delete(f"/annotations/{ann['id']}").status_code == 204
     assert client.get(f"/sessions/{session['id']}/annotations").json() == []
@@ -98,5 +108,31 @@ def test_claude_request_shape():
     assert params["fallbacks"] == "default"
     assert params["output_config"]["format"]["type"] == "json_schema"
     assert "fallbacks" not in ClaudeLLM._request("claude-haiku-5-5", "low", "s", "p", {}, 100)
-    prompt = _annotation_prompt([{"id": 3, "text": "Gradient"}], [], "설명")
-    assert "[3] Gradient" in prompt
+    prompt = _annotation_prompt([{"page_no": 2, "blocks": [{"id": 3, "text": "Gradient"}], "existing": []}], "설명")
+    assert '<slide page_no="2">' in prompt and "[3] Gradient" in prompt
+
+
+def test_uncertain_page_goes_to_pending_and_can_be_placed(client, monkeypatch):
+    import app.live_session as live
+
+    # 추정 확신을 늘 낮게 만들어 후보 페이지 모드로 보낸다
+    monkeypatch.setattr(live, "settings", dataclasses.replace(live.settings, page_confidence=1.01))
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "transcript_final", "text": "이건 좀 애매한 이야기인데 여러 군데 다 해당돼요",
+                      "start_ms": 0, "end_ms": 3000})
+        ann = receive_annotation(ws)
+    assert ann["pending"] is True and ann["block_id"] is None
+
+    placed = client.patch(f"/annotations/{ann['id']}", json={"page_no": 2}).json()
+    assert placed["pending"] is False and placed["page_no"] == 2
+    assert client.patch(f"/annotations/{ann['id']}", json={"page_no": 9}).status_code == 400
+
+
+def test_parse_tips_keeps_only_linked_items():
+    from app.llm import parse_tips
+
+    text = '찾았어요.\n```json\n{"tips": [{"page_no": 1, "title": "a", "text": "b", "url": "https://x.org"},' \
+           ' {"page_no": 2, "title": "c", "text": "d", "url": "없음"}]}\n```'
+    assert parse_tips(text) == [{"page_no": 1, "title": "a", "text": "b", "url": "https://x.org"}]

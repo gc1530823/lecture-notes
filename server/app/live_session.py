@@ -1,13 +1,15 @@
-"""WebSocket 강의 세션 하나의 상태: 받아쓰기를 모아 두었다가 필기를 만든다."""
+"""WebSocket 강의 세션 하나의 상태: 받아쓰기로 현재 페이지를 추정하고, 모아 두었다가 필기를 만든다."""
 
 import asyncio
 import json
 import logging
 import time
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 
 import anthropic
 
+from .alignment import Estimate, PageIndex, PageTracker
 from .config import settings
 from .db import Database
 from .llm import ANNOTATION_TYPES, LLM, LLMError
@@ -15,6 +17,15 @@ from .llm import ANNOTATION_TYPES, LLM, LLMError
 log = logging.getLogger(__name__)
 
 Send = Callable[[dict], Awaitable[None]]
+
+
+@dataclass
+class Batch:
+    """아직 필기로 만들지 않은 받아쓰기 묶음"""
+    estimate: Estimate
+    start_ms: int
+    texts: list[str]
+    since: float
 
 
 class LiveSession:
@@ -25,12 +36,10 @@ class LiveSession:
         self.document_id = session["document_id"]
         self.send = send
 
-        self.page: dict | None = None
-        # 아직 필기로 만들지 않은 받아쓰기: (페이지, 시작 시각, 문장 목록)
-        self.pending_page: dict | None = None
-        self.pending_start_ms = 0
-        self.pending_texts: list[str] = []
-        self.pending_since = 0.0
+        self.pages = db.list_pages(self.document_id)
+        self.tracker = PageTracker(PageIndex([p["text"] for p in self.pages]))
+        self.estimate: Estimate | None = None
+        self.batch: Batch | None = None
 
         self._lock = asyncio.Lock()
         self._tasks: set[asyncio.Task] = set()
@@ -48,7 +57,7 @@ class LiveSession:
 
     async def tick(self) -> None:
         """주기적으로 불려서, 오래 기다린 받아쓰기가 있으면 필기를 만든다."""
-        if self.pending_texts and time.monotonic() - self.pending_since >= settings.max_wait_seconds:
+        if self.batch and time.monotonic() - self.batch.since >= settings.max_wait_seconds:
             self._schedule_flush()
 
     async def close(self) -> None:
@@ -57,51 +66,65 @@ class LiveSession:
             await asyncio.gather(*self._tasks, return_exceptions=True)
 
     async def _on_page_view(self, page_no: int) -> None:
-        page = self.db.get_page(self.document_id, page_no)
-        if page is None:
+        """신호 A: 사용자가 직접 페이지를 넘겼다."""
+        if not 1 <= page_no <= len(self.pages):
             await self.send({"type": "error", "message": f"{page_no}페이지가 없습니다."})
             return
-        if self.page and self.page["id"] != page["id"]:
-            # 페이지가 바뀌면 이전 페이지에 쌓인 받아쓰기를 먼저 필기로 만든다
-            self._schedule_flush()
-        self.page = page
+        self.tracker.user_viewed(page_no)
 
     async def _on_transcript(self, message: dict) -> None:
         text = str(message.get("text", "")).strip()
-        if not text:
+        if not text or not self.pages:
             return
         start_ms = int(message.get("start_ms", 0))
         end_ms = int(message.get("end_ms", start_ms))
-        page_id = self.page["id"] if self.page else None
-        self.db.add_segment(self.session_id, page_id, start_ms, end_ms, text)
-        if self.page is None:
-            return
 
-        if not self.pending_texts:
-            self.pending_page = self.page
-            self.pending_start_ms = start_ms
-            self.pending_since = time.monotonic()
-        self.pending_texts.append(text)
+        estimate = self.tracker.observe(text, start_ms)
+        moved = self.estimate is not None and estimate.page_no != self.estimate.page_no
+        self.estimate = estimate
+        page = self.pages[estimate.page_no - 1]
+        self.db.add_segment(self.session_id, page["id"], start_ms, end_ms, text)
+        await self.send({"type": "page_estimate", "page": estimate.page_no,
+                         "confidence": round(estimate.confidence, 3)})
 
-        if sum(len(t) for t in self.pending_texts) >= settings.min_chars_per_call:
+        # 추정 페이지가 바뀌면 이전 페이지에 쌓인 받아쓰기를 먼저 필기로 만든다
+        if moved and self.batch:
+            self._schedule_flush()
+
+        if self.batch is None:
+            self.batch = Batch(estimate, start_ms, [], time.monotonic())
+        self.batch.estimate = estimate
+        self.batch.texts.append(text)
+
+        if sum(len(t) for t in self.batch.texts) >= settings.min_chars_per_call:
             self._schedule_flush()
 
     def _schedule_flush(self) -> None:
-        if not self.pending_texts or self.pending_page is None:
+        if not self.batch or not self.batch.texts:
             return
-        batch = (self.pending_page, self.pending_start_ms, " ".join(self.pending_texts))
-        self.pending_page, self.pending_texts = None, []
-        task = asyncio.create_task(self._annotate(*batch))
+        batch, self.batch = self.batch, None
+        task = asyncio.create_task(self._annotate(batch))
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
 
-    async def _annotate(self, page: dict, start_ms: int, transcript: str) -> None:
+    async def _annotate(self, batch: Batch) -> None:
         # 같은 세션의 호출은 한 번에 하나씩: 앞 호출의 필기를 "이미 쓴 필기"로 넘기기 위해
         async with self._lock:
-            blocks = self.db.get_blocks(page["id"])
-            existing = self.db.list_annotations(self.session_id, page["id"])
+            confident = batch.estimate.confidence >= settings.page_confidence
+            # 확신이 낮으면 후보 페이지 여러 장을 보여 주고 AI가 고르게 한다
+            page_nos = [batch.estimate.page_no] if confident else batch.estimate.candidates
+            candidates = []
+            for no in page_nos:
+                page = self.pages[no - 1]
+                candidates.append({
+                    "page_no": no,
+                    "page_id": page["id"],
+                    "blocks": self.db.get_blocks(page["id"]),
+                    "existing": self.db.list_annotations(self.session_id, page["id"]),
+                })
+            transcript = " ".join(batch.texts)
             try:
-                results = await self.llm.annotate(blocks, existing, transcript)
+                results = await self.llm.annotate(candidates, transcript)
             except anthropic.RateLimitError:
                 log.warning("필기 생성: 요청 한도 초과")
                 await self.send({"type": "error", "message": "요청이 많아 잠시 필기를 건너뜁니다."})
@@ -111,18 +134,26 @@ class LiveSession:
                 await self.send({"type": "error", "message": f"필기 생성 실패: {exc}"})
                 return
 
-            block_ids = {b["id"] for b in blocks}
+            by_page = {c["page_no"]: c for c in candidates}
             for item in results:
-                text = item.get("text", "").strip()
+                text = str(item.get("text", "")).strip()
                 if not text or item.get("type") not in ANNOTATION_TYPES:
                     continue
+                chosen = by_page.get(item.get("page_no"))
+                if len(candidates) == 1:
+                    chosen = candidates[0]
+                # AI도 어느 페이지인지 확신하지 못하면 보류함에 넣고, 사용자가 붙일 페이지를 고르게 한다
+                pending = chosen is None
+                target = chosen or by_page[batch.estimate.page_no]
+                block_ids = {b["id"] for b in target["blocks"]}
                 block_id = item.get("block_id")
                 annotation = self.db.add_annotation(
                     self.session_id,
-                    page["id"],
-                    block_id if block_id in block_ids else None,
+                    target["page_id"],
+                    block_id if not pending and block_id in block_ids else None,
                     item["type"],
                     text,
-                    start_ms,
+                    batch.start_ms,
+                    pending=pending,
                 )
                 await self.send({"type": "annotation_added", "annotation": annotation})
