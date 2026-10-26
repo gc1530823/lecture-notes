@@ -55,9 +55,17 @@ class OllamaLLM:
             raise LLMError("Ollama 응답이 비어 있습니다.")
         return json.loads(content)
 
+    async def warm_up(self) -> None:
+        """서버를 켤 때 모델을 메모리에 미리 올려, 첫 필기가 늦지 않게 한다."""
+        try:
+            await self.client.post("/api/generate", json={"model": settings.ollama_model, "keep_alive": "30m"})
+            log.info("Ollama 모델 준비됨: %s", settings.ollama_model)
+        except httpx.HTTPError:
+            log.warning("Ollama 모델을 미리 올리지 못했습니다 (%s)", settings.ollama_url)
+
     async def annotate(self, candidates: list[dict], transcript: str) -> list[dict]:
         data = await self._chat(ANNOTATION_SYSTEM, _annotation_prompt(candidates, transcript), ANNOTATION_SCHEMA,
-                                context_tokens=8192)
+                                context_tokens=4096)
         return data.get("annotations", [])
 
     async def summarize(self, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict:

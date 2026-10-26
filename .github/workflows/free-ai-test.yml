@@ -40,7 +40,7 @@ jobs:
             uvicorn app.main:app --port 8000 > /tmp/server.log 2>&1 &)
           for i in $(seq 1 30); do curl -s localhost:8000/health >/dev/null && break; sleep 1; done
           mkdir -p /tmp/report
-          python scripts/simulate_lecture.py --wait 90 | tee /tmp/report/simulation.txt
+          python scripts/simulate_lecture.py --wait 150 | tee /tmp/report/simulation.txt
           cp /tmp/server.log /tmp/report/server.log
       - name: Publish report
         if: always()

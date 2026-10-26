@@ -28,6 +28,9 @@ TICK_SECONDS = 2.0
 async def lifespan(app: FastAPI):
     app.state.db = Database(settings.db_path)
     app.state.llm = make_llm()
+    warm_up = getattr(app.state.llm, "warm_up", None)
+    if warm_up:
+        asyncio.create_task(warm_up())
     yield
 
 
