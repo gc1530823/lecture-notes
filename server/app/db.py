@@ -1,0 +1,214 @@
+"""SQLite 저장소. MVP용이며, 대규모 단계에서는 PostgreSQL + pgvector로 옮긴다."""
+
+import json
+import os
+import sqlite3
+import threading
+import time
+import uuid
+from typing import Any
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    page_count INTEGER NOT NULL,
+    keywords TEXT NOT NULL DEFAULT '[]',
+    created_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS pages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id TEXT NOT NULL REFERENCES documents(id),
+    page_no INTEGER NOT NULL,
+    width REAL NOT NULL,
+    height REAL NOT NULL,
+    text TEXT NOT NULL,
+    UNIQUE (document_id, page_no)
+);
+CREATE TABLE IF NOT EXISTS blocks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    page_id INTEGER NOT NULL REFERENCES pages(id),
+    x REAL NOT NULL, y REAL NOT NULL, w REAL NOT NULL, h REAL NOT NULL,
+    text TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    document_id TEXT NOT NULL REFERENCES documents(id),
+    status TEXT NOT NULL,
+    started_at REAL NOT NULL,
+    ended_at REAL
+);
+CREATE TABLE IF NOT EXISTS transcript_segments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL REFERENCES sessions(id),
+    page_id INTEGER REFERENCES pages(id),
+    start_ms INTEGER NOT NULL,
+    end_ms INTEGER NOT NULL,
+    text TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS annotations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL REFERENCES sessions(id),
+    page_id INTEGER NOT NULL REFERENCES pages(id),
+    block_id INTEGER REFERENCES blocks(id),
+    type TEXT NOT NULL,
+    text TEXT NOT NULL,
+    start_ms INTEGER NOT NULL,
+    edited_by_user INTEGER NOT NULL DEFAULT 0,
+    created_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS summaries (
+    session_id TEXT PRIMARY KEY REFERENCES sessions(id),
+    body TEXT NOT NULL
+);
+"""
+
+
+class Database:
+    def __init__(self, path: str):
+        if path != ":memory:":
+            os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        self._conn = sqlite3.connect(path, check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._conn.execute("PRAGMA foreign_keys = ON")
+        self._conn.executescript(SCHEMA)
+        self._lock = threading.Lock()
+
+    def _query(self, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
+        with self._lock:
+            return [dict(r) for r in self._conn.execute(sql, params).fetchall()]
+
+    def _write(self, sql: str, params: tuple = ()) -> int:
+        with self._lock, self._conn:
+            return self._conn.execute(sql, params).lastrowid
+
+    # 문서
+
+    def create_document(self, title: str, pages: list[dict], keywords: list[str]) -> str:
+        doc_id = uuid.uuid4().hex
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT INTO documents (id, title, page_count, keywords, created_at) VALUES (?, ?, ?, ?, ?)",
+                (doc_id, title, len(pages), json.dumps(keywords, ensure_ascii=False), time.time()),
+            )
+            for page in pages:
+                page_id = self._conn.execute(
+                    "INSERT INTO pages (document_id, page_no, width, height, text) VALUES (?, ?, ?, ?, ?)",
+                    (doc_id, page["page_no"], page["width"], page["height"], page["text"]),
+                ).lastrowid
+                self._conn.executemany(
+                    "INSERT INTO blocks (page_id, x, y, w, h, text) VALUES (?, ?, ?, ?, ?, ?)",
+                    [(page_id, b["x"], b["y"], b["w"], b["h"], b["text"]) for b in page["blocks"]],
+                )
+        return doc_id
+
+    def get_document(self, doc_id: str) -> dict | None:
+        docs = self._query("SELECT * FROM documents WHERE id = ?", (doc_id,))
+        if not docs:
+            return None
+        doc = docs[0]
+        doc["keywords"] = json.loads(doc["keywords"])
+        pages = self._query(
+            "SELECT id, page_no, width, height FROM pages WHERE document_id = ? ORDER BY page_no", (doc_id,)
+        )
+        for page in pages:
+            page["blocks"] = self.get_blocks(page["id"])
+        doc["pages"] = pages
+        return doc
+
+    def get_page(self, doc_id: str, page_no: int) -> dict | None:
+        rows = self._query("SELECT * FROM pages WHERE document_id = ? AND page_no = ?", (doc_id, page_no))
+        return rows[0] if rows else None
+
+    def get_blocks(self, page_id: int) -> list[dict]:
+        return self._query("SELECT id, x, y, w, h, text FROM blocks WHERE page_id = ? ORDER BY id", (page_id,))
+
+    # 강의 세션
+
+    def create_session(self, doc_id: str) -> str:
+        session_id = uuid.uuid4().hex
+        self._write(
+            "INSERT INTO sessions (id, document_id, status, started_at) VALUES (?, ?, 'recording', ?)",
+            (session_id, doc_id, time.time()),
+        )
+        return session_id
+
+    def get_session(self, session_id: str) -> dict | None:
+        rows = self._query("SELECT * FROM sessions WHERE id = ?", (session_id,))
+        return rows[0] if rows else None
+
+    def set_session_status(self, session_id: str, status: str) -> None:
+        ended = time.time() if status == "processing" else None
+        self._write(
+            "UPDATE sessions SET status = ?, ended_at = COALESCE(ended_at, ?) WHERE id = ?",
+            (status, ended, session_id),
+        )
+
+    def add_segment(self, session_id: str, page_id: int | None, start_ms: int, end_ms: int, text: str) -> int:
+        return self._write(
+            "INSERT INTO transcript_segments (session_id, page_id, start_ms, end_ms, text) VALUES (?, ?, ?, ?, ?)",
+            (session_id, page_id, start_ms, end_ms, text),
+        )
+
+    def get_segments(self, session_id: str) -> list[dict]:
+        return self._query(
+            """SELECT s.start_ms, s.end_ms, s.text, p.page_no
+               FROM transcript_segments s LEFT JOIN pages p ON p.id = s.page_id
+               WHERE s.session_id = ? ORDER BY s.start_ms, s.id""",
+            (session_id,),
+        )
+
+    # 필기
+
+    def add_annotation(
+        self, session_id: str, page_id: int, block_id: int | None, type_: str, text: str, start_ms: int
+    ) -> dict:
+        ann_id = self._write(
+            """INSERT INTO annotations (session_id, page_id, block_id, type, text, start_ms, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (session_id, page_id, block_id, type_, text, start_ms, time.time()),
+        )
+        return self.get_annotation(ann_id)
+
+    def get_annotation(self, ann_id: int) -> dict | None:
+        rows = self._query(
+            """SELECT a.id, a.session_id, p.page_no, a.block_id, a.type, a.text, a.start_ms, a.edited_by_user
+               FROM annotations a JOIN pages p ON p.id = a.page_id WHERE a.id = ?""",
+            (ann_id,),
+        )
+        if not rows:
+            return None
+        rows[0]["edited_by_user"] = bool(rows[0]["edited_by_user"])
+        return rows[0]
+
+    def list_annotations(self, session_id: str, page_id: int | None = None) -> list[dict]:
+        sql = """SELECT a.id, a.session_id, p.page_no, a.block_id, a.type, a.text, a.start_ms, a.edited_by_user
+                 FROM annotations a JOIN pages p ON p.id = a.page_id WHERE a.session_id = ?"""
+        params: tuple = (session_id,)
+        if page_id is not None:
+            sql += " AND a.page_id = ?"
+            params += (page_id,)
+        rows = self._query(sql + " ORDER BY a.id", params)
+        for r in rows:
+            r["edited_by_user"] = bool(r["edited_by_user"])
+        return rows
+
+    def update_annotation(self, ann_id: int, text: str) -> dict | None:
+        self._write("UPDATE annotations SET text = ?, edited_by_user = 1 WHERE id = ?", (text, ann_id))
+        return self.get_annotation(ann_id)
+
+    def delete_annotation(self, ann_id: int) -> bool:
+        with self._lock, self._conn:
+            return self._conn.execute("DELETE FROM annotations WHERE id = ?", (ann_id,)).rowcount > 0
+
+    # 요약·퀴즈
+
+    def save_summary(self, session_id: str, body: dict) -> None:
+        self._write(
+            "INSERT OR REPLACE INTO summaries (session_id, body) VALUES (?, ?)",
+            (session_id, json.dumps(body, ensure_ascii=False)),
+        )
+
+    def get_summary(self, session_id: str) -> dict | None:
+        rows = self._query("SELECT body FROM summaries WHERE session_id = ?", (session_id,))
+        return json.loads(rows[0]["body"]) if rows else None

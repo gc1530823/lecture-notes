@@ -1,0 +1,102 @@
+import os
+import tempfile
+import time
+
+os.environ["LLM_MODE"] = "fake"
+os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(), "test.db")
+os.environ["MIN_CHARS_PER_CALL"] = "20"
+
+import pymupdf  # noqa: E402
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+
+from app.llm import ClaudeLLM, _annotation_prompt  # noqa: E402
+from app.main import app  # noqa: E402
+from app.pdf_parser import extract_keywords, parse_pdf  # noqa: E402
+
+
+def make_pdf() -> bytes:
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "Gradient Descent")
+    page.insert_text((72, 300), "learning rate controls step size")
+    page = doc.new_page()
+    page.insert_text((72, 72), "Backpropagation")
+    return doc.tobytes()
+
+
+@pytest.fixture()
+def client():
+    with TestClient(app) as c:
+        yield c
+
+
+def upload(client) -> dict:
+    res = client.post("/documents", files={"file": ("ml.pdf", make_pdf(), "application/pdf")})
+    assert res.status_code == 200, res.text
+    return res.json()
+
+
+def test_parse_pdf_normalizes_blocks():
+    pages = parse_pdf(make_pdf())
+    assert [p["page_no"] for p in pages] == [1, 2]
+    first = pages[0]["blocks"][0]
+    assert first["text"] == "Gradient Descent"
+    assert 0 < first["x"] < 1 and 0 < first["y"] < 0.2
+    assert "Gradient" in extract_keywords(pages)
+
+
+def test_upload_rejects_non_pdf(client):
+    res = client.post("/documents", files={"file": ("a.pdf", b"not a pdf", "application/pdf")})
+    assert res.status_code == 400
+
+
+def test_live_session_annotation_edit_and_summary(client):
+    doc = upload(client)
+    assert doc["title"] == "ml"
+    assert len(doc["pages"]) == 2
+    block_id = doc["pages"][0]["blocks"][0]["id"]
+
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "이 부분은 시험에 꼭 나옵니다. 학습률이 너무 크면 발산해요.",
+                      "start_ms": 1000, "end_ms": 4000})
+        event = ws.receive_json()
+    assert event["type"] == "annotation_added"
+    ann = event["annotation"]
+    assert ann["page_no"] == 1 and ann["block_id"] == block_id and ann["type"] == "exam"
+    assert ann["start_ms"] == 1000
+
+    res = client.patch(f"/annotations/{ann['id']}", json={"text": "학습률이 크면 발산"})
+    assert res.json()["edited_by_user"] is True
+
+    res = client.post(f"/sessions/{session['id']}/end")
+    assert res.json()["status"] in ("processing", "done")
+    for _ in range(50):
+        summary = client.get(f"/sessions/{session['id']}/summary").json()
+        if summary["status"] == "done":
+            break
+        time.sleep(0.05)
+    assert summary["status"] == "done"
+    assert summary["summary"]["quiz"][0]["page_no"] == 1
+
+    assert client.delete(f"/annotations/{ann['id']}").status_code == 204
+    assert client.get(f"/sessions/{session['id']}/annotations").json() == []
+
+
+def test_unknown_page_reports_error(client):
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 99})
+        assert ws.receive_json()["type"] == "error"
+
+
+def test_claude_request_shape():
+    params = ClaudeLLM._request("claude-opus-5-5", "low", "sys", "prompt", {"type": "object"}, 100)
+    assert params["fallbacks"] == "default"
+    assert params["output_config"]["format"]["type"] == "json_schema"
+    assert "fallbacks" not in ClaudeLLM._request("claude-haiku-5-5", "low", "s", "p", {}, 100)
+    prompt = _annotation_prompt([{"id": 3, "text": "Gradient"}], [], "설명")
+    assert "[3] Gradient" in prompt
