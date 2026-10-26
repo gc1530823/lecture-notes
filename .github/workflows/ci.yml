@@ -39,5 +39,6 @@ jobs:
             CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || true
           grep -E "^/.+:[0-9]+:[0-9]+: (warning|error): " build.log | sort -u | head -50 | \
             sed -E "s#^$GITHUB_WORKSPACE/##; s#^([^:]+):([0-9]+):([0-9]+): (warning|error): (.*)#::\4 file=\1,line=\2,col=\3::\5#" || true
+          echo "::notice::compiled Swift files: $(grep -cE '^SwiftCompile normal [^ ]+ .*\.swift' build.log || true)"
           tail -5 build.log
           grep -q "BUILD SUCCEEDED" build.log
