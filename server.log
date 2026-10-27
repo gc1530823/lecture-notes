@@ -1,0 +1,86 @@
+[0;93m2026-10-27 04:07:30.460025661 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+INFO:     Started server process [2374]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:34400 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34416 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34416 - "POST /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34416 - "POST /sessions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34428 - "WebSocket /sessions/c771fcfe7a44409cb80687a3d9ba8387/stream" [accepted]
+INFO:     connection open
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+INFO:app.ollama_llm:Ollama 모델 준비됨: qwen3:1.7b
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:34664 - "POST /sessions/c771fcfe7a44409cb80687a3d9ba8387/end HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:34664 - "GET /sessions/c771fcfe7a44409cb80687a3d9ba8387/summary HTTP/1.1" 200 OK
