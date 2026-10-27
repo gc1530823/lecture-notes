@@ -208,3 +208,13 @@ struct TaskDraft: Codable, Hashable {
     let draft: String
     let sources: [Int]
 }
+
+/// AI를 기다리지 않고 서버가 규칙으로 바로 띄우는 임시 필기
+struct AnnotationPreview: Decodable, Hashable {
+    let id: String
+    let pageNo: Int
+    let blockId: Int?
+    let type: AnnotationType
+    let text: String
+    let startMs: Int
+}

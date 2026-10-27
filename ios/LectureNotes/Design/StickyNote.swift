@@ -35,6 +35,8 @@ struct StickyNote: View {
     let annotation: Annotation
     let number: Int
     var isSelected = false
+    /// AI가 정리하기 전의 즉시 필기 (점선 테두리 + "정리 중")
+    var isPreview = false
 
     var body: some View {
         let type = annotation.type
@@ -61,6 +63,14 @@ struct StickyNote: View {
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
 
+            if isPreview {
+                HStack(spacing: 5) {
+                    ProgressView().controlSize(.mini)
+                    Text("AI가 정리 중…")
+                }
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(Theme.noteInk.opacity(0.5))
+            }
             if type == .tip {
                 Text("교수님 말씀이 아니라 AI가 덧붙인 내용이에요")
                     .font(.caption2)
@@ -87,6 +97,13 @@ struct StickyNote: View {
             .shadow(color: .black.opacity(isSelected ? 0.22 : 0.12), radius: isSelected ? 12 : 4,
                     x: 0, y: isSelected ? 10 : 3)
         }
+        .overlay {
+            if isPreview {
+                FoldedPaper()
+                    .stroke(type.inkColor.opacity(0.6), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+            }
+        }
+        .opacity(isPreview ? 0.88 : 1)
         .overlay(alignment: .top) {
             // 위쪽에 붙인 반투명 테이프
             RoundedRectangle(cornerRadius: 2)

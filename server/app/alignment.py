@@ -175,3 +175,17 @@ class PageTracker:
 def _normalize(values: list[float]) -> list[float]:
     total = sum(values)
     return [v / total for v in values] if total > 0 else values
+
+
+def best_block(blocks: list[dict], text: str, threshold: float = 0.12) -> dict | None:
+    """받아쓰기 문장과 글자가 가장 많이 겹치는 문단. 충분히 겹치지 않으면 None (페이지 여백에 붙인다)."""
+    query = _grams(text)
+    qnorm = math.sqrt(sum(v * v for v in query.values())) or 1.0
+    best, best_score = None, threshold
+    for block in blocks:
+        grams = _grams(block["text"])
+        norm = math.sqrt(sum(v * v for v in grams.values())) or 1.0
+        score = sum(n * grams.get(g, 0) for g, n in query.items()) / (qnorm * norm)
+        if score > best_score:
+            best, best_score = block, score
+    return best

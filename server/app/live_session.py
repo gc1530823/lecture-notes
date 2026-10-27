@@ -5,7 +5,7 @@ import json
 import logging
 import time
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import anthropic
 
@@ -13,6 +13,7 @@ from .alignment import Estimate, PageIndex, PageTracker
 from .config import settings
 from .db import Database
 from .llm import ANNOTATION_TYPES, LLM, TASK_KINDS, LLMError
+from .quick_notes import quick_note
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +27,8 @@ class Batch:
     start_ms: int
     texts: list[str]
     since: float
+    # 이 묶음을 위해 띄운 즉시 필기(임시 포스트잇)들
+    previews: list[dict] = field(default_factory=list)
 
 
 class LiveSession:
@@ -45,6 +48,7 @@ class LiveSession:
         # 앞 호출이 도는 동안 생긴 묶음은 대기열에 두고, 같은 페이지끼리는 합쳐서 호출 수를 줄인다 (느린 무료 모델 대비).
         self._queue: list[Batch] = []
         self._worker: asyncio.Task | None = None
+        self._preview_count = 0
 
     async def handle(self, message: dict) -> None:
         kind = message.get("type")
@@ -108,10 +112,12 @@ class LiveSession:
         if not self.batch or not self.batch.texts:
             return
         batch, self.batch = self.batch, None
+        self._send_preview(batch)
         last = self._queue[-1] if self._queue else None
         if last and last.estimate.page_no == batch.estimate.page_no:
             last.texts.extend(batch.texts)
             last.estimate = batch.estimate
+            last.previews.extend(batch.previews)
         else:
             self._queue.append(batch)
         if self._worker is None or self._worker.done():
@@ -119,9 +125,35 @@ class LiveSession:
 
     async def _drain(self) -> None:
         while self._queue:
-            await self._annotate(self._queue.pop(0))
+            batch = self._queue.pop(0)
+            ok = await self._annotate(batch)
+            await self._resolve_previews(batch, keep=not ok)
 
-    async def _annotate(self, batch: Batch) -> None:
+    def _send_preview(self, batch: Batch) -> None:
+        """AI를 기다리지 않고 바로 임시 포스트잇을 띄운다."""
+        page = self.pages[batch.estimate.page_no - 1]
+        note = quick_note(self.db.get_blocks(page["id"]), batch.texts)
+        self._preview_count += 1
+        preview = {"id": f"p{self._preview_count}", "page_no": batch.estimate.page_no, "page_id": page["id"],
+                   "start_ms": batch.start_ms, **note}
+        batch.previews.append(preview)
+        payload = {k: v for k, v in preview.items() if k != "page_id"}
+        task = asyncio.ensure_future(self.send({"type": "annotation_preview", "preview": payload}))
+        task.add_done_callback(lambda t: t.cancelled() or t.exception())
+
+    async def _resolve_previews(self, batch: Batch, keep: bool) -> None:
+        """AI 필기가 나오면 임시 포스트잇을 지운다. AI가 실패했으면 임시 필기를 진짜 필기로 남긴다."""
+        if not batch.previews:
+            return
+        if keep:
+            for p in batch.previews:
+                annotation = self.db.add_annotation(self.session_id, p["page_id"], p["block_id"], p["type"],
+                                                    p["text"], p["start_ms"])
+                await self.send({"type": "annotation_added", "annotation": annotation})
+        await self.send({"type": "previews_resolved", "ids": [p["id"] for p in batch.previews]})
+
+    async def _annotate(self, batch: Batch) -> bool:
+        """AI로 필기·과제를 만든다. AI 호출이 실패하면 False."""
         confident = batch.estimate.confidence >= settings.page_confidence
         # 확신이 낮으면 후보 페이지 여러 장을 보여 주고 AI가 고르게 한다
         page_nos = [batch.estimate.page_no] if confident else batch.estimate.candidates
@@ -140,12 +172,12 @@ class LiveSession:
             results = await self.llm.annotate(candidates, transcript, existing_tasks)
         except anthropic.RateLimitError:
             log.warning("필기 생성: 요청 한도 초과")
-            await self.send({"type": "error", "message": "요청이 많아 잠시 필기를 건너뜁니다."})
-            return
+            await self.send({"type": "error", "message": "요청이 많아 잠시 AI 정리를 건너뜁니다."})
+            return False
         except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError) as exc:
             log.exception("필기 생성 실패")
-            await self.send({"type": "error", "message": f"필기 생성 실패: {exc}"})
-            return
+            await self.send({"type": "error", "message": f"AI 정리 실패, 즉시 필기로 남겨 둡니다: {exc}"})
+            return False
 
         by_page = {c["page_no"]: c for c in candidates}
         for item in results.get("tasks", []):
@@ -179,3 +211,4 @@ class LiveSession:
                 pending=pending,
             )
             await self.send({"type": "annotation_added", "annotation": annotation})
+        return True

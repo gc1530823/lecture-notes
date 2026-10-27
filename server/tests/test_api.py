@@ -36,7 +36,8 @@ def receive(ws, kind: str = "annotation_added") -> dict:
     """page_estimate 같은 다른 이벤트는 건너뛰고 원하는 이벤트를 받는다."""
     while True:
         event = ws.receive_json()
-        assert event["type"] in ("page_estimate", "annotation_added", "task_added"), event
+        assert event["type"] in ("page_estimate", "annotation_added", "task_added", "annotation_preview",
+                                 "previews_resolved"), event
         if event["type"] == kind:
             return event
 
@@ -158,3 +159,18 @@ def test_task_is_detected_and_drafted(client):
     assert client.patch(f"/tasks/{task['id']}", json={"done": True}).json()["done"] is True
     assert len(client.get(f"/sessions/{session['id']}/tasks").json()) == 1
     assert client.post("/tasks/9999/draft").status_code == 404
+
+
+def test_instant_preview_arrives_before_ai_note_and_is_resolved(client):
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "transcript_final", "text": "이 부분은 시험에 꼭 나옵니다. 학습률이 너무 크면 발산해요.",
+                      "start_ms": 0, "end_ms": 3000})
+        order = []
+        while "previews_resolved" not in order:
+            event = ws.receive_json()
+            order.append(event["type"])
+            if event["type"] == "annotation_preview":
+                assert event["preview"]["type"] == "exam" and event["preview"]["id"].startswith("p")
+    assert order.index("annotation_preview") < order.index("annotation_added") < order.index("previews_resolved")

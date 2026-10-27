@@ -32,6 +32,10 @@ final class LectureViewModel: ObservableObject {
     @Published private(set) var estimateConfidence: Double = 0
     /// 이번 강의에서 교수님이 낸 과제
     @Published private(set) var tasks: [LectureTask] = []
+    /// 즉시 필기(임시 포스트잇). 음수 id로 진짜 필기와 구분한다.
+    @Published private(set) var previews: [Annotation] = []
+    private var previewIDs: [String: Int] = [:]
+    private var nextPreviewID = -1
     /// 방금 들어온 과제 (화면 위 배너로 알린다)
     @Published var freshTask: LectureTask?
     @Published private(set) var annotations: [Annotation] = []
@@ -65,12 +69,29 @@ final class LectureViewModel: ObservableObject {
         socket.onError = { [weak self] message in self?.errorMessage = message }
         socket.onPageEstimate = { [weak self] page, confidence in self?.receiveEstimate(page: page, confidence: confidence) }
         socket.onTask = { [weak self] task in self?.receive(task) }
+        socket.onPreview = { [weak self] preview in self?.receive(preview) }
+        socket.onPreviewsResolved = { [weak self] ids in self?.resolvePreviews(ids) }
     }
 
     var pages: [Page] { document.document.pages }
 
     func annotations(onPage pageNo: Int) -> [Annotation] {
-        annotations.filter { $0.pageNo == pageNo && !$0.pending }
+        (annotations + previews).filter { $0.pageNo == pageNo && !$0.pending }
+    }
+
+    private func receive(_ preview: AnnotationPreview) {
+        let id = nextPreviewID
+        nextPreviewID -= 1
+        previewIDs[preview.id] = id
+        let note = Annotation(id: id, sessionId: session?.id ?? "", pageNo: preview.pageNo, blockId: preview.blockId,
+                              type: preview.type, text: preview.text, startMs: preview.startMs, editedByUser: false)
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { previews.append(note) }
+        latestAnnotationID = id
+    }
+
+    private func resolvePreviews(_ keys: [String]) {
+        let ids = Set(keys.compactMap { previewIDs.removeValue(forKey: $0) })
+        withAnimation(.easeInOut(duration: 0.3)) { previews.removeAll { ids.contains($0.id) } }
     }
 
     /// 어느 페이지인지 확실하지 않아 보류함에 있는 필기
@@ -269,7 +290,15 @@ final class LectureViewModel: ObservableObject {
                 recorder.showDemoCaption(shown, elapsed: elapsed, level: .random(in: 0.35...0.95))
                 try? await Task.sleep(for: .milliseconds(220))
             }
-            try? await Task.sleep(for: .milliseconds(500))
+            // 즉시 필기가 먼저 뜨고, 잠시 뒤 AI 필기로 바뀐다
+            if annotation.pageNo == currentPage {
+                receive(AnnotationPreview(id: "demo\(index)", pageNo: annotation.pageNo, blockId: annotation.blockId,
+                                          type: annotation.type == .tip ? .explanation : annotation.type,
+                                          text: String(caption.prefix(60)), startMs: annotation.startMs))
+                try? await Task.sleep(for: .milliseconds(1400))
+                resolvePreviews(["demo\(index)"])
+            }
+            try? await Task.sleep(for: .milliseconds(300))
             // 교수님이 다음 장으로 넘어간 장면: 서버 추정이 바뀌면 화면이 따라간다
             if annotation.pageNo != currentPage {
                 receiveEstimate(page: annotation.pageNo, confidence: 0.86)

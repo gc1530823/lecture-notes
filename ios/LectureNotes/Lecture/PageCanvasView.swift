@@ -60,6 +60,7 @@ struct PageCanvasView: View {
                 }
             } label: {
                 NoteFlag(annotation: annotation, number: index + 1, isSelected: selectedAnnotationID == annotation.id)
+                    .opacity(annotation.id < 0 ? 0.7 : 1)
             }
             .buttonStyle(PressableStyle(scale: 0.85))
             .position(flagPosition(for: annotation, index: index, blocks: blocks, in: size))

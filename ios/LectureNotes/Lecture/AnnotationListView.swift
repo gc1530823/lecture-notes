@@ -20,14 +20,16 @@ struct AnnotationBoardView: View {
                             selectedID = selectedID == annotation.id ? nil : annotation.id
                         } label: {
                             StickyNote(annotation: annotation, number: index + 1,
-                                       isSelected: selectedID == annotation.id)
+                                       isSelected: selectedID == annotation.id, isPreview: annotation.id < 0)
                         }
                         .buttonStyle(PressableStyle())
                         .id(annotation.id)
                         .transition(.stickOn)
                         .contextMenu {
-                            Button("수정", systemImage: "pencil") { onEdit(annotation) }
-                            Button("삭제", systemImage: "trash", role: .destructive) { onDelete(annotation) }
+                            if annotation.id > 0 {
+                                Button("수정", systemImage: "pencil") { onEdit(annotation) }
+                                Button("삭제", systemImage: "trash", role: .destructive) { onDelete(annotation) }
+                            }
                         }
                     }
                 }

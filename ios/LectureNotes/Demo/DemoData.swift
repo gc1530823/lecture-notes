@@ -80,7 +80,7 @@ enum DemoData {
     static let tasks: [LectureTask] = [
         LectureTask(id: 1, sessionId: sessionID, pageNo: 1, kind: .inClass, title: "학습률이 클 때·작을 때 예시 쓰기",
                     instructions: "학습률이 클 때와 작을 때 생기는 일을 예시와 함께 하나씩 쓰기. 5분 안에 LMS에 제출.",
-                    dueText: "수업 중 5분", done: false, draft: nil),
+                    dueText: "5분 안에", done: false, draft: nil),
         LectureTask(id: 2, sessionId: sessionID, pageNo: 2, kind: .homework, title: "과제 2: 경사하강법 직접 구현",
                     instructions: "넘파이로 경사하강법을 구현하고 학습률 3가지로 손실 그래프를 비교. 코드와 1쪽 보고서 제출.",
                     dueText: "다음 주 금요일까지", done: false, draft: nil),

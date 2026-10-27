@@ -11,6 +11,9 @@ final class LectureSocket {
     var onPageEstimate: ((Int, Double) -> Void)?
     /// 교수님이 낸 과제를 서버가 뽑아냈다
     var onTask: ((LectureTask) -> Void)?
+    /// 즉시 필기(임시 포스트잇)와, AI 필기가 나와 지울 임시 필기 목록
+    var onPreview: ((AnnotationPreview) -> Void)?
+    var onPreviewsResolved: (([String]) -> Void)?
 
     private var url: URL?
     private var task: URLSessionWebSocketTask?
@@ -103,6 +106,10 @@ final class LectureSocket {
         switch event.type {
         case "annotation_added":
             if let annotation = event.annotation { onAnnotation?(annotation) }
+        case "annotation_preview":
+            if let preview = event.preview { onPreview?(preview) }
+        case "previews_resolved":
+            onPreviewsResolved?(event.ids ?? [])
         case "task_added":
             if let task = event.task { onTask?(task) }
         case "page_estimate":
@@ -127,4 +134,6 @@ private struct ServerEvent: Decodable {
     let page: Int?
     let confidence: Double?
     let task: LectureTask?
+    let preview: AnnotationPreview?
+    let ids: [String]?
 }
