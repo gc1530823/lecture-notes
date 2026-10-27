@@ -1,6 +1,6 @@
 name: Free AI test
 
-# 무료 모드(Ollama + 공개 모델)로 강의 시뮬레이션을 돌리고, 결과를 reports 브랜치에 올린다.
+# 무료 모드(Ollama + 공개 모델)로 강의 시뮬레이션을 돌리고, 결과를 reports-<모델> 브랜치에 올린다.
 # 리눅스 빌드 서버(4코어, RAM 16GB, 그래픽카드 없음)에서 돌므로 실제 속도는 사용자 컴퓨터와 다를 수 있다.
 on:
   workflow_dispatch:
@@ -50,4 +50,6 @@ jobs:
           git init -q -b reports
           git add .
           git -c user.name="ci" -c user.email="ci@users.noreply.github.com" commit -qm "free AI report for $GITHUB_SHA"
-          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" reports
+          # 모델마다 다른 브랜치에 올린다 (예: reports-qwen3-4b)
+          BRANCH="reports-$(echo "$MODEL" | tr ':.' '--')"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" "HEAD:$BRANCH"

@@ -1,6 +1,7 @@
 """WebSocket 강의 세션 하나의 상태: 받아쓰기로 현재 페이지를 추정하고, 모아 두었다가 필기를 만든다."""
 
 import asyncio
+import re
 import json
 import logging
 import time
@@ -18,6 +19,12 @@ from .quick_notes import quick_note
 log = logging.getLogger(__name__)
 
 Send = Callable[[dict], Awaitable[None]]
+
+# 교수님이 실제로 무언가를 시키는 말. 이런 말이 없으면 모델이 과제를 뽑아도 버린다 (작은 모델의 오탐지 방지).
+DIRECTIVE = re.compile(
+    r"(해|써|풀어|읽어|정리해|공부해|준비해|만들어|찾아)\s*(오|와|보|봐)\s*(세요|요|라)|내세요|제출|과제|숙제|"
+    r"레포트|리포트|발표|올려\s*(주세요|놓으세요)|까지\s*(내|해)"
+)
 
 
 @dataclass
@@ -180,7 +187,7 @@ class LiveSession:
             return False
 
         by_page = {c["page_no"]: c for c in candidates}
-        for item in results.get("tasks", []):
+        for item in results.get("tasks", []) if DIRECTIVE.search(transcript) else []:
             title = str(item.get("title", "")).strip()
             if not title or item.get("kind") not in TASK_KINDS:
                 continue

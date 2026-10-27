@@ -174,3 +174,21 @@ def test_instant_preview_arrives_before_ai_note_and_is_resolved(client):
             if event["type"] == "annotation_preview":
                 assert event["preview"]["type"] == "exam" and event["preview"]["id"].startswith("p")
     assert order.index("annotation_preview") < order.index("annotation_added") < order.index("previews_resolved")
+
+
+def test_task_without_directive_is_dropped(client, monkeypatch):
+    import app.llm as llm_module
+
+    async def eager(self, candidates, transcript, existing_tasks):
+        # 작은 모델처럼 "시험에 나온다"를 과제로 잘못 뽑는 경우
+        return {"annotations": [], "tasks": [{"kind": "exam_prep", "title": "시험 준비", "instructions": "학습률",
+                                              "due_text": ""}]}
+
+    monkeypatch.setattr(llm_module.FakeLLM, "annotate", eager)
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "transcript_final", "text": "이거 중간고사에 꼭 나와요. 학습률 차이 기억하세요.",
+                      "start_ms": 0, "end_ms": 3000})
+        receive(ws, "previews_resolved")
+    assert client.get(f"/sessions/{session['id']}/tasks").json() == []

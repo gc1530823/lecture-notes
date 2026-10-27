@@ -24,3 +24,9 @@ def test_long_sentence_is_shortened():
     note = quick_note([], ["이건 아주 긴 문장인데 " * 10])
     assert len(note["text"]) <= 71 and note["text"].endswith("…")
     assert note["block_id"] is None
+
+
+def test_exam_analogy_is_not_exam_notice():
+    note = quick_note(BLOCKS, ["시험 문제를 외워서 푸는 학생이랑 비슷해요."])
+    assert note["type"] == "example"
+    assert quick_note(BLOCKS, ["이건 시험에 꼭 나와요."])["type"] == "exam"

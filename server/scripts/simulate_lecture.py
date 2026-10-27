@@ -64,6 +64,7 @@ async def main(base: str, wait: float) -> None:
         sent_at: list[float] = []
         estimates: list[int | None] = []
         notes: list[dict] = []
+        previews: list[float] = []
 
         async with websockets.connect(ws_url) as ws:
             async def listen():
@@ -73,6 +74,16 @@ async def main(base: str, wait: float) -> None:
                     if event["type"] == "page_estimate":
                         estimates.append(event["page"])
                         print(f"  [자동 추적] {event['page']}쪽 (확신 {event['confidence']:.2f})")
+                    elif event["type"] == "annotation_preview":
+                        p = event["preview"]
+                        first = next((t for t in sent_at if t - started >= p["start_ms"] / 1000 - 0.01), sent_at[-1])
+                        previews.append(now - first)
+                        print(f"  [즉시 필기 {p['type']}] {p['text']}  · {now - first:.1f}초")
+                    elif event["type"] == "previews_resolved":
+                        pass
+                    elif event["type"] == "task_added":
+                        t = event["task"]
+                        print(f"  [과제 {t['kind']}] {t['title']} — {t['instructions']} ({t['due_text'] or '마감 없음'})")
                     elif event["type"] == "annotation_added":
                         a = event["annotation"]
                         # 필기 묶음의 첫 문장을 보낸 시각부터 필기를 받은 시각까지
@@ -114,8 +125,11 @@ async def main(base: str, wait: float) -> None:
     print(f"페이지 추적 정확도: {hits}/{len(truth)} 문장")
     print(f"필기 {len(notes)}개 (보류함 {sum(n['pending'] for n in notes)}개), "
           f"종류 {sorted({n['type'] for n in notes})}")
+    if previews:
+        previews.sort()
+        print(f"즉시 필기 {len(previews)}개, 지연: 중간값 {previews[len(previews) // 2]:.1f}초, 최대 {previews[-1]:.1f}초")
     if latencies:
-        print(f"필기 지연: 중간값 {latencies[len(latencies) // 2]:.1f}초, 최대 {latencies[-1]:.1f}초")
+        print(f"AI 필기 지연: 중간값 {latencies[len(latencies) // 2]:.1f}초, 최대 {latencies[-1]:.1f}초")
     print(f"요약 상태: {result['status']}")
 
 
