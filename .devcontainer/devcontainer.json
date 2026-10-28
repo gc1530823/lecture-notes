@@ -1,0 +1,10 @@
+{
+  "name": "강의노트 서버 (무료 모드)",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "postCreateCommand": "sudo apt-get update -q && sudo apt-get install -y -q ffmpeg && pip install -q -r server/requirements.txt",
+  "postStartCommand": "bash .devcontainer/start.sh",
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": { "label": "강의노트 웹앱", "onAutoForward": "notify" }
+  }
+}
