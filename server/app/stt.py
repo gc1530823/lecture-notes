@@ -94,4 +94,10 @@ class FakeTranscriber:
 
 
 def make_transcriber():
-    return FakeTranscriber() if settings.stt_mode == "fake" else WhisperTranscriber()
+    if settings.stt_mode == "fake":
+        return FakeTranscriber()
+    if settings.stt_mode == "groq":
+        from .groq import GroqTranscriber
+
+        return GroqTranscriber()
+    return WhisperTranscriber()

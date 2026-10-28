@@ -1,0 +1,59 @@
+name: Process recording
+
+# 실제 녹음 하나를 Groq(무료 사용량)로 정리한다.
+# 입력: inbox/<이름> 브랜치에 강의자료 PDF 하나와 녹음 파일 하나를 올린다.
+# 실행: Actions 탭에서 이 워크플로를 고르고 이름을 넣어 Run (입력 브랜치에는 워크플로 파일이 없어 push로는 안 돈다)
+# 결과: result/<이름> 브랜치에 정리 PDF·받아쓰기·필기·요약·퀴즈·과제를 올린다.
+# 필요: 저장소 Settings → Secrets and variables → Actions 에 GROQ_API_KEY
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "inbox/ 뒤의 이름 (예: ml-week3)"
+        required: true
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    env:
+      NAME: ${{ inputs.name || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Get recording
+        run: |
+          NAME="${NAME#inbox/}"
+          echo "NAME=$NAME" >> "$GITHUB_ENV"
+          git fetch -q --depth 1 origin "inbox/$NAME"
+          mkdir -p /tmp/inbox && git archive "origin/inbox/$NAME" | tar -x -C /tmp/inbox
+          ls -la /tmp/inbox
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r server/requirements.txt && sudo apt-get install -y -q ffmpeg > /dev/null
+      - name: Process
+        working-directory: server
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          if [ -z "$GROQ_API_KEY" ]; then echo "::error::GROQ_API_KEY secret이 없습니다"; exit 1; fi
+          (ENABLE_WEB_TIPS=0 uvicorn app.main:app --port 8000 > /tmp/server.log 2>&1 &)
+          for i in $(seq 1 30); do curl -s localhost:8000/health > /dev/null && break; sleep 1; done
+          PDF=$(find /tmp/inbox -maxdepth 1 -iname '*.pdf' | head -1)
+          AUDIO=$(find /tmp/inbox -maxdepth 1 -type f ! -iname '*.pdf' ! -name '.*' ! -iname '*.md' | head -1)
+          set -o pipefail
+          python scripts/process_recording.py "$PDF" "$AUDIO" /tmp/result 2>&1 | tee /tmp/run.txt
+          cp /tmp/server.log /tmp/result/server.log
+      - name: Upload result
+        if: always()
+        run: |
+          mkdir -p /tmp/result && cd /tmp/result
+          cp /tmp/server.log server.log 2>/dev/null || true
+          git init -q -b result
+          git add .
+          git -c user.name="ci" -c user.email="ci@users.noreply.github.com" commit -qm "result for $NAME"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" "HEAD:result/$NAME"

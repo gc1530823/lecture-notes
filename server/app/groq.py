@@ -1,0 +1,153 @@
+"""Groq 모드 (무료 사용량 안에서 무료, 빠름): Groq 클라우드에서 Whisper 받아쓰기와 필기·요약 AI를 돌린다.
+
+GROQ_API_KEY만 넣으면 받아쓰기와 AI가 모두 Groq로 바뀐다. 그래픽카드 없는 컴퓨터에서 1~2분 걸리던 필기가
+몇 초로, 1시간 녹음 받아쓰기가 1분 안팎으로 줄어든다. 대신 녹음과 받아쓰기가 Groq 서버로 간다.
+API는 OpenAI와 같은 형식이고, 프롬프트·스키마와 페이지별로 나눠 요약하는 방식은 무료(Ollama) 모드와 같다.
+"""
+
+import asyncio
+import io
+import json
+import logging
+import os
+import subprocess
+import tempfile
+import time
+import wave
+from collections.abc import Callable
+
+import httpx
+import numpy as np
+
+from .config import settings
+from .llm import LLMError
+from .ollama_llm import OllamaLLM
+from .stt import Segment, split_sentences
+
+log = logging.getLogger(__name__)
+
+BASE_URL = "https://api.groq.com/openai/v1"
+# 무료 등급은 파일 하나에 25MB까지라, 16kHz 모노 32kbps mp3(1시간 약 14MB)로 바꾼 뒤 10분씩 나눠 보낸다
+CHUNK_SECONDS = 600
+MAX_RETRIES = 6
+
+
+def _wait_seconds(response: httpx.Response, attempt: int) -> float:
+    """사용량 한도(429)에 걸리면 Groq가 알려 준 만큼(없으면 점점 길게) 기다린다."""
+    try:
+        return min(float(response.headers.get("retry-after", "")), 60)
+    except ValueError:
+        return min(2 ** attempt, 30)
+
+
+def _auth() -> dict:
+    if not settings.groq_api_key:
+        raise LLMError("GROQ_API_KEY가 없습니다.")
+    return {"Authorization": f"Bearer {settings.groq_api_key}"}
+
+
+class GroqLLM(OllamaLLM):
+    def __init__(self, transport: httpx.AsyncBaseTransport | None = None) -> None:
+        self.client = httpx.AsyncClient(base_url=BASE_URL, timeout=httpx.Timeout(120, connect=10),
+                                        transport=transport)
+
+    async def _chat(self, system: str, prompt: str, schema: dict, context_tokens: int,
+                    temperature: float = 0.2) -> dict:
+        payload = {
+            "model": settings.groq_model,
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+            "response_format": {"type": "json_schema", "json_schema": {"name": "result", "schema": schema}},
+            "temperature": temperature,
+        }
+        if "gpt-oss" in settings.groq_model:
+            # 생각을 짧게 해서 실시간 필기를 빠르게 한다
+            payload["reasoning_effort"] = "low"
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = await self.client.post("/chat/completions", json=payload, headers=_auth())
+            except httpx.HTTPError as exc:
+                raise LLMError(f"Groq에 연결할 수 없습니다: {exc}") from exc
+            if response.status_code == 429:
+                wait = _wait_seconds(response, attempt)
+                log.warning("Groq 사용량 한도: %.0f초 기다립니다", wait)
+                await asyncio.sleep(wait)
+                continue
+            break
+        if response.status_code == 401:
+            raise LLMError("GROQ_API_KEY가 올바르지 않습니다.")
+        if response.status_code == 400 and "json_validate_failed" in response.text:
+            # 모델이 스키마에 안 맞게 답함: 다시 받을 수 있도록 JSON 오류로 알린다
+            raise json.JSONDecodeError("Groq 답이 스키마와 맞지 않습니다", response.text[:200], 0)
+        if response.status_code >= 400:
+            raise LLMError(f"Groq 오류 ({response.status_code}): {response.text[:200]}")
+        content = response.json()["choices"][0]["message"].get("content") or ""
+        if not content:
+            raise LLMError("Groq 응답이 비어 있습니다.")
+        return json.loads(content)
+
+    async def warm_up(self) -> None:
+        return None
+
+
+def _wav_bytes(audio: np.ndarray) -> bytes:
+    pcm = (np.clip(audio, -1, 1) * 32767).astype(np.int16)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(16000)
+        w.writeframes(pcm.tobytes())
+    return buf.getvalue()
+
+
+def _split_audio(path: str, out_dir: str) -> list[str]:
+    subprocess.run(
+        ["ffmpeg", "-loglevel", "error", "-y", "-i", path, "-ac", "1", "-ar", "16000", "-c:a", "libmp3lame",
+         "-b:a", "32k", "-f", "segment", "-segment_time", str(CHUNK_SECONDS), os.path.join(out_dir, "part%03d.mp3")],
+        check=True,
+    )
+    return sorted(os.path.join(out_dir, n) for n in os.listdir(out_dir) if n.startswith("part"))
+
+
+class GroqTranscriber:
+    def __init__(self, transport: httpx.BaseTransport | None = None) -> None:
+        self.client = httpx.Client(base_url=BASE_URL, timeout=httpx.Timeout(300, connect=10), transport=transport)
+
+    def _request(self, filename: str, data: bytes, hint: str) -> list[Segment]:
+        form = {"model": settings.groq_whisper_model, "language": "ko", "response_format": "verbose_json",
+                "temperature": "0"}
+        if hint:
+            form["prompt"] = hint[-200:]  # 프롬프트는 짧아야 한다 (최근 용어·문장 위주로 뒤쪽을 남긴다)
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = self.client.post("/audio/transcriptions", data=form, files={"file": (filename, data)},
+                                            headers=_auth())
+            except httpx.HTTPError as exc:
+                raise LLMError(f"Groq에 연결할 수 없습니다: {exc}") from exc
+            if response.status_code != 429:
+                break
+            wait = _wait_seconds(response, attempt)
+            log.warning("Groq 받아쓰기 사용량 한도: %.0f초 기다립니다", wait)
+            time.sleep(wait)
+        if response.status_code >= 400:
+            raise LLMError(f"Groq 받아쓰기 오류 ({response.status_code}): {response.text[:200]}")
+        body = response.json()
+        segments = body.get("segments") or [{"start": 0, "end": body.get("duration", 0), "text": body.get("text", "")}]
+        return [Segment(int(s["start"] * 1000), int(s["end"] * 1000), s["text"].strip())
+                for s in segments if s.get("text", "").strip()]
+
+    def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
+        """audio: 파일 경로, 또는 16kHz 모노 float32 배열(실시간 조각). WhisperTranscriber와 같은 꼴로 돌려준다."""
+        if not isinstance(audio, str):
+            return split_sentences(self._request("live.wav", _wav_bytes(audio), hint))
+        result: list[Segment] = []
+        with tempfile.TemporaryDirectory() as tmp:
+            parts = _split_audio(audio, tmp)
+            for i, part in enumerate(parts):
+                offset = i * CHUNK_SECONDS * 1000
+                with open(part, "rb") as f:
+                    segments = self._request(os.path.basename(part), f.read(), hint)
+                result += [Segment(s.start_ms + offset, s.end_ms + offset, s.text) for s in segments]
+                if on_progress:
+                    on_progress((i + 1) / len(parts))
+        return split_sentences(result)

@@ -413,6 +413,10 @@ def make_llm() -> LLM:
         return FakeLLM()
     if settings.llm_mode == "claude":
         return ClaudeLLM()
+    if settings.llm_mode == "groq":
+        from .groq import GroqLLM
+
+        return GroqLLM()
     from .ollama_llm import OllamaLLM
 
     return OllamaLLM()

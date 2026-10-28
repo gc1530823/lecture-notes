@@ -51,13 +51,34 @@ iPhone 앱 (SwiftUI)                        서버 (FastAPI)
 
 ## 1. 서버 실행
 
-Python 3.11 이상이 필요합니다. 서버는 세 가지 AI 모드 중 하나로 돕니다.
+Python 3.11 이상이 필요합니다. 서버는 네 가지 AI 모드 중 하나로 돕니다.
 
 | `LLM_MODE` | 비용 | 설명 |
 | --- | --- | --- |
-| `ollama` (기본값) | **무료** | 내 컴퓨터에서 공개 모델(Qwen 등)을 돌린다. 강의 내용이 밖으로 나가지 않는다 |
+| `groq` (`GROQ_API_KEY`가 있으면 기본값) | **무료 사용량 안에서 무료** | Groq 클라우드. 받아쓰기(Whisper large-v3-turbo)와 필기·요약(gpt-oss-120b)이 빠르다. 녹음·받아쓰기가 Groq로 간다 |
+| `ollama` (키가 없으면 기본값) | **무료** | 내 컴퓨터에서 공개 모델(Qwen 등)을 돌린다. 강의 내용이 밖으로 나가지 않지만, 그래픽카드가 없으면 느리다 |
 | `claude` | 유료 | Claude API. 필기 품질이 가장 좋고 웹 검색 추가 자료도 만든다 |
 | `fake` | 무료 | 가짜 응답. 화면·기능 개발과 테스트용 |
+
+### Groq 모드 (빠름, 무료 사용량)
+
+1. https://console.groq.com 에 가입하고 API Keys에서 키를 만든다.
+2. 키를 넣는다. **채팅·코드에 붙이지 말고** 아래 설정 화면에만 넣는다.
+   - Codespaces: GitHub → Settings → Codespaces → Secrets → `GROQ_API_KEY` (저장소 `lecture-notes` 선택)
+   - 녹음 정리 워크플로: 저장소 → Settings → Secrets and variables → Actions → `GROQ_API_KEY`
+3. 서버를 다시 켜면 받아쓰기와 AI가 모두 Groq로 바뀐다 (`/health`의 `llm_mode`가 `groq`).
+
+무료 등급은 파일 하나에 25MB까지라, 서버가 녹음을 16kHz 모노 mp3로 바꾼 뒤 10분씩 나눠 보낸다.
+사용량 한도(분당·하루 요청 수)에 걸리면 Groq가 알려 준 시간만큼 기다렸다가 다시 보낸다.
+
+| 환경변수 | 기본값 | 설명 |
+| --- | --- | --- |
+| `GROQ_MODEL` | `openai/gpt-oss-120b` | 필기·요약 모델 |
+| `GROQ_WHISPER_MODEL` | `whisper-large-v3-turbo` | 받아쓰기 모델 (`whisper-large-v3`는 조금 느리고 더 정확) |
+
+**녹음 하나를 GitHub에서 바로 정리하기**: `inbox/<이름>` 브랜치에 강의자료 PDF와 녹음 파일을 올리고,
+Actions → Process recording → Run workflow에 이름을 넣으면 `result/<이름>` 브랜치에
+정리 PDF·받아쓰기·필기·요약·퀴즈·과제가 올라온다 (`scripts/process_recording.py`).
 
 ### 무료 모드 (Ollama)
 

@@ -9,10 +9,14 @@ class Settings:
     db_path: str = os.getenv("DB_PATH", "data/lecture_notes.db")
     upload_dir: str = os.getenv("UPLOAD_DIR", "data/uploads")
 
-    # "ollama" = 내 컴퓨터의 무료 공개 모델 (기본값)
+    # "groq"   = Groq 클라우드 (무료 사용량 안에서 무료, 빠름). GROQ_API_KEY가 있으면 기본값
+    # "ollama" = 내 컴퓨터의 무료 공개 모델 (키가 없을 때 기본값)
     # "claude" = Claude API (유료, 품질 최고)
     # "fake"   = 테스트·화면 개발용 가짜 응답
-    llm_mode: str = os.getenv("LLM_MODE", "ollama")
+    groq_api_key: str = os.getenv("GROQ_API_KEY", "")
+    llm_mode: str = os.getenv("LLM_MODE", "groq" if os.getenv("GROQ_API_KEY") else "ollama")
+    groq_model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+    groq_whisper_model: str = os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo")
     ollama_url: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
     ollama_model: str = os.getenv("OLLAMA_MODEL", "qwen3:8b")
 
@@ -28,8 +32,9 @@ class Settings:
 
     # 녹음 파일 받아쓰기 모델 (tiny < base < small < medium: 클수록 정확하지만 느리다)
     whisper_model: str = os.getenv("WHISPER_MODEL", "small")
-    # "whisper" = 실제 받아쓰기, "fake" = 화면 개발용 가짜 받아쓰기
-    stt_mode: str = os.getenv("STT_MODE", "whisper")
+    # "groq" = Groq의 Whisper large-v3-turbo (GROQ_API_KEY가 있으면 기본값)
+    # "whisper" = 이 서버에서 돌리는 faster-whisper, "fake" = 화면 개발용 가짜 받아쓰기
+    stt_mode: str = os.getenv("STT_MODE", "groq" if os.getenv("GROQ_API_KEY") else "whisper")
 
     # 자동 페이지 추정 확신이 이 값보다 낮으면 후보 페이지를 AI에게 보여 주고 고르게 한다
     page_confidence: float = float(os.getenv("PAGE_CONFIDENCE", "0.6"))
