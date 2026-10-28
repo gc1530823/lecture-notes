@@ -9,6 +9,8 @@ from contextlib import asynccontextmanager
 
 import anthropic
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
@@ -16,6 +18,7 @@ from .db import Database
 from .live_session import LiveSession
 from .llm import LLMError, make_llm
 from .pdf_parser import PDFParseError, extract_keywords, parse_pdf
+from .stt import make_transcriber
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -28,6 +31,8 @@ TICK_SECONDS = 2.0
 async def lifespan(app: FastAPI):
     app.state.db = Database(settings.db_path)
     app.state.llm = make_llm()
+    app.state.transcriber = make_transcriber()
+    app.state.progress = {}  # 세션 id → 녹음 파일 받아쓰기 진행률 (0~1)
     warm_up = getattr(app.state.llm, "warm_up", None)
     if warm_up:
         asyncio.create_task(warm_up())
@@ -75,7 +80,22 @@ async def upload_document(file: UploadFile = File(...), title: str | None = Form
         raise HTTPException(400, str(exc)) from exc
     name = title or os.path.splitext(file.filename or "강의자료")[0]
     doc_id = db().create_document(name, pages, extract_keywords(pages))
+    # 웹앱은 기기에 PDF를 두지 않으므로 서버에 보관해 두고 다시 내려준다
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    with open(_pdf_path(doc_id), "wb") as f:
+        f.write(data)
     return db().get_document(doc_id)
+
+
+def _pdf_path(doc_id: str) -> str:
+    return os.path.join(settings.upload_dir, f"{doc_id}.pdf")
+
+
+@app.get("/documents/{doc_id}/pdf")
+def get_document_pdf(doc_id: str):
+    if db().get_document(doc_id) is None or not os.path.exists(_pdf_path(doc_id)):
+        raise HTTPException(404, "강의자료 파일이 없습니다.")
+    return FileResponse(_pdf_path(doc_id), media_type="application/pdf")
 
 
 @app.get("/documents/{doc_id}")
@@ -102,6 +122,66 @@ def _session_or_404(session_id: str) -> dict:
     if session is None:
         raise HTTPException(404, "강의 세션이 없습니다.")
     return session
+
+
+MAX_AUDIO_BYTES = 500 * 1024 * 1024
+
+
+@app.post("/sessions/from-audio")
+async def session_from_audio(background: BackgroundTasks, document_id: str = Form(...), file: UploadFile = File(...)):
+    """'음성 메모' 등으로 녹음해 둔 파일로 강의를 정리한다: 받아쓰기 → 페이지 추적·필기·과제 → 요약·퀴즈."""
+    if db().get_document(document_id) is None:
+        raise HTTPException(404, "강의자료가 없습니다.")
+    session_id = db().create_session(document_id)
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    path = os.path.join(settings.upload_dir, f"{session_id}.audio")
+    size = 0
+    with open(path, "wb") as f:
+        while chunk := await file.read(1024 * 1024):
+            size += len(chunk)
+            if size > MAX_AUDIO_BYTES:
+                f.close()
+                os.remove(path)
+                raise HTTPException(413, "녹음 파일은 500MB 이하만 올릴 수 있습니다.")
+            f.write(chunk)
+    db().set_session_status(session_id, "transcribing")
+    background.add_task(_process_audio, session_id, document_id, path)
+    return db().get_session(session_id)
+
+
+async def _process_audio(session_id: str, document_id: str, path: str) -> None:
+    doc = db().get_document(document_id)
+    progress = app.state.progress
+    progress[session_id] = 0.0
+    try:
+        segments = await asyncio.to_thread(
+            app.state.transcriber.transcribe, path, " ".join(doc["keywords"][:40]),
+            lambda p: progress.__setitem__(session_id, p),
+        )
+    except Exception:  # 디코딩 실패, 모델 다운로드 실패 등
+        log.exception("녹음 파일 받아쓰기 실패")
+        db().set_session_status(session_id, "failed")
+        return
+    finally:
+        progress.pop(session_id, None)
+
+    async def discard(_message: dict) -> None:
+        pass
+
+    # 실시간 강의와 같은 파이프라인에 받아쓰기를 차례로 흘려 넣는다
+    live = LiveSession(db(), app.state.llm, db().get_session(session_id), discard)
+    for seg in segments:
+        await live.handle({"type": "transcript_final", "text": seg.text, "start_ms": seg.start_ms, "end_ms": seg.end_ms})
+    await live.close()
+    db().set_session_status(session_id, "processing")
+    await _summarize(session_id, document_id)
+
+
+@app.get("/sessions/{session_id}/transcript")
+def get_transcript(session_id: str):
+    """받아쓰기 전체 (문장마다 시각과 추정 페이지)"""
+    _session_or_404(session_id)
+    return db().get_segments(session_id)
 
 
 @app.get("/sessions/{session_id}/annotations")
@@ -178,7 +258,8 @@ async def _summarize(session_id: str, document_id: str) -> None:
 @app.get("/sessions/{session_id}/summary")
 def get_summary(session_id: str):
     session = _session_or_404(session_id)
-    return {"status": session["status"], "summary": db().get_summary(session_id)}
+    return {"status": session["status"], "summary": db().get_summary(session_id),
+            "progress": app.state.progress.get(session_id)}
 
 
 # 수업 중에 받은 과제
@@ -242,3 +323,12 @@ def update_annotation(ann_id: int, body: AnnotationUpdate):
 def delete_annotation(ann_id: int):
     if not db().delete_annotation(ann_id):
         raise HTTPException(404, "필기가 없습니다.")
+
+
+# 웹앱 (iPhone Safari·안드로이드·PC 브라우저에서 바로 쓰는 버전). API 경로와 겹치지 않게 /app 아래에 둔다.
+app.mount("/app", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static"), html=True), name="web")
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse("/app/")

@@ -1,0 +1,792 @@
+// 강의노트 웹앱: iPhone Safari·안드로이드·PC 브라우저에서 쓰는 버전.
+// 서버(FastAPI)와 같은 주소에서 열리므로 API는 상대 경로로 부른다.
+"use strict";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdfjs/pdf.worker.min.js";
+
+const TYPES = {
+  explanation: { label: "보충설명", icon: "💬" },
+  example: { label: "예시", icon: "💡" },
+  emphasis: { label: "강조", icon: "❗" },
+  exam: { label: "시험", icon: "⭐" },
+  notice: { label: "공지", icon: "📣" },
+  tip: { label: "AI 팁", icon: "✨" },
+};
+const TASK_KINDS = {
+  in_class: { label: "수업 중 과제", icon: "⏱️", color: "var(--record)" },
+  homework: { label: "숙제", icon: "🏠", color: "var(--accent)" },
+  report: { label: "레포트", icon: "📄", color: "var(--tip-ink)" },
+  exam_prep: { label: "시험 준비", icon: "🎓", color: "var(--emphasis-ink)" },
+};
+const TILTS = [-2.2, 1.6, -1.0, 2.4, -0.5, 1.1];
+const FOLLOW_CONFIDENCE = 0.6;
+const MANUAL_PAUSE_MS = 20000;
+
+const $app = document.getElementById("app");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const tilt = (id) => TILTS[Math.abs(id) % TILTS.length];
+const fmtTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+function toast(message) {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.textContent = message;
+  document.body.append(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ---------- 서버 ----------
+
+async function api(method, path, body) {
+  const options = { method };
+  if (body instanceof FormData) options.body = body;
+  else if (body !== undefined) {
+    options.headers = { "Content-Type": "application/json" };
+    options.body = JSON.stringify(body);
+  }
+  const res = await fetch(path, options);
+  if (!res.ok) {
+    let detail = `서버 오류 (${res.status})`;
+    try { detail = (await res.json()).detail || detail; } catch {}
+    throw new Error(detail);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+// ---------- 이 기기에 저장하는 목록 (강의자료와 지난 강의) ----------
+
+const store = {
+  load() {
+    try { return JSON.parse(localStorage.getItem("lecture-notes") || "[]"); } catch { return []; }
+  },
+  save(docs) {
+    try { localStorage.setItem("lecture-notes", JSON.stringify(docs)); } catch {}
+  },
+  add(doc) {
+    const docs = this.load().filter((d) => d.id !== doc.id);
+    docs.unshift({ id: doc.id, title: doc.title, pageCount: doc.page_count, sessions: [] });
+    this.save(docs);
+  },
+  addSession(docId, sessionId) {
+    const docs = this.load();
+    const doc = docs.find((d) => d.id === docId);
+    if (doc) doc.sessions.unshift({ id: sessionId, startedAt: Date.now() });
+    this.save(docs);
+  },
+  remove(docId) { this.save(this.load().filter((d) => d.id !== docId)); },
+};
+
+const pdfCache = new Map();
+function loadPdf(docId) {
+  if (!pdfCache.has(docId)) pdfCache.set(docId, pdfjsLib.getDocument({
+    url: `/documents/${docId}/pdf`,
+    // 한글 PDF는 CID 글꼴을 많이 써서 문자표(cmap)가 있어야 글자가 보인다
+    cMapUrl: "vendor/pdfjs/cmaps/", cMapPacked: true, standardFontDataUrl: "vendor/pdfjs/standard_fonts/",
+  }).promise);
+  return pdfCache.get(docId);
+}
+
+async function renderPage(pdf, pageNo, canvas, width) {
+  const page = await pdf.getPage(pageNo);
+  const base = page.getViewport({ scale: 1 });
+  const ratio = Math.min(window.devicePixelRatio || 1, 3);
+  const viewport = page.getViewport({ scale: (width / base.width) * ratio });
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+}
+
+// ---------- 화면 이동 ----------
+
+let current = null; // 지금 화면의 정리 함수 (녹음 중지 등)
+
+function route() {
+  if (current) current();
+  current = null;
+  const [, view, a, b] = location.hash.split("/");
+  if (view === "doc") renderDetail(a);
+  else if (view === "lecture") renderLecture(a, b);
+  else renderList();
+}
+window.addEventListener("hashchange", route);
+
+// ---------- 자료 목록 ----------
+
+function renderList() {
+  const docs = store.load();
+  $app.innerHTML = `
+    <div class="screen">
+      <div class="topbar"><h1>강의노트</h1></div>
+      ${docs.length ? `<div class="list">${docs.map((d) => `
+        <button class="card doc-card" data-id="${d.id}">
+          <canvas data-thumb="${d.id}"></canvas>
+          <span style="flex:1"><b>${esc(d.title)}</b><small>📄 ${d.pageCount}쪽 · 🎙️ 강의 ${d.sessions.length}회</small></span>
+          <span class="muted">›</span>
+        </button>`).join("")}</div>` : `
+        <div class="empty">
+          <div class="notes">
+            ${noteHTML({ id: 1, type: "explanation", text: "교수님 설명이 자료 옆에 자동으로 붙어요" }, 1).replace('class="note-wrap', 'style="margin-left:-175px;top:0" class="note-wrap')}
+            ${noteHTML({ id: 2, type: "exam", text: "시험에 나온다고 한 부분은 빨간 포스트잇" }, 2).replace('class="note-wrap', 'style="margin-left:-5px;top:100px" class="note-wrap')}
+          </div>
+          <h2>첫 강의자료를 올려 보세요</h2>
+          <p class="muted">PDF를 올리고 녹음을 시작하면<br>설명이 해당 문단 옆에 필기로 붙어요.</p>
+        </div>`}
+      <button class="primary fab" id="add">＋ 강의자료 올리기</button>
+      <input type="file" id="file" accept="application/pdf" class="hidden">
+    </div>`;
+  $app.querySelectorAll(".empty .note-wrap").forEach((n) => { n.style.position = "absolute"; n.style.width = "170px"; n.style.left = "50%"; });
+  $app.querySelectorAll(".doc-card").forEach((el) => el.addEventListener("click", () => (location.hash = `#/doc/${el.dataset.id}`)));
+  $app.querySelectorAll("canvas[data-thumb]").forEach(async (canvas) => {
+    try { await renderPage(await loadPdf(canvas.dataset.thumb), 1, canvas, 104); } catch {}
+  });
+  const input = $app.querySelector("#file");
+  $app.querySelector("#add").addEventListener("click", () => input.click());
+  input.addEventListener("change", async () => {
+    const file = input.files[0];
+    if (!file) return;
+    const button = $app.querySelector("#add");
+    button.textContent = "강의자료 분석 중…";
+    button.disabled = true;
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("title", file.name.replace(/\.pdf$/i, ""));
+      const doc = await api("POST", "/documents", form);
+      store.add(doc);
+      location.hash = `#/doc/${doc.id}`;
+    } catch (e) {
+      toast(e.message);
+      renderList();
+    }
+  });
+}
+
+// ---------- 자료 상세 (새 강의 · 지난 강의) ----------
+
+function renderDetail(docId) {
+  const doc = store.load().find((d) => d.id === docId);
+  if (!doc) return (location.hash = "#/");
+  $app.innerHTML = `
+    <div class="screen">
+      <div class="topbar"><button class="icon-btn" id="back">‹</button><div class="title">${esc(doc.title)}</div><button class="icon-btn" id="del">🗑</button></div>
+      <div class="list">
+        <div class="page"><canvas id="cover"></canvas></div>
+        <button class="primary red" id="start" style="width:100%;height:56px;border-radius:18px">🎙️ 새 강의 녹음하기</button>
+        <button class="card item" id="audio" style="align-items:center">
+          <span class="badge">🎧</span>
+          <span style="flex:1"><b>녹음 파일로 정리하기</b><br><small class="muted">iPhone '음성 메모'로 녹음한 파일을 올리면 화면을 꺼 둔 수업도 필기·요약·퀴즈로 만들어요</small></span>
+        </button>
+        <input type="file" id="audiofile" accept="audio/*,.m4a,.mp3,.wav" class="hidden">
+        <h3 style="margin:8px 0 0">지난 강의</h3>
+        ${doc.sessions.length ? doc.sessions.map((s, i) => `
+          <button class="card item" data-session="${s.id}">
+            <span class="badge">${doc.sessions.length - i}</span>
+            <span style="flex:1"><b>${doc.sessions.length - i}회차 강의</b><br><small class="muted">${new Date(s.startedAt).toLocaleString("ko-KR")}</small></span>
+            <span class="muted">›</span>
+          </button>`).join("") : `<div class="empty-note">아직 녹음한 강의가 없어요</div>`}
+      </div>
+    </div>`;
+  $app.querySelector("#back").onclick = () => (location.hash = "#/");
+  $app.querySelector("#del").onclick = () => {
+    if (confirm("이 강의자료를 목록에서 지울까요?")) { store.remove(docId); location.hash = "#/"; }
+  };
+  $app.querySelector("#start").onclick = () => (location.hash = `#/lecture/${docId}`);
+  const audioInput = $app.querySelector("#audiofile");
+  $app.querySelector("#audio").onclick = () => audioInput.click();
+  audioInput.onchange = () => {
+    const file = audioInput.files[0];
+    if (!file) return;
+    const label = $app.querySelector("#audio b");
+    const form = new FormData();
+    form.append("document_id", docId);
+    form.append("file", file);
+    // 큰 파일이라 올라가는 정도를 보여 주려고 XHR을 쓴다
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/sessions/from-audio");
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) label.textContent = `올리는 중… ${Math.round((e.loaded / e.total) * 100)}%`; };
+    xhr.onload = () => {
+      if (xhr.status >= 300) { toast(`올리지 못했어요 (${xhr.status})`); label.textContent = "녹음 파일로 정리하기"; return; }
+      const session = JSON.parse(xhr.responseText);
+      store.addSession(docId, session.id);
+      location.hash = `#/lecture/${docId}/${session.id}`;
+    };
+    xhr.onerror = () => { toast("올리지 못했어요. 인터넷 연결을 확인해 주세요."); label.textContent = "녹음 파일로 정리하기"; };
+    xhr.send(form);
+  };
+  $app.querySelectorAll("[data-session]").forEach((el) => (el.onclick = () => (location.hash = `#/lecture/${docId}/${el.dataset.session}`)));
+  loadPdf(docId).then((pdf) => renderPage(pdf, 1, $app.querySelector("#cover"), Math.min(innerWidth - 32, 700))).catch(() => {});
+}
+
+// ---------- 포스트잇 ----------
+
+function noteHTML(a, number, { selected = false, preview = false, fresh = false } = {}) {
+  const t = TYPES[a.type] || TYPES.explanation;
+  return `
+    <div class="note-wrap${fresh ? " fresh" : ""}" data-note="${a.id}" style="--tape:${-tilt(a.id) * 1.5}deg">
+      <button class="note${selected ? " sel" : ""}${preview ? " preview" : ""}"
+        style="background:var(--${a.type});--ink-c:var(--${a.type}-ink);transform:rotate(${tilt(a.id)}deg);width:100%">
+        <div class="head" style="color:var(--${a.type}-ink)">${t.icon} ${t.label}
+          ${number ? `<span class="num" style="background:var(--${a.type}-ink)">${number}</span>` : ""}</div>
+        <div class="text">${esc(a.text)}</div>
+        ${preview ? `<div class="sub"><span class="spin"></span> AI가 정리 중…</div>` : ""}
+        ${a.type === "tip" ? `<div class="sub">교수님 말씀이 아니라 AI가 덧붙인 내용이에요</div>` : ""}
+        ${a.edited_by_user ? `<div class="sub">✏️ 직접 수정함</div>` : ""}
+      </button>
+    </div>`;
+}
+
+// ---------- 강의 화면 ----------
+
+async function renderLecture(docId, sessionId) {
+  const state = {
+    doc: null, pdf: null, page: 1, notes: [], previews: [], tasks: [],
+    selected: null, fresh: null, freshTimer: null, recording: false, ended: !!sessionId,
+    sessionId, ws: null, recognizer: null, startedAt: 0, timer: null, autoFollow: true,
+    lastManual: 0, estimate: null, wakeLock: null, pageWidth: 0, seen: new Set(),
+  };
+
+  $app.innerHTML = `
+    <div class="screen lecture">
+      <div class="topbar"><button class="icon-btn" id="back">‹</button><div class="title" id="title"></div><button class="icon-btn" id="sum" title="요약·퀴즈">✨</button></div>
+      <div class="pager"><div class="page" id="page"><canvas></canvas><div class="marks"></div></div></div>
+      <div class="board-head">
+        <h2 id="bh"></h2><span class="count" id="bc"></span><span class="spacer"></span>
+        <button class="chip hidden" id="taskchip" style="color:var(--record);background:color-mix(in srgb,var(--record) 12%,transparent)"></button>
+        <button class="chip hidden" id="pendchip" style="color:var(--emphasis-ink);background:color-mix(in srgb,var(--emphasis-ink) 14%,transparent)"></button>
+        <button class="chip hidden" id="follow" style="color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)"></button>
+      </div>
+      <div class="board" id="board"></div>
+      <div class="dock">
+        <div class="caption hidden" id="caption"><span class="dot"></span><span id="captext">듣고 있어요…</span></div>
+        <div class="bar">
+          <div class="pages"><button id="prev">‹</button><span id="pno"></span><button id="next">›</button></div>
+          <div id="main"></div>
+          <div class="status" id="status">00:00</div>
+        </div>
+      </div>
+    </div>`;
+  const $ = (sel) => $app.querySelector(sel);
+  $("#back").onclick = () => {
+    if (state.recording && !confirm("녹음을 멈추고 나갈까요?")) return;
+    location.hash = `#/doc/${docId}`;
+  };
+
+  try {
+    state.doc = await api("GET", `/documents/${docId}`);
+    state.pdf = await loadPdf(docId);
+    if (sessionId) {
+      state.notes = await api("GET", `/sessions/${sessionId}/annotations`);
+      state.tasks = await api("GET", `/sessions/${sessionId}/tasks`);
+      state.notes.forEach((n) => state.seen.add(n.id));
+    }
+  } catch (e) {
+    toast(`불러오지 못했어요: ${e.message}`);
+    return;
+  }
+  $("#title").textContent = state.doc.title;
+
+  const pageInfo = () => state.doc.pages[state.page - 1];
+  const visible = () => [...state.notes, ...state.previews].filter((n) => n.page_no === state.page && !n.pending);
+
+  // --- 페이지와 필기 표시 ---
+
+  async function drawPage() {
+    const width = $("#page").clientWidth;
+    state.pageWidth = width;
+    await renderPage(state.pdf, state.page, $("#page canvas"), width);
+    drawMarks();
+  }
+
+  function drawMarks() {
+    const marks = $("#page .marks");
+    const page = pageInfo();
+    const notes = visible();
+    const blocks = Object.fromEntries(page.blocks.map((b) => [b.id, b]));
+    let html = "";
+    // 형광펜: 필기가 붙은 문단
+    for (const block of page.blocks) {
+      const last = [...notes].reverse().find((n) => n.block_id === block.id);
+      if (!last) continue;
+      const strong = notes.some((n) => n.block_id === block.id && n.id === state.selected);
+      html += `<div class="hl" style="left:calc(${block.x * 100}% - 4px);top:${(block.y + block.h * 0.1) * 100}%;width:calc(${block.w * 100}% + 8px);height:${block.h * 90}%;background:var(--${last.type}-ink);opacity:${strong ? 0.36 : 0.22}"></div>`;
+    }
+    // 깃발: 번호는 아래 포스트잇과 같다
+    let loose = 0;
+    notes.forEach((n, i) => {
+      const block = blocks[n.block_id];
+      let x, y;
+      if (block) {
+        const before = notes.slice(0, i).filter((m) => m.block_id === n.block_id).length;
+        x = `min(calc(${Math.min(block.x + block.w, 1) * 100}% + ${20 + before * 30}px), calc(100% - 18px))`;
+        y = `max(${(block.y + block.h / 2) * 100}%, 16px)`;
+      } else {
+        x = `min(${26 + loose++ * 34}px, calc(100% - 20px))`;
+        y = "calc(100% - 18px)";
+      }
+      html += `<button class="flag${n.id === state.selected ? " sel" : ""}${n.id < 0 ? " preview" : ""}" data-flag="${n.id}"
+        style="left:${x};top:${y};background:var(--${n.type});--ink-c:var(--${n.type}-ink);rotate:${tilt(n.id) * 2}deg">${i + 1}</button>`;
+    });
+    // 자료 위에 펼친 포스트잇: 방금 들어온 필기, 또는 고른 필기
+    const spot = notes.find((n) => n.id === (state.selected ?? state.fresh));
+    if (spot) {
+      const block = blocks[spot.block_id];
+      const left = block ? `clamp(8px, ${block.x * 100}%, calc(38% - 8px))` : "4%";
+      const below = block && block.y + block.h < 0.62;
+      const pos = below ? `top:calc(${(block.y + block.h) * 100}% + 6px)` : `bottom:calc(${block ? (1 - block.y) * 100 : 8}% + 6px)`;
+      const t = TYPES[spot.type] || TYPES.explanation;
+      html += `<div class="callout" data-callout style="left:${left};${pos};background:var(--${spot.type});rotate:${tilt(spot.id) * 0.5}deg">
+        <span class="kind" style="color:var(--${spot.type}-ink)">${t.icon} ${t.label}</span>${esc(spot.text)}</div>`;
+    }
+    marks.innerHTML = html;
+    marks.querySelectorAll("[data-flag]").forEach((el) => (el.onclick = () => select(Number(el.dataset.flag))));
+    const callout = marks.querySelector("[data-callout]");
+    if (callout) callout.onclick = () => select(null);
+  }
+
+  function drawBoard() {
+    const notes = visible();
+    $("#bh").textContent = `${state.page}쪽 필기`;
+    $("#bc").textContent = notes.length;
+    $("#pno").textContent = `${state.page}/${state.doc.pages.length}`;
+    const board = $("#board");
+    board.innerHTML = notes.length
+      ? notes.map((n, i) => noteHTML(n, i + 1, { selected: n.id === state.selected, preview: n.id < 0, fresh: !state.seen.has(n.id) })).join("")
+      : `<div class="empty-note">${state.recording ? "교수님 설명을 듣고 있어요.<br>필기가 여기에 붙어요." : "이 페이지에는 아직 필기가 없어요"}</div>`;
+    notes.forEach((n) => state.seen.add(n.id));
+    board.querySelectorAll("[data-note]").forEach((el) => {
+      const id = Number(el.dataset.note);
+      el.onclick = () => select(state.selected === id ? null : id);
+      if (id > 0) el.oncontextmenu = (e) => { e.preventDefault(); editNote(id); };
+    });
+    const pending = state.notes.filter((n) => n.pending);
+    $("#pendchip").classList.toggle("hidden", !pending.length);
+    $("#pendchip").textContent = `📥 보류 ${pending.length}`;
+    const open = state.tasks.filter((t) => !t.done);
+    $("#taskchip").classList.toggle("hidden", !state.tasks.length);
+    $("#taskchip").textContent = `📋 과제 ${open.length}`;
+    $("#follow").classList.toggle("hidden", !state.recording);
+    const elsewhere = state.estimate && state.estimate !== state.page;
+    $("#follow").textContent = state.autoFollow ? "🪄 자동 넘김" : elsewhere ? `✋ 지금 ${state.estimate}쪽 설명 중` : "✋ 직접 넘김";
+  }
+
+  function redraw() { drawMarks(); drawBoard(); }
+
+  function select(id) {
+    state.selected = id;
+    redraw();
+    if (id !== null) {
+      const el = $(`#board [data-note="${id}"]`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
+  async function goTo(page, { manual = true } = {}) {
+    if (page < 1 || page > state.doc.pages.length || page === state.page) return;
+    state.page = page;
+    state.selected = null;
+    if (manual) {
+      state.lastManual = Date.now();
+      send({ type: "page_view", page }); // 신호 A: 직접 넘긴 페이지
+    }
+    await drawPage();
+    drawBoard();
+  }
+
+  $("#prev").onclick = () => goTo(state.page - 1);
+  $("#next").onclick = () => goTo(state.page + 1);
+  // 페이지 위에서 좌우로 밀어 넘기기
+  let touchX = null;
+  $("#page").addEventListener("touchstart", (e) => (touchX = e.touches[0].clientX), { passive: true });
+  $("#page").addEventListener("touchend", (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    touchX = null;
+    if (Math.abs(dx) > 50) goTo(state.page + (dx < 0 ? 1 : -1));
+  });
+  $("#follow").onclick = () => { state.autoFollow = !state.autoFollow; drawBoard(); };
+  $("#pendchip").onclick = () => openPending();
+  $("#taskchip").onclick = () => openTasks();
+  $("#sum").onclick = () => state.sessionId ? openSummary() : toast("강의를 녹음하고 끝내면 요약과 퀴즈가 만들어져요");
+
+  const onResize = () => { if (Math.abs($("#page").clientWidth - state.pageWidth) > 4) drawPage(); };
+  window.addEventListener("resize", onResize);
+
+  // --- 실시간 연결 ---
+
+  const outbox = [];
+  function send(message) {
+    if (!state.recording) return;
+    const text = JSON.stringify(message);
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(text);
+    else outbox.push(text);
+  }
+
+  function connect() {
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${proto}://${location.host}/sessions/${state.sessionId}/stream`);
+    state.ws = ws;
+    ws.onopen = () => {
+      // 서버는 연결마다 상태를 새로 만들므로 보던 페이지부터 알린다
+      ws.send(JSON.stringify({ type: "page_view", page: state.page, initial: true }));
+      while (outbox.length) ws.send(outbox.shift());
+    };
+    ws.onmessage = (e) => handle(JSON.parse(e.data));
+    ws.onclose = () => { if (state.recording) setTimeout(connect, 1500); };
+  }
+
+  let previewSeq = -1;
+  const previewIds = new Map();
+
+  function handle(event) {
+    if (event.type === "annotation_preview") {
+      const id = previewSeq--;
+      previewIds.set(event.preview.id, id);
+      state.previews.push({ ...event.preview, id });
+      flash(id);
+    } else if (event.type === "previews_resolved") {
+      const ids = new Set(event.ids.map((k) => previewIds.get(k)));
+      state.previews = state.previews.filter((p) => !ids.has(p.id));
+      redraw();
+    } else if (event.type === "annotation_added") {
+      if (state.notes.some((n) => n.id === event.annotation.id)) return;
+      state.notes.push(event.annotation);
+      if (navigator.vibrate) navigator.vibrate(15);
+      flash(event.annotation.id);
+    } else if (event.type === "page_estimate") {
+      state.estimate = event.page;
+      const canFollow = state.autoFollow && Date.now() - state.lastManual > MANUAL_PAUSE_MS;
+      if (canFollow && event.confidence >= FOLLOW_CONFIDENCE && event.page !== state.page) goTo(event.page, { manual: false });
+      else drawBoard();
+    } else if (event.type === "task_added") {
+      state.tasks.push(event.task);
+      drawBoard();
+      showTaskBanner(event.task);
+    } else if (event.type === "error") {
+      toast(event.message);
+    }
+  }
+
+  // 새 필기는 5초 동안 자료 위에 펼쳐 두었다가 깃발로 접는다
+  function flash(id) {
+    state.fresh = id;
+    clearTimeout(state.freshTimer);
+    state.freshTimer = setTimeout(() => { state.fresh = null; drawMarks(); }, 5000);
+    redraw();
+    const el = $(`#board [data-note="${id}"]`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  // --- 녹음과 받아쓰기 (브라우저 음성 인식) ---
+
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function startRecognizer() {
+    const rec = new Recognition();
+    rec.lang = "ko-KR";
+    rec.continuous = true;
+    rec.interimResults = true;
+    let segmentStart = null;
+    rec.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const result = e.results[i];
+        const text = result[0].transcript.trim();
+        if (segmentStart === null) segmentStart = Date.now() - state.startedAt;
+        if (result.isFinal) {
+          if (text) send({ type: "transcript_final", text, start_ms: segmentStart, end_ms: Date.now() - state.startedAt });
+          segmentStart = null;
+        } else {
+          interim += text;
+        }
+      }
+      $("#captext").textContent = interim || "듣고 있어요…";
+    };
+    rec.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        toast("마이크·음성 인식 권한을 허용해 주세요");
+        stopLecture(false);
+      }
+    };
+    // 브라우저는 말이 끊기면 인식을 멈추므로, 녹음 중에는 바로 다시 시작한다
+    rec.onend = () => { if (state.recording) try { rec.start(); } catch {} };
+    rec.start();
+    state.recognizer = rec;
+  }
+
+  async function startLecture() {
+    if (!Recognition) {
+      toast("이 브라우저는 음성 인식을 지원하지 않아요. iPhone은 Safari, 안드로이드·PC는 Chrome을 써 주세요.");
+      return;
+    }
+    try {
+      const session = await api("POST", "/sessions", { document_id: docId });
+      state.sessionId = session.id;
+      store.addSession(docId, session.id);
+      history.replaceState(null, "", `#/lecture/${docId}/${session.id}`);
+    } catch (e) {
+      return toast(e.message);
+    }
+    state.recording = true;
+    state.startedAt = Date.now();
+    connect();
+    startRecognizer();
+    // 수업 중 화면이 꺼지면 받아쓰기가 멈추므로 화면을 켜 둔다
+    try { state.wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
+    state.timer = setInterval(() => ($("#status .t") || {}).textContent = fmtTime((Date.now() - state.startedAt) / 1000), 500);
+    drawControls();
+    drawBoard();
+  }
+
+  async function stopLecture(finish = true) {
+    state.recording = false;
+    try { state.recognizer?.stop(); } catch {}
+    clearInterval(state.timer);
+    try { state.wakeLock?.release(); } catch {}
+    if (finish && state.ws) {
+      $("#main").innerHTML = `<span class="spin" style="width:28px;height:28px;color:var(--accent)"></span>`;
+      // 마지막 받아쓰기의 필기를 받을 시간을 준다
+      state.ws.send(JSON.stringify({ type: "flush" }));
+      await new Promise((r) => setTimeout(r, 6000));
+      try { await api("POST", `/sessions/${state.sessionId}/end`); } catch (e) { toast(e.message); }
+      state.ended = true;
+    }
+    state.ws?.close();
+    drawControls();
+    drawBoard();
+  }
+
+  function drawControls() {
+    $("#caption").classList.toggle("hidden", !state.recording);
+    $("#status").classList.toggle("on", state.recording);
+    $("#status").innerHTML = state.recording
+      ? `<span class="wave">${[0.45, 0.8, 1, 0.7, 0.5].map((h, i) => `<i style="height:${h * 22}px;animation-delay:${i * 0.12}s"></i>`).join("")}</span><span class="t">00:00</span>`
+      : "";
+    if (state.recording) $("#main").innerHTML = `<button class="rec on" id="rec" aria-label="강의 끝내기"><span class="stop"></span></button>`;
+    else if (state.ended) $("#main").innerHTML = `<button class="primary" id="rec" style="height:48px">✨ 요약·퀴즈</button>`;
+    else $("#main").innerHTML = `<button class="rec" id="rec" aria-label="녹음 시작">🎙️</button>`;
+    $("#rec").onclick = () => (state.recording ? stopLecture() : state.ended ? openSummary() : startLecture());
+  }
+
+  // --- 필기 수정·삭제 ---
+
+  async function editNote(id) {
+    const note = state.notes.find((n) => n.id === id);
+    const text = prompt("필기 수정 (비우면 삭제)", note.text);
+    if (text === null) return;
+    try {
+      if (!text.trim()) {
+        await api("DELETE", `/annotations/${id}`);
+        state.notes = state.notes.filter((n) => n.id !== id);
+      } else {
+        Object.assign(note, await api("PATCH", `/annotations/${id}`, { text }));
+      }
+      redraw();
+    } catch (e) { toast(e.message); }
+  }
+
+  // --- 시트: 보류함 · 과제 · 요약 ---
+
+  function sheet(html) {
+    const bg = document.createElement("div");
+    bg.className = "sheet-bg";
+    const el = document.createElement("div");
+    el.className = "sheet";
+    el.innerHTML = `<div class="grab"></div>${html}`;
+    const close = () => { bg.remove(); el.remove(); };
+    bg.onclick = close;
+    document.body.append(bg, el);
+    return { el, close };
+  }
+
+  function openPending() {
+    const pending = state.notes.filter((n) => n.pending);
+    const { el, close } = sheet(`<h3>보류함</h3><p class="muted">AI가 어느 페이지 이야기인지 확신하지 못한 필기예요. 붙일 페이지를 골라 주세요.</p>
+      ${pending.map((n) => `${noteHTML(n, 0)}<div class="row" style="flex-wrap:wrap;margin:10px 0 22px">${state.doc.pages.map((p) =>
+        `<button class="chip" data-place="${n.id}:${p.page_no}" style="color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)">${p.page_no}쪽에 붙이기</button>`).join("")}</div>`).join("")}`);
+    el.querySelectorAll("[data-place]").forEach((b) => (b.onclick = async () => {
+      const [id, page] = b.dataset.place.split(":").map(Number);
+      try {
+        const placed = await api("PATCH", `/annotations/${id}`, { page_no: page });
+        state.notes = state.notes.map((n) => (n.id === id ? placed : n));
+        close();
+        await goTo(page);
+        flash(id);
+      } catch (e) { toast(e.message); }
+    }));
+  }
+
+  function showTaskBanner(task) {
+    document.querySelector(".banner")?.remove();
+    const k = TASK_KINDS[task.kind] || TASK_KINDS.homework;
+    const el = document.createElement("div");
+    el.className = "banner";
+    el.innerHTML = `<span style="font-size:22px">${k.icon}</span>
+      <span style="flex:1;min-width:0"><small style="color:${k.color};font-weight:900">새 ${k.label}${task.due_text ? ` · ${esc(task.due_text)}` : ""}</small>
+      <b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(task.title)}</b></span>
+      <button class="chip" style="color:#fff;background:${k.color}">바로 하기</button><button class="muted">✕</button>`;
+    el.querySelector(".chip").onclick = () => { el.remove(); openTask(task.id); };
+    el.querySelector("button.muted").onclick = () => el.remove();
+    document.body.append(el);
+    setTimeout(() => el.remove(), 8000);
+  }
+
+  function openTasks() {
+    const { el, close } = sheet(`<h3>이번 강의 과제</h3>${state.tasks.map((t) => {
+      const k = TASK_KINDS[t.kind] || TASK_KINDS.homework;
+      return `<button class="card item" data-task="${t.id}"><span style="font-size:22px">${t.done ? "✅" : k.icon}</span>
+        <span style="flex:1"><b style="${t.done ? "text-decoration:line-through" : ""}">${esc(t.title)}</b><br>
+        <small class="muted">${k.label}${t.due_text ? ` · ${esc(t.due_text)}` : ""}</small></span>${t.draft ? "✨" : ""}<span class="muted">›</span></button>`;
+    }).join("")}`);
+    el.querySelectorAll("[data-task]").forEach((b) => (b.onclick = () => { close(); openTask(Number(b.dataset.task)); }));
+  }
+
+  function openTask(taskId) {
+    const task = state.tasks.find((t) => t.id === taskId);
+    const k = TASK_KINDS[task.kind] || TASK_KINDS.homework;
+    const { el } = sheet(`
+      <div class="card" style="padding:16px;margin-top:6px">
+        <small style="color:${k.color};font-weight:900">${k.icon} ${k.label}${task.due_text ? ` · 🕒 ${esc(task.due_text)}` : ""}</small>
+        <h3 style="margin:6px 0">${esc(task.title)}</h3><p class="muted" style="margin:0 0 10px">${esc(task.instructions)}</p>
+        <button class="chip" id="done" style="color:${task.done ? "#2fb35a" : "var(--ink-2)"}">${task.done ? "✅ 완료함" : "○ 완료 표시"}</button>
+      </div>
+      <div id="draftbox" style="margin-top:16px"></div>`);
+    el.querySelector("#done").onclick = async () => {
+      try {
+        Object.assign(task, await api("PATCH", `/tasks/${task.id}`, { done: !task.done }));
+        el.querySelector("#done").textContent = task.done ? "✅ 완료함" : "○ 완료 표시";
+        drawBoard();
+      } catch (e) { toast(e.message); }
+    };
+    const box = el.querySelector("#draftbox");
+    const showDraft = () => {
+      const d = task.draft;
+      box.innerHTML = `
+        <h3>☑️ 요구사항 체크리스트</h3><div class="card" style="padding:14px">${d.checklist.map((c) =>
+          `<label class="row" style="padding:6px 0"><input type="checkbox"> <span>${esc(c)}</span></label>`).join("")}</div>
+        <h3>🔢 개요</h3><div class="card" style="padding:14px">${d.outline.map((o, i) =>
+          `<div class="row" style="padding:5px 0;align-items:flex-start"><span class="badge" style="width:22px;height:22px;font-size:12px">${i + 1}</span><span>${esc(o)}</span></div>`).join("")}</div>
+        <div class="row"><h3 style="flex:1">✍️ 초안 (바로 고쳐 쓰세요)</h3><button class="chip" id="copy" style="color:var(--accent)">복사</button></div>
+        <textarea class="draft" id="draft">${esc(d.draft)}</textarea>
+        <p style="font-size:13px;color:var(--accent);font-weight:800">근거: ${d.sources.map((s) => `${s}쪽`).join(", ")}</p>
+        <p class="muted" style="font-size:12px">🛡️ AI가 만든 초안이에요. 수업마다 AI 사용 규칙이 다르니 확인하고, 본인 말로 고쳐서 제출하세요.</p>`;
+      box.querySelector("#copy").onclick = async () => {
+        try { await navigator.clipboard.writeText(box.querySelector("#draft").value); toast("복사했어요"); } catch { toast("복사하지 못했어요"); }
+      };
+    };
+    if (task.draft) return showDraft();
+    box.innerHTML = `<button class="primary" id="make" style="width:100%;height:56px;border-radius:18px">✨ AI와 바로 하기</button>`;
+    box.querySelector("#make").onclick = async (e) => {
+      e.target.disabled = true;
+      e.target.innerHTML = `<span class="spin"></span> 오늘 강의 내용으로 만드는 중…`;
+      try {
+        Object.assign(task, await api("POST", `/tasks/${task.id}/draft`));
+        showDraft();
+        drawBoard();
+      } catch (err) {
+        toast(err.message);
+        e.target.disabled = false;
+        e.target.textContent = "✨ AI와 바로 하기";
+      }
+    };
+  }
+
+  async function openSummary() {
+    const { el } = sheet(`<h3>요약·퀴즈</h3><div id="sumbox"><p class="muted"><span class="spin"></span> 필기를 모아 요약과 퀴즈를 만드는 중…</p></div>`);
+    const box = el.querySelector("#sumbox");
+    for (let tries = 0; tries < 200 && document.body.contains(el); tries++) {
+      let res;
+      try { res = await api("GET", `/sessions/${state.sessionId}/summary`); } catch (e) { box.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+      if (res.summary) return drawSummary(box, res.summary);
+      if (res.status === "failed") { box.innerHTML = `<p class="muted">요약을 만들지 못했어요.</p>`; return; }
+      if (res.status === "recording") { box.innerHTML = `<p class="muted">강의를 끝내면 요약이 만들어져요.</p>`; return; }
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  }
+
+  function drawSummary(box, s) {
+    box.innerHTML = `
+      <div class="overview"><small>✨ 한눈에 보는 강의</small>${esc(s.overview)}</div>
+      <h3>페이지별 요약</h3>${s.pages.map((p) => `<button class="card item" data-goto="${p.page_no}"><span class="badge">${p.page_no}</span><span style="flex:1">${esc(p.summary)}</span></button>`).join("")}
+      ${s.tips?.length ? `<h3>더 알아보기</h3>${s.tips.map((t) => `<a class="card item" href="${esc(t.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span class="badge">🧭</span><span><b>${esc(t.title)}</b><br><small class="muted">${esc(t.text)}</small></span></a>`).join("")}` : ""}
+      <div class="row"><h3 style="flex:1">복습 퀴즈</h3><span class="chip" id="score" style="color:#2fb35a;background:color-mix(in srgb,#2fb35a 12%,transparent)">0 / ${s.quiz.length}</span></div>
+      ${s.quiz.map((q, i) => `<div class="card" style="padding:16px;margin-bottom:12px" data-q="${i}"><b><span style="color:var(--accent)">Q${i + 1}</span> ${esc(q.question)}</b>
+        ${q.choices.map((c, j) => `<button class="choice" data-c="${j}">○ ${esc(c)}</button>`).join("")}<div class="explain"></div></div>`).join("")}`;
+    box.querySelectorAll("[data-goto]").forEach((b) => (b.onclick = () => { document.querySelector(".sheet-bg").click(); goTo(Number(b.dataset.goto)); }));
+    let correct = 0;
+    box.querySelectorAll("[data-q]").forEach((card) => {
+      const q = s.quiz[Number(card.dataset.q)];
+      card.querySelectorAll("[data-c]").forEach((b) => (b.onclick = () => {
+        if (card.dataset.done) return;
+        card.dataset.done = "1";
+        const pick = Number(b.dataset.c);
+        card.querySelectorAll("[data-c]")[q.answer_index].classList.add("right");
+        if (pick === q.answer_index) correct++;
+        else { b.classList.add("wrong"); navigator.vibrate?.([30, 40, 30]); }
+        box.querySelector("#score").textContent = `${correct} / ${s.quiz.length}`;
+        card.querySelector(".explain").innerHTML = `<p style="font-weight:900;color:${pick === q.answer_index ? "#2fb35a" : "#e5484d"}">${pick === q.answer_index ? "정답이에요!" : `아쉬워요, 정답은 ${q.answer_index + 1}번`}</p><p class="muted">${esc(q.explanation)}</p>`;
+      }));
+    });
+  }
+
+  // 녹음 파일로 만든 강의는 서버가 정리하는 동안 진행률을 보여 주고, 필기를 계속 새로 받아 온다
+  let pollTimer = null;
+  async function pollProcessing() {
+    let res;
+    try { res = await api("GET", `/sessions/${state.sessionId}/summary`); } catch { return; }
+    if (!["transcribing", "processing"].includes(res.status)) {
+      document.querySelector(".banner.progress")?.remove();
+      if (res.status === "failed") toast("녹음 파일을 정리하지 못했어요. 다른 파일로 다시 시도해 주세요.");
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        state.notes = await api("GET", `/sessions/${state.sessionId}/annotations`);
+        state.tasks = await api("GET", `/sessions/${state.sessionId}/tasks`);
+        redraw();
+        toast("정리가 끝났어요! ✨ 버튼으로 요약·퀴즈를 볼 수 있어요");
+      }
+      return;
+    }
+    let banner = document.querySelector(".banner.progress");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.className = "banner progress";
+      document.body.append(banner);
+    }
+    const pct = res.progress != null ? ` ${Math.round(res.progress * 100)}%` : "";
+    banner.innerHTML = `<span class="spin" style="color:var(--accent)"></span><span style="flex:1"><b>${res.status === "transcribing" ? `녹음 받아쓰는 중${pct}` : "필기·요약 만드는 중"}</b><br>
+      <small class="muted">끝나면 필기가 자료 위에 붙어요. 다른 화면에 다녀와도 돼요.</small></span>`;
+    const notes = await api("GET", `/sessions/${state.sessionId}/annotations`);
+    if (notes.length !== state.notes.length) { state.notes = notes; redraw(); }
+    if (!pollTimer) pollTimer = setInterval(pollProcessing, 4000);
+  }
+
+  // 화면이 꺼졌다 켜지거나 다른 앱에 다녀오면 받아쓰기와 연결을 다시 잇는다
+  let hiddenAt = null;
+  function onVisibility() {
+    if (!state.recording) return;
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    const away = hiddenAt ? (Date.now() - hiddenAt) / 1000 : 0;
+    hiddenAt = null;
+    // 멈춘 인식기만 다시 켠다 (이미 돌고 있으면 start()가 예외를 내고 그대로 둔다)
+    try { state.recognizer?.start(); } catch {}
+    if (!state.ws || state.ws.readyState > WebSocket.OPEN) connect();
+    navigator.wakeLock?.request("screen").then((l) => (state.wakeLock = l)).catch(() => {});
+    if (away > 5) toast(`화면이 꺼져 있던 ${fmtTime(away)} 동안은 받아쓰지 못했어요. 그 부분은 '음성 메모' 녹음 파일로 채울 수 있어요.`);
+  }
+  document.addEventListener("visibilitychange", onVisibility);
+
+  await drawPage();
+  drawControls();
+  drawBoard();
+  if (sessionId) pollProcessing();
+
+  current = () => {
+    clearInterval(pollTimer);
+    document.removeEventListener("visibilitychange", onVisibility);
+    if (state.recording) stopLecture(false);
+    window.removeEventListener("resize", onResize);
+    document.querySelectorAll(".sheet, .sheet-bg, .banner").forEach((n) => n.remove());
+  };
+}
+
+route();

@@ -5,6 +5,7 @@ import time
 
 os.environ["LLM_MODE"] = "fake"
 os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(), "test.db")
+os.environ["UPLOAD_DIR"] = tempfile.mkdtemp()
 os.environ["MIN_CHARS_PER_CALL"] = "20"
 
 import pymupdf  # noqa: E402
@@ -192,3 +193,31 @@ def test_task_without_directive_is_dropped(client, monkeypatch):
                       "start_ms": 0, "end_ms": 3000})
         receive(ws, "previews_resolved")
     assert client.get(f"/sessions/{session['id']}/tasks").json() == []
+
+
+def test_audio_file_becomes_a_lecture_with_notes_and_summary(client):
+    from app.main import app as fastapi_app
+    from app.stt import Segment
+
+    class FakeTranscriber:
+        def transcribe(self, path, hint="", on_progress=None):
+            assert open(path, "rb").read() == b"fake-audio"
+            on_progress(1.0)
+            return [Segment(0, 4000, "경사하강법은 기울기 반대 방향으로 이동해요. 이거 시험에 꼭 나와요."),
+                    Segment(5000, 9000, "다음 장, 역전파입니다. 과제는 역전파 계산을 다음 주까지 제출하세요.")]
+
+    fastapi_app.state.transcriber = FakeTranscriber()
+    doc = upload(client)
+    res = client.post("/sessions/from-audio", data={"document_id": doc["id"]},
+                      files={"file": ("memo.m4a", b"fake-audio", "audio/mp4")})
+    assert res.status_code == 200, res.text
+    session = res.json()
+    for _ in range(100):
+        summary = client.get(f"/sessions/{session['id']}/summary").json()
+        if summary["status"] in ("done", "failed"):
+            break
+        time.sleep(0.05)
+    assert summary["status"] == "done"
+    notes = client.get(f"/sessions/{session['id']}/annotations").json()
+    assert {n["page_no"] for n in notes} == {1, 2}
+    assert len(client.get(f"/sessions/{session['id']}/tasks").json()) == 1

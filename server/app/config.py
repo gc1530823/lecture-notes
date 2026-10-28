@@ -26,6 +26,11 @@ class Settings:
     min_chars_per_call: int = int(os.getenv("MIN_CHARS_PER_CALL", "80"))
     max_wait_seconds: float = float(os.getenv("MAX_WAIT_SECONDS", "8"))
 
+    # 녹음 파일 받아쓰기 모델 (tiny < base < small < medium: 클수록 정확하지만 느리다)
+    whisper_model: str = os.getenv("WHISPER_MODEL", "small")
+    # "whisper" = 실제 받아쓰기, "fake" = 화면 개발용 가짜 받아쓰기
+    stt_mode: str = os.getenv("STT_MODE", "whisper")
+
     # 자동 페이지 추정 확신이 이 값보다 낮으면 후보 페이지를 AI에게 보여 주고 고르게 한다
     page_confidence: float = float(os.getenv("PAGE_CONFIDENCE", "0.6"))
     # 강의 후 웹 검색으로 추가 자료 찾기 (1 = 켜기)
