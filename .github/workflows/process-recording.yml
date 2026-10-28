@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       name:
-        description: "inbox/ 뒤의 이름 (예: ml-week3)"
+        description: "inbox/ 뒤의 이름 (예: ml-week3). sample이면 예시 강의(합성 음성)로 키·흐름을 확인한다"
         required: true
 
 jobs:
@@ -28,13 +28,23 @@ jobs:
         run: |
           NAME="${NAME#inbox/}"
           echo "NAME=$NAME" >> "$GITHUB_ENV"
-          git fetch -q --depth 1 origin "inbox/$NAME"
-          mkdir -p /tmp/inbox && git archive "origin/inbox/$NAME" | tar -x -C /tmp/inbox
-          ls -la /tmp/inbox
+          mkdir -p /tmp/inbox
+          if [ "$NAME" != "sample" ]; then
+            git fetch -q --depth 1 origin "inbox/$NAME"
+            git archive "origin/inbox/$NAME" | tar -x -C /tmp/inbox
+          fi
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install -r server/requirements.txt && sudo apt-get install -y -q ffmpeg > /dev/null
+      - name: Make sample lecture
+        if: env.NAME == 'sample'
+        working-directory: server/scripts
+        run: |
+          pip install -q gTTS
+          python -c "from simulate_audio import make_audio; from simulate_lecture import make_pdf
+          make_audio('/tmp/inbox/lecture.m4a'); open('/tmp/inbox/머신러닝 3주차.pdf', 'wb').write(make_pdf())"
+      - run: ls -la /tmp/inbox
       - name: Process
         working-directory: server
         env:
