@@ -7,6 +7,7 @@ struct LectureView: View {
     @State private var selectedAnnotationID: Int?
     @State private var editing: Annotation?
     @State private var showingSummary = false
+    @State private var showingNotesPDF = false
     @State private var showingPending = false
     @State private var showingTasks = false
     @State private var openTask: LectureTask?
@@ -20,13 +21,14 @@ struct LectureView: View {
         self.demo = demo
         // 데모 강의 화면은 3번 필기를 펼친 상태로 보여 준다
         _selectedAnnotationID = State(initialValue: demo == .lecture ? 3 : nil)
+        _showingNotesPDF = State(initialValue: demo == .notesPDF)
     }
 
     private static func makeModel(document: LocalDocument, store: DocumentStore, session: SavedSession?,
                                   demo: DemoScreen?) -> LectureViewModel {
         let model = LectureViewModel(document: document, store: store, existingSession: session)
         switch demo {
-        case .lecture:
+        case .lecture, .notesPDF:
             model.applyDemo(annotations: DemoData.annotations, phase: .ended, caption: nil, tasks: DemoData.tasks)
         case .recording:
             model.applyDemo(annotations: Array(DemoData.annotations.prefix(3)), phase: .recording,
@@ -55,10 +57,23 @@ struct LectureView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.paper, for: .navigationBar)
         .toolbar {
+            // 정리 PDF는 녹음 중에도 지금까지의 필기로 만들 수 있다
+            if model.session != nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showingNotesPDF = true } label: { Image(systemName: "doc.richtext") }
+                        .accessibilityLabel("강의 정리 PDF")
+                }
+            }
             if model.phase == .ended, model.session != nil {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showingSummary = true } label: { Image(systemName: "sparkles.rectangle.stack") }
                 }
+            }
+        }
+        .sheet(isPresented: $showingNotesPDF) {
+            if let session = model.session {
+                NotesPDFView(sessionID: session.id, title: model.document.document.title,
+                             initialProgress: demo == .notesPDF ? NotesPDFStatus(status: "building", done: 3, total: 5) : nil)
             }
         }
         .sheet(item: $editing) { annotation in

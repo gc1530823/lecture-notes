@@ -2,7 +2,7 @@ import SwiftUI
 
 /// `-demoScreen <이름>` 실행 인자로 고르는 데모 화면
 enum DemoScreen: String {
-    case empty, list, detail, lecture, recording, live, summary, task
+    case empty, list, detail, lecture, recording, live, summary, task, notesPDF
 
     static var current: DemoScreen? {
         let arguments = ProcessInfo.processInfo.arguments
@@ -24,10 +24,11 @@ struct DemoRootView: View {
             DocumentListView()
         case .detail:
             NavigationStack { DocumentDetailView(documentID: DemoData.document.id) }
-        case .lecture, .recording, .live:
+        case .lecture, .recording, .live, .notesPDF:
             NavigationStack {
                 LectureView(document: DemoData.document, store: store,
-                            session: screen == .lecture ? DemoData.document.sessions.first : nil, demo: screen)
+                            session: screen == .lecture || screen == .notesPDF ? DemoData.document.sessions.first : nil,
+                            demo: screen)
             }
         case .summary:
             SummaryView(sessionID: DemoData.sessionID, initialSummary: DemoData.summary, onSelectPage: { _ in })
@@ -57,4 +58,5 @@ private struct DemoTaskScreen: View {
 #Preview("자료 목록") { DemoRootView(screen: .list).environmentObject(DocumentStore(demo: true)) }
 #Preview("강의 화면") { DemoRootView(screen: .lecture).environmentObject(DocumentStore(demo: true)) }
 #Preview("실시간 필기") { DemoRootView(screen: .live).environmentObject(DocumentStore(demo: true)) }
+#Preview("정리 PDF") { DemoRootView(screen: .notesPDF).environmentObject(DocumentStore(demo: true)) }
 #Preview("요약·퀴즈") { DemoRootView(screen: .summary).environmentObject(DocumentStore(demo: true)) }

@@ -118,6 +118,13 @@ struct LectureSession: Codable, Hashable {
     let status: String
 }
 
+/// 강의 정리 PDF 만들기 상태 (status: none, building, ready, failed)
+struct NotesPDFStatus: Codable, Hashable {
+    let status: String
+    let done: Int
+    let total: Int
+}
+
 struct SummaryResponse: Codable {
     let status: String
     let summary: LectureSummary?

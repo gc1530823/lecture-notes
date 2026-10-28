@@ -68,6 +68,26 @@ struct APIClient {
         try await send("GET", "sessions/\(sessionId)/summary")
     }
 
+    // 강의 정리 PDF
+
+    func startNotesPDF(sessionId: String) async throws -> NotesPDFStatus {
+        try await send("POST", "sessions/\(sessionId)/notes-pdf")
+    }
+
+    func notesPDFStatus(sessionId: String) async throws -> NotesPDFStatus {
+        try await send("GET", "sessions/\(sessionId)/notes-pdf/status")
+    }
+
+    /// 만든 PDF를 "강의 제목 정리.pdf"라는 임시 파일로 받는다 (공유할 때 이 이름으로 저장된다)
+    func downloadNotesPDF(sessionId: String, title: String) async throws -> URL {
+        let (data, response) = try await URLSession.shared.data(from: baseURL.appending(path: "sessions/\(sessionId)/notes-pdf"))
+        try check(data, response)
+        let safeTitle = title.replacingOccurrences(of: "/", with: "-")
+        let url = FileManager.default.temporaryDirectory.appending(path: "\(safeTitle) 정리.pdf")
+        try data.write(to: url, options: .atomic)
+        return url
+    }
+
     func annotations(sessionId: String) async throws -> [Annotation] {
         try await send("GET", "sessions/\(sessionId)/annotations")
     }
