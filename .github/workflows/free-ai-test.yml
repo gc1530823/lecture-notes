@@ -46,6 +46,7 @@ jobs:
           cp /tmp/server.log /tmp/report/server.log
       - name: Simulate audio upload (Whisper)
         run: |
+          sudo apt-get install -y -q ffmpeg > /dev/null
           pip install gTTS
           set -o pipefail
           cd scripts && python simulate_audio.py 2>&1 | tee /tmp/report/audio.txt
