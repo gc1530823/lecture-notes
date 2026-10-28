@@ -76,6 +76,20 @@ const store = {
   remove(docId) { this.save(this.load().filter((d) => d.id !== docId)); },
 };
 
+// 서버의 목록이 기준이다. 서버에 못 닿을 때만 기기에 남겨 둔 목록을 쓴다.
+async function syncDocs() {
+  try {
+    const docs = (await api("GET", "/documents")).map((d) => ({
+      id: d.id, title: d.title, pageCount: d.page_count,
+      sessions: d.sessions.map((s) => ({ id: s.id, startedAt: s.started_at * 1000 })),
+    }));
+    store.save(docs);
+    return docs;
+  } catch {
+    return store.load();
+  }
+}
+
 const pdfCache = new Map();
 function loadPdf(docId) {
   if (!pdfCache.has(docId)) pdfCache.set(docId, pdfjsLib.getDocument({
@@ -112,8 +126,8 @@ window.addEventListener("hashchange", route);
 
 // ---------- 자료 목록 ----------
 
-function renderList() {
-  const docs = store.load();
+async function renderList() {
+  const docs = await syncDocs();
   $app.innerHTML = `
     <div class="screen">
       <div class="topbar"><h1>강의노트</h1></div>
@@ -163,8 +177,8 @@ function renderList() {
 
 // ---------- 자료 상세 (새 강의 · 지난 강의) ----------
 
-function renderDetail(docId) {
-  const doc = store.load().find((d) => d.id === docId);
+async function renderDetail(docId) {
+  const doc = (await syncDocs()).find((d) => d.id === docId);
   if (!doc) return (location.hash = "#/");
   $app.innerHTML = `
     <div class="screen">
@@ -188,7 +202,10 @@ function renderDetail(docId) {
     </div>`;
   $app.querySelector("#back").onclick = () => (location.hash = "#/");
   $app.querySelector("#del").onclick = () => {
-    if (confirm("이 강의자료를 목록에서 지울까요?")) { store.remove(docId); location.hash = "#/"; }
+    if (!confirm("이 강의자료와 지난 강의 필기를 모두 지울까요? 되돌릴 수 없어요.")) return;
+    api("DELETE", `/documents/${docId}`)
+      .then(() => { store.remove(docId); location.hash = "#/"; })
+      .catch((e) => toast(e.message));
   };
   $app.querySelector("#start").onclick = () => (location.hash = `#/lecture/${docId}`);
   const audioInput = $app.querySelector("#audiofile");
@@ -247,7 +264,7 @@ async function renderLecture(docId, sessionId) {
 
   $app.innerHTML = `
     <div class="screen lecture">
-      <div class="topbar"><button class="icon-btn" id="back">‹</button><div class="title" id="title"></div><button class="icon-btn" id="sum" title="요약·퀴즈">✨</button></div>
+      <div class="topbar"><button class="icon-btn" id="back">‹</button><div class="title" id="title"></div><button class="icon-btn" id="notespdf" title="강의 정리 PDF">📄</button><button class="icon-btn" id="sum" title="요약·퀴즈">✨</button></div>
       <div class="pager"><div class="page" id="page"><canvas></canvas><div class="marks"></div></div></div>
       <div class="board-head">
         <h2 id="bh"></h2><span class="count" id="bc"></span><span class="spacer"></span>
@@ -407,11 +424,66 @@ async function renderLecture(docId, sessionId) {
   $("#pendchip").onclick = () => openPending();
   $("#taskchip").onclick = () => openTasks();
   $("#sum").onclick = () => state.sessionId ? openSummary() : toast("강의를 녹음하고 끝내면 요약과 퀴즈가 만들어져요");
+  $("#notespdf").onclick = () => state.sessionId ? openNotesPdf() : toast("강의를 녹음하면 필기를 붙인 정리 PDF를 만들 수 있어요");
 
   const onResize = () => { if (Math.abs($("#page").clientWidth - state.pageWidth) > 4) drawPage(); };
   window.addEventListener("resize", onResize);
 
   // --- 실시간 연결 ---
+
+  // --- 마이크 소리를 서버로 (서버가 Whisper로 받아쓴다) ---
+
+  const audioBacklog = []; // 연결이 끊긴 동안의 소리 (최대 60초)
+  function sendAudio(buffer) {
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+      while (audioBacklog.length) state.ws.send(audioBacklog.shift());
+      state.ws.send(buffer);
+    } else {
+      audioBacklog.push(buffer);
+      if (audioBacklog.length > 240) audioBacklog.shift();
+    }
+  }
+
+  async function startMicrophone() {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new Ctx();
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    await ctx.resume();
+    const source = ctx.createMediaStreamSource(stream);
+    // AudioWorklet보다 오래된 방식이지만 iPhone Safari에서 가장 안정적이다
+    const proc = ctx.createScriptProcessor(4096, 1, 1);
+    const ratio = ctx.sampleRate / 16000;
+    proc.onaudioprocess = (e) => {
+      if (!state.recording) return;
+      const input = e.inputBuffer.getChannelData(0);
+      const out = new Int16Array(Math.floor(input.length / ratio));
+      let peak = 0;
+      for (let i = 0; i < out.length; i++) {
+        const from = Math.floor(i * ratio), to = Math.floor((i + 1) * ratio);
+        let sum = 0;
+        for (let j = from; j < to; j++) sum += input[j];
+        const v = Math.max(-1, Math.min(1, sum / (to - from)));
+        peak = Math.max(peak, Math.abs(v));
+        out[i] = v * 0x7fff;
+      }
+      state.level = peak;
+      sendAudio(out.buffer);
+    };
+    source.connect(proc);
+    proc.connect(ctx.destination);
+    state.mic = { ctx, stream, proc, source };
+  }
+
+  function stopMicrophone() {
+    if (!state.mic) return;
+    state.mic.proc.disconnect();
+    state.mic.source.disconnect();
+    state.mic.stream.getTracks().forEach((t) => t.stop());
+    state.mic.ctx.close().catch(() => {});
+    state.mic = null;
+  }
 
   const outbox = [];
   function send(message) {
@@ -461,6 +533,9 @@ async function renderLecture(docId, sessionId) {
       state.tasks.push(event.task);
       drawBoard();
       showTaskBanner(event.task);
+    } else if (event.type === "heard") {
+      // Whisper가 받아쓴 문장을 자막으로 보여 준다
+      $("#captext").textContent = event.text;
     } else if (event.type === "error") {
       toast(event.message);
     }
@@ -514,10 +589,8 @@ async function renderLecture(docId, sessionId) {
   }
 
   async function startLecture() {
-    if (!Recognition) {
-      toast("이 브라우저는 음성 인식을 지원하지 않아요. iPhone은 Safari, 안드로이드·PC는 Chrome을 써 주세요.");
-      return;
-    }
+    // 마이크는 버튼을 누른 바로 그 순간에 켜야 iPhone Safari가 허락한다 (서버 응답을 기다리기 전에)
+    const mic = startMicrophone();
     try {
       const session = await api("POST", "/sessions", { document_id: docId });
       state.sessionId = session.id;
@@ -529,7 +602,18 @@ async function renderLecture(docId, sessionId) {
     state.recording = true;
     state.startedAt = Date.now();
     connect();
-    startRecognizer();
+    try {
+      await mic;
+      state.engine = "whisper";
+    } catch (e) {
+      // 마이크 소리를 직접 못 받는 브라우저: 내장 음성 인식으로 대신한다
+      if (!Recognition) {
+        toast("마이크를 쓸 수 없어요. 브라우저 설정에서 마이크 권한을 허용해 주세요.");
+        return stopLecture(false);
+      }
+      state.engine = "browser";
+      startRecognizer();
+    }
     // 수업 중 화면이 꺼지면 받아쓰기가 멈추므로 화면을 켜 둔다
     try { state.wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
     state.timer = setInterval(() => ($("#status .t") || {}).textContent = fmtTime((Date.now() - state.startedAt) / 1000), 500);
@@ -540,6 +624,7 @@ async function renderLecture(docId, sessionId) {
   async function stopLecture(finish = true) {
     state.recording = false;
     try { state.recognizer?.stop(); } catch {}
+    stopMicrophone();
     clearInterval(state.timer);
     try { state.wakeLock?.release(); } catch {}
     if (finish && state.ws) {
@@ -690,6 +775,25 @@ async function renderLecture(docId, sessionId) {
     };
   }
 
+  // 강의 정리 PDF: 필기가 붙은 슬라이드 + 페이지별 전체 정리 + 교수님 설명 + 과제.
+  // 누를 때마다 지금까지의 필기로 새로 만든다 (바뀌지 않은 페이지는 서버가 전에 만든 정리를 다시 쓴다)
+  async function openNotesPdf() {
+    const { el } = sheet(`<h3>강의 정리 PDF</h3><p class="muted">필기가 붙은 슬라이드와 페이지마다 교수님 설명을 빠짐없이 정리한 노트, 과제를 PDF 한 권으로 만들어요.</p><div id="pdfbox"></div>`);
+    const box = el.querySelector("#pdfbox");
+    const url = `/sessions/${state.sessionId}/notes-pdf`;
+    let res;
+    try { res = await api("POST", url); } catch (e) { box.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+    while (res.status === "building" && document.body.contains(el)) {
+      const pct = res.total ? ` (${res.done}/${res.total}쪽)` : "";
+      box.innerHTML = `<p class="muted"><span class="spin"></span> AI가 페이지별로 정리하는 중${pct}…</p>`;
+      await new Promise((r) => setTimeout(r, 2000));
+      try { res = await api("GET", `${url}/status`); } catch (e) { box.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+    }
+    if (res.status === "failed") { box.innerHTML = `<p class="muted">PDF를 만들지 못했어요. 잠시 뒤 다시 눌러 주세요.</p>`; return; }
+    box.innerHTML = `<a class="primary" href="${url}?t=${Date.now()}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;height:48px;text-decoration:none">📄 정리 PDF 열기</a>
+      <p class="muted" style="margin-top:10px"><small>열린 PDF에서 공유 버튼을 누르면 파일·굿노트 등에 저장할 수 있어요.</small></p>`;
+  }
+
   async function openSummary() {
     const { el } = sheet(`<h3>요약·퀴즈</h3><div id="sumbox"><p class="muted"><span class="spin"></span> 필기를 모아 요약과 퀴즈를 만드는 중…</p></div>`);
     const box = el.querySelector("#sumbox");
@@ -706,12 +810,14 @@ async function renderLecture(docId, sessionId) {
   function drawSummary(box, s) {
     box.innerHTML = `
       <div class="overview"><small>✨ 한눈에 보는 강의</small>${esc(s.overview)}</div>
+      <button class="card item" id="topdf"><span class="badge">📄</span><span style="flex:1"><b>강의 정리 PDF 만들기</b><br><small class="muted">필기 붙은 슬라이드 + 요약이 아닌 전체 정리</small></span></button>
       <h3>페이지별 요약</h3>${s.pages.map((p) => `<button class="card item" data-goto="${p.page_no}"><span class="badge">${p.page_no}</span><span style="flex:1">${esc(p.summary)}</span></button>`).join("")}
       ${s.tips?.length ? `<h3>더 알아보기</h3>${s.tips.map((t) => `<a class="card item" href="${esc(t.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span class="badge">🧭</span><span><b>${esc(t.title)}</b><br><small class="muted">${esc(t.text)}</small></span></a>`).join("")}` : ""}
       <div class="row"><h3 style="flex:1">복습 퀴즈</h3><span class="chip" id="score" style="color:#2fb35a;background:color-mix(in srgb,#2fb35a 12%,transparent)">0 / ${s.quiz.length}</span></div>
       ${s.quiz.map((q, i) => `<div class="card" style="padding:16px;margin-bottom:12px" data-q="${i}"><b><span style="color:var(--accent)">Q${i + 1}</span> ${esc(q.question)}</b>
         ${q.choices.map((c, j) => `<button class="choice" data-c="${j}">○ ${esc(c)}</button>`).join("")}<div class="explain"></div></div>`).join("")}`;
     box.querySelectorAll("[data-goto]").forEach((b) => (b.onclick = () => { document.querySelector(".sheet-bg").click(); goTo(Number(b.dataset.goto)); }));
+    box.querySelector("#topdf").onclick = () => { document.querySelector(".sheet-bg").click(); openNotesPdf(); };
     let correct = 0;
     box.querySelectorAll("[data-q]").forEach((card) => {
       const q = s.quiz[Number(card.dataset.q)];
@@ -769,6 +875,14 @@ async function renderLecture(docId, sessionId) {
     hiddenAt = null;
     // 멈춘 인식기만 다시 켠다 (이미 돌고 있으면 start()가 예외를 내고 그대로 둔다)
     try { state.recognizer?.start(); } catch {}
+    if (state.mic) {
+      state.mic.ctx.resume().catch(() => {});
+      // iPhone은 화면이 꺼지면 마이크를 끊는다: 끊겼으면 다시 연다
+      if (state.mic.stream.getAudioTracks().every((t) => t.readyState === "ended")) {
+        stopMicrophone();
+        startMicrophone().catch(() => toast("마이크가 꺼졌어요. 녹음 버튼을 다시 눌러 주세요."));
+      }
+    }
     if (!state.ws || state.ws.readyState > WebSocket.OPEN) connect();
     navigator.wakeLock?.request("screen").then((l) => (state.wakeLock = l)).catch(() => {});
     if (away > 5) toast(`화면이 꺼져 있던 ${fmtTime(away)} 동안은 받아쓰지 못했어요. 그 부분은 '음성 메모' 녹음 파일로 채울 수 있어요.`);

@@ -4,6 +4,13 @@
 cd "$(dirname "$0")/../server"
 
 pgrep -x ollama > /dev/null || (ollama serve > /tmp/ollama.log 2>&1 &)
+
+# 새 Codespace라 자료가 없으면 data-backup 브랜치에서 되살리고, 켜져 있는 동안 10분마다 바뀐 자료를 백업한다
+python scripts/backup.py --restore || true
+if ! pgrep -f "lecture-notes-backup-loop" > /dev/null; then
+  nohup bash -c 'exec -a lecture-notes-backup-loop bash -c "while sleep 600; do python scripts/backup.py; done"' \
+    > /tmp/backup.log 2>&1 &
+fi
 pkill -f "uvicorn app.main:app" 2> /dev/null || true
 OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3:4b}" nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/server.log 2>&1 &
 for i in $(seq 1 20); do curl -s localhost:8000/health > /dev/null && break; sleep 1; done

@@ -23,6 +23,13 @@ iPhone 앱 (SwiftUI)                        서버 (FastAPI)
 4. 페이지 확신이 낮으면(0.6 미만) 후보 3쪽을 Claude에게 보여 주고 고르게 한다. Claude도 확신하지 못하면 **보류함**에 넣고, 사용자가 한 번 눌러 원하는 페이지에 붙인다.
 5. 교수님이 짧게 짚고 지나간 개념에는 **AI 팁** 포스트잇(하늘색, "AI가 덧붙인 내용" 표시)이 붙는다.
 6. 강의가 끝나면 요약·퀴즈를 만들고, **웹 검색으로 찾은 추가 자료**("더 알아보기", 출처 링크)를 붙인다.
+7. 📄 버튼으로 **강의 정리 PDF**를 만든다. 요약이 아니라 전체 정리다. 페이지마다
+   - 필기가 붙은 문단에 형광펜과 번호 깃발을 그린 슬라이드
+   - 번호에 맞춘 포스트잇 필기
+   - AI가 그 페이지에서 교수님이 한 설명을 빠짐없이 항목으로 정리한 **정리 노트** (시험 언급은 ★시험)
+   - 교수님 설명 원문(받아쓰기)
+   를 넣고, 끝에 보류함 필기와 과제를 붙인다. 한글은 함께 넣은 나눔고딕(OFL)으로 심는다.
+   정리는 페이지 하나씩 AI에게 보내므로 작은 무료 모델로도 되고, 받아쓰기·필기가 그대로인 페이지는 다시 만들 때 전에 만든 정리를 쓴다.
 
 ## 폴더 구성
 
@@ -112,7 +119,10 @@ Opus·Sonnet 모델에는 안전 필터가 요청을 거절할 때 다른 모델
 
 서버를 켜면 같은 주소에서 웹앱이 열린다: `http://<서버 주소>:8000/app/`
 
-- **iPhone**: Safari로 열고 공유 → "홈 화면에 추가"를 누르면 앱처럼 쓸 수 있다. 받아쓰기는 Safari 내장 음성 인식(한국어)을 쓴다.
+- **iPhone**: Safari로 열고 공유 → "홈 화면에 추가"를 누르면 앱처럼 쓸 수 있다.
+- **받아쓰기는 Whisper**: 녹음 중 마이크 소리(16kHz)를 서버로 보내면, 서버가 말이 끊기는 곳(0.7초 침묵, 길어도 10초)마다 잘라
+  Whisper로 받아쓰고 바로 페이지 추적·필기로 넘긴다. 소리는 서버에 `세션-n.wav`로도 저장된다.
+  마이크를 쓸 수 없는 브라우저에서는 내장 음성 인식으로 바꾼다.
 - **안드로이드·PC**: Chrome으로 연다.
 - 녹음 중에는 화면 꺼짐 방지(Wake Lock)를 켠다. **iPhone은 화면이 꺼지거나 다른 앱으로 가면 웹페이지의 받아쓰기가 멈춘다** (Apple 제한).
   화면을 다시 켜면 자동으로 이어 받아쓰고, 빠진 시간을 알려 준다.
@@ -124,6 +134,15 @@ Opus·Sonnet 모델에는 안전 필터가 요청을 거절할 때 다른 모델
 | `WHISPER_MODEL` | `small` | 녹음 파일 받아쓰기 모델 (`base`는 빠르고 덜 정확, `medium`은 느리고 더 정확) |
 | `STT_MODE` | `whisper` | `fake`로 두면 가짜 받아쓰기 (화면 개발용) |
 | `UPLOAD_DIR` | `data/uploads` | 올린 PDF·녹음 파일 저장 위치 |
+
+### 자료가 사라지지 않게 (Codespaces)
+
+Codespace는 지워지거나 오래 안 쓰면 없어질 수 있다. 그래서 `.devcontainer/start.sh`가
+- 켜질 때 자료(DB)가 없으면 이 저장소의 `data-backup` 브랜치에서 되살리고 (`python scripts/backup.py --restore`),
+- 켜져 있는 동안 10분마다 바뀐 자료(DB + 올린 PDF)를 `data-backup` 브랜치에 올린다 (`python scripts/backup.py`).
+
+녹음 파일은 크고 받아쓰기가 이미 DB에 있어 올리지 않는다. 정리 PDF도 언제든 다시 만들 수 있어 올리지 않는다.
+**저장소가 공개(public)면 백업도 공개된다.** 강의 내용을 지키려면 저장소를 비공개로 두자.
 
 ## 3. iPhone 앱 실행 (Mac이 있을 때)
 
@@ -154,16 +173,19 @@ push할 때마다 GitHub Actions(macOS)가 앱을 빌드하고, 데모 모드로
 | 메서드 | 경로 | 역할 |
 | --- | --- | --- |
 | POST | `/documents` | PDF 업로드 (multipart `file`, `title`) → 페이지·블록·용어 |
-| GET | `/documents/{id}` | 강의자료 조회 |
+| GET | `/documents` | 저장된 강의자료와 강의 목록 |
+| GET / DELETE | `/documents/{id}` | 강의자료 조회 / 그 강의·녹음까지 모두 삭제 |
 | POST | `/sessions` | 강의 세션 시작 (`{"document_id": ...}`) |
-| WS | `/sessions/{id}/stream` | 보내기: `page_view`(`initial`), `transcript_final`, `flush` / 받기: `page_estimate`, `annotation_added`, `error` |
+| WS | `/sessions/{id}/stream` | 보내기: `page_view`(`initial`), `transcript_final`, `flush`, 바이너리 16kHz PCM(Whisper) / 받기: `heard`, `page_estimate`, `annotation_preview`, `annotation_added`, `task_added`, `error` |
 | POST | `/sessions/{id}/end` | 강의 종료, 요약·퀴즈 생성 시작 |
 | GET | `/sessions/{id}/summary` | `{status, summary}` (status: recording, processing, done, failed) |
 | GET | `/sessions/{id}/annotations` | 필기 목록 |
 | PATCH / DELETE | `/annotations/{id}` | 필기 수정(`text`)·페이지에 붙이기(`page_no`) / 삭제 |
+| POST | `/sessions/{id}/notes-pdf` | 강의 정리 PDF 만들기 시작 (`{status, done, total}`) |
+| GET | `/sessions/{id}/notes-pdf/status` | 만들기 상태 (none, building, ready, failed) |
+| GET | `/sessions/{id}/notes-pdf` | 만든 정리 PDF 받기 |
 
 ## MVP에서 일부러 뺀 것 (다음 단계)
 
-- 서버 측 STT와 강의 후 재변환: 지금은 iPhone 음성 인식만 씁니다.
 - 필기를 누르면 그 시점의 녹음 재생 (필기마다 `start_ms`는 이미 저장됨)
 - 로그인·사용자 구분, PPTX 업로드, PostgreSQL 이전

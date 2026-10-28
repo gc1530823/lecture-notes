@@ -51,11 +51,12 @@ class WhisperTranscriber:
                 self._model = WhisperModel(settings.whisper_model, device="cpu", compute_type="int8")
         return self._model
 
-    def transcribe(self, path: str, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
-        """오래 걸리는 작업이라 스레드에서 부른다. hint에는 강의자료 용어를 넣어 전문용어 인식을 돕는다."""
+    def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
+        """audio: 파일 경로, 또는 16kHz 모노 float32 배열(실시간 조각).
+        오래 걸리는 작업이라 스레드에서 부른다. hint에는 강의자료 용어와 직전 문장을 넣어 인식을 돕는다."""
         model = self._load()
         segments, info = model.transcribe(
-            path, language="ko", vad_filter=True, beam_size=1, initial_prompt=hint or None,
+            audio, language="ko", vad_filter=True, beam_size=1, initial_prompt=hint or None,
         )
         result = []
         for seg in segments:
@@ -77,9 +78,12 @@ class FakeTranscriber:
         "과제 2번은 역전파를 손으로 계산해 보는 거고 다음 주 금요일까지 제출하세요.",
     ]
 
-    def transcribe(self, path: str, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
+    def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
         import time
 
+        if not isinstance(audio, str):  # 실시간 조각: 한 문장씩 차례로
+            self._next = getattr(self, "_next", -1) + 1
+            return [Segment(0, len(audio) * 1000 // 16000, self.LINES[self._next % len(self.LINES)])]
         result = []
         for i, line in enumerate(self.LINES):
             time.sleep(0.5)

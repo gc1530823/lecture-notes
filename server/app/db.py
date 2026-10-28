@@ -74,6 +74,15 @@ CREATE TABLE IF NOT EXISTS summaries (
     session_id TEXT PRIMARY KEY REFERENCES sessions(id),
     body TEXT NOT NULL
 );
+
+-- 정리 PDF용 페이지별 전체 정리. digest가 같으면(받아쓰기·필기가 그대로면) 다시 만들지 않는다
+CREATE TABLE IF NOT EXISTS page_notes (
+    session_id TEXT NOT NULL REFERENCES sessions(id),
+    page_no INTEGER NOT NULL,
+    digest TEXT NOT NULL,
+    points TEXT NOT NULL,
+    PRIMARY KEY (session_id, page_no)
+);
 """
 
 
@@ -122,6 +131,31 @@ class Database:
                     [(page_id, b["x"], b["y"], b["w"], b["h"], b["text"]) for b in page["blocks"]],
                 )
         return doc_id
+
+    def list_documents(self) -> list[dict]:
+        """강의자료 목록 (최근 것부터)과 각 자료의 강의 목록"""
+        docs = self._query("SELECT id, title, page_count, created_at FROM documents ORDER BY created_at DESC")
+        for doc in docs:
+            doc["sessions"] = self._query(
+                "SELECT id, status, started_at FROM sessions WHERE document_id = ? ORDER BY started_at DESC",
+                (doc["id"],),
+            )
+        return docs
+
+    def delete_document(self, doc_id: str) -> list[str]:
+        """강의자료와 그 강의들을 모두 지우고, 지운 강의 id를 돌려준다 (녹음·PDF 파일 정리용)."""
+        with self._lock, self._conn:
+            sessions = [r[0] for r in self._conn.execute("SELECT id FROM sessions WHERE document_id = ?", (doc_id,))]
+            pages = [r[0] for r in self._conn.execute("SELECT id FROM pages WHERE document_id = ?", (doc_id,))]
+            for sid in sessions:
+                for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes"):
+                    self._conn.execute(f"DELETE FROM {table} WHERE session_id = ?", (sid,))
+            self._conn.execute("DELETE FROM sessions WHERE document_id = ?", (doc_id,))
+            for pid in pages:
+                self._conn.execute("DELETE FROM blocks WHERE page_id = ?", (pid,))
+            self._conn.execute("DELETE FROM pages WHERE document_id = ?", (doc_id,))
+            self._conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
+        return sessions
 
     def get_document(self, doc_id: str) -> dict | None:
         docs = self._query("SELECT * FROM documents WHERE id = ?", (doc_id,))
@@ -269,6 +303,15 @@ class Database:
             "INSERT OR REPLACE INTO summaries (session_id, body) VALUES (?, ?)",
             (session_id, json.dumps(body, ensure_ascii=False)),
         )
+
+    def get_page_notes(self, session_id: str, page_no: int, digest: str) -> list[str] | None:
+        rows = self._query("SELECT points FROM page_notes WHERE session_id = ? AND page_no = ? AND digest = ?",
+                           (session_id, page_no, digest))
+        return json.loads(rows[0]["points"]) if rows else None
+
+    def save_page_notes(self, session_id: str, page_no: int, digest: str, points: list[str]) -> None:
+        self._write("INSERT OR REPLACE INTO page_notes (session_id, page_no, digest, points) VALUES (?, ?, ?, ?)",
+                    (session_id, page_no, digest, json.dumps(points, ensure_ascii=False)))
 
     def get_summary(self, session_id: str) -> dict | None:
         rows = self._query("SELECT body FROM summaries WHERE session_id = ?", (session_id,))

@@ -159,6 +159,22 @@ SUMMARY_SCHEMA = {
     "additionalProperties": False,
 }
 
+ORGANIZE_SYSTEM = """당신은 대학 강의를 듣지 못한 친구에게 빌려줄 노트를 쓰는 조교입니다.
+강의자료 한 페이지의 텍스트, 그 페이지에서 교수님이 한 말(받아쓰기), 강의 중 붙인 필기를 받습니다.
+
+- 요약이 아니라 전체 정리입니다. 교수님이 설명한 내용을 빠짐없이, 순서대로 노트 항목(points)으로 씁니다.
+- 슬라이드에 없지만 교수님이 덧붙인 설명·예시·주의사항을 반드시 넣습니다. 받아쓰기의 군말(자, 음, 그러니까)은 뺍니다.
+- 항목 하나는 1~2문장. "개념: 설명" 꼴을 쓰면 좋습니다. 시험에 나온다고 한 것은 끝에 (★시험)을 붙입니다.
+- 받아쓰기가 잘못 들린 듯한 단어는 슬라이드의 용어로 고쳐 씁니다.
+- 주어진 내용만 쓰고, 지어내지 않습니다. 한국어로 씁니다."""
+
+ORGANIZE_SCHEMA = {
+    "type": "object",
+    "properties": {"points": {"type": "array", "items": {"type": "string"}}},
+    "required": ["points"],
+    "additionalProperties": False,
+}
+
 TIPS_SYSTEM = """당신은 대학생의 복습을 돕는 조교입니다. 강의 요약을 보고 웹 검색으로 믿을 만한 추가 자료를 찾아 주세요.
 
 - 강의의 핵심 개념 2~4개를 골라, 개념마다 학생에게 도움이 될 자료(공식 문서, 대학 강의 노트, 교과서, 위키백과 등) 1개를 찾습니다.
@@ -185,6 +201,14 @@ class LLM(Protocol):
     async def summarize(self, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict: ...
 
     async def research_tips(self, summary: dict) -> list[dict]: ...
+
+    async def organize_page(self, page: dict, speech: str, notes: list[dict]) -> list[str]: ...
+
+
+def _organize_prompt(page: dict, speech: str, notes: list[dict]) -> str:
+    lines = "\n".join(f"- ({a['type']}) {a['text']}" for a in notes) or "(없음)"
+    return (f'<page no="{page["page_no"]}">\n<slide>\n{page["text"] or "(텍스트 없음)"}\n</slide>\n'
+            f"<speech>\n{speech or '(없음)'}\n</speech>\n<notes>\n{lines}\n</notes>\n</page>")
 
 
 def _annotation_prompt(candidates: list[dict], transcript: str, existing_tasks: list[dict] | None = None) -> str:
@@ -328,6 +352,13 @@ class ClaudeLLM:
         text = "".join(b.text for b in response.content if b.type == "text")
         return parse_tips(text)
 
+    async def organize_page(self, page: dict, speech: str, notes: list[dict]) -> list[str]:
+        params = self._request(settings.summary_model, settings.summary_effort, ORGANIZE_SYSTEM,
+                               _organize_prompt(page, speech, notes), ORGANIZE_SCHEMA, max_tokens=16000)
+        async with self.client.beta.messages.stream(**params) as stream:
+            response = await stream.get_final_message()
+        return [p for p in _response_json(response).get("points", []) if isinstance(p, str) and p.strip()]
+
 
 class FakeLLM:
     """API 키 없이 앱 흐름을 확인하기 위한 가짜 응답."""
@@ -372,6 +403,9 @@ class FakeLLM:
              "url": "https://example.com"}
             for p in summary.get("pages", [])[:2]
         ]
+
+    async def organize_page(self, page: dict, speech: str, notes: list[dict]) -> list[str]:
+        return [f"{page['page_no']}쪽 정리: {s}" for s in speech.split(". ") if s][:5]
 
 
 def make_llm() -> LLM:

@@ -13,12 +13,15 @@ from .config import settings
 from .llm import (
     ANNOTATION_SCHEMA,
     ANNOTATION_SYSTEM,
+    ORGANIZE_SCHEMA,
+    ORGANIZE_SYSTEM,
     SUMMARY_SCHEMA,
     SUMMARY_SYSTEM,
     TASK_SCHEMA,
     TASK_SYSTEM,
     LLMError,
     _annotation_prompt,
+    _organize_prompt,
     _summary_prompt,
     _task_prompt,
 )
@@ -82,3 +85,9 @@ class OllamaLLM:
     async def research_tips(self, summary: dict) -> list[dict]:
         # 로컬 모델은 웹 검색을 못 해서 링크를 지어낼 수 있으므로, 추가 자료는 만들지 않는다
         return []
+
+    async def organize_page(self, page: dict, speech: str, notes: list[dict]) -> list[str]:
+        # 페이지 하나씩 보내므로 작은 모델과 짧은 문맥으로도 된다
+        data = await self._chat(ORGANIZE_SYSTEM, _organize_prompt(page, speech, notes), ORGANIZE_SCHEMA,
+                                context_tokens=8192)
+        return [p for p in data.get("points", []) if isinstance(p, str) and p.strip()]

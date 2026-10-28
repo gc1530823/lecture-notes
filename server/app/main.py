@@ -2,6 +2,7 @@
 
 import asyncio
 import contextlib
+import hashlib
 import json
 import logging
 import os
@@ -17,6 +18,7 @@ from .config import settings
 from .db import Database
 from .live_session import LiveSession
 from .llm import LLMError, make_llm
+from .notes_pdf import build_notes_pdf
 from .pdf_parser import PDFParseError, extract_keywords, parse_pdf
 from .stt import make_transcriber
 
@@ -33,6 +35,7 @@ async def lifespan(app: FastAPI):
     app.state.llm = make_llm()
     app.state.transcriber = make_transcriber()
     app.state.progress = {}  # 세션 id → 녹음 파일 받아쓰기 진행률 (0~1)
+    app.state.notes_pdf = {}  # 세션 id → 정리 PDF 만들기 상태
     warm_up = getattr(app.state.llm, "warm_up", None)
     if warm_up:
         asyncio.create_task(warm_up())
@@ -96,6 +99,27 @@ def get_document_pdf(doc_id: str):
     if db().get_document(doc_id) is None or not os.path.exists(_pdf_path(doc_id)):
         raise HTTPException(404, "강의자료 파일이 없습니다.")
     return FileResponse(_pdf_path(doc_id), media_type="application/pdf")
+
+
+@app.get("/documents")
+def list_documents():
+    """서버에 저장된 강의자료와 강의 목록. 웹앱은 기기가 바뀌거나 브라우저 기록을 지워도 이 목록을 다시 받는다."""
+    return db().list_documents()
+
+
+@app.delete("/documents/{doc_id}", status_code=204)
+def delete_document(doc_id: str):
+    if db().get_document(doc_id) is None:
+        raise HTTPException(404, "강의자료가 없습니다.")
+    sessions = db().delete_document(doc_id)
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(_pdf_path(doc_id))
+    # 그 강의들의 녹음(session-n.wav, session.m4a 등)과 정리 PDF도 지운다
+    if os.path.isdir(settings.upload_dir):
+        for name in os.listdir(settings.upload_dir):
+            if any(name.startswith(sid) or name == f"notes-{sid}.pdf" for sid in sessions):
+                with contextlib.suppress(FileNotFoundError):
+                    os.remove(os.path.join(settings.upload_dir, name))
 
 
 @app.get("/documents/{doc_id}")
@@ -210,15 +234,26 @@ async def stream(ws: WebSocket, session_id: str):
             await live.tick()
 
     tick_task = asyncio.create_task(ticker())
+    # 다시 연결할 때마다 녹음 파일을 새로 만든다 (앞부분을 덮어쓰지 않게)
+    part = len([n for n in os.listdir(settings.upload_dir) if n.startswith(session_id)]) \
+        if os.path.isdir(settings.upload_dir) else 0
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    wav_path = os.path.join(settings.upload_dir, f"{session_id}-{part + 1}.wav")
     try:
         while True:
-            raw = await ws.receive_text()
+            message = await ws.receive()
+            if message["type"] == "websocket.disconnect":
+                break
+            if message.get("bytes") is not None:
+                # 마이크 소리 (16kHz 16비트 모노 PCM): 서버에서 Whisper로 받아쓴다
+                live.feed_audio(message["bytes"], app.state.transcriber, wav_path)
+                continue
             try:
-                message = json.loads(raw)
+                payload = json.loads(message.get("text") or "")
             except json.JSONDecodeError:
                 await send({"type": "error", "message": "JSON 형식이 아닙니다."})
                 continue
-            await live.handle(message)
+            await live.handle(payload)
     except WebSocketDisconnect:
         pass
     finally:
@@ -260,6 +295,88 @@ def get_summary(session_id: str):
     session = _session_or_404(session_id)
     return {"status": session["status"], "summary": db().get_summary(session_id),
             "progress": app.state.progress.get(session_id)}
+
+
+# 강의 정리 PDF: 필기가 붙은 슬라이드 + AI가 쓴 페이지별 전체 정리 + 받아쓰기 + 과제
+
+
+def _notes_pdf_path(session_id: str) -> str:
+    return os.path.join(settings.upload_dir, f"notes-{session_id}.pdf")
+
+
+def _notes_pdf_status(session_id: str) -> dict:
+    state = app.state.notes_pdf.get(session_id)
+    if state is not None:
+        return state
+    return {"status": "ready" if os.path.exists(_notes_pdf_path(session_id)) else "none", "done": 0, "total": 0}
+
+
+async def _build_notes_pdf(session_id: str) -> None:
+    state = app.state.notes_pdf[session_id]
+    session = db().get_session(session_id)
+    doc = db().get_document(session["document_id"])
+    texts = {p["page_no"]: p["text"] for p in db().list_pages(doc["id"])}
+    pages = [{**p, "text": texts.get(p["page_no"], "")} for p in doc["pages"]]
+    segments = db().get_segments(session_id)
+    annotations = db().list_annotations(session_id)
+    todo = [p for p in pages if any(s["page_no"] == p["page_no"] for s in segments)]
+    state["total"] = len(todo)
+    organized = []
+    for page in todo:
+        speech = " ".join(s["text"] for s in segments if s["page_no"] == page["page_no"])
+        notes = [a for a in annotations if a["page_no"] == page["page_no"] and not a["pending"]]
+        digest = hashlib.sha256(json.dumps([speech, [(a["type"], a["text"]) for a in notes]],
+                                           ensure_ascii=False).encode()).hexdigest()
+        points = db().get_page_notes(session_id, page["page_no"], digest)
+        if points is None:
+            try:
+                points = await app.state.llm.organize_page(page, speech, notes)
+                db().save_page_notes(session_id, page["page_no"], digest, points)
+            except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
+                # 한 페이지가 실패해도 PDF는 만든다 (그 페이지는 요약이나 받아쓰기만 들어간다)
+                log.exception("%s쪽 정리 실패", page["page_no"])
+                points = []
+        organized.append({"page_no": page["page_no"], "points": points})
+        state["done"] += 1
+    try:
+        data = await asyncio.to_thread(
+            build_notes_pdf, _pdf_path(doc["id"]), doc["title"], pages, annotations, segments,
+            db().list_tasks(session_id), db().get_summary(session_id), {"pages": organized}, session["started_at"])
+        os.makedirs(settings.upload_dir, exist_ok=True)
+        with open(_notes_pdf_path(session_id), "wb") as f:
+            f.write(data)
+    except Exception:
+        log.exception("정리 PDF 만들기 실패")
+        state["status"] = "failed"
+        return
+    app.state.notes_pdf.pop(session_id, None)
+
+
+@app.post("/sessions/{session_id}/notes-pdf", status_code=202)
+def start_notes_pdf(session_id: str, background: BackgroundTasks):
+    """정리 PDF를 (다시) 만든다. 필기를 고친 뒤 다시 부르면 고친 내용으로 새로 만든다."""
+    session = _session_or_404(session_id)
+    if not os.path.exists(_pdf_path(session["document_id"])):
+        raise HTTPException(404, "강의자료 파일이 없습니다.")
+    if _notes_pdf_status(session_id)["status"] != "building":
+        app.state.notes_pdf[session_id] = {"status": "building", "done": 0, "total": 0}
+        background.add_task(_build_notes_pdf, session_id)
+    return _notes_pdf_status(session_id)
+
+
+@app.get("/sessions/{session_id}/notes-pdf/status")
+def notes_pdf_status(session_id: str):
+    _session_or_404(session_id)
+    return _notes_pdf_status(session_id)
+
+
+@app.get("/sessions/{session_id}/notes-pdf")
+def get_notes_pdf(session_id: str):
+    session = _session_or_404(session_id)
+    if not os.path.exists(_notes_pdf_path(session_id)):
+        raise HTTPException(404, "정리 PDF가 아직 없습니다.")
+    title = db().get_document(session["document_id"])["title"]
+    return FileResponse(_notes_pdf_path(session_id), media_type="application/pdf", filename=f"{title} 정리.pdf")
 
 
 # 수업 중에 받은 과제

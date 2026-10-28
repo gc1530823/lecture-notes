@@ -48,7 +48,7 @@ def make_pdf() -> bytes:
     return doc.tobytes()
 
 
-async def main(base: str, wait: float) -> None:
+async def main(base: str, wait: float, pdf_out: str | None = None) -> None:
     async with httpx.AsyncClient(base_url=base, timeout=600) as http:
         health = (await http.get("/health")).json()
         print(f"[서버] 모드 {health['llm_mode']} · 모델 {health.get('model')}")
@@ -117,6 +117,20 @@ async def main(base: str, wait: float) -> None:
             await asyncio.sleep(2)
         print(json.dumps(result, ensure_ascii=False, indent=2))
 
+        if pdf_out:
+            print("[정리 PDF] 페이지별 전체 정리 만드는 중…")
+            started_pdf = time.monotonic()
+            await http.post(f"/sessions/{session['id']}/notes-pdf")
+            for _ in range(600):
+                status = (await http.get(f"/sessions/{session['id']}/notes-pdf/status")).json()
+                if status["status"] != "building":
+                    break
+                await asyncio.sleep(2)
+            print(f"[정리 PDF] {status['status']} · {time.monotonic() - started_pdf:.0f}초")
+            if status["status"] == "ready":
+                with open(pdf_out, "wb") as f:
+                    f.write((await http.get(f"/sessions/{session['id']}/notes-pdf")).content)
+
     # 채점
     truth = [page for page, _ in SPEECH]
     hits = sum(1 for want, got in zip(truth, estimates) if want == got)
@@ -137,5 +151,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://localhost:8000")
     parser.add_argument("--wait", type=float, default=5, help="마지막 문장 뒤 필기를 기다릴 시간(초)")
+    parser.add_argument("--pdf-out", help="강의 정리 PDF를 저장할 경로 (주면 만들어 본다)")
     args = parser.parse_args()
-    asyncio.run(main(args.url, args.wait))
+    asyncio.run(main(args.url, args.wait, args.pdf_out))

@@ -38,7 +38,7 @@ def receive(ws, kind: str = "annotation_added") -> dict:
     while True:
         event = ws.receive_json()
         assert event["type"] in ("page_estimate", "annotation_added", "task_added", "annotation_preview",
-                                 "previews_resolved"), event
+                                 "previews_resolved", "heard"), event
         if event["type"] == kind:
             return event
 
@@ -221,3 +221,87 @@ def test_audio_file_becomes_a_lecture_with_notes_and_summary(client):
     notes = client.get(f"/sessions/{session['id']}/annotations").json()
     assert {n["page_no"] for n in notes} == {1, 2}
     assert len(client.get(f"/sessions/{session['id']}/tasks").json()) == 1
+
+
+def test_document_list_and_delete(client):
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    listed = {d["id"]: d for d in client.get("/documents").json()}
+    assert listed[doc["id"]]["sessions"][0]["id"] == session["id"]
+    assert client.get(f"/documents/{doc['id']}/pdf").status_code == 200
+    assert client.delete(f"/documents/{doc['id']}").status_code == 204
+    assert doc["id"] not in {d["id"] for d in client.get("/documents").json()}
+    assert client.get(f"/documents/{doc['id']}/pdf").status_code == 404
+
+
+def test_live_audio_is_transcribed_by_whisper_and_annotated(client):
+    import numpy as np
+
+    from app.main import app as fastapi_app
+    from app.stt import Segment
+
+    heard_lengths = []
+
+    class FakeWhisper:
+        def transcribe(self, audio, hint="", on_progress=None):
+            heard_lengths.append(len(audio))
+            return [Segment(0, 1000, "학습률이 너무 크면 발산해요. 이거 시험에 꼭 나와요.")]
+
+    fastapi_app.state.transcriber = FakeWhisper()
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    t = np.arange(16000 * 2) / 16000
+    speech = (np.sin(2 * np.pi * 220 * t) * 8000).astype(np.int16)   # 2초 동안 "말소리"
+    silence = np.zeros(16000, dtype=np.int16)                         # 1초 침묵 → 문장 끝
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1, "initial": True})
+        for chunk in np.array_split(np.concatenate([silence, speech, silence]), 20):
+            ws.send_bytes(chunk.tobytes())
+        heard = receive(ws, "heard")
+        ann = receive_annotation(ws)
+    assert heard["text"].startswith("학습률이")
+    assert ann["type"] == "exam" and ann["page_no"] == 1
+    # 앞 침묵은 0.3초만 남기고 버렸다: 0.3초 + 말 2초 + 문장 끝 침묵 0.7초
+    assert 16000 * 2.9 <= heard_lengths[0] <= 16000 * 3.2
+    wavs = [n for n in os.listdir(os.environ["UPLOAD_DIR"]) if n.startswith(session["id"]) and n.endswith(".wav")]
+    assert wavs, "수업 녹음이 남아야 한다"
+
+
+def test_notes_pdf_has_annotated_slides_full_notes_and_reuses_cache(client):
+    from app.main import app as fastapi_app
+
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "학습률이 너무 크면 발산해요. 이거 시험에 꼭 나와요.",
+                      "start_ms": 1000, "end_ms": 4000})
+        receive_annotation(ws)
+
+    calls = []
+    original = fastapi_app.state.llm.organize_page
+
+    async def counting(page, speech, notes):
+        calls.append(page["page_no"])
+        return await original(page, speech, notes)
+
+    fastapi_app.state.llm.organize_page = counting
+    try:
+        assert client.get(f"/sessions/{session['id']}/notes-pdf").status_code == 404
+        res = client.post(f"/sessions/{session['id']}/notes-pdf")
+        assert res.status_code == 202
+        assert client.get(f"/sessions/{session['id']}/notes-pdf/status").json()["status"] == "ready"
+        pdf = client.get(f"/sessions/{session['id']}/notes-pdf")
+        assert pdf.status_code == 200 and pdf.headers["content-type"] == "application/pdf"
+        text = "".join(p.get_text() for p in pymupdf.open("pdf", pdf.content)).replace("\xa0", " ")
+        assert "1쪽" in text and "정리 노트" in text and "시험" in text and "발산" in text
+        assert calls == [1]
+
+        # 받아쓰기·필기가 그대로면 다시 만들어도 AI를 부르지 않는다
+        client.post(f"/sessions/{session['id']}/notes-pdf")
+        assert calls == [1]
+    finally:
+        fastapi_app.state.llm.organize_page = original
+
+    client.delete(f"/documents/{doc['id']}")
+    assert client.get(f"/sessions/{session['id']}/notes-pdf").status_code == 404

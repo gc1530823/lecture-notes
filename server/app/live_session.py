@@ -14,6 +14,7 @@ from .alignment import Estimate, PageIndex, PageTracker
 from .config import settings
 from .db import Database
 from .llm import ANNOTATION_TYPES, LLM, TASK_KINDS, LLMError
+from .live_stt import LiveAudio
 from .quick_notes import quick_note
 
 log = logging.getLogger(__name__)
@@ -56,6 +57,7 @@ class LiveSession:
         self._queue: list[Batch] = []
         self._worker: asyncio.Task | None = None
         self._preview_count = 0
+        self.audio: LiveAudio | None = None
 
     async def handle(self, message: dict) -> None:
         kind = message.get("type")
@@ -68,12 +70,25 @@ class LiveSession:
         else:
             await self.send({"type": "error", "message": f"알 수 없는 메시지: {kind}"})
 
+    def feed_audio(self, data: bytes, transcriber, wav_path: str | None) -> None:
+        """웹앱이 보낸 마이크 소리. 처음 받을 때 실시간 Whisper 받아쓰기를 시작한다."""
+        if self.audio is None:
+            doc = self.db.get_document(self.document_id)
+            self.audio = LiveAudio(transcriber, " ".join(doc["keywords"][:40]), self._on_heard, wav_path)
+        self.audio.feed(data)
+
+    async def _on_heard(self, text: str, start_ms: int, end_ms: int) -> None:
+        await self.send({"type": "heard", "text": text})
+        await self._on_transcript({"text": text, "start_ms": start_ms, "end_ms": end_ms})
+
     async def tick(self) -> None:
         """주기적으로 불려서, 오래 기다린 받아쓰기가 있으면 필기를 만든다."""
         if self.batch and time.monotonic() - self.batch.since >= settings.max_wait_seconds:
             self._schedule_flush()
 
     async def close(self) -> None:
+        if self.audio:
+            await self.audio.close()
         self._schedule_flush()
         if self._worker:
             await asyncio.gather(self._worker, return_exceptions=True)
