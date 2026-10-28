@@ -305,3 +305,29 @@ def test_notes_pdf_has_annotated_slides_full_notes_and_reuses_cache(client):
 
     client.delete(f"/documents/{doc['id']}")
     assert client.get(f"/sessions/{session['id']}/notes-pdf").status_code == 404
+
+
+def test_notes_pdf_drops_exam_mark_on_pages_without_exam_talk(client):
+    from app.main import app as fastapi_app
+
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "학습률은 이동 크기를 정하는 값이에요. 너무 크면 발산합니다.",
+                      "start_ms": 1000, "end_ms": 4000})
+        receive_annotation(ws)
+
+    original = fastapi_app.state.llm.organize_page
+
+    async def marks_everything(page, speech, notes):
+        return ["학습률: 이동 크기를 정한다 (★시험)"]
+
+    fastapi_app.state.llm.organize_page = marks_everything
+    try:
+        client.post(f"/sessions/{session['id']}/notes-pdf")
+    finally:
+        fastapi_app.state.llm.organize_page = original
+    pdf = client.get(f"/sessions/{session['id']}/notes-pdf")
+    text = "".join(p.get_text() for p in pymupdf.open("pdf", pdf.content)).replace("\xa0", " ")
+    assert "학습률: 이동 크기를 정한다" in text and "★" not in text

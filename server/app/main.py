@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 
 import anthropic
@@ -19,6 +20,7 @@ from .db import Database
 from .live_session import LiveSession
 from .llm import LLMError, make_llm
 from .notes_pdf import build_notes_pdf
+from .quick_notes import EXAM_TALK
 from .pdf_parser import PDFParseError, extract_keywords, parse_pdf
 from .stt import make_transcriber
 
@@ -331,6 +333,9 @@ async def _build_notes_pdf(session_id: str) -> None:
         if points is None:
             try:
                 points = await app.state.llm.organize_page(page, speech, notes)
+                if not EXAM_TALK.search(speech):
+                    # 작은 모델은 시험 이야기가 없는 페이지에도 ★시험을 붙이곤 해서, 실제로 말한 페이지에만 남긴다
+                    points = [re.sub(r"\s*\(★[^)]*\)", "", p) for p in points]
                 db().save_page_notes(session_id, page["page_no"], digest, points)
             except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
                 # 한 페이지가 실패해도 PDF는 만든다 (그 페이지는 요약이나 받아쓰기만 들어간다)
