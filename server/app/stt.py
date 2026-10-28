@@ -27,7 +27,9 @@ def split_sentences(segments: list["Segment"]) -> list["Segment"]:
     한 덩어리에 섞이면 페이지 추적이 틀리므로, 문장으로 나누고 시각은 글자 수 비율로 나눠 준다."""
     result = []
     for seg in segments:
-        parts = [p.strip() for p in re.split(r"(?<=[.?!])\s+", seg.text) if p.strip()]
+        # 마침표를 안 찍는 받아쓰기(Groq 등)는 한국어 문장 끝 말투(~요, ~다, ~죠, ~까) 뒤에서 나눈다
+        pattern = r"(?<=[.?!])\s+" if re.search(r"[.?!]", seg.text) else r"(?<=[요다죠까])\s+"
+        parts = [p.strip() for p in re.split(pattern, seg.text) if p.strip()]
         total = sum(len(p) for p in parts) or 1
         start = seg.start_ms
         for part in parts:

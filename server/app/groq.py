@@ -116,8 +116,9 @@ class GroqTranscriber:
     def _request(self, filename: str, data: bytes, hint: str) -> list[Segment]:
         form = {"model": settings.groq_whisper_model, "language": "ko", "response_format": "verbose_json",
                 "temperature": "0"}
-        if hint:
-            form["prompt"] = hint[-200:]  # 프롬프트는 짧아야 한다 (최근 용어·문장 위주로 뒤쪽을 남긴다)
+        # Whisper는 프롬프트의 말투를 따라 쓰므로, 마침표가 있는 문장을 앞에 두어 문장 끝에 마침표를 찍게 한다.
+        # 프롬프트는 짧아야 해서 용어·직전 문장은 뒤쪽만 남긴다
+        form["prompt"] = "네, 오늘 수업을 시작하겠습니다. " + hint[-160:]
         for attempt in range(MAX_RETRIES):
             try:
                 response = self.client.post("/audio/transcriptions", data=form, files={"file": (filename, data)},

@@ -82,3 +82,15 @@ def test_transcribe_live_chunk_sends_wav():
     segments = GroqTranscriber(transport=httpx.MockTransport(handler)).transcribe(np.zeros(32000, np.float32))
     assert segments[0].text == "다음 장, 역전파입니다." and segments[0].end_ms == 2000
     assert b"RIFF" in seen[0]
+
+
+def test_unpunctuated_transcript_is_split_at_korean_sentence_endings():
+    from app.stt import Segment, split_sentences
+
+    text = ("학습률이 너무 크면 최소값을 지나쳐서 발산하고 너무 작으면 학습이 엄청 느려집니다 "
+            "이거 중간고사에 꼭 나와요 다음 장 역전파 입니다 결국 연쇄 법칙을 반복해서 쓰는 거예요")
+    parts = split_sentences([Segment(0, 10000, text)])
+    assert [p.text for p in parts] == [
+        "학습률이 너무 크면 최소값을 지나쳐서 발산하고 너무 작으면 학습이 엄청 느려집니다",
+        "이거 중간고사에 꼭 나와요", "다음 장 역전파 입니다", "결국 연쇄 법칙을 반복해서 쓰는 거예요"]
+    assert parts[0].start_ms == 0 and parts[-1].end_ms == 10000
