@@ -117,6 +117,12 @@ async def main(base: str, wait: float, pdf_out: str | None = None) -> None:
             await asyncio.sleep(2)
         print(json.dumps(result, ensure_ascii=False, indent=2))
 
+        tasks = (await http.get(f"/sessions/{session['id']}/tasks")).json()
+        if tasks:
+            print(f"[과제 초안] {tasks[0]['title']} 초안 만드는 중…")
+            res = await http.post(f"/tasks/{tasks[0]['id']}/draft")
+            print(json.dumps(res.json(), ensure_ascii=False, indent=2))
+
         if pdf_out:
             print("[정리 PDF] 페이지별 전체 정리 만드는 중…")
             started_pdf = time.monotonic()

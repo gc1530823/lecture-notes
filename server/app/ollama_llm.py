@@ -6,6 +6,7 @@ Ollama의 /api/chat에 JSON 스키마를 format으로 넘기면 그 형식대로
 
 import json
 import logging
+import re
 
 import httpx
 
@@ -15,18 +16,87 @@ from .llm import (
     ANNOTATION_SYSTEM,
     ORGANIZE_SCHEMA,
     ORGANIZE_SYSTEM,
-    SUMMARY_SCHEMA,
-    SUMMARY_SYSTEM,
     TASK_SCHEMA,
-    TASK_SYSTEM,
     LLMError,
     _annotation_prompt,
     _organize_prompt,
-    _summary_prompt,
     _task_prompt,
 )
 
 log = logging.getLogger(__name__)
+
+# 필드 설명을 "필드: 설명" 꼴로 쓰면 작은 모델이 그 설명을 값으로 베끼므로, 할 일만 말로 쓴다
+PAGE_SUMMARY_SYSTEM = """대학 강의 한 페이지의 슬라이드 텍스트, 교수님이 한 말(받아쓰기), 필기를 읽고 복습 자료를 만듭니다.
+
+1. 이 페이지에서 배운 내용을 2~3문장으로 요약해 summary에 씁니다. 실제 개념 이름과 설명을 넣어야 합니다.
+2. 이 페이지 내용으로 4지선다 퀴즈 한 문항을 만들어 quiz에 씁니다.
+   question은 실제 질문, choices는 실제 보기 4개(정답 1개, 그럴듯한 오답 3개), answer_index는 정답 보기의 번호(0~3),
+   explanation은 왜 그 답인지 한 문장입니다.
+
+주어진 내용만 사용하고 한국어로 씁니다."""
+
+PAGE_SUMMARY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "summary": {"type": "string"},
+        "quiz": {
+            "type": "object",
+            "properties": {
+                "question": {"type": "string"},
+                "choices": {"type": "array", "items": {"type": "string"}},
+                "answer_index": {"type": "integer"},
+                "explanation": {"type": "string"},
+            },
+            "required": ["question", "choices", "answer_index", "explanation"],
+        },
+    },
+    "required": ["summary", "quiz"],
+}
+
+TASK_DRAFT_SYSTEM = """학생이 수업 중에 받은 과제를 빨리 끝낼 수 있게 돕습니다. 과제 요구사항과 강의 내용(슬라이드, 교수님 말, 필기)을 받습니다.
+
+1. 교수님 요구사항(분량, 형식, 꼭 넣을 내용, 마감)을 하나도 빠뜨리지 않고 나눠 checklist에 한 줄씩 씁니다.
+2. 답안이나 레포트를 어떤 순서로 쓸지 outline에 한 줄씩 씁니다.
+3. 학생이 바로 고쳐 쓸 수 있는 실제 초안을 draft에 씁니다. 수업 중 과제면 짧게, 레포트면 여러 문단으로 씁니다.
+   강의에서 나온 개념·예시·용어를 먼저 쓰고, 강의에 없는 내용은 널리 알려진 사실만 씁니다.
+4. 초안이 근거로 삼은 강의자료 페이지 번호를 sources에 넣습니다.
+
+한국어로 씁니다."""
+
+OVERVIEW_SYSTEM = """대학 강의의 페이지별 요약을 읽고, 강의 전체에서 무엇을 배웠는지 3~5문장으로 이어지는 글을 써서 overview에 넣습니다.
+실제 개념 이름을 넣고, 한국어로 씁니다."""
+
+OVERVIEW_SCHEMA = {"type": "object", "properties": {"overview": {"type": "string"}}, "required": ["overview"]}
+
+# 지시문·틀을 그대로 베낀 답 ("2~3문장 핵심 요약", "문항 텍스트", "옵션1", "해설 텍스트")
+TEMPLATE_TEXT = re.compile(r"\d\s*~\s*\d\s*문장|\d\s*문장\s*이내|핵심\s*요약$|전체\s*요약$|문항\s*텍스트|해설\s*텍스트|"
+                           r"^(옵션|보기|선택지)\s*\d+$|^(질문|요약|해설|설명)$")
+
+
+def _real_text(value) -> bool:
+    return isinstance(value, str) and len(value.strip()) >= 8 and not TEMPLATE_TEXT.search(value.strip())
+
+
+def _quiz_ok(quiz) -> bool:
+    if not isinstance(quiz, dict):
+        return False
+    choices = quiz.get("choices")
+    return (_real_text(quiz.get("question")) and isinstance(choices, list) and len(choices) == 4
+            and all(isinstance(c, str) and c.strip() and not TEMPLATE_TEXT.search(c.strip()) for c in choices)
+            and len({c.strip() for c in choices}) == 4
+            and isinstance(quiz.get("answer_index"), int) and 0 <= quiz["answer_index"] < 4
+            and isinstance(quiz.get("explanation"), str))
+
+
+def _task_draft_ok(data: dict) -> bool:
+    lists = [data.get("checklist"), data.get("outline")]
+    return (_real_text(data.get("draft")) and all(isinstance(items, list) and items for items in lists)
+            and not any(TEMPLATE_TEXT.search(str(item)) for items in lists for item in items))
+
+
+def _page_summary_ok(data: dict) -> bool:
+    # 요약이 진짜면 받는다 (퀴즈만 틀이면 그 문항만 뺀다)
+    return _real_text(data.get("summary"))
 
 
 class OllamaLLM:
@@ -35,7 +105,8 @@ class OllamaLLM:
         self.client = httpx.AsyncClient(base_url=settings.ollama_url, timeout=httpx.Timeout(600, connect=5),
                                         transport=transport)
 
-    async def _chat(self, system: str, prompt: str, schema: dict, context_tokens: int) -> dict:
+    async def _chat(self, system: str, prompt: str, schema: dict, context_tokens: int,
+                    temperature: float = 0.2) -> dict:
         payload = {
             "model": settings.ollama_model,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
@@ -44,7 +115,7 @@ class OllamaLLM:
             # 생각 모드가 있는 모델(Qwen3 등)도 바로 답하게 해서 실시간 필기를 빠르게 한다
             "think": False,
             "keep_alive": "30m",
-            "options": {"temperature": 0.2, "num_ctx": context_tokens},
+            "options": {"temperature": temperature, "num_ctx": context_tokens},
         }
         try:
             response = await self.client.post("/api/chat", json=payload)
@@ -75,12 +146,54 @@ class OllamaLLM:
         return {"annotations": data.get("annotations", []), "tasks": data.get("tasks", [])}
 
     async def draft_task(self, task: dict, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict:
-        return await self._chat(TASK_SYSTEM, _task_prompt(task, pages, segments, annotations), TASK_SCHEMA,
-                                context_tokens=32768)
+        data = await self._chat_checked(TASK_DRAFT_SYSTEM, _task_prompt(task, pages, segments, annotations),
+                                        TASK_SCHEMA, 32768, _task_draft_ok)
+        if data is None:
+            raise LLMError("모델이 초안 대신 빈 틀만 만들었어요. 다시 눌러 주세요.")
+        return data
 
     async def summarize(self, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict:
-        return await self._chat(SUMMARY_SYSTEM, _summary_prompt(pages, segments, annotations), SUMMARY_SCHEMA,
-                                context_tokens=32768)
+        """작은 모델은 요약·퀴즈 전체를 한 번에 시키면 지시문을 그대로 베껴 쓴다("2~3문장 핵심 요약", "옵션1").
+        그래서 페이지마다 요약 + 퀴즈 한 문항을 따로 받고, 전체 요약은 페이지 요약으로 마지막에 만든다."""
+        page_results = []
+        for page in pages:
+            speech = " ".join(s["text"] for s in segments if s["page_no"] == page["page_no"])
+            if not speech:
+                continue
+            notes = [a for a in annotations if a["page_no"] == page["page_no"] and not a["pending"]]
+            data = await self._chat_checked(PAGE_SUMMARY_SYSTEM, _organize_prompt(page, speech, notes),
+                                            PAGE_SUMMARY_SCHEMA, 8192, _page_summary_ok)
+            if data is None:
+                continue
+            quiz = data.get("quiz") if _quiz_ok(data.get("quiz")) else None
+            weight = 2 if any(a["type"] in ("exam", "emphasis") for a in notes) else 1
+            page_results.append((page["page_no"], data["summary"].strip(), quiz, weight))
+        if not page_results:
+            raise LLMError("페이지 요약을 만들지 못했습니다.")
+
+        lines = "\n".join(f"- {no}쪽: {summary}" for no, summary, _, _ in page_results)
+        data = await self._chat_checked(OVERVIEW_SYSTEM, f"<page_summaries>\n{lines}\n</page_summaries>",
+                                        OVERVIEW_SCHEMA, 8192, lambda d: _real_text(d.get("overview")))
+        overview = data["overview"].strip() if data else " ".join(s for _, s, _, _ in page_results[:3])
+
+        # 시험·강조 필기가 붙은 페이지의 문항을 먼저 내고, 최대 10문항
+        ranked = sorted((r for r in page_results if r[2]), key=lambda r: -r[3])[:10]
+        quiz = [{"page_no": no, **q} for no, _, q, _ in sorted(ranked, key=lambda r: r[0])]
+        return {"overview": overview,
+                "pages": [{"page_no": no, "summary": summary} for no, summary, _, _ in page_results],
+                "quiz": quiz}
+
+    async def _chat_checked(self, system: str, prompt: str, schema: dict, context_tokens: int, ok) -> dict | None:
+        """답이 틀(빈칸·지시문 베끼기)이면 온도를 올려 한 번 더 받고, 그래도 아니면 None."""
+        for temperature in (0.2, 0.6):
+            try:
+                data = await self._chat(system, prompt, schema, context_tokens, temperature)
+            except json.JSONDecodeError:
+                continue
+            if ok(data):
+                return data
+            log.warning("모델 답이 틀만 있어 다시 받습니다: %s", str(data)[:120])
+        return None
 
     async def research_tips(self, summary: dict) -> list[dict]:
         # 로컬 모델은 웹 검색을 못 해서 링크를 지어낼 수 있으므로, 추가 자료는 만들지 않는다
