@@ -30,3 +30,11 @@ def test_exam_analogy_is_not_exam_notice():
     note = quick_note(BLOCKS, ["시험 문제를 외워서 푸는 학생이랑 비슷해요."])
     assert note["type"] == "example"
     assert quick_note(BLOCKS, ["이건 시험에 꼭 나와요."])["type"] == "exam"
+
+
+def test_whisper_chunks_are_split_into_sentences_with_times():
+    from app.stt import Segment, split_sentences
+
+    out = split_sentences([Segment(0, 10000, "이거 중간고사에 꼭 나와요. 다음 장, 역전파입니다.")])
+    assert [s.text for s in out] == ["이거 중간고사에 꼭 나와요.", "다음 장, 역전파입니다."]
+    assert out[0].start_ms == 0 and out[0].end_ms == out[1].start_ms and out[1].end_ms == 10000

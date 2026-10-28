@@ -5,6 +5,7 @@ iPhone 웹앱은 화면이 꺼지면 받아쓰기가 멈추므로, 수업은 '�
 """
 
 import logging
+import re
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -19,6 +20,21 @@ class Segment:
     start_ms: int
     end_ms: int
     text: str
+
+
+def split_sentences(segments: list["Segment"]) -> list["Segment"]:
+    """Whisper는 여러 문장을 한 덩어리로 묶곤 한다. "…나와요. 다음 장, 역전파입니다."처럼 페이지가 바뀌는 말이
+    한 덩어리에 섞이면 페이지 추적이 틀리므로, 문장으로 나누고 시각은 글자 수 비율로 나눠 준다."""
+    result = []
+    for seg in segments:
+        parts = [p.strip() for p in re.split(r"(?<=[.?!])\s+", seg.text) if p.strip()]
+        total = sum(len(p) for p in parts) or 1
+        start = seg.start_ms
+        for part in parts:
+            end = start + round((seg.end_ms - seg.start_ms) * len(part) / total)
+            result.append(Segment(start, end, part))
+            start = end
+    return result
 
 
 class WhisperTranscriber:
@@ -48,7 +64,7 @@ class WhisperTranscriber:
                 result.append(Segment(int(seg.start * 1000), int(seg.end * 1000), text))
             if on_progress and info.duration:
                 on_progress(min(seg.end / info.duration, 1.0))
-        return result
+        return split_sentences(result)
 
 
 class FakeTranscriber:
