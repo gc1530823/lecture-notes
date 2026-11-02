@@ -46,6 +46,8 @@ struct LectureView: View {
                             tasks: [drafted, DemoData.tasks[1]])
         case .live:
             model.applyDemo(annotations: [], phase: .recording, caption: "")
+        case .notebook:
+            model.applyNotebookDemo()
         case .caption:
             model.applyDemo(annotations: Array(DemoData.annotations.prefix(3)), phase: .recording, caption: "")
             model.applyCaptionDemo(
@@ -163,11 +165,11 @@ struct LectureView: View {
         }
         .sheet(isPresented: $showingSummary) {
             if let session = model.session {
-                SummaryView(sessionID: session.id, initialSummary: demo == nil ? nil : DemoData.summary,
-                            onSelectPage: { page in
-                                model.currentPage = page
-                                showingSummary = false
-                            })
+                StudyView(sessionID: session.id, initialSummary: demo == nil ? nil : DemoData.summary,
+                          onSelectPage: { page in
+                              model.currentPage = page
+                              showingSummary = false
+                          })
             }
         }
         .onDisappear { model.player.stop() }
@@ -203,7 +205,21 @@ struct LectureView: View {
         return min((width - 32) / aspect + 28, available * 0.48)
     }
 
+    @ViewBuilder
     private func content(pageHeight: CGFloat) -> some View {
+        if model.isNotebook {
+            NotebookView(title: model.document.document.title, date: model.session?.startedAt ?? Date(),
+                         pages: model.pages, annotations: model.annotations + model.previews,
+                         currentPage: model.currentPage, isRecording: model.phase == .recording,
+                         selectedID: $selectedAnnotationID, canPlay: model.canPlayRecording,
+                         beyondIDs: Set(model.beyond?.annotationIds ?? []), onPlay: { model.playRecording(at: $0) })
+                .safeAreaInset(edge: .bottom) { bottomControls }
+        } else {
+            slidesContent(pageHeight: pageHeight)
+        }
+    }
+
+    private func slidesContent(pageHeight: CGFloat) -> some View {
         let pageAnnotations = model.annotations(onPage: model.currentPage)
         return VStack(spacing: 0) {
             TabView(selection: $model.currentPage) {
@@ -238,27 +254,29 @@ struct LectureView: View {
                 onPlay: { model.playRecording(at: $0) }
             )
             .frame(maxHeight: .infinity)
-            .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 10) {
-                    PlayerBar(player: model.player)
-                    if model.session != nil {
-                        AskButton(asking: asking) { showingAsk = true }
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-                    if model.phase == .recording && model.captionMode {
-                        BigCaption(lines: model.captionLines, partial: model.recorder.partialText)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    } else if model.phase == .recording {
-                        CaptionPill(recorder: model.recorder)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                    controlBar
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 6)
-                .animation(.spring(response: 0.45, dampingFraction: 0.8), value: model.phase)
-            }
+            .safeAreaInset(edge: .bottom) { bottomControls }
         }
+    }
+
+    private var bottomControls: some View {
+        VStack(spacing: 10) {
+            PlayerBar(player: model.player)
+            if model.session != nil {
+                AskButton(asking: asking) { showingAsk = true }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            if model.phase == .recording && model.captionMode {
+                BigCaption(lines: model.captionLines, partial: model.recorder.partialText)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else if model.phase == .recording {
+                CaptionPill(recorder: model.recorder)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            controlBar
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 6)
+        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: model.phase)
     }
 
     private func boardHeader(count: Int) -> some View {

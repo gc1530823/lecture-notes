@@ -66,6 +66,7 @@ final class LectureViewModel: ObservableObject {
 
     init(document: LocalDocument, store: DocumentStore, existingSession: SavedSession? = nil) {
         self.document = document
+        self.pages = document.document.pages
         self.store = store
         self.pdf = store.pdf(for: document)
         self.session = existingSession
@@ -82,10 +83,14 @@ final class LectureViewModel: ObservableObject {
         socket.onTask = { [weak self] task in self?.receive(task) }
         socket.onPreview = { [weak self] preview in self?.receive(preview) }
         socket.onPreviewsResolved = { [weak self] ids in self?.resolvePreviews(ids) }
+        socket.onPageAdded = { [weak self] page in self?.receivePageAdded(page) }
+        socket.onPageTitle = { [weak self] pageNo, title in self?.receivePageTitle(pageNo, title) }
         socket.onSpoken = { [weak self] page, blockId, text in self?.receiveSpoken(page: page, blockId: blockId, text: text) }
     }
 
-    var pages: [Page] { document.document.pages }
+    /// 노트 모드에서는 수업 중에 쪽이 늘고 제목이 붙는다
+    @Published private(set) var pages: [Page]
+    var isNotebook: Bool { document.document.isNotebook }
 
     func annotations(onPage pageNo: Int) -> [Annotation] {
         (annotations + previews).filter { $0.pageNo == pageNo && !$0.pending }
@@ -166,6 +171,19 @@ final class LectureViewModel: ObservableObject {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) { tasks[index] = task }
     }
 
+    private func receivePageAdded(_ page: Page) {
+        guard !pages.contains(where: { $0.pageNo == page.pageNo }) else { return }
+        withAnimation(.snappy) {
+            pages.append(page)
+            if autoFollow { currentPage = page.pageNo }
+        }
+    }
+
+    private func receivePageTitle(_ pageNo: Int, _ title: String) {
+        guard let index = pages.firstIndex(where: { $0.pageNo == pageNo }) else { return }
+        withAnimation(.snappy) { pages[index].text = title }
+    }
+
     private func receiveSpoken(page: Int, blockId: Int?, text: String) {
         withAnimation(.snappy) {
             spokenSpot = SpokenSpot(pageNo: page, blockId: blockId)
@@ -218,6 +236,7 @@ final class LectureViewModel: ObservableObject {
             let api = try APIClient.current()
             annotations = try await api.annotations(sessionId: session.id)
             tasks = try await api.tasks(sessionId: session.id)
+            if isNotebook { pages = try await api.document(id: document.id).pages }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -261,6 +280,11 @@ final class LectureViewModel: ObservableObject {
         }
         phase = .ended
         await loadBeyondSlides()
+        if isNotebook {
+            // 마지막 주제의 제목은 연결이 끊긴 뒤에 붙으므로 잠시 뒤 다시 받아 온다
+            try? await Task.sleep(for: .seconds(4))
+            if let updated = try? await APIClient.current().document(id: document.id) { pages = updated.pages }
+        }
     }
 
     func leave() {
@@ -359,6 +383,13 @@ final class LectureViewModel: ObservableObject {
         } else if annotation.type == .notice {
             alertImportant(symbol: "megaphone.fill", title: "공지", text: annotation.text)
         }
+    }
+
+    /// 데모 모드: 노트 모드 화면 (강의자료 없는 수업)
+    func applyNotebookDemo() {
+        pages = DemoData.notebookPages
+        applyDemo(annotations: DemoData.notebookNotes, phase: .ended, caption: nil)
+        currentPage = 1
     }
 
     /// 데모 모드: 자막 모드 화면

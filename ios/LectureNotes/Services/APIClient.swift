@@ -54,6 +54,15 @@ struct APIClient {
         return try decode(data, response)
     }
 
+    /// 강의자료가 없는 수업: 빈 노트로 시작한다
+    func createNotebook(title: String) async throws -> LectureDocument {
+        try await send("POST", "documents/notebook", json: ["title": title])
+    }
+
+    func document(id: String) async throws -> LectureDocument {
+        try await send("GET", "documents/\(id)")
+    }
+
     // 강의 세션
 
     func createSession(documentId: String) async throws -> LectureSession {
@@ -79,6 +88,30 @@ struct APIClient {
 
     func beyondSlides(sessionId: String) async throws -> BeyondSlides {
         try await send("GET", "sessions/\(sessionId)/beyond-slides")
+    }
+
+    // 공부 도구
+
+    func study<Payload: Decodable>(sessionId: String, kind: String, as: Payload.Type) async throws -> StudyResponse<Payload> {
+        try await send("GET", "sessions/\(sessionId)/study/\(kind)")
+    }
+
+    func startStudy(sessionId: String, kind: String) async throws {
+        var request = URLRequest(url: baseURL.appending(path: "sessions/\(sessionId)/study/\(kind)"))
+        request.httpMethod = "POST"
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try check(data, response)
+    }
+
+    func tutor(sessionId: String, messages: [TutorMessage]) async throws -> TutorReply {
+        var request = URLRequest(url: baseURL.appending(path: "sessions/\(sessionId)/tutor"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 120
+        let body = ["messages": messages.map { ["role": $0.role, "content": $0.content] }]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        return try decode(data, response)
     }
 
     // 시험 예상 지도

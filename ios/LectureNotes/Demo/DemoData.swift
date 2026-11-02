@@ -118,6 +118,36 @@ enum DemoData {
         job: ExamJob(status: "idle", done: 0, total: 0)
     )
 
+    static let notebook: LocalDocument = {
+        let doc = LectureDocument(id: "demo-notebook", title: "철학 개론 4주차", pageCount: 2, keywords: [],
+                                  pages: notebookPages, kind: "notebook")
+        return LocalDocument(document: doc, pdfFileName: "", sessions: [
+            SavedSession(id: "demo-notebook-session", startedAt: Date(timeIntervalSince1970: 1_792_400_000),
+                         recordingFileName: "demo-notebook.m4a"),
+        ])
+    }()
+
+    static let notebookPages = [
+        Page(id: 901, pageNo: 1, width: 595, height: 842, blocks: [], text: "플라톤의 이데아론"),
+        Page(id: 902, pageNo: 2, width: 595, height: 842, blocks: [], text: "아리스토텔레스의 경험론"),
+    ]
+
+    static let notebookNotes: [Annotation] = [
+        Annotation(id: 901, sessionId: "demo-notebook-session", pageNo: 1, blockId: nil, type: .explanation,
+                   text: "이데아: 감각 너머의 참된 실재. 현실의 사물은 이데아를 본뜬 그림자", startMs: 30_000, editedByUser: false),
+        Annotation(id: 902, sessionId: "demo-notebook-session", pageNo: 1, blockId: nil, type: .example,
+                   text: "동굴의 비유: 그림자만 보던 사람이 밖으로 나와 해를 본다", startMs: 95_000, editedByUser: false),
+        Annotation(id: 903, sessionId: "demo-notebook-session", pageNo: 1, blockId: nil, type: .exam,
+                   text: "이데아와 현실 세계의 관계 (중간고사 출제)", startMs: 140_000, editedByUser: false),
+        Annotation(id: 904, sessionId: "demo-notebook-session", pageNo: 2, blockId: nil, type: .explanation,
+                   text: "경험론: 지식은 감각 경험과 관찰에서 시작. 플라톤과 달리 형상은 사물 안에 있다", startMs: 400_000,
+                   editedByUser: false),
+        Annotation(id: 905, sessionId: "demo-notebook-session", pageNo: 2, blockId: nil, type: .emphasis,
+                   text: "네 가지 원인: 질료인·형상인·작용인·목적인 꼭 기억", startMs: 460_000, editedByUser: false),
+        Annotation(id: 906, sessionId: "demo-notebook-session", pageNo: 2, blockId: nil, type: .notice,
+                   text: "두 사람 비교 레포트, 다음 주 금요일까지", startMs: 520_000, editedByUser: false),
+    ]
+
     static let summary = LectureSummary(
         overview: "경사하강법으로 손실을 줄이는 원리와 학습률의 역할을 다루고, 역전파로 기울기를 계산하는 방법을 배웠다. 학습률이 클 때와 작을 때의 차이는 중간고사에 나온다.",
         pages: [

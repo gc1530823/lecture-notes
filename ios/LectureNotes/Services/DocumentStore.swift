@@ -27,7 +27,7 @@ final class DocumentStore: ObservableObject {
     }
 
     func pdf(for document: LocalDocument) -> PDFDocument? {
-        PDFDocument(url: pdfURL(for: document))
+        document.pdfFileName.isEmpty ? nil : PDFDocument(url: pdfURL(for: document))
     }
 
     /// 파일 앱에서 고른 PDF를 복사하고 서버에 올려 분석한다.
@@ -50,6 +50,15 @@ final class DocumentStore: ObservableObject {
         }
     }
 
+    /// 강의자료 없는 수업: 서버에 빈 노트를 만들고 목록 맨 위에 둔다 (PDF 파일은 없다)
+    func createNotebook(title: String) async throws -> LocalDocument {
+        let document = try await APIClient.current().createNotebook(title: title)
+        let local = LocalDocument(document: document, pdfFileName: "", sessions: [])
+        documents.insert(local, at: 0)
+        save()
+        return local
+    }
+
     func newSession(id: String, for documentID: String) -> SavedSession {
         let session = SavedSession(id: id, startedAt: Date(), recordingFileName: "\(id).m4a")
         if let index = documents.firstIndex(where: { $0.id == documentID }) {
@@ -60,7 +69,7 @@ final class DocumentStore: ObservableObject {
     }
 
     func delete(_ document: LocalDocument) {
-        try? FileManager.default.removeItem(at: pdfURL(for: document))
+        if !document.pdfFileName.isEmpty { try? FileManager.default.removeItem(at: pdfURL(for: document)) }
         document.sessions.forEach { try? FileManager.default.removeItem(at: recordingURL(for: $0)) }
         documents.removeAll { $0.id == document.id }
         save()

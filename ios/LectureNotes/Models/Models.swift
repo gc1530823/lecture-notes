@@ -18,6 +18,8 @@ struct Page: Codable, Identifiable, Hashable {
     let width: Double
     let height: Double
     let blocks: [Block]
+    /// 노트 모드에서는 그 주제의 제목 (AI가 붙인다). 강의자료 페이지는 슬라이드 글자.
+    var text: String? = nil
 
     var aspectRatio: CGFloat { CGFloat(width / max(height, 1)) }
 }
@@ -28,6 +30,10 @@ struct LectureDocument: Codable, Identifiable, Hashable {
     let pageCount: Int
     let keywords: [String]
     let pages: [Page]
+    /// "slides" = 강의자료 PDF, "notebook" = 자료 없는 수업의 노트
+    var kind: String? = nil
+
+    var isNotebook: Bool { kind == "notebook" }
 }
 
 enum AnnotationType: String, Codable, CaseIterable {
@@ -294,4 +300,53 @@ struct CatchUp: Codable, Hashable {
 struct BeyondSlides: Codable, Hashable {
     let ratio: Double
     let annotationIds: [Int]
+}
+
+// 공부 도구 (GET /sessions/{id}/study/{kind})
+
+struct StudyResponse<Payload: Decodable>: Decodable {
+    let status: String
+    let done: Int?
+    let total: Int?
+    let body: Payload?
+    let stale: Bool?
+}
+
+struct Flashcard: Codable, Hashable {
+    let front: String
+    let back: String
+    let pageNo: Int?
+}
+
+struct Concept: Codable, Hashable {
+    let term: String
+    let definition: String
+    let example: String?
+    let pageNo: Int?
+}
+
+struct MindNode: Codable, Hashable, Identifiable {
+    let label: String
+    let pageNo: Int?
+    let children: [MindNode]?
+    var id: String { "\(pageNo ?? 0)-\(label)" }
+}
+
+struct ClozeItem: Codable, Hashable {
+    let pageNo: Int
+    let text: String
+    let answer: String
+    let important: Bool
+}
+
+struct TutorReply: Codable, Hashable {
+    let answer: String
+    let pages: [Int]
+}
+
+struct TutorMessage: Codable, Hashable, Identifiable {
+    var id = UUID()
+    let role: String
+    let content: String
+    var pages: [Int] = []
 }

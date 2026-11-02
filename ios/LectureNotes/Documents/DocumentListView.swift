@@ -6,6 +6,8 @@ struct DocumentListView: View {
     @State private var showingSettings = false
     @State private var uploading = false
     @State private var errorMessage: String?
+    @State private var showingNotebook = false
+    @State private var notebookTitle = ""
 
     var body: some View {
         NavigationStack {
@@ -43,7 +45,7 @@ struct DocumentListView: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                if !store.documents.isEmpty { addButton.padding(.bottom, 12) }
+                if !store.documents.isEmpty { addButtons.padding(.bottom, 12) }
             }
             .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.pdf]) { result in
                 guard case let .success(url) = result else { return }
@@ -54,6 +56,13 @@ struct DocumentListView: View {
             }
             .animation(.easeInOut(duration: 0.2), value: uploading)
             .sheet(isPresented: $showingSettings) { SettingsView() }
+            .alert("자료 없이 노트로", isPresented: $showingNotebook) {
+                TextField("수업 이름 (비워도 돼요)", text: $notebookTitle)
+                Button("취소", role: .cancel) {}
+                Button("만들기") { Task { await createNotebook() } }
+            } message: {
+                Text("강의자료가 없는 수업은 교수님 설명을 노트에 주제별로 정리해 드려요.")
+            }
             .alert("오류", isPresented: .constant(errorMessage != nil)) {
                 Button("확인") { errorMessage = nil }
             } message: {
@@ -62,6 +71,32 @@ struct DocumentListView: View {
         }
         .tint(Theme.accent)
         .fontDesign(.rounded)
+    }
+
+    private var addButtons: some View {
+        HStack(spacing: 10) {
+            addButton
+            Button { notebookTitle = ""; showingNotebook = true } label: {
+                Label("자료 없이 노트로", systemImage: "book.closed")
+                    .font(.system(.subheadline, design: .rounded).weight(.bold))
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 18)
+                    .frame(height: 50)
+                    .background(.background, in: Capsule())
+                    .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
+            }
+            .buttonStyle(PressableStyle())
+        }
+    }
+
+    private func createNotebook() async {
+        uploading = true
+        defer { uploading = false }
+        do {
+            _ = try await store.createNotebook(title: notebookTitle.trimmingCharacters(in: .whitespaces))
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private var addButton: some View {
@@ -103,7 +138,7 @@ struct DocumentListView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
-            addButton
+            addButtons
         }
         .padding(.top, 60)
         .frame(maxWidth: .infinity)
