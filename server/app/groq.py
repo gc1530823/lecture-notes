@@ -113,8 +113,8 @@ class GroqTranscriber:
     def __init__(self, transport: httpx.BaseTransport | None = None) -> None:
         self.client = httpx.Client(base_url=BASE_URL, timeout=httpx.Timeout(300, connect=10), transport=transport)
 
-    def _request(self, filename: str, data: bytes, hint: str) -> list[Segment]:
-        form = {"model": settings.groq_whisper_model, "language": "ko", "response_format": "verbose_json",
+    def _request(self, filename: str, data: bytes, hint: str, model: str) -> list[Segment]:
+        form = {"model": model, "language": "ko", "response_format": "verbose_json",
                 "temperature": "0"}
         # Whisper는 프롬프트의 말투를 따라 쓰므로, 마침표가 있는 문장을 앞에 두어 문장 끝에 마침표를 찍게 한다.
         # 프롬프트는 짧아야 해서 용어·직전 문장은 뒤쪽만 남긴다
@@ -140,14 +140,14 @@ class GroqTranscriber:
     def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
         """audio: 파일 경로, 또는 16kHz 모노 float32 배열(실시간 조각). WhisperTranscriber와 같은 꼴로 돌려준다."""
         if not isinstance(audio, str):
-            return split_sentences(self._request("live.wav", _wav_bytes(audio), hint))
+            return split_sentences(self._request("live.wav", _wav_bytes(audio), hint, settings.groq_live_whisper_model))
         result: list[Segment] = []
         with tempfile.TemporaryDirectory() as tmp:
             parts = _split_audio(audio, tmp)
             for i, part in enumerate(parts):
                 offset = i * CHUNK_SECONDS * 1000
                 with open(part, "rb") as f:
-                    segments = self._request(os.path.basename(part), f.read(), hint)
+                    segments = self._request(os.path.basename(part), f.read(), hint, settings.groq_whisper_model)
                 result += [Segment(s.start_ms + offset, s.end_ms + offset, s.text) for s in segments]
                 if on_progress:
                     on_progress((i + 1) / len(parts))

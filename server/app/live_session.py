@@ -14,6 +14,7 @@ from .alignment import Estimate, PageIndex, PageTracker
 from .config import settings
 from .db import Database
 from .llm import ANNOTATION_TYPES, LLM, TASK_KINDS, LLMError
+from .text_fix import fix_terms, note_type, vocabulary
 from .live_stt import LiveAudio
 from .quick_notes import quick_note
 
@@ -49,6 +50,7 @@ class LiveSession:
 
         self.pages = db.list_pages(self.document_id)
         self.tracker = PageTracker(PageIndex([p["text"] for p in self.pages]))
+        self.vocab = vocabulary([p["text"] for p in self.pages])
         self.estimate: Estimate | None = None
         self.batch: Batch | None = None
 
@@ -107,6 +109,7 @@ class LiveSession:
         text = str(message.get("text", "")).strip()
         if not text or not self.pages:
             return
+        text = fix_terms(text, self.vocab)
         start_ms = int(message.get("start_ms", 0))
         end_ms = int(message.get("end_ms", start_ms))
 
@@ -227,7 +230,7 @@ class LiveSession:
                 self.session_id,
                 target["page_id"],
                 block_id if not pending and block_id in block_ids else None,
-                item["type"],
+                note_type(item["type"], text),
                 text,
                 batch.start_ms,
                 pending=pending,

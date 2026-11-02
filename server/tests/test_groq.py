@@ -69,7 +69,7 @@ def test_transcribe_file_in_chunks_with_offsets(monkeypatch):
     # 10분 조각마다 시작 시각을 더해 준다 (여기서는 2초 조각)
     assert [s.start_ms for s in segments[::2]] == [500, 2500, 4500]
     assert segments[1].text == "꼭 기억하세요."
-    assert b"whisper-large-v3-turbo" in requests[0].content and b"name=\"language\"" in requests[0].content
+    assert b"whisper-large-v3\r\n" in requests[0].content and b"name=\"language\"" in requests[0].content
 
 
 def test_transcribe_live_chunk_sends_wav():

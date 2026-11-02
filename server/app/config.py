@@ -16,7 +16,9 @@ class Settings:
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
     llm_mode: str = os.getenv("LLM_MODE", "groq" if os.getenv("GROQ_API_KEY") else "ollama")
     groq_model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
-    groq_whisper_model: str = os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo")
+    # 녹음 파일은 조금 느려도 더 정확한 large-v3, 실시간 조각은 빠른 turbo
+    groq_whisper_model: str = os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3")
+    groq_live_whisper_model: str = os.getenv("GROQ_LIVE_WHISPER_MODEL", "whisper-large-v3-turbo")
     ollama_url: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
     ollama_model: str = os.getenv("OLLAMA_MODEL", "qwen3:8b")
 
