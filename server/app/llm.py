@@ -190,6 +190,77 @@ ASK_SCHEMA = {
     "additionalProperties": False,
 }
 
+FLASHCARD_SYSTEM = """강의 한 페이지(슬라이드, 교수님 말, 필기)로 복습용 플래시카드를 만듭니다.
+- 2~4장을 cards에 넣습니다. front에는 짧은 질문이나 용어, back에는 1~2문장 답을 씁니다.
+- 교수님이 강조하거나 시험에 나온다고 한 내용을 먼저 만듭니다. 주어진 내용만 쓰고 한국어로 씁니다."""
+
+FLASHCARD_SCHEMA = {
+    "type": "object",
+    "properties": {"cards": {"type": "array", "items": {
+        "type": "object", "properties": {"front": {"type": "string"}, "back": {"type": "string"}},
+        "required": ["front", "back"], "additionalProperties": False}}},
+    "required": ["cards"],
+    "additionalProperties": False,
+}
+
+CONCEPT_SYSTEM = """강의 한 페이지(슬라이드, 교수님 말, 필기)에서 꼭 알아야 할 개념을 골라 용어집을 만듭니다.
+- 1~4개를 concepts에 넣습니다. term은 용어, definition은 교수님 설명을 바탕으로 한 1~2문장 뜻,
+  example은 교수님이 든 예시(없으면 빈 문자열)입니다. 주어진 내용만 쓰고 한국어로 씁니다."""
+
+CONCEPT_SCHEMA = {
+    "type": "object",
+    "properties": {"concepts": {"type": "array", "items": {
+        "type": "object",
+        "properties": {"term": {"type": "string"}, "definition": {"type": "string"}, "example": {"type": "string"}},
+        "required": ["term", "definition", "example"], "additionalProperties": False}}},
+    "required": ["concepts"],
+    "additionalProperties": False,
+}
+
+MINDMAP_SYSTEM = """강의의 페이지별 요약을 받아 마인드맵을 만듭니다.
+- root에는 강의 전체 주제(15자 이내)를 씁니다.
+- branches에는 큰 주제 3~6개를 넣고, 주제마다 label(12자 이내)과 page_no(가장 관련 있는 쪽), 세부 항목 leaves(2~4개, 각 15자 이내)를 씁니다.
+- 짧은 명사구로 씁니다. 한국어로 씁니다."""
+
+MINDMAP_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "root": {"type": "string"},
+        "branches": {"type": "array", "items": {
+            "type": "object",
+            "properties": {"label": {"type": "string"}, "page_no": {"type": "integer"},
+                           "leaves": {"type": "array", "items": {"type": "string"}}},
+            "required": ["label", "page_no", "leaves"], "additionalProperties": False}},
+    },
+    "required": ["root", "branches"],
+    "additionalProperties": False,
+}
+
+TUTOR_SYSTEM = """당신은 이 강의를 함께 공부하는 친절한 AI 튜터입니다. 강의 자료(슬라이드·교수님 설명·필기) 일부와 대화 기록을 받습니다.
+- 학생 눈높이에서 쉽게, 3~6문장으로 답합니다. 교수님의 설명과 예시를 먼저 근거로 삼고, 근거가 된 쪽을 pages에 넣습니다.
+- 강의에 없는 내용을 덧붙일 때는 "(강의 밖 내용)"이라고 표시합니다. 모르면 지어내지 않습니다.
+- 학생이 문제를 내 달라고 하면 강의 내용으로 한 문제를 내고, 답은 학생이 답한 뒤에 알려 줍니다.
+- 학생이 답을 말하면 맞았는지 알려 주고 왜 그런지 짧게 설명합니다. 한국어로 씁니다."""
+
+TUTOR_SCHEMA = {
+    "type": "object",
+    "properties": {"answer": {"type": "string"}, "pages": {"type": "array", "items": {"type": "integer"}}},
+    "required": ["answer", "pages"],
+    "additionalProperties": False,
+}
+
+
+def _tutor_prompt(context: str, messages: list[dict]) -> str:
+    history = "\n".join(f"<{'student' if m['role'] == 'user' else 'tutor'}>{m['content']}</{'student' if m['role'] == 'user' else 'tutor'}>"
+                        for m in messages[-10:])
+    return f"<lecture>\n{context}\n</lecture>\n\n<conversation>\n{history}\n</conversation>"
+
+
+def _mindmap_prompt(title: str, pages: list[dict]) -> str:
+    lines = "\n".join(f"- {p['page_no']}쪽: {p['summary']}" for p in pages)
+    return f"<lecture_title>{title}</lecture_title>\n<page_summaries>\n{lines}\n</page_summaries>"
+
+
 TITLE_SYSTEM = """강의의 한 부분에서 교수님이 한 말(받아쓰기)을 받습니다. 이 부분의 주제를 노트 제목으로 씁니다.
 title에 20자 이내의 짧은 명사구로 씁니다 (예: "경사하강법과 학습률"). 한국어로 씁니다."""
 
@@ -246,6 +317,19 @@ PREDICT_SCHEMA = {
     "required": ["questions"],
     "additionalProperties": False,
 }
+
+
+STUDY_KINDS = {
+    "flashcards": (FLASHCARD_SYSTEM, FLASHCARD_SCHEMA, "cards"),
+    "concepts": (CONCEPT_SYSTEM, CONCEPT_SCHEMA, "concepts"),
+}
+STUDY_KEYS = {"flashcards": ("front", "back"), "concepts": ("term", "definition")}
+
+
+def clean_study(kind: str, items: list) -> list[dict]:
+    required = STUDY_KEYS[kind]
+    return [{k: str(v).strip() for k, v in item.items()} for item in items
+            if isinstance(item, dict) and all(str(item.get(k, "")).strip() for k in required)][:5]
 
 
 def clean_predictions(data: dict) -> list[dict]:
@@ -315,6 +399,12 @@ class LLM(Protocol):
     async def catch_up(self, slides: list[dict], speech: str) -> list[str]: ...
 
     async def title_topic(self, speech: str) -> str: ...
+
+    async def study_page(self, kind: str, page: dict, speech: str, notes: list[dict]) -> list[dict]: ...
+
+    async def mindmap(self, title: str, pages: list[dict]) -> dict: ...
+
+    async def tutor(self, context: str, messages: list[dict]) -> dict: ...
 
 
 def _organize_prompt(page: dict, speech: str, notes: list[dict]) -> str:
@@ -487,6 +577,22 @@ class ClaudeLLM:
                                _ask_prompt(question, page, recent_speech), ASK_SCHEMA, max_tokens=4000)
         return _response_json(await self.client.beta.messages.create(**params))
 
+    async def study_page(self, kind: str, page: dict, speech: str, notes: list[dict]) -> list[dict]:
+        system, schema, key = STUDY_KINDS[kind]
+        params = self._request(settings.summary_model, "low", system, _organize_prompt(page, speech, notes), schema,
+                               max_tokens=8000)
+        return clean_study(kind, _response_json(await self.client.beta.messages.create(**params)).get(key, []))
+
+    async def mindmap(self, title: str, pages: list[dict]) -> dict:
+        params = self._request(settings.summary_model, "low", MINDMAP_SYSTEM, _mindmap_prompt(title, pages),
+                               MINDMAP_SCHEMA, max_tokens=8000)
+        return _response_json(await self.client.beta.messages.create(**params))
+
+    async def tutor(self, context: str, messages: list[dict]) -> dict:
+        params = self._request(settings.annotation_model, settings.annotation_effort, TUTOR_SYSTEM,
+                               _tutor_prompt(context, messages), TUTOR_SCHEMA, max_tokens=4000)
+        return _response_json(await self.client.beta.messages.create(**params))
+
     async def title_topic(self, speech: str) -> str:
         params = self._request(settings.annotation_model, "low", TITLE_SYSTEM, f"<speech>\n{speech}\n</speech>",
                                TITLE_SCHEMA, max_tokens=1000)
@@ -562,6 +668,19 @@ class FakeLLM:
 
     async def title_topic(self, speech: str) -> str:
         return speech.split(".")[0][:20]
+
+    async def study_page(self, kind: str, page: dict, speech: str, notes: list[dict]) -> list[dict]:
+        first = speech.split(".")[0][:40]
+        if kind == "flashcards":
+            return [{"front": f"{page['page_no']}쪽의 핵심은?", "back": first}]
+        return [{"term": f"{page['page_no']}쪽 개념", "definition": first, "example": ""}]
+
+    async def mindmap(self, title: str, pages: list[dict]) -> dict:
+        return {"root": title, "branches": [{"label": f"{p['page_no']}쪽", "page_no": p["page_no"],
+                                             "leaves": [p["summary"][:15]]} for p in pages]}
+
+    async def tutor(self, context: str, messages: list[dict]) -> dict:
+        return {"answer": f"'{messages[-1]['content']}'에 대한 튜터 답 (가짜 응답)", "pages": []}
 
     async def catch_up(self, slides: list[dict], speech: str) -> list[str]:
         return [f"놓친 내용: {s}" for s in speech.split(". ") if s][:4]

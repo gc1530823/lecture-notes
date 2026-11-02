@@ -84,6 +84,15 @@ CREATE TABLE IF NOT EXISTS exam_questions (
     PRIMARY KEY (document_id, page_no)
 );
 
+-- 공부 도구 (플래시카드·개념 메모·마인드맵). digest가 같으면 다시 만들지 않는다
+CREATE TABLE IF NOT EXISTS study_sets (
+    session_id TEXT NOT NULL REFERENCES sessions(id),
+    kind TEXT NOT NULL,
+    digest TEXT NOT NULL,
+    body TEXT NOT NULL,
+    PRIMARY KEY (session_id, kind)
+);
+
 -- 정리 PDF용 페이지별 전체 정리. digest가 같으면(받아쓰기·필기가 그대로면) 다시 만들지 않는다
 CREATE TABLE IF NOT EXISTS page_notes (
     session_id TEXT NOT NULL REFERENCES sessions(id),
@@ -188,7 +197,7 @@ class Database:
             sessions = [r[0] for r in self._conn.execute("SELECT id FROM sessions WHERE document_id = ?", (doc_id,))]
             pages = [r[0] for r in self._conn.execute("SELECT id FROM pages WHERE document_id = ?", (doc_id,))]
             for sid in sessions:
-                for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes"):
+                for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes", "study_sets"):
                     self._conn.execute(f"DELETE FROM {table} WHERE session_id = ?", (sid,))
             self._conn.execute("DELETE FROM sessions WHERE document_id = ?", (doc_id,))
             self._conn.execute("DELETE FROM exam_questions WHERE document_id = ?", (doc_id,))
@@ -357,6 +366,14 @@ class Database:
     def save_page_notes(self, session_id: str, page_no: int, digest: str, notes: dict) -> None:
         self._write("INSERT OR REPLACE INTO page_notes (session_id, page_no, digest, points) VALUES (?, ?, ?, ?)",
                     (session_id, page_no, digest, json.dumps(notes, ensure_ascii=False)))
+
+    def get_study(self, session_id: str, kind: str) -> tuple[str, object] | None:
+        rows = self._query("SELECT digest, body FROM study_sets WHERE session_id = ? AND kind = ?", (session_id, kind))
+        return (rows[0]["digest"], json.loads(rows[0]["body"])) if rows else None
+
+    def save_study(self, session_id: str, kind: str, digest: str, body: object) -> None:
+        self._write("INSERT OR REPLACE INTO study_sets (session_id, kind, digest, body) VALUES (?, ?, ?, ?)",
+                    (session_id, kind, digest, json.dumps(body, ensure_ascii=False)))
 
     def session_ids(self, doc_id: str) -> list[str]:
         return [r["id"] for r in self._query("SELECT id FROM sessions WHERE document_id = ? ORDER BY started_at",

@@ -499,3 +499,31 @@ def test_notebook_mode_writes_notes_and_opens_titled_pages_per_topic(client):
     pdf = client.get(f"/sessions/{session['id']}/notes-pdf")
     text = "".join(p.get_text() for p in pymupdf.open("pdf", pdf.content)).replace("\xa0", " ")
     assert "1. 플라톤은" in text and "아리스토텔레스" in text
+
+
+def test_study_tools_flashcards_concepts_mindmap_cloze_and_tutor(client):
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    sid = session["id"]
+    assert client.post(f"/sessions/{sid}/study/flashcards").status_code == 400  # 아직 강의 내용이 없다
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "Gradient Descent moves against the gradient. 시험에 꼭 나와요.",
+                      "start_ms": 0, "end_ms": 3000})
+        receive_annotation(ws)
+
+    for kind in ("flashcards", "concepts", "mindmap"):
+        assert client.post(f"/sessions/{sid}/study/{kind}").status_code == 202
+        res = client.get(f"/sessions/{sid}/study/{kind}").json()
+        assert res["status"] == "ready" and res["stale"] is False, kind
+    cards = client.get(f"/sessions/{sid}/study/flashcards").json()["body"]
+    assert cards[0]["page_no"] == 1 and cards[0]["front"] and cards[0]["back"]
+    mindmap = client.get(f"/sessions/{sid}/study/mindmap").json()["body"]
+    assert mindmap["label"] and mindmap["children"][0]["page_no"] == 1
+
+    cloze = client.get(f"/sessions/{sid}/study/cloze").json()["body"]
+    assert cloze and "____" in cloze[0]["text"] and cloze[0]["answer"] in ("Gradient", "Descent")
+
+    res = client.post(f"/sessions/{sid}/tutor", json={"messages": [{"role": "user", "content": "경사하강법이 뭐야?"}]})
+    assert res.status_code == 200 and res.json()["answer"] and res.json()["pages"] == [1]
+    assert client.get(f"/sessions/{sid}/study/nope").status_code == 404

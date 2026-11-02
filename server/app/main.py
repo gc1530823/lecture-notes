@@ -21,6 +21,7 @@ from .db import Database
 from .live_session import LiveSession
 from .llm import LLMError, accept_fixed_speech, make_llm
 from .beyond import beyond_slides
+from .study import cloze_items, fallback_mindmap, page_material, terms_of, tutor_context
 from .exam_map import score_pages, top_pages
 from .notes_pdf import build_notes_pdf
 from .quick_notes import EXAM_TALK
@@ -43,6 +44,7 @@ async def lifespan(app: FastAPI):
     app.state.progress = {}  # 세션 id → 녹음 파일 받아쓰기 진행률 (0~1)
     app.state.notes_pdf = {}  # 세션 id → 정리 PDF 만들기 상태
     app.state.exam_jobs = {}  # 강의자료 id → 예상 문제 만들기 상태
+    app.state.study_jobs = {}  # (세션 id, 종류) → 공부 도구 만들기 상태
     warm_up = getattr(app.state.llm, "warm_up", None)
     if warm_up:
         asyncio.create_task(warm_up())
@@ -401,6 +403,124 @@ def get_beyond_slides(session_id: str):
     session = _session_or_404(session_id)
     texts = {p["page_no"]: p["text"] for p in db().list_pages(session["document_id"])}
     return beyond_slides(texts, db().get_segments(session_id), db().list_annotations(session_id))
+
+
+# 공부 도구 (유니브 AI처럼): 플래시카드 · 개념 메모 · 마인드맵 · 암기(빈칸) · AI 튜터
+
+STUDY_AI_KINDS = ("flashcards", "concepts", "mindmap")
+
+
+def _study_inputs(session_id: str) -> tuple[dict, list[dict], str]:
+    session = _session_or_404(session_id)
+    doc = db().get_document(session["document_id"])
+    texts = {p["page_no"]: p["text"] for p in db().list_pages(doc["id"])}
+    pages = [{**p, "text": texts.get(p["page_no"], "")} for p in doc["pages"]]
+    material = page_material(pages, db().get_segments(session_id), db().list_annotations(session_id))
+    digest = hashlib.sha256(json.dumps([[p["page_no"], p["speech"], [(n["type"], n["text"]) for n in p["notes"]]]
+                                        for p in material], ensure_ascii=False).encode()).hexdigest()
+    return doc, material, digest
+
+
+async def _build_study(session_id: str, kind: str) -> None:
+    job = app.state.study_jobs[(session_id, kind)]
+    doc, material, digest = _study_inputs(session_id)
+    try:
+        if kind == "mindmap":
+            summary = db().get_summary(session_id) or {}
+            page_summaries = summary.get("pages") or [{"page_no": p["page_no"], "summary": (p["title"] + " " + p["speech"])[:200]}
+                                                      for p in material]
+            try:
+                data = await app.state.llm.mindmap(doc["title"], page_summaries)
+                body = {"label": str(data.get("root") or doc["title"]), "children": [
+                    {"label": str(b.get("label", "")), "page_no": b.get("page_no"),
+                     "children": [{"label": str(leaf)} for leaf in b.get("leaves", []) if str(leaf).strip()]}
+                    for b in data.get("branches", []) if str(b.get("label", "")).strip()]}
+                if not body["children"]:
+                    raise LLMError("마인드맵 가지가 없습니다")
+            except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
+                log.exception("마인드맵 AI 실패, 규칙으로 만듭니다")
+                body = fallback_mindmap(doc["title"], material)
+        else:
+            job["total"] = len(material)
+            body = []
+            for page in material:
+                try:
+                    items = await app.state.llm.study_page(kind, page, page["speech"], page["notes"])
+                    body += [{**item, "page_no": page["page_no"]} for item in items]
+                except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
+                    log.exception("%s쪽 %s 만들기 실패", page["page_no"], kind)
+                job["done"] += 1
+        db().save_study(session_id, kind, digest, body)
+    finally:
+        app.state.study_jobs.pop((session_id, kind), None)
+
+
+def _study_status(session_id: str, kind: str, digest: str) -> dict:
+    job = app.state.study_jobs.get((session_id, kind))
+    if job:
+        return {**job, "body": None}
+    saved = db().get_study(session_id, kind)
+    if saved:
+        return {"status": "ready", "done": 0, "total": 0, "body": saved[1], "stale": saved[0] != digest}
+    return {"status": "none", "done": 0, "total": 0, "body": None}
+
+
+@app.get("/sessions/{session_id}/study/{kind}")
+def get_study(session_id: str, kind: str):
+    doc, material, digest = _study_inputs(session_id)
+    if kind == "cloze":
+        # 암기: AI 없이 바로 만든다 (강의자료·노트 제목의 용어를 빈칸으로)
+        vocabulary = [t for p in material for t in terms_of(p["slide"])] + (doc.get("keywords") or [])
+        return {"status": "ready", "body": cloze_items(material, vocabulary)}
+    if kind not in STUDY_AI_KINDS:
+        raise HTTPException(404, "없는 공부 도구입니다.")
+    return _study_status(session_id, kind, digest)
+
+
+@app.post("/sessions/{session_id}/study/{kind}", status_code=202)
+def start_study(session_id: str, kind: str, background: BackgroundTasks):
+    if kind not in STUDY_AI_KINDS:
+        raise HTTPException(404, "없는 공부 도구입니다.")
+    _, material, digest = _study_inputs(session_id)
+    if not material:
+        raise HTTPException(400, "아직 강의 내용이 없어요.")
+    if (session_id, kind) not in app.state.study_jobs:
+        saved = db().get_study(session_id, kind)
+        if saved and saved[0] == digest:
+            return _study_status(session_id, kind, digest)
+        app.state.study_jobs[(session_id, kind)] = {"status": "building", "done": 0, "total": 0}
+        background.add_task(_build_study, session_id, kind)
+    return _study_status(session_id, kind, digest)
+
+
+class TutorMessage(BaseModel):
+    role: str
+    content: str
+
+
+class TutorRequest(BaseModel):
+    messages: list[TutorMessage]
+
+
+@app.post("/sessions/{session_id}/tutor")
+async def tutor(session_id: str, body: TutorRequest):
+    """AI 튜터: 질문과 가까운 쪽들의 슬라이드·설명·필기를 근거로 답한다. 대화 기록은 앱이 들고 있다가 보낸다."""
+    messages = [m.model_dump() for m in body.messages if m.content.strip()][-10:]
+    if not messages or messages[-1]["role"] != "user":
+        raise HTTPException(400, "질문이 없어요.")
+    _, material, _ = _study_inputs(session_id)
+    overview = (db().get_summary(session_id) or {}).get("overview", "")
+    question = " ".join(m["content"] for m in messages if m["role"] == "user")[-500:]
+    context, pages = tutor_context(material, question, overview)
+    try:
+        result = await app.state.llm.tutor(context, messages)
+    except anthropic.RateLimitError as exc:
+        raise HTTPException(429, "요청이 많아요. 잠시 뒤 다시 물어봐 주세요.") from exc
+    except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError) as exc:
+        log.exception("튜터 답변 실패")
+        raise HTTPException(502, f"답을 만들지 못했어요: {exc}") from exc
+    cited = [p for p in result.get("pages", []) if isinstance(p, int) and p in pages] or pages
+    return {"answer": str(result.get("answer", "")).strip(), "pages": cited}
 
 
 # 시험 예상 지도: 그 자료로 들은 모든 강의에서 페이지마다 시험에 나올 만한 정도(규칙) + 상위 페이지 예상 문제(AI)

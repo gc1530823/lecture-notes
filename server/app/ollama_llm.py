@@ -26,7 +26,15 @@ from .llm import (
     TITLE_SCHEMA,
     TITLE_SYSTEM,
     LLMError,
+    MINDMAP_SCHEMA,
+    MINDMAP_SYSTEM,
+    STUDY_KINDS,
+    TUTOR_SCHEMA,
+    TUTOR_SYSTEM,
+    _mindmap_prompt,
+    _tutor_prompt,
     clean_predictions,
+    clean_study,
     _annotation_prompt,
     _ask_prompt,
     _catchup_prompt,
@@ -233,3 +241,17 @@ class OllamaLLM:
     async def title_topic(self, speech: str) -> str:
         data = await self._chat(TITLE_SYSTEM, f"<speech>\n{speech[-3000:]}\n</speech>", TITLE_SCHEMA, context_tokens=4096)
         return str(data.get("title", "")).strip()
+
+    async def study_page(self, kind: str, page: dict, speech: str, notes: list[dict]) -> list[dict]:
+        system, schema, key = STUDY_KINDS[kind]
+        data = await self._chat_checked(system, _organize_prompt(page, speech, notes), schema, 8192,
+                                        lambda d: bool(clean_study(kind, d.get(key, [])))
+                                        and all(_real_text(" ".join(i.values())) for i in clean_study(kind, d.get(key, []))))
+        return clean_study(kind, data.get(key, [])) if data else []
+
+    async def mindmap(self, title: str, pages: list[dict]) -> dict:
+        return await self._chat(MINDMAP_SYSTEM, _mindmap_prompt(title, pages), MINDMAP_SCHEMA, context_tokens=8192)
+
+    async def tutor(self, context: str, messages: list[dict]) -> dict:
+        return await self._chat(TUTOR_SYSTEM, _tutor_prompt(context, messages), TUTOR_SCHEMA, context_tokens=8192,
+                                temperature=0.4)
