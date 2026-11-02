@@ -381,7 +381,7 @@ struct LectureView: View {
                 .frame(width: 62, height: 62)
         case .ended:
             Button { showingSummary = true } label: {
-                Label("요약·퀴즈", systemImage: "sparkles")
+                Label("공부하기", systemImage: "graduationcap.fill")
                     .font(.system(.subheadline, design: .rounded).weight(.bold))
                     .lineLimit(1)
                     .fixedSize()
