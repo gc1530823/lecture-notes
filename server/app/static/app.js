@@ -13,6 +13,12 @@ const TYPES = {
   tip: { label: "AI 팁", icon: "sparkle" },
   qa: { label: "질문", icon: "hand-waving" },
 };
+// 기기별 설정 (자막 모드 등). 사생활 보호 모드 등에서 저장소를 못 쓰면 그냥 기본값으로 동작한다
+const prefs = {
+  get(key) { try { return localStorage.getItem(`ln.${key}`); } catch { return null; } },
+  set(key, value) { try { localStorage.setItem(`ln.${key}`, value); } catch {} },
+};
+
 // 아이콘: Phosphor Icons duotone (MIT, vendor/phosphor/LICENSE). icons.svg 스프라이트에서 이름으로 꺼내 쓴다
 const I = (name, cls = "") => `<svg class="ic ${cls}" aria-hidden="true"><use href="icons.svg#${name}"/></svg>`;
 
@@ -324,7 +330,7 @@ async function renderExamMap(docId) {
 
 // ---------- 포스트잇 ----------
 
-function noteHTML(a, number, { selected = false, preview = false, fresh = false } = {}) {
+function noteHTML(a, number, { selected = false, preview = false, fresh = false, playable = false } = {}) {
   const t = TYPES[a.type] || TYPES.explanation;
   return `
     <div class="note-wrap${fresh ? " fresh" : ""}" data-note="${a.id}" style="--tape:${-tilt(a.id) * 1.5}deg">
@@ -337,7 +343,14 @@ function noteHTML(a, number, { selected = false, preview = false, fresh = false 
         ${a.type === "tip" ? `<div class="sub">교수님 말씀이 아니라 AI가 덧붙인 내용이에요</div>` : ""}
         ${a.edited_by_user ? `<div class="sub">${I("pencil-simple")} 직접 수정함</div>` : ""}
       </button>
+      ${playable ? `<button class="play" data-play="${a.start_ms}" aria-label="이 필기 때 녹음 듣기">${I("play")} ${clock(a.start_ms)}</button>` : ""}
     </div>`;
+}
+
+function clock(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return `${h ? `${h}:${String(m).padStart(2, "0")}` : m}:${String(sec).padStart(2, "0")}`;
 }
 
 // ---------- 강의 화면 ----------
@@ -347,12 +360,14 @@ async function renderLecture(docId, sessionId) {
     doc: null, pdf: null, page: 1, notes: [], previews: [], tasks: [],
     selected: null, fresh: null, freshTimer: null, recording: false, ended: !!sessionId,
     sessionId, ws: null, recognizer: null, startedAt: 0, timer: null, autoFollow: true,
-    lastManual: 0, estimate: null, wakeLock: null, pageWidth: 0, seen: new Set(),
+    lastManual: 0, estimate: null, wakeLock: null, pageWidth: 0, seen: new Set(), hasAudio: false, player: null,
+    // 자막 모드: 지금 설명하는 문단 표시, 최근 문장 크게, 시험·공지·과제 때 강하게 알림
+    a11y: prefs.get("a11y") === "1", spoken: null, lines: [],
   };
 
   $app.innerHTML = `
     <div class="screen lecture">
-      <div class="topbar"><button class="icon-btn" id="back">${I("caret-left")}</button><div class="title" id="title"></div><button class="icon-btn" id="notespdf" title="강의 정리 PDF">${I("file-pdf")}</button><button class="icon-btn" id="sum" title="요약·퀴즈">${I("sparkle")}</button></div>
+      <div class="topbar"><button class="icon-btn" id="back">${I("caret-left")}</button><div class="title" id="title"></div><button class="icon-btn" id="a11y" title="자막 모드 (크게 보기·중요할 때 진동)" aria-pressed="false">${I("closed-captioning")}</button><button class="icon-btn" id="notespdf" title="강의 정리 PDF">${I("file-pdf")}</button><button class="icon-btn" id="sum" title="요약·퀴즈">${I("sparkle")}</button></div>
       <div class="pager"><div class="page" id="page"><canvas></canvas><div class="marks"></div></div></div>
       <div class="board-head">
         <h2 id="bh"></h2><span class="count" id="bc"></span><span class="spacer"></span>
@@ -384,6 +399,7 @@ async function renderLecture(docId, sessionId) {
       state.notes = await api("GET", `/sessions/${sessionId}/annotations`);
       state.tasks = await api("GET", `/sessions/${sessionId}/tasks`);
       state.notes.forEach((n) => state.seen.add(n.id));
+      checkAudio();
     }
   } catch (e) {
     toast(`불러오지 못했어요: ${e.message}`);
@@ -415,6 +431,11 @@ async function renderLecture(docId, sessionId) {
       if (!last) continue;
       const strong = notes.some((n) => n.block_id === block.id && n.id === state.selected);
       html += `<div class="hl" style="left:calc(${block.x * 100}% - 4px);top:${(block.y + block.h * 0.1) * 100}%;width:calc(${block.w * 100}% + 8px);height:${block.h * 90}%;background:var(--${last.type}-ink);opacity:${strong ? 0.36 : 0.22}"></div>`;
+    }
+    // 자막 모드: 교수님이 지금 설명하는 문단
+    const here = state.a11y && state.spoken && state.spoken.page === state.page && blocks[state.spoken.block_id];
+    if (here) {
+      html += `<div class="here" style="left:calc(${here.x * 100}% - 6px);top:calc(${here.y * 100}% - 4px);width:calc(${here.w * 100}% + 12px);height:calc(${here.h * 100}% + 8px)"><span>지금 여기</span></div>`;
     }
     // 깃발: 번호는 아래 포스트잇과 같다
     let loose = 0;
@@ -456,7 +477,8 @@ async function renderLecture(docId, sessionId) {
     $("#pno").textContent = `${state.page}/${state.doc.pages.length}`;
     const board = $("#board");
     board.innerHTML = notes.length
-      ? notes.map((n, i) => noteHTML(n, i + 1, { selected: n.id === state.selected, preview: n.id < 0, fresh: !state.seen.has(n.id) })).join("")
+      ? notes.map((n, i) => noteHTML(n, i + 1, { selected: n.id === state.selected, preview: n.id < 0, fresh: !state.seen.has(n.id),
+          playable: state.hasAudio && !state.recording && n.id > 0 && n.start_ms != null })).join("")
       : `<div class="empty-note">${state.recording ? "교수님 설명을 듣고 있어요.<br>필기가 여기에 붙어요." : "이 페이지에는 아직 필기가 없어요"}</div>`;
     notes.forEach((n) => state.seen.add(n.id));
     board.querySelectorAll("[data-note]").forEach((el) => {
@@ -464,6 +486,7 @@ async function renderLecture(docId, sessionId) {
       el.onclick = () => select(state.selected === id ? null : id);
       if (id > 0) el.oncontextmenu = (e) => { e.preventDefault(); editNote(id); };
     });
+    board.querySelectorAll("[data-play]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); playFrom(Number(b.dataset.play)); }));
     const pending = state.notes.filter((n) => n.pending);
     $("#pendchip").classList.toggle("hidden", !pending.length);
     $("#pendchip").innerHTML = `${I("tray-arrow-down")} 보류 ${pending.length}`;
@@ -514,6 +537,7 @@ async function renderLecture(docId, sessionId) {
   $("#taskchip").onclick = () => openTasks();
   $("#sum").onclick = () => state.sessionId ? openSummary() : toast("강의를 녹음하고 끝내면 요약과 퀴즈가 만들어져요");
   $("#ask").onclick = openAsk;
+  $("#a11y").onclick = () => { setA11y(!state.a11y); toast(state.a11y ? "자막 모드: 지금 설명하는 곳을 표시하고, 시험·공지·과제 때 진동으로 알려요" : "자막 모드를 껐어요"); };
   $("#notespdf").onclick = () => state.sessionId ? openNotesPdf() : toast("강의를 녹음하면 필기를 붙인 정리 PDF를 만들 수 있어요");
 
   const onResize = () => { if (Math.abs($("#page").clientWidth - state.pageWidth) > 4) drawPage(); };
@@ -614,6 +638,8 @@ async function renderLecture(docId, sessionId) {
       state.notes.push(event.annotation);
       if (navigator.vibrate) navigator.vibrate(15);
       flash(event.annotation.id);
+      if (event.annotation.type === "exam") alertImportant("star", "시험에 나온다고 했어요", event.annotation.text);
+      else if (event.annotation.type === "notice") alertImportant("megaphone", "공지", event.annotation.text);
     } else if (event.type === "page_estimate") {
       state.estimate = event.page;
       const canFollow = state.autoFollow && Date.now() - state.lastManual > MANUAL_PAUSE_MS;
@@ -623,9 +649,15 @@ async function renderLecture(docId, sessionId) {
       state.tasks.push(event.task);
       drawBoard();
       showTaskBanner(event.task);
+      // 과제는 위쪽 배너가 이미 크게 뜨므로 자막 모드에서는 진동만 더한다
+      if (state.a11y && navigator.vibrate) navigator.vibrate([220, 120, 220, 120, 220]);
     } else if (event.type === "heard") {
       // Whisper가 받아쓴 문장을 자막으로 보여 준다
-      $("#captext").textContent = event.text;
+      if (!state.a11y) $("#captext").textContent = event.text;
+    } else if (event.type === "spoken") {
+      state.spoken = event;
+      state.lines = [...state.lines, event.text].slice(-3);
+      if (state.a11y) { drawCaptionLines(); drawMarks(); }
     } else if (event.type === "error") {
       toast(event.message);
     }
@@ -664,7 +696,7 @@ async function renderLecture(docId, sessionId) {
           interim += text;
         }
       }
-      $("#captext").textContent = interim || "듣고 있어요…";
+      if (!state.a11y || !state.lines.length) $("#captext").textContent = interim || "듣고 있어요…";
     };
     rec.onerror = (e) => {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
@@ -724,6 +756,7 @@ async function renderLecture(docId, sessionId) {
       await new Promise((r) => setTimeout(r, 6000));
       try { await api("POST", `/sessions/${state.sessionId}/end`); } catch (e) { toast(e.message); }
       state.ended = true;
+      checkAudio();
     }
     state.ws?.close();
     drawControls();
@@ -741,6 +774,82 @@ async function renderLecture(docId, sessionId) {
     else if (state.ended) $("#main").innerHTML = `<button class="primary" id="rec" style="height:48px">${I("sparkle")} 요약·퀴즈</button>`;
     else $("#main").innerHTML = `<button class="rec" id="rec" aria-label="녹음 시작">${I("microphone")}</button>`;
     $("#rec").onclick = () => (state.recording ? stopLecture() : state.ended ? openSummary() : startLecture());
+  }
+
+  // --- 자막 모드 (청각장애 학생·시끄러운 강의실) ---
+
+  function setA11y(on) {
+    state.a11y = on;
+    prefs.set("a11y", on ? "1" : "0");
+    $(".lecture").classList.toggle("a11y", on);
+    $("#a11y").setAttribute("aria-pressed", String(on));
+    if (on) drawCaptionLines();
+    redraw();
+  }
+
+  function drawCaptionLines() {
+    if (!state.lines.length) return;
+    $("#captext").innerHTML = state.lines.map((l, i) =>
+      `<span class="line${i === state.lines.length - 1 ? " now" : ""}">${esc(l)}</span>`).join("");
+  }
+
+  function alertImportant(icon, title, text) {
+    // 자막 모드에서는 소리를 못 들어도 알 수 있게 강하게 진동하고 화면 위에 크게 띄운다
+    if (!state.a11y) return;
+    if (navigator.vibrate) navigator.vibrate([220, 120, 220, 120, 220]);
+    document.querySelector(".alert")?.remove();
+    const el = document.createElement("div");
+    el.className = "alert";
+    el.setAttribute("role", "alert");
+    el.innerHTML = `${I(icon)}<span><b>${esc(title)}</b><br>${esc(text)}</span>`;
+    el.onclick = () => el.remove();
+    document.body.append(el);
+    setTimeout(() => el.remove(), 6000);
+  }
+
+  // --- 필기를 누르면 그 순간의 녹음 듣기 ---
+
+  async function checkAudio() {
+    // 녹음이 서버에 있는지 앞 1바이트만 받아 본다
+    try {
+      const res = await fetch(`/sessions/${state.sessionId}/audio`, { headers: { Range: "bytes=0-0" } });
+      state.hasAudio = res.ok;
+    } catch { state.hasAudio = false; }
+    drawBoard();
+  }
+
+  function playFrom(ms) {
+    if (!state.player) {
+      const audio = new Audio(`/sessions/${state.sessionId}/audio`);
+      const bar = document.createElement("div");
+      bar.className = "player";
+      bar.innerHTML = `<button id="pp">${I("pause")}</button><span class="pt">0:00</span>
+        <input type="range" min="0" max="100" value="0" step="0.1" aria-label="재생 위치"><button id="px">${I("x")}</button>`;
+      $(".dock").prepend(bar);
+      const range = bar.querySelector("input");
+      audio.ontimeupdate = () => {
+        bar.querySelector(".pt").textContent = clock(audio.currentTime * 1000);
+        if (audio.duration) range.value = (audio.currentTime / audio.duration) * 100;
+      };
+      audio.onplay = () => (bar.querySelector("#pp").innerHTML = I("pause"));
+      audio.onpause = () => (bar.querySelector("#pp").innerHTML = I("play"));
+      range.oninput = () => { if (audio.duration) audio.currentTime = (range.value / 100) * audio.duration; };
+      bar.querySelector("#pp").onclick = () => (audio.paused ? audio.play() : audio.pause());
+      bar.querySelector("#px").onclick = () => stopPlayer();
+      state.player = { audio, bar };
+    }
+    // 필기는 설명이 끝날 즈음 붙으므로 조금 앞에서부터 들려준다
+    const { audio } = state.player;
+    const start = Math.max(0, ms / 1000 - 3);
+    const go = () => { audio.currentTime = start; audio.play().catch(() => toast("재생하지 못했어요")); };
+    if (audio.readyState >= 1) go(); else audio.addEventListener("loadedmetadata", go, { once: true });
+  }
+
+  function stopPlayer() {
+    if (!state.player) return;
+    state.player.audio.pause();
+    state.player.bar.remove();
+    state.player = null;
   }
 
   // --- "방금 뭐라고?": 수업 중 질문 → 지금 페이지의 관련 문단 옆에 질문 포스트잇 ---
@@ -1015,14 +1124,16 @@ async function renderLecture(docId, sessionId) {
   await drawPage();
   drawControls();
   drawBoard();
+  if (state.a11y) setA11y(true);
   if (sessionId) pollProcessing();
 
   current = () => {
+    stopPlayer();
     clearInterval(pollTimer);
     document.removeEventListener("visibilitychange", onVisibility);
     if (state.recording) stopLecture(false);
     window.removeEventListener("resize", onResize);
-    document.querySelectorAll(".sheet, .sheet-bg, .banner").forEach((n) => n.remove());
+    document.querySelectorAll(".sheet, .sheet-bg, .banner, .alert").forEach((n) => n.remove());
   };
 }
 

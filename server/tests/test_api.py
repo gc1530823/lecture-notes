@@ -38,7 +38,7 @@ def receive(ws, kind: str = "annotation_added") -> dict:
     while True:
         event = ws.receive_json()
         assert event["type"] in ("page_estimate", "annotation_added", "task_added", "annotation_preview",
-                                 "previews_resolved", "heard"), event
+                                 "previews_resolved", "heard", "spoken"), event
         if event["type"] == kind:
             return event
 
@@ -402,3 +402,53 @@ def test_exam_map_scores_pages_and_predicts_questions(client):
     assert result["questions"][0]["page_no"] == 1 and result["questions"][0]["stale"] is False
     assert "1쪽 내용을 설명하시오." == result["questions"][0]["questions"][0]["question"]
     assert client.get("/documents/nope/exam-map").status_code == 404
+
+
+def test_reconnect_continues_timeline_and_audio_plays_from_any_point(client):
+    import io
+    import wave
+
+    import numpy as np
+
+    from app.main import app as fastapi_app
+    from app.stt import Segment
+
+    class FakeWhisper:
+        def transcribe(self, audio, hint="", on_progress=None):
+            return [Segment(0, 1000, "학습률이 너무 크면 발산해요.")]
+
+    fastapi_app.state.transcriber = FakeWhisper()
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    assert client.get(f"/sessions/{session['id']}/audio").status_code == 404
+    t = np.arange(16000 * 2) / 16000
+    clip = np.concatenate([np.zeros(16000, np.int16), (np.sin(2 * np.pi * 220 * t) * 8000).astype(np.int16),
+                           np.zeros(16000, np.int16)])                        # 4초
+    for _ in range(2):  # 끊겼다가 다시 연결
+        with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+            ws.send_json({"type": "page_view", "page": 1, "initial": True})
+            for chunk in np.array_split(clip, 10):
+                ws.send_bytes(chunk.tobytes())
+            receive(ws, "heard")
+    starts = [s["start_ms"] for s in client.get(f"/sessions/{session['id']}/transcript").json()]
+    assert len(starts) == 2 and starts[1] >= 4000 > starts[0]  # 두 번째 연결은 4초 뒤부터 이어진다
+
+    res = client.get(f"/sessions/{session['id']}/audio")
+    assert res.status_code == 200 and res.headers["content-type"] == "audio/wav"
+    with wave.open(io.BytesIO(res.content)) as w:
+        assert w.getnframes() == 16000 * 8  # 두 조각을 이어 붙인 8초
+    part = client.get(f"/sessions/{session['id']}/audio", headers={"Range": "bytes=0-99"})
+    assert part.status_code == 206 and len(part.content) == 100
+
+
+def test_spoken_event_points_at_the_paragraph_being_explained(client):
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "the learning rate controls step size", "start_ms": 0,
+                      "end_ms": 2000})
+        spoken = receive(ws, "spoken")
+    second = doc["pages"][0]["blocks"][1]
+    assert spoken["page"] == 1 and spoken["block_id"] == second["id"]
+    assert spoken["text"] == "the learning rate controls step size"

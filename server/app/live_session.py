@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 
-from .alignment import Estimate, PageIndex, PageTracker
+from .alignment import Estimate, PageIndex, PageTracker, best_block
 from .config import settings
 from .db import Database
 from .llm import ANNOTATION_TYPES, LLM, TASK_KINDS, LLMError
@@ -51,6 +51,7 @@ class LiveSession:
         self.pages = db.list_pages(self.document_id)
         self.tracker = PageTracker(PageIndex([p["text"] for p in self.pages]))
         self.vocab = vocabulary([p["text"] for p in self.pages])
+        self._block_cache: dict[int, list[dict]] = {}
         self.estimate: Estimate | None = None
         self.batch: Batch | None = None
 
@@ -72,16 +73,22 @@ class LiveSession:
         else:
             await self.send({"type": "error", "message": f"알 수 없는 메시지: {kind}"})
 
-    def feed_audio(self, data: bytes, transcriber, wav_path: str | None) -> None:
-        """웹앱이 보낸 마이크 소리. 처음 받을 때 실시간 Whisper 받아쓰기를 시작한다."""
+    def feed_audio(self, data: bytes, transcriber, wav_path: str | None, offset_ms: int = 0) -> None:
+        """웹앱이 보낸 마이크 소리. 처음 받을 때 실시간 Whisper 받아쓰기를 시작한다.
+        offset_ms: 다시 연결한 경우 앞 녹음 조각들의 길이 (받아쓰기 시각을 이어 매긴다)."""
         if self.audio is None:
             doc = self.db.get_document(self.document_id)
-            self.audio = LiveAudio(transcriber, " ".join(doc["keywords"][:40]), self._on_heard, wav_path)
+            self.audio = LiveAudio(transcriber, " ".join(doc["keywords"][:40]), self._on_heard, wav_path, offset_ms)
         self.audio.feed(data)
 
     async def _on_heard(self, text: str, start_ms: int, end_ms: int) -> None:
         await self.send({"type": "heard", "text": text})
         await self._on_transcript({"text": text, "start_ms": start_ms, "end_ms": end_ms})
+
+    def _blocks(self, page_id: int) -> list[dict]:
+        if page_id not in self._block_cache:
+            self._block_cache[page_id] = self.db.get_blocks(page_id)
+        return self._block_cache[page_id]
 
     async def tick(self) -> None:
         """주기적으로 불려서, 오래 기다린 받아쓰기가 있으면 필기를 만든다."""
@@ -118,6 +125,10 @@ class LiveSession:
         self.estimate = estimate
         page = self.pages[estimate.page_no - 1]
         self.db.add_segment(self.session_id, page["id"], start_ms, end_ms, text)
+        # 자막 모드: 지금 말한 문장과 슬라이드에서 가장 가까운 문단 (화면에 "지금 여기" 표시)
+        block = best_block(self._blocks(page["id"]), text)
+        await self.send({"type": "spoken", "page": estimate.page_no, "block_id": block["id"] if block else None,
+                         "text": text})
         await self.send({"type": "page_estimate", "page": estimate.page_no,
                          "confidence": round(estimate.confidence, 3)})
 

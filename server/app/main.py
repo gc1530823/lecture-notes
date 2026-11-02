@@ -22,6 +22,7 @@ from .llm import LLMError, accept_fixed_speech, make_llm
 from .exam_map import score_pages, top_pages
 from .notes_pdf import build_notes_pdf
 from .quick_notes import EXAM_TALK
+from .recording import audio_file, recorded_ms, wav_parts
 from .pdf_parser import PDFParseError, extract_keywords, parse_pdf
 from .stt import make_transcriber
 
@@ -122,7 +123,7 @@ def delete_document(doc_id: str):
     # 그 강의들의 녹음(session-n.wav, session.m4a 등)과 정리 PDF도 지운다
     if os.path.isdir(settings.upload_dir):
         for name in os.listdir(settings.upload_dir):
-            if any(name.startswith(sid) or name == f"notes-{sid}.pdf" for sid in sessions):
+            if any(name.startswith(sid) or name in (f"notes-{sid}.pdf", f"full-{sid}.wav") for sid in sessions):
                 with contextlib.suppress(FileNotFoundError):
                     os.remove(os.path.join(settings.upload_dir, name))
 
@@ -206,6 +207,17 @@ async def _process_audio(session_id: str, document_id: str, path: str) -> None:
     await _summarize(session_id, document_id)
 
 
+@app.get("/sessions/{session_id}/audio")
+def get_session_audio(session_id: str):
+    """강의 녹음 (필기를 누르면 그 순간부터 듣기). 구간 요청(Range)을 지원해 원하는 위치부터 재생된다."""
+    _session_or_404(session_id)
+    found = audio_file(session_id)
+    if found is None:
+        raise HTTPException(404, "이 강의는 서버에 녹음이 없어요.")
+    path, media_type = found
+    return FileResponse(path, media_type=media_type)
+
+
 @app.get("/sessions/{session_id}/transcript")
 def get_transcript(session_id: str):
     """받아쓰기 전체 (문장마다 시각과 추정 페이지)"""
@@ -239,11 +251,11 @@ async def stream(ws: WebSocket, session_id: str):
             await live.tick()
 
     tick_task = asyncio.create_task(ticker())
-    # 다시 연결할 때마다 녹음 파일을 새로 만든다 (앞부분을 덮어쓰지 않게)
-    part = len([n for n in os.listdir(settings.upload_dir) if n.startswith(session_id)]) \
-        if os.path.isdir(settings.upload_dir) else 0
+    # 다시 연결할 때마다 녹음 파일을 새로 만들고(앞부분을 덮어쓰지 않게), 받아쓰기 시각은 앞 조각들 길이에 이어 매긴다
+    parts = wav_parts(session_id)
+    offset_ms = recorded_ms(session_id)
     os.makedirs(settings.upload_dir, exist_ok=True)
-    wav_path = os.path.join(settings.upload_dir, f"{session_id}-{part + 1}.wav")
+    wav_path = os.path.join(settings.upload_dir, f"{session_id}-{len(parts) + 1}.wav")
     try:
         while True:
             message = await ws.receive()
@@ -251,7 +263,7 @@ async def stream(ws: WebSocket, session_id: str):
                 break
             if message.get("bytes") is not None:
                 # 마이크 소리 (16kHz 16비트 모노 PCM): 서버에서 Whisper로 받아쓴다
-                live.feed_audio(message["bytes"], app.state.transcriber, wav_path)
+                live.feed_audio(message["bytes"], app.state.transcriber, wav_path, offset_ms)
                 continue
             try:
                 payload = json.loads(message.get("text") or "")

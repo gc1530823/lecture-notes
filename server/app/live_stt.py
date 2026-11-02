@@ -27,13 +27,13 @@ OnText = Callable[[str, int, int], Awaitable[None]]
 
 
 class LiveAudio:
-    def __init__(self, transcriber, hint: str, on_text: OnText, wav_path: str | None = None):
+    def __init__(self, transcriber, hint: str, on_text: OnText, wav_path: str | None = None, start_ms: int = 0):
         self.transcriber = transcriber
         self.hint = hint
         self.on_text = on_text
         self.buffer = np.zeros(0, dtype=np.int16)
-        self.buffer_start_ms = 0      # 버퍼 첫 샘플의 강의 시각
-        self.total_samples = 0
+        self.buffer_start_ms = start_ms  # 버퍼 첫 샘플의 강의 시각
+        self.total_samples = start_ms * RATE // 1000
         self.silent_ms = 0
         self.speech_ms = 0
         self.noise = 300.0            # 배경 소음 크기 추정 (int16 RMS)
