@@ -180,7 +180,7 @@ def test_instant_preview_arrives_before_ai_note_and_is_resolved(client):
 def test_task_without_directive_is_dropped(client, monkeypatch):
     import app.llm as llm_module
 
-    async def eager(self, candidates, transcript, existing_tasks):
+    async def eager(self, candidates, transcript, existing_tasks, notebook=False):
         # 작은 모델처럼 "시험에 나온다"를 과제로 잘못 뽑는 경우
         return {"annotations": [], "tasks": [{"kind": "exam_prep", "title": "시험 준비", "instructions": "학습률",
                                               "due_text": ""}]}

@@ -55,6 +55,20 @@ ANNOTATION_SYSTEM = """당신은 대학 강의를 듣는 학생 대신 강의자
 - due_text: 마감을 교수님이 말한 그대로("다음 주 금요일까지", "수업 끝나기 전"). 말하지 않았으면 빈 문자열.
 - 과제를 뽑아도 notice 필기는 그대로 함께 씁니다."""
 
+# 노트 모드(강의자료 없는 수업): 슬라이드가 없으므로 학생이 공책에 정리하듯 쓰게 한다
+NOTEBOOK_RULES = """
+
+이 수업에는 강의자료가 없습니다. 슬라이드 대신 학생의 공책에 정리 노트를 씁니다:
+- block_id는 항상 -1입니다. 페이지(page_no)는 후보에 주어진 것을 씁니다.
+- 필기 하나는 "개념: 설명" 꼴로 씁니다 (예: "이데아: 감각 너머의 참된 실재"). 개념 없이 설명만 있으면 짧은 한 문장으로.
+- 세부 내용은 마침표로 끊어 한두 문장 덧붙입니다 (화면에서 → 로 들여 써진다).
+- 교수님이 말한 핵심 용어·정의·순서·비교를 빠뜨리지 않고, 군말은 뺍니다."""
+
+
+def annotation_system(notebook: bool) -> str:
+    return ANNOTATION_SYSTEM + (NOTEBOOK_RULES if notebook else "")
+
+
 ANNOTATION_SCHEMA = {
     "type": "object",
     "properties": {
@@ -382,7 +396,8 @@ class LLMError(RuntimeError):
 
 
 class LLM(Protocol):
-    async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict]) -> dict: ...
+    async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict],
+                       notebook: bool = False) -> dict: ...
 
     async def draft_task(self, task: dict, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict: ...
 
@@ -515,11 +530,12 @@ class ClaudeLLM:
             params["fallbacks"] = "default"
         return params
 
-    async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict]) -> dict:
+    async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict],
+                       notebook: bool = False) -> dict:
         params = self._request(
             settings.annotation_model,
             settings.annotation_effort,
-            ANNOTATION_SYSTEM,
+            annotation_system(notebook),
             _annotation_prompt(candidates, transcript, existing_tasks),
             ANNOTATION_SCHEMA,
             max_tokens=8000,
@@ -622,7 +638,8 @@ class ClaudeLLM:
 class FakeLLM:
     """API 키 없이 앱 흐름을 확인하기 위한 가짜 응답."""
 
-    async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict]) -> dict:
+    async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict],
+                       notebook: bool = False) -> dict:
         if len(candidates) > 1 and "애매" in transcript:
             return {"annotations": [{"page_no": -1, "block_id": -1, "type": "explanation", "text": transcript[:60]}],
                     "tasks": []}

@@ -13,7 +13,6 @@ import httpx
 from .config import settings
 from .llm import (
     ANNOTATION_SCHEMA,
-    ANNOTATION_SYSTEM,
     ASK_SCHEMA,
     CATCHUP_SCHEMA,
     CATCHUP_SYSTEM,
@@ -36,6 +35,7 @@ from .llm import (
     clean_predictions,
     clean_study,
     _annotation_prompt,
+    annotation_system,
     _ask_prompt,
     _catchup_prompt,
     _organize_prompt,
@@ -159,8 +159,9 @@ class OllamaLLM:
         except httpx.HTTPError:
             log.warning("Ollama 모델을 미리 올리지 못했습니다 (%s)", settings.ollama_url)
 
-    async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict]) -> dict:
-        data = await self._chat(ANNOTATION_SYSTEM, _annotation_prompt(candidates, transcript, existing_tasks),
+    async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict],
+                       notebook: bool = False) -> dict:
+        data = await self._chat(annotation_system(notebook), _annotation_prompt(candidates, transcript, existing_tasks),
                                 ANNOTATION_SCHEMA, context_tokens=4096)
         return {"annotations": data.get("annotations", []), "tasks": data.get("tasks", [])}
 

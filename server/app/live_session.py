@@ -253,7 +253,7 @@ class LiveSession:
         transcript = " ".join(batch.texts)
         try:
             existing_tasks = self.db.list_tasks(self.session_id)
-            results = await self.llm.annotate(candidates, transcript, existing_tasks)
+            results = await self.llm.annotate(candidates, transcript, existing_tasks, notebook=self.notebook)
         except anthropic.RateLimitError:
             log.warning("필기 생성: 요청 한도 초과")
             await self.send({"type": "error", "message": "요청이 많아 잠시 AI 정리를 건너뜁니다."})
