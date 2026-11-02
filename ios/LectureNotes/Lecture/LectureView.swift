@@ -131,6 +131,7 @@ struct LectureView: View {
                             })
             }
         }
+        .onDisappear { model.player.stop() }
         .alert("알림", isPresented: .constant(model.errorMessage != nil)) {
             Button("확인") { model.errorMessage = nil }
         } message: {
@@ -190,11 +191,14 @@ struct LectureView: View {
                 isRecording: model.phase == .recording,
                 selectedID: $selectedAnnotationID,
                 onEdit: { editing = $0 },
-                onDelete: { annotation in Task { await model.delete(annotation) } }
+                onDelete: { annotation in Task { await model.delete(annotation) } },
+                canPlay: model.canPlayRecording,
+                onPlay: { model.playRecording(at: $0) }
             )
             .frame(maxHeight: .infinity)
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 10) {
+                    PlayerBar(player: model.player)
                     if model.session != nil {
                         AskButton(asking: asking) { showingAsk = true }
                             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -330,6 +334,34 @@ struct LectureView: View {
 }
 
 /// 녹음 시작·끝 버튼. 녹음 중에는 빨간 원이 숨 쉬듯 퍼진다.
+/// 필기에서 연 녹음 재생 막대
+private struct PlayerBar: View {
+    @ObservedObject var player: LecturePlayer
+
+    var body: some View {
+        if player.isActive {
+            HStack(spacing: 12) {
+                Button { player.togglePause() } label: {
+                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill").font(.title3)
+                }
+                Text(player.currentMs.clockText)
+                    .font(.subheadline.weight(.heavy).monospacedDigit())
+                    .frame(minWidth: 44, alignment: .leading)
+                Slider(value: Binding(
+                    get: { player.durationMs > 0 ? Double(player.currentMs) / Double(player.durationMs) : 0 },
+                    set: { player.seek(toFraction: $0) }))
+                Button { player.stop() } label: { Image(systemName: "xmark").font(.subheadline.weight(.bold)) }
+            }
+            .tint(Theme.accent)
+            .foregroundStyle(Theme.accent)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.regularMaterial, in: Capsule())
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+}
+
 /// "방금 뭐라고?" 버튼. 답을 기다리는 동안은 돌아가는 표시를 보여 준다.
 private struct AskButton: View {
     let asking: Bool

@@ -44,6 +44,7 @@ final class LectureViewModel: ObservableObject {
     @Published var errorMessage: String? = nil
     /// 방금 들어온 필기. 목록에서 잠깐 강조하고 그 위치로 스크롤한다.
     @Published private(set) var latestAnnotationID: Int? = nil
+    let player = LecturePlayer()
 
     private let store: DocumentStore
     private let socket = LectureSocket()
@@ -247,6 +248,22 @@ final class LectureViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// 녹음을 들을 수 있는지 (녹음 중에는 마이크와 겹치지 않게 막는다)
+    var canPlayRecording: Bool { session != nil && phase == .ended && recordingURL != nil }
+
+    private var recordingURL: URL? {
+        guard let session else { return nil }
+        let local = store.recordingURL(for: session)
+        if FileManager.default.fileExists(atPath: local.path) { return local }
+        // 기기에 녹음이 없으면(녹음 파일로 정리한 강의 등) 서버 녹음을 스트리밍한다
+        return try? APIClient.current().baseURL.appending(path: "sessions/\(session.id)/audio")
+    }
+
+    func playRecording(at annotation: Annotation) {
+        guard let url = recordingURL else { return }
+        player.play(url, fromMs: annotation.startMs)
     }
 
     /// 수업 중 질문. 답은 질문한 페이지의 관련 문단 옆에 질문 포스트잇으로 붙는다.

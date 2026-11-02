@@ -8,6 +8,8 @@ struct AnnotationBoardView: View {
     @Binding var selectedID: Int?
     let onEdit: (Annotation) -> Void
     let onDelete: (Annotation) -> Void
+    var canPlay = false
+    var onPlay: (Annotation) -> Void = { _ in }
 
     private let columns = [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
 
@@ -23,6 +25,22 @@ struct AnnotationBoardView: View {
                                        isSelected: selectedID == annotation.id, isPreview: annotation.id < 0)
                         }
                         .buttonStyle(PressableStyle())
+                        .overlay(alignment: .bottomTrailing) {
+                            if canPlay && annotation.id > 0 {
+                                Button { onPlay(annotation) } label: {
+                                    Label(annotation.startMs.clockText, systemImage: "play.fill")
+                                        .font(.caption.weight(.heavy).monospacedDigit())
+                                        .foregroundStyle(Theme.accent)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(.background, in: Capsule())
+                                        .shadow(color: .black.opacity(0.12), radius: 4, y: 2)
+                                }
+                                .buttonStyle(PressableStyle(scale: 0.92))
+                                .offset(x: -6, y: 10)
+                                .accessibilityLabel("이 필기 때 녹음 듣기")
+                            }
+                        }
                         .id(annotation.id)
                         .transition(.stickOn)
                         .contextMenu {
