@@ -121,6 +121,7 @@ function route() {
   const [, view, a, b] = location.hash.split("/");
   if (view === "doc") renderDetail(a);
   else if (view === "lecture") renderLecture(a, b);
+  else if (view === "exam") renderExamMap(a);
   else renderList();
 }
 window.addEventListener("hashchange", route);
@@ -192,6 +193,11 @@ async function renderDetail(docId) {
           <span style="flex:1"><b>녹음 파일로 정리하기</b><br><small class="muted">iPhone '음성 메모'로 녹음한 파일을 올리면 화면을 꺼 둔 수업도 필기·요약·퀴즈로 만들어요</small></span>
         </button>
         <input type="file" id="audiofile" accept="audio/*,.m4a,.mp3,.wav" class="hidden">
+        <button class="card item" id="exammap" style="align-items:center">
+          <span class="badge">🎯</span>
+          <span style="flex:1"><b>시험 예상 지도</b><br><small class="muted">교수님이 강조하고 시험에 나온다고 한 곳을 페이지 위에 표시하고, 예상 문제를 만들어요</small></span>
+          <span class="muted">›</span>
+        </button>
         <h3 style="margin:8px 0 0">지난 강의</h3>
         ${doc.sessions.length ? doc.sessions.map((s, i) => `
           <button class="card item" data-session="${s.id}">
@@ -209,6 +215,7 @@ async function renderDetail(docId) {
       .catch((e) => toast(e.message));
   };
   $app.querySelector("#start").onclick = () => (location.hash = `#/lecture/${docId}`);
+  $app.querySelector("#exammap").onclick = () => (location.hash = `#/exam/${docId}`);
   const audioInput = $app.querySelector("#audiofile");
   $app.querySelector("#audio").onclick = () => audioInput.click();
   audioInput.onchange = () => {
@@ -233,6 +240,82 @@ async function renderDetail(docId) {
   };
   $app.querySelectorAll("[data-session]").forEach((el) => (el.onclick = () => (location.hash = `#/lecture/${docId}/${el.dataset.session}`)));
   loadPdf(docId).then((pdf) => renderPage(pdf, 1, $app.querySelector("#cover"), Math.min(innerWidth - 32, 700))).catch(() => {});
+}
+
+// ---------- 시험 예상 지도 ----------
+
+const HEAT = {
+  high: { label: "🔥 시험 유력", color: "var(--exam-ink)" },
+  medium: { label: "⚠️ 나올 수 있음", color: "var(--emphasis-ink)" },
+  low: { label: "", color: "transparent" },
+};
+
+async function renderExamMap(docId) {
+  const doc = (await syncDocs()).find((d) => d.id === docId);
+  if (!doc) return (location.hash = "#/");
+  $app.innerHTML = `
+    <div class="screen">
+      <div class="topbar"><button class="icon-btn" id="back">‹</button><div class="title">🎯 시험 예상 지도</div><span style="width:36px"></span></div>
+      <div class="list" id="exam"><p class="muted"><span class="spin"></span> 강의를 모아 분석하는 중…</p></div>
+    </div>`;
+  $app.querySelector("#back").onclick = () => (location.hash = `#/doc/${docId}`);
+  const box = $app.querySelector("#exam");
+  let alive = true;
+  current = () => { alive = false; };
+
+  const draw = (m) => {
+    const ranked = m.top.map((no) => m.pages.find((p) => p.page_no === no));
+    const qs = Object.fromEntries(m.questions.map((q) => [q.page_no, q]));
+    const building = m.job.status === "building";
+    const stale = m.questions.some((q) => q.stale) || m.questions.length < m.top.length;
+    box.innerHTML = m.lectures === 0 ? `<div class="empty-note">강의를 녹음하면 교수님이 강조한 곳을 찾아 표시해요</div>` : `
+      <p class="muted" style="margin:0">강의 ${m.lectures}회를 분석했어요. 색이 진할수록 시험에 나올 가능성이 높아요.</p>
+      <div class="heat-grid">${m.pages.map((p) => `
+        <button class="heat-cell" data-page="${p.page_no}" style="--heat:${HEAT[p.level].color};--alpha:${Math.round(p.score * 38)}%">
+          <canvas data-heat="${p.page_no}"></canvas>
+          <span class="heat-no">${p.page_no}</span>
+          ${p.level !== "low" ? `<span class="heat-tag">${HEAT[p.level].label}</span>` : ""}
+        </button>`).join("")}</div>
+      <h3 style="margin:10px 0 0">시험에 나올 곳</h3>
+      ${ranked.length ? ranked.map((p, i) => `
+        <div class="card" style="padding:14px 16px" id="rank-${p.page_no}">
+          <div class="row"><span class="badge" style="background:color-mix(in srgb,${HEAT[p.level].color} 16%,transparent);color:${HEAT[p.level].color}">${i + 1}</span>
+            <b style="flex:1">${p.page_no}쪽 <small style="color:${HEAT[p.level].color}">${HEAT[p.level].label}</small></b></div>
+          <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:8px">${p.reasons.map((r) => `<span class="chip" style="color:var(--ink-2);background:var(--line)">${esc(r)}</span>`).join("")}</div>
+          ${(qs[p.page_no]?.questions || []).map((q, j) => `
+            <div class="predict">
+              <b><span style="color:var(--accent)">예상 ${j + 1}</span> ${esc(q.question)}</b>
+              <details><summary>모범 답안 보기</summary><p>${esc(q.answer)}</p></details>
+              <small class="muted">💡 ${esc(q.reason)}</small>
+            </div>`).join("")}
+        </div>`).join("") : `<div class="empty-note">아직 강조하거나 시험에 나온다고 한 곳이 없어요</div>`}
+      ${ranked.length ? `<button class="primary" id="predict" style="width:100%;height:52px" ${building ? "disabled" : ""}>
+        ${building ? `<span class="spin"></span> 예상 문제 만드는 중… ${m.job.total ? `(${m.job.done}/${m.job.total}쪽)` : ""}` : stale ? "✨ 예상 문제 만들기" : "✨ 예상 문제 다시 만들기"}</button>` : ""}`;
+    box.querySelectorAll("canvas[data-heat]").forEach(async (canvas) => {
+      try { await renderPage(await loadPdf(docId), Number(canvas.dataset.heat), canvas, Math.min((innerWidth - 44) / 2, 340)); } catch {}
+    });
+    box.querySelectorAll("[data-page]").forEach((b) => (b.onclick = () => {
+      const card = box.querySelector(`#rank-${b.dataset.page}`);
+      if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+      else toast(`${b.dataset.page}쪽은 아직 강조된 내용이 없어요`);
+    }));
+    const button = box.querySelector("#predict");
+    if (button) button.onclick = async () => {
+      try { await api("POST", `/documents/${docId}/exam-questions`); poll(); } catch (e) { toast(e.message); }
+    };
+  };
+
+  const poll = async () => {
+    while (alive) {
+      let m;
+      try { m = await api("GET", `/documents/${docId}/exam-map`); } catch (e) { box.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+      if (!alive) return;
+      draw(m);
+      if (m.job.status !== "building") return;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  };
+  poll();
 }
 
 // ---------- 포스트잇 ----------

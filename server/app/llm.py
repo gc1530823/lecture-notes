@@ -190,6 +190,41 @@ ASK_SCHEMA = {
     "additionalProperties": False,
 }
 
+PREDICT_SYSTEM = """당신은 이 과목 교수님이 낼 시험 문제를 예상하는 조교입니다.
+강의자료 한 페이지의 텍스트, 그 페이지에서 교수님이 한 말(여러 강의의 받아쓰기), 필기를 받습니다.
+
+1. 교수님이 시험에 나온다고 한 것, 강조한 것, 오래 설명한 것을 중심으로 예상 문제 2개를 만들어 questions에 넣습니다.
+2. 문제마다 실제 질문(question), 채점 기준이 될 모범 답안 2~3문장(answer), 이 문제가 나올 것 같은 이유 한 문장(reason)을 씁니다.
+   reason에는 근거가 된 교수님 말을 짧게 인용합니다.
+3. 서술형·단답형·계산형 중 이 내용에 맞는 형식을 고릅니다.
+
+주어진 내용만 사용하고 한국어로 씁니다."""
+
+PREDICT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "questions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"question": {"type": "string"}, "answer": {"type": "string"},
+                               "reason": {"type": "string"}},
+                "required": ["question", "answer", "reason"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["questions"],
+    "additionalProperties": False,
+}
+
+
+def clean_predictions(data: dict) -> list[dict]:
+    keys = ("question", "answer", "reason")
+    return [{k: str(q[k]).strip() for k in keys} for q in data.get("questions", [])
+            if isinstance(q, dict) and all(str(q.get(k, "")).strip() for k in keys)][:3]
+
+
 FIX_SPEECH_SYSTEM = """강의 받아쓰기를 교정합니다. 슬라이드 텍스트와 받아쓰기 한 페이지 분량을 받습니다.
 
 - 잘못 들린 단어만 고칩니다: 비슷한 소리로 잘못 적힌 전문용어("유런" → "뉴런"), 띄어쓰기가 틀린 용어.
@@ -245,6 +280,8 @@ class LLM(Protocol):
     async def organize_page(self, page: dict, speech: str, notes: list[dict]) -> list[str]: ...
 
     async def ask(self, question: str, page: dict, recent_speech: str) -> dict: ...
+
+    async def predict_questions(self, page: dict, speech: str, notes: list[dict]) -> list[dict]: ...
 
 
 def _organize_prompt(page: dict, speech: str, notes: list[dict]) -> str:
@@ -417,6 +454,13 @@ class ClaudeLLM:
                                _ask_prompt(question, page, recent_speech), ASK_SCHEMA, max_tokens=4000)
         return _response_json(await self.client.beta.messages.create(**params))
 
+    async def predict_questions(self, page: dict, speech: str, notes: list[dict]) -> list[dict]:
+        params = self._request(settings.summary_model, settings.summary_effort, PREDICT_SYSTEM,
+                               _organize_prompt(page, speech, notes), PREDICT_SCHEMA, max_tokens=16000)
+        async with self.client.beta.messages.stream(**params) as stream:
+            response = await stream.get_final_message()
+        return clean_predictions(_response_json(response))
+
     async def fix_speech(self, page: dict, speech: str) -> str:
         params = self._request(settings.summary_model, "low", FIX_SPEECH_SYSTEM, _fix_speech_prompt(page, speech),
                                FIX_SPEECH_SCHEMA, max_tokens=16000)
@@ -471,6 +515,10 @@ class FakeLLM:
 
     async def organize_page(self, page: dict, speech: str, notes: list[dict]) -> list[str]:
         return [f"{page['page_no']}쪽 정리: {s}" for s in speech.split(". ") if s][:5]
+
+    async def predict_questions(self, page: dict, speech: str, notes: list[dict]) -> list[dict]:
+        return [{"question": f"{page['page_no']}쪽 내용을 설명하시오.", "answer": speech[:80],
+                 "reason": "교수님이 강조한 부분입니다. (가짜 응답)"}]
 
     async def ask(self, question: str, page: dict, recent_speech: str) -> dict:
         block_id = page["blocks"][0]["id"] if page.get("blocks") else -1

@@ -75,6 +75,15 @@ CREATE TABLE IF NOT EXISTS summaries (
     body TEXT NOT NULL
 );
 
+-- 시험 예상 문제 (강의자료 페이지마다). digest가 같으면(받아쓰기·필기가 그대로면) 다시 만들지 않는다
+CREATE TABLE IF NOT EXISTS exam_questions (
+    document_id TEXT NOT NULL REFERENCES documents(id),
+    page_no INTEGER NOT NULL,
+    digest TEXT NOT NULL,
+    body TEXT NOT NULL,
+    PRIMARY KEY (document_id, page_no)
+);
+
 -- 정리 PDF용 페이지별 전체 정리. digest가 같으면(받아쓰기·필기가 그대로면) 다시 만들지 않는다
 CREATE TABLE IF NOT EXISTS page_notes (
     session_id TEXT NOT NULL REFERENCES sessions(id),
@@ -151,6 +160,7 @@ class Database:
                 for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes"):
                     self._conn.execute(f"DELETE FROM {table} WHERE session_id = ?", (sid,))
             self._conn.execute("DELETE FROM sessions WHERE document_id = ?", (doc_id,))
+            self._conn.execute("DELETE FROM exam_questions WHERE document_id = ?", (doc_id,))
             for pid in pages:
                 self._conn.execute("DELETE FROM blocks WHERE page_id = ?", (pid,))
             self._conn.execute("DELETE FROM pages WHERE document_id = ?", (doc_id,))
@@ -316,6 +326,19 @@ class Database:
     def save_page_notes(self, session_id: str, page_no: int, digest: str, notes: dict) -> None:
         self._write("INSERT OR REPLACE INTO page_notes (session_id, page_no, digest, points) VALUES (?, ?, ?, ?)",
                     (session_id, page_no, digest, json.dumps(notes, ensure_ascii=False)))
+
+    def session_ids(self, doc_id: str) -> list[str]:
+        return [r["id"] for r in self._query("SELECT id FROM sessions WHERE document_id = ? ORDER BY started_at",
+                                             (doc_id,))]
+
+    def get_exam_questions(self, doc_id: str, page_no: int) -> tuple[str, list[dict]] | None:
+        rows = self._query("SELECT digest, body FROM exam_questions WHERE document_id = ? AND page_no = ?",
+                           (doc_id, page_no))
+        return (rows[0]["digest"], json.loads(rows[0]["body"])) if rows else None
+
+    def save_exam_questions(self, doc_id: str, page_no: int, digest: str, questions: list[dict]) -> None:
+        self._write("INSERT OR REPLACE INTO exam_questions (document_id, page_no, digest, body) VALUES (?, ?, ?, ?)",
+                    (doc_id, page_no, digest, json.dumps(questions, ensure_ascii=False)))
 
     def get_summary(self, session_id: str) -> dict | None:
         rows = self._query("SELECT body FROM summaries WHERE session_id = ?", (session_id,))

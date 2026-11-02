@@ -73,6 +73,16 @@ struct APIClient {
         try await send("POST", "sessions/\(sessionId)/ask", json: ["question": question, "page_no": pageNo])
     }
 
+    // 시험 예상 지도
+
+    func examMap(documentId: String) async throws -> ExamMap {
+        try await send("GET", "documents/\(documentId)/exam-map")
+    }
+
+    func startExamQuestions(documentId: String) async throws -> ExamJob {
+        try await send("POST", "documents/\(documentId)/exam-questions")
+    }
+
     // 강의 정리 PDF
 
     func startNotesPDF(sessionId: String) async throws -> NotesPDFStatus {

@@ -379,3 +379,26 @@ def test_ask_answers_from_recent_speech_and_sticks_a_question_note(client):
     assert "쉽게 다시 설명" in quick["text"]
     assert client.post(f"/sessions/{session['id']}/ask", json={"page_no": 9}).status_code == 404
     assert any(a["type"] == "qa" for a in client.get(f"/sessions/{session['id']}/annotations").json())
+
+
+def test_exam_map_scores_pages_and_predicts_questions(client):
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "학습률이 너무 크면 발산해요. 이거 시험에 꼭 나와요.",
+                      "start_ms": 1000, "end_ms": 4000})
+        receive_annotation(ws)
+
+    result = client.get(f"/documents/{doc['id']}/exam-map").json()
+    assert result["lectures"] == 1 and result["top"] == [1] and result["questions"] == []
+    first = result["pages"][0]
+    assert first["level"] == "high" and "교수님이 시험에 나온다고 함 1번" in first["reasons"]
+    assert result["pages"][1]["level"] == "low"
+
+    assert client.post(f"/documents/{doc['id']}/exam-questions").status_code == 202
+    result = client.get(f"/documents/{doc['id']}/exam-map").json()
+    assert result["job"]["status"] == "idle"
+    assert result["questions"][0]["page_no"] == 1 and result["questions"][0]["stale"] is False
+    assert "1쪽 내용을 설명하시오." == result["questions"][0]["questions"][0]["question"]
+    assert client.get("/documents/nope/exam-map").status_code == 404

@@ -124,6 +124,42 @@ struct LectureSession: Codable, Hashable {
     let status: String
 }
 
+/// 시험 예상 지도 (GET /documents/{id}/exam-map)
+struct ExamMap: Codable, Hashable {
+    let lectures: Int
+    let pages: [ExamPageScore]
+    let top: [Int]
+    let questions: [ExamPageQuestions]
+    let job: ExamJob
+}
+
+struct ExamPageScore: Codable, Hashable {
+    let pageNo: Int
+    let score: Double
+    /// high, medium, low
+    let level: String
+    let reasons: [String]
+}
+
+struct ExamPageQuestions: Codable, Hashable {
+    let pageNo: Int
+    let questions: [PredictedQuestion]
+    /// 문제를 만든 뒤 강의 내용이 바뀌었는지
+    let stale: Bool
+}
+
+struct PredictedQuestion: Codable, Hashable {
+    let question: String
+    let answer: String
+    let reason: String
+}
+
+struct ExamJob: Codable, Hashable {
+    let status: String
+    let done: Int
+    let total: Int
+}
+
 /// 강의 정리 PDF 만들기 상태 (status: none, building, ready, failed)
 struct NotesPDFStatus: Codable, Hashable {
     let status: String

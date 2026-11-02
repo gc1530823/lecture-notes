@@ -226,3 +226,25 @@ textarea.draft { width: 100%; min-height: 260px; border: 0; border-radius: 18px;
   height: 44px; padding: 0 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card);
   color: var(--ink); font: inherit; font-size: 15px;
 }
+
+/* 시험 예상 지도 */
+.heat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.heat-cell {
+  position: relative; padding: 0; border-radius: 12px; overflow: hidden; background: var(--card); box-shadow: var(--shadow);
+  outline: 3px solid color-mix(in srgb, var(--heat) 80%, transparent); outline-offset: -3px;
+}
+.heat-cell canvas { display: block; width: 100%; height: auto; }
+.heat-cell::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--heat) var(--alpha), transparent); pointer-events: none; }
+.heat-no {
+  position: absolute; left: 6px; bottom: 6px; z-index: 1; min-width: 22px; padding: 2px 6px; border-radius: 8px;
+  font-size: 12px; font-weight: 900; color: var(--ink-2); background: var(--card); box-shadow: var(--shadow);
+}
+.heat-tag {
+  position: absolute; right: 6px; bottom: 6px; z-index: 1; padding: 3px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 900; color: #fff; background: var(--heat);
+}
+.predict { margin-top: 12px; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 6%, var(--card)); }
+.predict details { margin: 8px 0 6px; }
+.predict summary { cursor: pointer; font-weight: 800; color: var(--accent); font-size: 13px; }
+.predict p { margin: 6px 0 0; font-size: 14px; line-height: 1.5; }
+.row { display: flex; align-items: center; gap: 10px; }

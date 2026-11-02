@@ -18,8 +18,11 @@ from .llm import (
     ASK_SYSTEM,
     ORGANIZE_SCHEMA,
     ORGANIZE_SYSTEM,
+    PREDICT_SCHEMA,
+    PREDICT_SYSTEM,
     TASK_SCHEMA,
     LLMError,
+    clean_predictions,
     _annotation_prompt,
     _ask_prompt,
     _organize_prompt,
@@ -211,3 +214,9 @@ class OllamaLLM:
     async def ask(self, question: str, page: dict, recent_speech: str) -> dict:
         return await self._chat(ASK_SYSTEM, _ask_prompt(question, page, recent_speech), ASK_SCHEMA,
                                 context_tokens=4096)
+
+    async def predict_questions(self, page: dict, speech: str, notes: list[dict]) -> list[dict]:
+        data = await self._chat_checked(
+            PREDICT_SYSTEM, _organize_prompt(page, speech, notes), PREDICT_SCHEMA, 8192,
+            lambda d: bool(clean_predictions(d)) and all(_real_text(q["question"]) for q in clean_predictions(d)))
+        return clean_predictions(data) if data else []

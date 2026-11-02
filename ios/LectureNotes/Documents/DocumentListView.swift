@@ -226,6 +226,30 @@ struct DocumentDetailView: View {
                     }
                     .buttonStyle(PressableStyle(scale: 0.97))
 
+                    NavigationLink {
+                        ExamMapView(document: document)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text("🎯")
+                                .font(.title3)
+                                .frame(width: 36, height: 36)
+                                .background(AnnotationType.exam.inkColor.opacity(0.12), in: Circle())
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("시험 예상 지도")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                Text("교수님이 강조하고 시험에 나온다고 한 곳을 표시하고 예상 문제를 만들어요")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.leading)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
+                        }
+                        .card(padding: 12)
+                    }
+                    .buttonStyle(PressableStyle(scale: 0.97))
+
                     Text("지난 강의")
                         .font(.system(.title3, design: .rounded).weight(.bold))
                         .padding(.top, 4)

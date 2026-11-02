@@ -99,6 +99,25 @@ enum DemoData {
         sources: [1]
     )
 
+    static let examMap = ExamMap(
+        lectures: 3,
+        pages: [
+            ExamPageScore(pageNo: 1, score: 1.0, level: "high",
+                          reasons: ["교수님이 시험에 나온다고 함 2번", "시험 필기 2개", "설명 6분", "강의 2번에서 다룸"]),
+            ExamPageScore(pageNo: 2, score: 0.42, level: "medium", reasons: ["강조 2번", "수업 중 질문 1개", "설명 4분"]),
+            ExamPageScore(pageNo: 3, score: 0.12, level: "low", reasons: ["설명 2분"]),
+        ],
+        top: [1, 2],
+        questions: [
+            ExamPageQuestions(pageNo: 1, questions: [
+                PredictedQuestion(question: "학습률 η가 너무 클 때와 너무 작을 때 경사하강법에서 각각 어떤 문제가 생기는지 설명하시오.",
+                                  answer: "너무 크면 최솟값을 지나쳐 손실이 커지거나 발산한다. 너무 작으면 한 번에 조금씩만 움직여 수렴이 매우 느리다.",
+                                  reason: "교수님: \"학습률이 클 때와 작을 때 차이, 꼭 기억하세요\""),
+            ], stale: false),
+        ],
+        job: ExamJob(status: "idle", done: 0, total: 0)
+    )
+
     static let summary = LectureSummary(
         overview: "경사하강법으로 손실을 줄이는 원리와 학습률의 역할을 다루고, 역전파로 기울기를 계산하는 방법을 배웠다. 학습률이 클 때와 작을 때의 차이는 중간고사에 나온다.",
         pages: [

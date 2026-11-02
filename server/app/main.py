@@ -19,6 +19,7 @@ from .config import settings
 from .db import Database
 from .live_session import LiveSession
 from .llm import LLMError, accept_fixed_speech, make_llm
+from .exam_map import score_pages, top_pages
 from .notes_pdf import build_notes_pdf
 from .quick_notes import EXAM_TALK
 from .pdf_parser import PDFParseError, extract_keywords, parse_pdf
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
     app.state.transcriber = make_transcriber()
     app.state.progress = {}  # 세션 id → 녹음 파일 받아쓰기 진행률 (0~1)
     app.state.notes_pdf = {}  # 세션 id → 정리 PDF 만들기 상태
+    app.state.exam_jobs = {}  # 강의자료 id → 예상 문제 만들기 상태
     warm_up = getattr(app.state.llm, "warm_up", None)
     if warm_up:
         asyncio.create_task(warm_up())
@@ -335,6 +337,72 @@ async def ask(session_id: str, body: AskRequest):
     block_ids = {b["id"] for b in page["blocks"]}
     block_id = result.get("block_id") if result.get("block_id") in block_ids else None
     return db().add_annotation(session_id, page["id"], block_id, "qa", f"Q. {question}\nA. {answer}", latest)
+
+
+# 시험 예상 지도: 그 자료로 들은 모든 강의에서 페이지마다 시험에 나올 만한 정도(규칙) + 상위 페이지 예상 문제(AI)
+
+
+def _exam_inputs(doc_id: str) -> tuple[dict, list[dict], list[dict]]:
+    doc = db().get_document(doc_id)
+    if doc is None:
+        raise HTTPException(404, "강의자료가 없습니다.")
+    texts = {p["page_no"]: p["text"] for p in db().list_pages(doc_id)}
+    pages = [{**p, "text": texts.get(p["page_no"], "")} for p in doc["pages"]]
+    sessions = [{"segments": db().get_segments(sid), "annotations": db().list_annotations(sid)}
+                for sid in db().session_ids(doc_id)]
+    return doc, pages, sessions
+
+
+def _page_material(page_no: int, sessions: list[dict]) -> tuple[str, list[dict], str]:
+    speech = " ".join(s["text"] for x in sessions for s in x["segments"] if s["page_no"] == page_no)
+    notes = [a for x in sessions for a in x["annotations"] if a["page_no"] == page_no and not a["pending"]]
+    digest = hashlib.sha256(json.dumps([speech, [(a["type"], a["text"]) for a in notes]],
+                                       ensure_ascii=False).encode()).hexdigest()
+    return speech, notes, digest
+
+
+@app.get("/documents/{doc_id}/exam-map")
+def exam_map(doc_id: str):
+    doc, pages, sessions = _exam_inputs(doc_id)
+    scores = score_pages([p["page_no"] for p in pages], sessions)
+    questions = []
+    for page_no in top_pages(scores):
+        cached = db().get_exam_questions(doc_id, page_no)
+        if cached:
+            questions.append({"page_no": page_no, "questions": cached[1],
+                              "stale": cached[0] != _page_material(page_no, sessions)[2]})
+    job = app.state.exam_jobs.get(doc_id, {"status": "idle", "done": 0, "total": 0})
+    return {"lectures": len(sessions), "pages": scores, "top": top_pages(scores), "questions": questions, "job": job}
+
+
+async def _build_exam_questions(doc_id: str) -> None:
+    job = app.state.exam_jobs[doc_id]
+    _, pages, sessions = _exam_inputs(doc_id)
+    by_no = {p["page_no"]: p for p in pages}
+    todo = top_pages(score_pages(list(by_no), sessions))
+    job["total"] = len(todo)
+    for page_no in todo:
+        speech, notes, digest = _page_material(page_no, sessions)
+        cached = db().get_exam_questions(doc_id, page_no)
+        if not cached or cached[0] != digest:
+            try:
+                questions = await app.state.llm.predict_questions(by_no[page_no], speech, notes)
+                if questions:
+                    db().save_exam_questions(doc_id, page_no, digest, questions)
+            except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
+                log.exception("%s쪽 예상 문제 만들기 실패", page_no)
+        job["done"] += 1
+    app.state.exam_jobs.pop(doc_id, None)
+
+
+@app.post("/documents/{doc_id}/exam-questions", status_code=202)
+def start_exam_questions(doc_id: str, background: BackgroundTasks):
+    """점수가 높은 페이지(최대 3쪽)의 예상 문제를 만든다. 내용이 그대로인 페이지는 전에 만든 문제를 쓴다."""
+    _exam_inputs(doc_id)
+    if doc_id not in app.state.exam_jobs:
+        app.state.exam_jobs[doc_id] = {"status": "building", "done": 0, "total": 0}
+        background.add_task(_build_exam_questions, doc_id)
+    return app.state.exam_jobs.get(doc_id, {"status": "idle", "done": 0, "total": 0})
 
 
 # 강의 정리 PDF: 필기가 붙은 슬라이드 + AI가 쓴 페이지별 전체 정리 + 받아쓰기 + 과제
