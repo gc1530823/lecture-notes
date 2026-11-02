@@ -84,7 +84,8 @@ def _slide_image(src: pymupdf.Document, page_info: dict, notes: list[dict]) -> b
 def build_notes_pdf(pdf_path: str, title: str, pages: list[dict], annotations: list[dict], segments: list[dict],
                     tasks: list[dict], summary: dict | None, organized: dict | None, started_at: float,
                     beyond: dict | None = None) -> bytes:
-    src = pymupdf.open(pdf_path)
+    # 노트 모드(강의자료 없는 수업)는 슬라이드 그림 없이 주제 제목과 필기·정리만 넣는다
+    src = pymupdf.open(pdf_path) if pdf_path and os.path.exists(pdf_path) else None
     beyond_ids = set((beyond or {}).get("annotation_ids", []))
     archive = pymupdf.Archive(FONTS)
     images: dict[str, bytes] = {}
@@ -111,11 +112,14 @@ def build_notes_pdf(pdf_path: str, title: str, pages: list[dict], annotations: l
         if not (notes or speech or points):
             continue
         name = f"slide{no}.jpg"
-        images[name] = _slide_image(src, page, notes)
-        # 세로로 긴 자료도 한 쪽 안에서 글과 함께 보이도록 그림 높이를 400pt 안으로 줄인다
-        ratio = (page.get("height") or 1) / (page.get("width") or 1)
-        width = round(min(515, 400 / ratio))
-        parts = [f"<h2>{no}쪽</h2><img src='{name}' width='{width}'/>"]
+        if src is None:
+            parts = [f"<h2>{no}. {esc(page.get('text') or '')}</h2>"]
+        else:
+            images[name] = _slide_image(src, page, notes)
+            # 세로로 긴 자료도 한 쪽 안에서 글과 함께 보이도록 그림 높이를 400pt 안으로 줄인다
+            ratio = (page.get("height") or 1) / (page.get("width") or 1)
+            width = round(min(515, 400 / ratio))
+            parts = [f"<h2>{no}쪽</h2><img src='{name}' width='{width}'/>"]
         sections.append(parts)
         if notes:
             parts.append("<h3>필기</h3>")

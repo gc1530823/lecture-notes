@@ -74,7 +74,7 @@ const store = {
   },
   add(doc) {
     const docs = this.load().filter((d) => d.id !== doc.id);
-    docs.unshift({ id: doc.id, title: doc.title, pageCount: doc.page_count, sessions: [] });
+    docs.unshift({ id: doc.id, title: doc.title, pageCount: doc.page_count, kind: doc.kind || "slides", sessions: [] });
     this.save(docs);
   },
   addSession(docId, sessionId) {
@@ -90,7 +90,7 @@ const store = {
 async function syncDocs() {
   try {
     const docs = (await api("GET", "/documents")).map((d) => ({
-      id: d.id, title: d.title, pageCount: d.page_count,
+      id: d.id, title: d.title, pageCount: d.page_count, kind: d.kind || "slides",
       sessions: d.sessions.map((s) => ({ id: s.id, startedAt: s.started_at * 1000 })),
     }));
     store.save(docs);
@@ -144,8 +144,8 @@ async function renderList() {
       <div class="topbar"><h1>강의노트</h1></div>
       ${docs.length ? `<div class="list">${docs.map((d) => `
         <button class="card doc-card" data-id="${d.id}">
-          <canvas data-thumb="${d.id}"></canvas>
-          <span style="flex:1"><b>${esc(d.title)}</b><small>${I("file-text")} ${d.pageCount}쪽 · ${I("microphone")} 강의 ${d.sessions.length}회</small></span>
+          ${d.kind === "notebook" ? `<span class="nb-thumb">${I("notebook")}</span>` : `<canvas data-thumb="${d.id}"></canvas>`}
+          <span style="flex:1"><b>${esc(d.title)}</b><small>${d.kind === "notebook" ? `${I("notebook")} 노트 ${d.pageCount}쪽` : `${I("file-text")} ${d.pageCount}쪽`} · ${I("microphone")} 강의 ${d.sessions.length}회</small></span>
           <span class="muted">${I("caret-right")}</span>
         </button>`).join("")}</div>` : `
         <div class="empty">
@@ -156,7 +156,8 @@ async function renderList() {
           <h2>첫 강의자료를 올려 보세요</h2>
           <p class="muted">PDF를 올리고 녹음을 시작하면<br>설명이 해당 문단 옆에 필기로 붙어요.</p>
         </div>`}
-      <button class="primary fab" id="add">＋ 강의자료 올리기</button>
+      <div class="fab fab-row"><button class="primary" id="add">＋ 강의자료 올리기</button>
+        <button class="primary ghost" id="addnote">${I("notebook")} 자료 없이 노트로</button></div>
       <input type="file" id="file" accept="application/pdf" class="hidden">
     </div>`;
   $app.querySelectorAll(".empty .note-wrap").forEach((n) => { n.style.position = "absolute"; n.style.width = "170px"; n.style.left = "50%"; });
@@ -166,6 +167,16 @@ async function renderList() {
   });
   const input = $app.querySelector("#file");
   $app.querySelector("#add").addEventListener("click", () => input.click());
+  // 강의자료가 없는 수업: 빈 줄 노트로 바로 녹음을 시작한다
+  $app.querySelector("#addnote").addEventListener("click", async () => {
+    const title = prompt("수업 이름 (비워도 돼요)", "");
+    if (title === null) return;
+    try {
+      const doc = await api("POST", "/documents/notebook", { title });
+      store.add(doc);
+      location.hash = `#/lecture/${doc.id}`;
+    } catch (e) { toast(e.message); }
+  });
   input.addEventListener("change", async () => {
     const file = input.files[0];
     if (!file) return;
@@ -249,7 +260,12 @@ async function renderDetail(docId) {
     xhr.send(form);
   };
   $app.querySelectorAll("[data-session]").forEach((el) => (el.onclick = () => (location.hash = `#/lecture/${docId}/${el.dataset.session}`)));
-  loadPdf(docId).then((pdf) => renderPage(pdf, 1, $app.querySelector("#cover"), Math.min(innerWidth - 32, 700))).catch(() => {});
+  if (doc.kind === "notebook") {
+    $app.querySelector("#cover").replaceWith(Object.assign(document.createElement("div"), {
+      className: "notebook-page cover", innerHTML: `<h2>${esc(doc.title)}</h2><p class="nb-line muted">강의자료 없이 듣는 수업 · 노트 ${doc.pageCount}쪽</p>` }));
+  } else {
+    loadPdf(docId).then((pdf) => renderPage(pdf, 1, $app.querySelector("#cover"), Math.min(innerWidth - 32, 700))).catch(() => {});
+  }
 }
 
 // ---------- 시험 예상 지도 ----------
@@ -302,6 +318,12 @@ async function renderExamMap(docId) {
       ${ranked.length ? `<button class="primary" id="predict" style="width:100%;height:52px" ${building ? "disabled" : ""}>
         ${building ? `<span class="spin"></span> 예상 문제 만드는 중… ${m.job.total ? `(${m.job.done}/${m.job.total}쪽)` : ""}` : stale ? `${I("sparkle")} 예상 문제 만들기` : `${I("sparkle")} 예상 문제 다시 만들기`}</button>` : ""}`;
     box.querySelectorAll("canvas[data-heat]").forEach(async (canvas) => {
+      if (doc.kind === "notebook") {
+        // 노트 모드: 쪽마다 주제 제목을 보여 준다
+        const page = m.pages.find((p) => p.page_no === Number(canvas.dataset.heat));
+        canvas.replaceWith(Object.assign(document.createElement("div"), { className: "nb-tile", textContent: page?.title || `${canvas.dataset.heat}쪽` }));
+        return;
+      }
       try { await renderPage(await loadPdf(docId), Number(canvas.dataset.heat), canvas, Math.min((innerWidth - 44) / 2, 340)); } catch {}
     });
     box.querySelectorAll("[data-page]").forEach((b) => (b.onclick = () => {
@@ -368,7 +390,7 @@ async function renderLecture(docId, sessionId) {
   };
 
   $app.innerHTML = `
-    <div class="screen lecture">
+    <div class="screen lecture" id="lecture">
       <div class="topbar"><button class="icon-btn" id="back">${I("caret-left")}</button><div class="title" id="title"></div><button class="icon-btn" id="a11y" title="자막 모드 (크게 보기·중요할 때 진동)" aria-pressed="false">${I("closed-captioning")}</button><button class="icon-btn" id="notespdf" title="강의 정리 PDF">${I("file-pdf")}</button><button class="icon-btn" id="sum" title="요약·퀴즈">${I("sparkle")}</button></div>
       <div class="pager"><div class="page" id="page"><canvas></canvas><div class="marks"></div></div></div>
       <div class="board-head">
@@ -396,7 +418,8 @@ async function renderLecture(docId, sessionId) {
 
   try {
     state.doc = await api("GET", `/documents/${docId}`);
-    state.pdf = await loadPdf(docId);
+    state.notebook = state.doc.kind === "notebook";
+    if (!state.notebook) state.pdf = await loadPdf(docId);
     if (sessionId) {
       state.notes = await api("GET", `/sessions/${sessionId}/annotations`);
       state.tasks = await api("GET", `/sessions/${sessionId}/tasks`);
@@ -409,6 +432,7 @@ async function renderLecture(docId, sessionId) {
     return;
   }
   $("#title").textContent = state.doc.title;
+  if (state.notebook) $("#lecture").classList.add("notebook");
 
   const pageInfo = () => state.doc.pages[state.page - 1];
   const visible = () => [...state.notes, ...state.previews].filter((n) => n.page_no === state.page && !n.pending);
@@ -416,13 +440,35 @@ async function renderLecture(docId, sessionId) {
   // --- 페이지와 필기 표시 ---
 
   async function drawPage() {
+    if (state.notebook) return drawNotebook();
     const width = $("#page").clientWidth;
     state.pageWidth = width;
     await renderPage(state.pdf, state.page, $("#page canvas"), width);
     drawMarks();
   }
 
+  // 노트 모드: 줄 노트에 AI가 한 줄씩 써 내려간다. 주제가 바뀌면 새 쪽, 쪽마다 AI가 제목을 붙인다
+  function drawNotebook() {
+    const page = pageInfo();
+    const notes = visible();
+    const box = $("#page");
+    box.classList.add("notebook-page");
+    const t = (n) => TYPES[n.type] || TYPES.explanation;
+    box.innerHTML = `<h2>${state.page}. ${page.text ? esc(page.text) : `<span class="muted">${state.recording ? "주제를 듣는 중…" : "제목 없음"}</span>`}</h2>
+      ${notes.length ? notes.map((n, i) => `
+        <div class="nb-line t-${n.type}${n.id === state.selected ? " sel" : ""}${n.id < 0 ? " preview" : ""}${n.id === state.fresh ? " fresh" : ""}" data-flag="${n.id}" role="button" tabindex="0">
+          <span class="nb-mark" style="color:var(--${n.type}-ink)">${I(t(n).icon)}</span>
+          <span class="nb-text">${esc(n.text)}${state.beyond.has(n.id) ? ` <small class="nb-beyond">교수님만 말함</small>` : ""}</span>
+          ${state.hasAudio && !state.recording && n.id > 0 ? `<button class="nb-play" data-play="${n.start_ms}" aria-label="이 필기 때 녹음 듣기">${I("play")}</button>` : ""}
+        </div>`).join("") : `<p class="nb-line muted">${state.recording ? "교수님 설명을 듣고 있어요. 필기가 여기에 써져요." : "이 쪽에는 아직 필기가 없어요"}</p>`}`;
+    box.querySelectorAll("[data-flag]").forEach((el) => (el.onclick = () => select(state.selected === Number(el.dataset.flag) ? null : Number(el.dataset.flag))));
+    box.querySelectorAll("[data-play]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); playFrom(Number(b.dataset.play)); }));
+    const fresh = box.querySelector(".nb-line.fresh");
+    if (fresh) fresh.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
   function drawMarks() {
+    if (state.notebook) return drawNotebook();
     const marks = $("#page .marks");
     const page = pageInfo();
     const notes = visible();
@@ -474,6 +520,7 @@ async function renderLecture(docId, sessionId) {
   }
 
   function drawBoard() {
+    if (state.notebook) drawNotebook();
     const notes = visible();
     $("#bh").textContent = `${state.page}쪽 필기`;
     $("#bc").textContent = notes.length;
@@ -644,6 +691,14 @@ async function renderLecture(docId, sessionId) {
       flash(event.annotation.id);
       if (event.annotation.type === "exam") alertImportant("star", "시험에 나온다고 했어요", event.annotation.text);
       else if (event.annotation.type === "notice") alertImportant("megaphone", "공지", event.annotation.text);
+    } else if (event.type === "page_added") {
+      // 노트 모드: 교수님이 주제를 바꿔 새 쪽이 생겼다
+      state.doc.pages.push(event.page);
+      if (state.autoFollow) goTo(event.page.page_no, { manual: false }); else drawBoard();
+    } else if (event.type === "page_title") {
+      const page = state.doc.pages[event.page - 1];
+      if (page) page.text = event.title;
+      if (event.page === state.page) drawPage();
     } else if (event.type === "page_estimate") {
       state.estimate = event.page;
       const canFollow = state.autoFollow && Date.now() - state.lastManual > MANUAL_PAUSE_MS;

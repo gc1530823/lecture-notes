@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 
-from .alignment import Estimate, PageIndex, PageTracker, best_block
+from .alignment import NEXT_PATTERNS, TOPIC_SHIFT, Estimate, PageIndex, PageTracker, best_block
 from .config import settings
 from .db import Database
 from .llm import ANNOTATION_TYPES, LLM, TASK_KINDS, LLMError
@@ -49,6 +49,11 @@ class LiveSession:
         self.send = send
 
         self.pages = db.list_pages(self.document_id)
+        doc = db.get_document(self.document_id)
+        # 노트 모드: 슬라이드가 없으므로 페이지를 추적하지 않고, 주제가 바뀌면 새 쪽을 연다
+        self.notebook = (doc or {}).get("kind") == "notebook"
+        self._page_sentences = 0
+        self._titles: set[asyncio.Task] = set()
         self.tracker = PageTracker(PageIndex([p["text"] for p in self.pages]))
         self.vocab = vocabulary([p["text"] for p in self.pages])
         self._block_cache: dict[int, list[dict]] = {}
@@ -101,11 +106,54 @@ class LiveSession:
         self._schedule_flush()
         if self._worker:
             await asyncio.gather(self._worker, return_exceptions=True)
+        if self.notebook and self.pages and not self.pages[-1]["text"]:
+            self._title_later(self.pages[-1])
+        if self._titles:
+            await asyncio.gather(*self._titles, return_exceptions=True)
+
+    # 노트 모드
+
+    NOTEBOOK_MAX_SENTENCES = 40  # 주제 전환 말이 없어도 이만큼 쌓이면 새 쪽
+
+    async def _notebook_estimate(self, text: str) -> Estimate:
+        current = self.pages[-1]
+        shift = TOPIC_SHIFT.search(text) or NEXT_PATTERNS.search(text)
+        if self._page_sentences and (shift or self._page_sentences >= self.NOTEBOOK_MAX_SENTENCES):
+            self._title_later(current)
+            current = self.db.add_notebook_page(self.document_id)
+            self.pages.append(current)
+            self._page_sentences = 0
+            await self.send({"type": "page_added", "page": {"id": current["id"], "page_no": current["page_no"],
+                                                            "width": current["width"], "height": current["height"],
+                                                            "text": "", "blocks": []}})
+        self._page_sentences += 1
+        return Estimate(current["page_no"], 1.0, [current["page_no"]])
+
+    def _title_later(self, page: dict) -> None:
+        """다 쓴 쪽에 AI가 주제 제목을 붙인다 (필기를 막지 않게 따로 돈다)."""
+        async def run() -> None:
+            speech = " ".join(s["text"] for s in self.db.get_segments(self.session_id) if s["page_no"] == page["page_no"])
+            if not speech:
+                return
+            try:
+                title = (await self.llm.title_topic(speech))[:40] or f"{page['page_no']}쪽"
+            except Exception:
+                log.exception("노트 제목 만들기 실패")
+                title = speech.split(".")[0][:20]
+            self.db.set_page_text(page["id"], title)
+            page["text"] = title
+            await self.send({"type": "page_title", "page": page["page_no"], "title": title})
+
+        task = asyncio.ensure_future(run())
+        self._titles.add(task)
+        task.add_done_callback(self._titles.discard)
 
     async def _on_page_view(self, page_no: int, manual: bool) -> None:
         """신호 A: 사용자가 보고 있는 페이지 (manual = 직접 넘김)"""
         if not 1 <= page_no <= len(self.pages):
             await self.send({"type": "error", "message": f"{page_no}페이지가 없습니다."})
+            return
+        if self.notebook:
             return
         self.tracker.user_viewed(page_no, manual=manual)
         # 사용자가 넘기면 쌓아 둔 받아쓰기는 이전 페이지 것이므로 먼저 필기로 만든다
@@ -120,7 +168,7 @@ class LiveSession:
         start_ms = int(message.get("start_ms", 0))
         end_ms = int(message.get("end_ms", start_ms))
 
-        estimate = self.tracker.observe(text, start_ms)
+        estimate = await self._notebook_estimate(text) if self.notebook else self.tracker.observe(text, start_ms)
         moved = self.estimate is not None and estimate.page_no != self.estimate.page_no
         self.estimate = estimate
         page = self.pages[estimate.page_no - 1]

@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import re
+import time
 from contextlib import asynccontextmanager
 
 import anthropic
@@ -106,6 +107,17 @@ def get_document_pdf(doc_id: str):
     if db().get_document(doc_id) is None or not os.path.exists(_pdf_path(doc_id)):
         raise HTTPException(404, "강의자료 파일이 없습니다.")
     return FileResponse(_pdf_path(doc_id), media_type="application/pdf")
+
+
+class NotebookRequest(BaseModel):
+    title: str = ""
+
+
+@app.post("/documents/notebook")
+def create_notebook(body: NotebookRequest):
+    """강의자료 없는 수업: 빈 줄 노트로 시작한다. 교수님이 주제를 바꿀 때마다 쪽이 늘고, 쪽마다 AI가 제목을 붙인다."""
+    title = body.title.strip() or time.strftime("%m월 %d일 수업")
+    return db().get_document(db().create_notebook(title))
 
 
 @app.get("/documents")
@@ -536,7 +548,8 @@ async def _fix_speech(page: dict, speech: str) -> str | None:
 def start_notes_pdf(session_id: str, background: BackgroundTasks):
     """정리 PDF를 (다시) 만든다. 필기를 고친 뒤 다시 부르면 고친 내용으로 새로 만든다."""
     session = _session_or_404(session_id)
-    if not os.path.exists(_pdf_path(session["document_id"])):
+    doc = db().get_document(session["document_id"])
+    if doc["kind"] != "notebook" and not os.path.exists(_pdf_path(session["document_id"])):
         raise HTTPException(404, "강의자료 파일이 없습니다.")
     if _notes_pdf_status(session_id)["status"] != "building":
         app.state.notes_pdf[session_id] = {"status": "building", "done": 0, "total": 0}

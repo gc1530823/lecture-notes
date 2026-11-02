@@ -23,6 +23,8 @@ from .llm import (
     PREDICT_SCHEMA,
     PREDICT_SYSTEM,
     TASK_SCHEMA,
+    TITLE_SCHEMA,
+    TITLE_SYSTEM,
     LLMError,
     clean_predictions,
     _annotation_prompt,
@@ -227,3 +229,7 @@ class OllamaLLM:
     async def catch_up(self, slides: list[dict], speech: str) -> list[str]:
         data = await self._chat(CATCHUP_SYSTEM, _catchup_prompt(slides, speech), CATCHUP_SCHEMA, context_tokens=8192)
         return [p for p in data.get("points", []) if isinstance(p, str) and p.strip()]
+
+    async def title_topic(self, speech: str) -> str:
+        data = await self._chat(TITLE_SYSTEM, f"<speech>\n{speech[-3000:]}\n</speech>", TITLE_SCHEMA, context_tokens=4096)
+        return str(data.get("title", "")).strip()

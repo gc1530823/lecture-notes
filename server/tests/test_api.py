@@ -38,7 +38,7 @@ def receive(ws, kind: str = "annotation_added") -> dict:
     while True:
         event = ws.receive_json()
         assert event["type"] in ("page_estimate", "annotation_added", "task_added", "annotation_preview",
-                                 "previews_resolved", "heard", "spoken"), event
+                                 "previews_resolved", "heard", "spoken", "page_added", "page_title"), event
         if event["type"] == kind:
             return event
 
@@ -472,3 +472,30 @@ def test_catch_up_summarizes_recent_minutes_and_beyond_slides_counts_extra_talk(
     assert 0.5 < beyond["ratio"] < 0.8  # 슬라이드 제목은 있고, 비유 문장은 슬라이드에 없다
     assert beyond["pages"][0]["page_no"] == 1
     assert len(beyond["annotation_ids"]) >= 1
+
+
+def test_notebook_mode_writes_notes_and_opens_titled_pages_per_topic(client):
+    doc = client.post("/documents/notebook", json={"title": "철학 개론"}).json()
+    assert doc["kind"] == "notebook" and len(doc["pages"]) == 1
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "transcript_final", "text": "플라톤은 이데아가 참된 실재라고 봤어요. 이거 시험에 나와요.",
+                      "start_ms": 0, "end_ms": 3000})
+        first = receive_annotation(ws)
+        ws.send_json({"type": "transcript_final", "text": "자 이제 아리스토텔레스 이야기를 해 볼게요. 그는 경험을 중시했어요.",
+                      "start_ms": 5000, "end_ms": 8000})
+        added = receive(ws, "page_added")
+        title = receive(ws, "page_title")
+        second = receive_annotation(ws)
+    assert first["page_no"] == 1 and first["type"] == "exam"
+    assert added["page"]["page_no"] == 2 and second["page_no"] == 2
+    assert title["page"] == 1 and title["title"].startswith("플라톤은")
+    pages = client.get(f"/documents/{doc['id']}").json()["pages"]
+    assert len(pages) == 2
+    assert {d["id"]: d for d in client.get("/documents").json()}[doc["id"]]["kind"] == "notebook"
+
+    client.post(f"/sessions/{session['id']}/end")
+    assert client.post(f"/sessions/{session['id']}/notes-pdf").status_code == 202
+    pdf = client.get(f"/sessions/{session['id']}/notes-pdf")
+    text = "".join(p.get_text() for p in pymupdf.open("pdf", pdf.content)).replace("\xa0", " ")
+    assert "1. 플라톤은" in text and "아리스토텔레스" in text

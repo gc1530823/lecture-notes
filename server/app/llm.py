@@ -190,6 +190,16 @@ ASK_SCHEMA = {
     "additionalProperties": False,
 }
 
+TITLE_SYSTEM = """강의의 한 부분에서 교수님이 한 말(받아쓰기)을 받습니다. 이 부분의 주제를 노트 제목으로 씁니다.
+title에 20자 이내의 짧은 명사구로 씁니다 (예: "경사하강법과 학습률"). 한국어로 씁니다."""
+
+TITLE_SCHEMA = {
+    "type": "object",
+    "properties": {"title": {"type": "string"}},
+    "required": ["title"],
+    "additionalProperties": False,
+}
+
 CATCHUP_SYSTEM = """학생이 수업 중에 잠깐 딴생각을 해서 최근 몇 분을 놓쳤습니다. 그동안 교수님이 한 말(받아쓰기)과 그때의 슬라이드를 받습니다.
 
 - 놓친 내용을 3~5개 항목(points)으로, 수업 흐름 순서대로 짧게 정리합니다. 항목 하나는 한 문장입니다.
@@ -303,6 +313,8 @@ class LLM(Protocol):
     async def predict_questions(self, page: dict, speech: str, notes: list[dict]) -> list[dict]: ...
 
     async def catch_up(self, slides: list[dict], speech: str) -> list[str]: ...
+
+    async def title_topic(self, speech: str) -> str: ...
 
 
 def _organize_prompt(page: dict, speech: str, notes: list[dict]) -> str:
@@ -475,6 +487,11 @@ class ClaudeLLM:
                                _ask_prompt(question, page, recent_speech), ASK_SCHEMA, max_tokens=4000)
         return _response_json(await self.client.beta.messages.create(**params))
 
+    async def title_topic(self, speech: str) -> str:
+        params = self._request(settings.annotation_model, "low", TITLE_SYSTEM, f"<speech>\n{speech}\n</speech>",
+                               TITLE_SCHEMA, max_tokens=1000)
+        return str(_response_json(await self.client.beta.messages.create(**params)).get("title", "")).strip()
+
     async def catch_up(self, slides: list[dict], speech: str) -> list[str]:
         params = self._request(settings.annotation_model, settings.annotation_effort, CATCHUP_SYSTEM,
                                _catchup_prompt(slides, speech), CATCHUP_SCHEMA, max_tokens=4000)
@@ -542,6 +559,9 @@ class FakeLLM:
 
     async def organize_page(self, page: dict, speech: str, notes: list[dict]) -> list[str]:
         return [f"{page['page_no']}쪽 정리: {s}" for s in speech.split(". ") if s][:5]
+
+    async def title_topic(self, speech: str) -> str:
+        return speech.split(".")[0][:20]
 
     async def catch_up(self, slides: list[dict], speech: str) -> list[str]:
         return [f"놓친 내용: {s}" for s in speech.split(". ") if s][:4]

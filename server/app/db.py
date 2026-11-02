@@ -112,6 +112,11 @@ class Database:
         if "pending" not in columns:
             self._conn.execute("ALTER TABLE annotations ADD COLUMN pending INTEGER NOT NULL DEFAULT 0")
             self._conn.commit()
+        # kind: "slides" = 강의자료 PDF, "notebook" = 자료 없는 수업의 줄 노트 (주제마다 한 쪽)
+        columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(documents)")}
+        if "kind" not in columns:
+            self._conn.execute("ALTER TABLE documents ADD COLUMN kind TEXT NOT NULL DEFAULT 'slides'")
+            self._conn.commit()
 
     def _query(self, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
         with self._lock:
@@ -122,6 +127,32 @@ class Database:
             return self._conn.execute(sql, params).lastrowid
 
     # 문서
+
+    # 노트 모드: 강의자료 없이 시작해, 교수님이 주제를 바꿀 때마다 쪽을 하나씩 늘린다 (쪽 text = 그 주제의 제목)
+    NOTEBOOK_PAGE = (595.0, 842.0)  # A4 세로
+
+    def create_notebook(self, title: str) -> str:
+        doc_id = uuid.uuid4().hex
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT INTO documents (id, title, page_count, keywords, created_at, kind) VALUES (?, ?, 1, '[]', ?, 'notebook')",
+                (doc_id, title, time.time()),
+            )
+            self._conn.execute("INSERT INTO pages (document_id, page_no, width, height, text) VALUES (?, 1, ?, ?, '')",
+                               (doc_id, *self.NOTEBOOK_PAGE))
+        return doc_id
+
+    def add_notebook_page(self, doc_id: str) -> dict:
+        with self._lock, self._conn:
+            no = self._conn.execute("SELECT COALESCE(MAX(page_no), 0) + 1 FROM pages WHERE document_id = ?",
+                                    (doc_id,)).fetchone()[0]
+            self._conn.execute("INSERT INTO pages (document_id, page_no, width, height, text) VALUES (?, ?, ?, ?, '')",
+                               (doc_id, no, *self.NOTEBOOK_PAGE))
+            self._conn.execute("UPDATE documents SET page_count = ? WHERE id = ?", (no, doc_id))
+        return self._query("SELECT * FROM pages WHERE document_id = ? AND page_no = ?", (doc_id, no))[0]
+
+    def set_page_text(self, page_id: int, text: str) -> None:
+        self._write("UPDATE pages SET text = ? WHERE id = ?", (text, page_id))
 
     def create_document(self, title: str, pages: list[dict], keywords: list[str]) -> str:
         doc_id = uuid.uuid4().hex
@@ -143,7 +174,7 @@ class Database:
 
     def list_documents(self) -> list[dict]:
         """강의자료 목록 (최근 것부터)과 각 자료의 강의 목록"""
-        docs = self._query("SELECT id, title, page_count, created_at FROM documents ORDER BY created_at DESC")
+        docs = self._query("SELECT id, title, page_count, created_at, kind FROM documents ORDER BY created_at DESC")
         for doc in docs:
             doc["sessions"] = self._query(
                 "SELECT id, status, started_at FROM sessions WHERE document_id = ? ORDER BY started_at DESC",
