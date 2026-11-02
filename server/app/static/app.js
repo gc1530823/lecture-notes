@@ -194,8 +194,8 @@ async function renderDetail(docId) {
         <button class="card item" id="audio" style="align-items:center">
           <span class="badge">${I("headphones")}</span>
           <span style="flex:1"><b>녹음 파일로 정리하기</b><br><small class="muted">iPhone '음성 메모'로 녹음한 파일을 올리면 화면을 꺼 둔 수업도 필기·요약·퀴즈로 만들어요</small></span>
+          <span class="muted">${I("caret-right")}</span>
         </button>
-        <input type="file" id="audiofile" accept="audio/*,.m4a,.mp3,.wav" class="hidden">
         <button class="card item" id="exammap" style="align-items:center">
           <span class="badge">${I("target")}</span>
           <span style="flex:1"><b>시험 예상 지도</b><br><small class="muted">교수님이 강조하고 시험에 나온다고 한 곳을 페이지 위에 표시하고, 예상 문제를 만들어요</small></span>
@@ -209,6 +209,7 @@ async function renderDetail(docId) {
             <span class="muted">${I("caret-right")}</span>
           </button>`).join("") : `<div class="empty-note">아직 녹음한 강의가 없어요</div>`}
       </div>
+      <input type="file" id="audiofile" accept="audio/*,.m4a,.mp3,.wav" class="hidden">
     </div>`;
   $app.querySelector("#back").onclick = () => (location.hash = "#/");
   $app.querySelector("#del").onclick = () => {
