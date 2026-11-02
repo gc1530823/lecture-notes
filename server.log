@@ -1,0 +1,63 @@
+[0;93m2026-11-02 07:22:48.694414603 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+INFO:     Started server process [3048]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:33926 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "POST /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "POST /sessions/from-audio HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/audio/transcriptions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/transcript HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/annotations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/tasks HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:33936 - "POST /sessions/a496aaf674ea4614ba43a4c70bf7ac72/ask HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "POST /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 9초 기다립니다
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 8초 기다립니다
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 5초 기다립니다
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 20초 기다립니다
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 4초 기다립니다
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33936 - "GET /sessions/a496aaf674ea4614ba43a4c70bf7ac72/notes-pdf HTTP/1.1" 200 OK
