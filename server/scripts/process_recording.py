@@ -34,7 +34,7 @@ def wait_for(http: httpx.Client, path: str, done, out: str, label: str, started:
         time.sleep(3)
 
 
-def main(pdf: str, audio: str, out: str, base: str) -> None:
+def main(pdf: str, audio: str, out: str, base: str, ask: str = "") -> None:
     os.makedirs(out, exist_ok=True)
     started = time.monotonic()
     with httpx.Client(base_url=base, timeout=600) as http:
@@ -70,6 +70,13 @@ def main(pdf: str, audio: str, out: str, base: str) -> None:
         log(out, f"받아쓰기 {len(segments)}문장 · 필기 {len(notes)}개 (보류함 {sum(a['pending'] for a in notes)}개) · "
                  f"과제 {len(tasks)}개 · 요약 {result['status']}")
 
+        if ask:
+            # 수업 중 질문을 한 번 해 본다 (받아쓰기가 가장 많은 페이지에서)
+            pages = [s["page_no"] for s in segments if s["page_no"]]
+            page_no = max(set(pages), key=pages.count) if pages else 1
+            note = http.post(f"/sessions/{sid}/ask", json={"question": ask, "page_no": page_no}).raise_for_status().json()
+            log(out, f"[질문 {page_no}쪽] {note['text']}")
+
         http.post(f"/sessions/{sid}/notes-pdf").raise_for_status()
         status = wait_for(http, f"/sessions/{sid}/notes-pdf/status", lambda r: r["status"] != "building",
                           out, "정리 PDF", started)
@@ -85,5 +92,6 @@ if __name__ == "__main__":
     parser.add_argument("audio")
     parser.add_argument("out")
     parser.add_argument("--url", default="http://localhost:8000")
+    parser.add_argument("--ask", default="", help="정리 뒤 수업 중 질문을 한 번 해 본다 (예: '쉽게 다시 설명해 줘')")
     args = parser.parse_args()
-    main(args.pdf, args.audio, args.out, args.url)
+    main(args.pdf, args.audio, args.out, args.url, args.ask)

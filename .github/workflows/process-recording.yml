@@ -56,7 +56,8 @@ jobs:
           PDF=$(find /tmp/inbox -maxdepth 1 -iname '*.pdf' | head -1)
           AUDIO=$(find /tmp/inbox -maxdepth 1 -type f ! -iname '*.pdf' ! -name '.*' ! -iname '*.md' | head -1)
           set -o pipefail
-          python scripts/process_recording.py "$PDF" "$AUDIO" /tmp/result 2>&1 | tee /tmp/run.txt
+          ASK=""; [ "$NAME" = "sample" ] && ASK="쉽게 다시 설명해 줘"
+          python scripts/process_recording.py "$PDF" "$AUDIO" /tmp/result --ask "$ASK" 2>&1 | tee /tmp/run.txt
           cp /tmp/server.log /tmp/result/server.log
       - name: Upload result
         if: always()
