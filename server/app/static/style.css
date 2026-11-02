@@ -385,3 +385,47 @@ textarea.draft { width: 100%; min-height: 260px; border: 0; border-radius: 18px;
 .nb-play { padding: 2px 4px; }
 .nb-play .ic { width: 17px; height: 17px; }
 .nb-beyond { font: 800 11px/1 ui-rounded, system-ui, sans-serif; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); padding: 3px 6px; border-radius: 8px; vertical-align: 3px; }
+
+/* 공부하기 */
+.tabs { display: flex; gap: 6px; overflow-x: auto; margin: 0 -4px 14px; padding: 2px 4px; scrollbar-width: none; }
+.tab { flex: none; display: flex; align-items: center; gap: 5px; padding: 8px 12px; border-radius: 14px; font-size: 13px; font-weight: 800; color: var(--ink-2); background: var(--line); }
+.tab.on { color: #fff; background: var(--accent); }
+.chip.pagechip { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); padding: 4px 10px; font-size: 12px; }
+.flash { position: relative; display: block; width: 100%; height: 230px; perspective: 900px; }
+.flash .face {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  padding: 22px; border-radius: 20px; font-size: 20px; font-weight: 800; line-height: 1.45; text-align: center;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden; transition: transform .45s cubic-bezier(.3,1.2,.5,1); box-shadow: var(--shadow);
+}
+.flash .front { background: var(--explanation); color: #3a2e00; }
+.flash .front small { font-size: 12px; font-weight: 700; opacity: .55; }
+.flash .back { background: var(--card); color: var(--ink); transform: rotateY(180deg); font-weight: 600; font-size: 17px; }
+.flash.flipped .front { transform: rotateY(-180deg); }
+.flash.flipped .back { transform: rotateY(0); }
+.done-card { display: grid; place-items: center; gap: 10px; padding: 30px; }
+.done-card .ic { width: 48px; height: 48px; color: #2fb35a; }
+.mindmap { overflow-x: auto; padding: 6px 0 16px; }
+.mindmap ul { list-style: none; margin: 0; padding: 0 0 0 26px; position: relative; }
+.mindmap > ul { padding-left: 0; }
+.mindmap li { position: relative; padding: 5px 0 5px 14px; }
+.mindmap li::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; border-left: 2px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+.mindmap li::after { content: ""; position: absolute; left: 0; top: 20px; width: 12px; border-top: 2px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+.mindmap li:last-child::before { bottom: auto; height: 20px; }
+.mindmap > ul > li::before, .mindmap > ul > li::after { display: none; }
+.mm-node { padding: 7px 12px; border-radius: 12px; font-size: 14px; font-weight: 700; white-space: nowrap; background: var(--card); box-shadow: var(--shadow); color: var(--ink); }
+.mm-node small { color: var(--accent); font-size: 11px; }
+.mm-node.d0 { background: var(--accent); color: #fff; font-size: 16px; font-weight: 900; }
+.mm-node.d1 { background: var(--explanation); color: #3a2e00; }
+.search { width: 100%; height: 42px; padding: 0 14px; margin-bottom: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 15px; }
+.concept { padding: 14px 16px; margin-bottom: 10px; }
+.concept p { margin: 6px 0 0; font-size: 14px; line-height: 1.5; }
+.cloze { padding: 14px 16px; margin-bottom: 10px; }
+.cloze p { margin: 0 0 8px; font-size: 15px; line-height: 1.6; }
+.cloze.done { opacity: .55; }
+.cloze .imp .ic { color: var(--exam-ink); width: 16px; height: 16px; margin-right: 4px; }
+.blank { padding: 0 8px; border-radius: 6px; font-weight: 900; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.blank.shown { color: var(--exam-ink); background: color-mix(in srgb, var(--exam-ink) 10%, transparent); }
+.chat { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; }
+.bubble { max-width: 86%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.55; white-space: pre-line; }
+.bubble.user { align-self: flex-end; color: #fff; background: var(--accent); border-bottom-right-radius: 4px; }
+.bubble.assistant { align-self: flex-start; background: var(--card); box-shadow: var(--shadow); border-bottom-left-radius: 4px; }

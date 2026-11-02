@@ -391,7 +391,7 @@ async function renderLecture(docId, sessionId) {
 
   $app.innerHTML = `
     <div class="screen lecture" id="lecture">
-      <div class="topbar"><button class="icon-btn" id="back">${I("caret-left")}</button><div class="title" id="title"></div><button class="icon-btn" id="a11y" title="자막 모드 (크게 보기·중요할 때 진동)" aria-pressed="false">${I("closed-captioning")}</button><button class="icon-btn" id="notespdf" title="강의 정리 PDF">${I("file-pdf")}</button><button class="icon-btn" id="sum" title="요약·퀴즈">${I("sparkle")}</button></div>
+      <div class="topbar"><button class="icon-btn" id="back">${I("caret-left")}</button><div class="title" id="title"></div><button class="icon-btn" id="a11y" title="자막 모드 (크게 보기·중요할 때 진동)" aria-pressed="false">${I("closed-captioning")}</button><button class="icon-btn" id="notespdf" title="강의 정리 PDF">${I("file-pdf")}</button><button class="icon-btn" id="sum" title="공부하기 (요약·퀴즈·플래시카드·마인드맵·개념 메모·암기·AI 튜터)">${I("sparkle")}</button></div>
       <div class="pager"><div class="page" id="page"><canvas></canvas><div class="marks"></div></div></div>
       <div class="board-head">
         <h2 id="bh"></h2><span class="count" id="bc"></span><span class="spacer"></span>
@@ -831,7 +831,7 @@ async function renderLecture(docId, sessionId) {
       ? `<span class="wave">${[0.45, 0.8, 1, 0.7, 0.5].map((h, i) => `<i style="height:${h * 22}px;animation-delay:${i * 0.12}s"></i>`).join("")}</span><span class="t">00:00</span>`
       : "";
     if (state.recording) $("#main").innerHTML = `<button class="rec on" id="rec" aria-label="강의 끝내기"><span class="stop"></span></button>`;
-    else if (state.ended) $("#main").innerHTML = `<button class="primary" id="rec" style="height:48px">${I("sparkle")} 요약·퀴즈</button>`;
+    else if (state.ended) $("#main").innerHTML = `<button class="primary" id="rec" style="height:48px">${I("graduation-cap")} 공부하기</button>`;
     else $("#main").innerHTML = `<button class="rec" id="rec" aria-label="녹음 시작">${I("microphone")}</button>`;
     $("#rec").onclick = () => (state.recording ? stopLecture() : state.ended ? openSummary() : startLecture());
   }
@@ -1116,17 +1116,190 @@ async function renderLecture(docId, sessionId) {
       <p class="muted" style="margin-top:10px"><small>열린 PDF에서 공유 버튼을 누르면 파일·굿노트 등에 저장할 수 있어요.</small></p>`;
   }
 
-  async function openSummary() {
-    const { el } = sheet(`<h3>요약·퀴즈</h3><div id="sumbox"><p class="muted"><span class="spin"></span> 필기를 모아 요약과 퀴즈를 만드는 중…</p></div>`);
+  // --- 공부하기: 요약·퀴즈 · 플래시카드 · 마인드맵 · 개념 메모 · 암기 · AI 튜터 ---
+
+  const STUDY_TABS = [
+    ["summary", "sparkle", "요약·퀴즈"], ["flashcards", "cards", "플래시카드"], ["mindmap", "tree-structure", "마인드맵"],
+    ["concepts", "book-open-text", "개념 메모"], ["cloze", "brain", "암기"], ["tutor", "chats-circle", "AI 튜터"],
+  ];
+
+  function openSummary(tab = "summary") {
+    const { el } = sheet(`<h3>공부하기</h3>
+      <div class="tabs">${STUDY_TABS.map(([k, icon, label]) => `<button class="tab" data-tab="${k}">${I(icon)} ${label}</button>`).join("")}</div>
+      <div id="sumbox"></div>`);
     const box = el.querySelector("#sumbox");
-    for (let tries = 0; tries < 200 && document.body.contains(el); tries++) {
+    const show = (k) => {
+      el.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === k));
+      box.innerHTML = "";
+      ({ summary: showSummary, flashcards: showFlashcards, mindmap: showMindmap, concepts: showConcepts,
+         cloze: showCloze, tutor: showTutor })[k](box, el);
+    };
+    el.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => show(b.dataset.tab)));
+    show(tab);
+  }
+
+  async function showSummary(box, el) {
+    box.innerHTML = `<p class="muted"><span class="spin"></span> 필기를 모아 요약과 퀴즈를 만드는 중…</p>`;
+    for (let tries = 0; tries < 200 && document.body.contains(el) && box.isConnected; tries++) {
       let res;
       try { res = await api("GET", `/sessions/${state.sessionId}/summary`); } catch (e) { box.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+      if (!box.isConnected || !box.querySelector(".spin")) return;
       if (res.summary) return drawSummary(box, res.summary);
       if (res.status === "failed") { box.innerHTML = `<p class="muted">요약을 만들지 못했어요.</p>`; return; }
       if (res.status === "recording") { box.innerHTML = `<p class="muted">강의를 끝내면 요약이 만들어져요.</p>`; return; }
       await new Promise((r) => setTimeout(r, 3000));
     }
+  }
+
+  // AI로 만드는 공부 도구: 없으면 만들기 버튼, 만드는 중이면 진행률, 다 되면 그린다
+  async function loadStudy(kind, box, draw, label) {
+    const url = `/sessions/${state.sessionId}/study/${kind}`;
+    const token = Symbol();
+    box.dataset.kind = kind;
+    box._token = token;
+    const alive = () => box.isConnected && box._token === token;
+    let res;
+    try { res = await api("GET", url); } catch (e) { box.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+    while (alive()) {
+      if (res.status === "ready") {
+        draw(res.body);
+        if (res.stale) box.insertAdjacentHTML("afterbegin", `<button class="chip remake" style="color:var(--accent)">${I("sparkle")} 새 필기로 다시 만들기</button>`);
+        const remake = box.querySelector(".remake");
+        if (remake) remake.onclick = async () => { await api("POST", url); loadStudy(kind, box, draw, label); };
+        return;
+      }
+      if (res.status === "none") {
+        box.innerHTML = `<button class="primary" id="make" style="width:100%;height:52px">${I("sparkle")} ${label} 만들기</button>`;
+        box.querySelector("#make").onclick = async () => {
+          try { res = await api("POST", url); } catch (e) { toast(e.message); return; }
+          loadStudy(kind, box, draw, label);
+        };
+        return;
+      }
+      box.innerHTML = `<p class="muted"><span class="spin"></span> AI가 ${label} 만드는 중…${res.total ? ` (${res.done}/${res.total}쪽)` : ""}</p>`;
+      await new Promise((r) => setTimeout(r, 1500));
+      try { res = await api("GET", url); } catch { return; }
+    }
+  }
+
+  function gotoChip(no) {
+    return no ? `<button class="chip pagechip" data-goto="${no}">${no}쪽</button>` : "";
+  }
+
+  function bindGoto(box) {
+    box.querySelectorAll("[data-goto]").forEach((b) => (b.onclick = () => { document.querySelector(".sheet-bg")?.click(); goTo(Number(b.dataset.goto)); }));
+  }
+
+  function showFlashcards(box) {
+    loadStudy("flashcards", box, (cards) => {
+      if (!cards.length) { box.innerHTML = `<p class="muted">만들 카드가 없었어요.</p>`; return; }
+      const key = `fc.${state.sessionId}`;
+      const known = new Set(JSON.parse(prefs.get(key) || "[]"));
+      let onlyUnknown = false, i = 0, flipped = false;
+      const deck = () => cards.map((c, n) => ({ ...c, n })).filter((c) => !onlyUnknown || !known.has(c.n));
+      const draw = () => {
+        const list = deck();
+        if (!list.length) { box.innerHTML = `<div class="done-card">${I("check-circle")}<b>다 외웠어요!</b><button class="chip" id="reset">처음부터</button></div>`;
+          box.querySelector("#reset").onclick = () => { known.clear(); prefs.set(key, "[]"); onlyUnknown = false; i = 0; draw(); }; return; }
+        i = (i + list.length) % list.length;
+        const c = list[i];
+        box.innerHTML = `<div class="row" style="justify-content:space-between;margin-bottom:10px">
+            <small class="muted">${i + 1} / ${list.length} · 알아요 ${known.size}</small>
+            <button class="chip" id="only" style="color:var(--accent)">${onlyUnknown ? "전체 보기" : "모르는 것만"}</button></div>
+          <button class="flash${flipped ? " flipped" : ""}" id="card"><span class="face front">${esc(c.front)}<small>눌러서 뒤집기</small></span>
+            <span class="face back">${esc(c.back)}</span></button>
+          <div class="row" style="margin-top:14px;gap:10px">${gotoChip(c.page_no)}<span style="flex:1"></span>
+            <button class="chip" id="no" style="color:var(--exam-ink)">${I("x")} 몰라요</button>
+            <button class="chip" id="yes" style="color:#2fb35a">${I("check-circle")} 알아요</button></div>`;
+        box.querySelector("#card").onclick = () => { flipped = !flipped; box.querySelector("#card").classList.toggle("flipped", flipped); };
+        box.querySelector("#only").onclick = () => { onlyUnknown = !onlyUnknown; i = 0; flipped = false; draw(); };
+        box.querySelector("#no").onclick = () => { known.delete(c.n); prefs.set(key, JSON.stringify([...known])); i++; flipped = false; draw(); };
+        box.querySelector("#yes").onclick = () => { known.add(c.n); prefs.set(key, JSON.stringify([...known])); if (!onlyUnknown) i++; flipped = false; draw(); };
+        bindGoto(box);
+      };
+      draw();
+    }, "플래시카드");
+  }
+
+  function showMindmap(box) {
+    loadStudy("mindmap", box, (map) => {
+      const node = (n, depth) => `<li><button class="mm-node d${depth}" ${n.page_no ? `data-goto="${n.page_no}"` : ""}>${esc(n.label)}${n.page_no ? ` <small>${n.page_no}쪽</small>` : ""}</button>
+        ${n.children?.length ? `<ul>${n.children.map((c) => node(c, depth + 1)).join("")}</ul>` : ""}</li>`;
+      box.innerHTML = `<p class="muted" style="margin-top:0">가지를 누르면 그 쪽으로 가요. 옆으로 밀어서 볼 수 있어요.</p><div class="mindmap"><ul>${node(map, 0)}</ul></div>`;
+      bindGoto(box);
+    }, "마인드맵");
+  }
+
+  function showConcepts(box) {
+    loadStudy("concepts", box, (items) => {
+      box.innerHTML = `<input id="csearch" class="search" placeholder="개념 찾기" autocomplete="off"><div id="clist"></div>`;
+      const draw = (q = "") => {
+        const shown = items.filter((c) => !q || `${c.term} ${c.definition} ${c.example}`.includes(q));
+        box.querySelector("#clist").innerHTML = shown.map((c) => `<div class="card concept">
+            <div class="row"><b style="flex:1">${esc(c.term)}</b>${gotoChip(c.page_no)}</div>
+            <p>${esc(c.definition)}</p>${c.example ? `<p class="muted">${I("lightbulb")} ${esc(c.example)}</p>` : ""}</div>`).join("")
+          || `<p class="muted">찾는 개념이 없어요.</p>`;
+        bindGoto(box);
+      };
+      box.querySelector("#csearch").oninput = (e) => draw(e.target.value.trim());
+      draw();
+    }, "개념 메모");
+  }
+
+  async function showCloze(box) {
+    let res;
+    try { res = await api("GET", `/sessions/${state.sessionId}/study/cloze`); } catch (e) { box.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+    const items = res.body;
+    if (!items.length) { box.innerHTML = `<p class="muted">빈칸으로 낼 용어가 있는 필기가 아직 없어요.</p>`; return; }
+    const key = `cz.${state.sessionId}`;
+    const done = new Set(JSON.parse(prefs.get(key) || "[]"));
+    box.innerHTML = `<p class="muted" style="margin-top:0">빈칸을 눌러 답을 확인하고, 외운 문장은 체크하세요. 시험·강조 필기가 먼저 나와요.</p>
+      ${items.map((c, n) => `<div class="card cloze${done.has(n) ? " done" : ""}" data-n="${n}">
+        <p>${c.important ? `<span class="imp">${I("star")}</span>` : ""}${esc(c.text).replace("____", `<button class="blank" data-a="${esc(c.answer)}">____</button>`)}</p>
+        <div class="row">${gotoChip(c.page_no)}<span style="flex:1"></span><button class="chip memo">${I(done.has(n) ? "check-circle" : "circle")} 외웠어요</button></div></div>`).join("")}`;
+    box.querySelectorAll(".blank").forEach((b) => (b.onclick = () => { b.textContent = b.dataset.a; b.classList.add("shown"); }));
+    box.querySelectorAll(".cloze").forEach((card) => (card.querySelector(".memo").onclick = () => {
+      const n = Number(card.dataset.n);
+      done.has(n) ? done.delete(n) : done.add(n);
+      prefs.set(key, JSON.stringify([...done]));
+      card.classList.toggle("done", done.has(n));
+      card.querySelector(".memo").innerHTML = `${I(done.has(n) ? "check-circle" : "circle")} 외웠어요`;
+    }));
+    bindGoto(box);
+  }
+
+  function showTutor(box) {
+    const key = `tutor.${state.sessionId}`;
+    const messages = JSON.parse(prefs.get(key) || "[]");
+    const quick = ["이 강의 핵심 3가지 설명해 줘", "나한테 문제 하나 내 줘", "제일 헷갈리는 개념 쉽게 설명해 줘"];
+    box.innerHTML = `<div class="chat" id="chat"></div>
+      <div class="row" style="flex-wrap:wrap;margin:10px 0">${quick.map((q) => `<button class="chip" data-q="${esc(q)}" style="color:var(--accent)">${esc(q)}</button>`).join("")}</div>
+      <form id="tform" class="row"><input id="tq" class="search" placeholder="강의 내용으로 무엇이든 물어보세요" autocomplete="off" style="flex:1;margin:0">
+        <button class="primary" style="height:44px;padding:0 18px">보내기</button></form>`;
+    const chat = box.querySelector("#chat");
+    const draw = () => {
+      chat.innerHTML = messages.length ? messages.map((m) => `<div class="bubble ${m.role}">${esc(m.content)}
+        ${m.pages?.length ? `<div class="row" style="flex-wrap:wrap;margin-top:6px">${m.pages.map(gotoChip).join("")}</div>` : ""}</div>`).join("")
+        : `<p class="muted">${I("chats-circle")} 이 강의의 슬라이드와 교수님 설명을 아는 튜터예요. 모르는 걸 묻거나 문제를 내 달라고 해 보세요.</p>`;
+      chat.scrollTop = chat.scrollHeight;
+      bindGoto(box);
+    };
+    const send = async (text) => {
+      if (!text) return;
+      messages.push({ role: "user", content: text });
+      draw();
+      chat.insertAdjacentHTML("beforeend", `<div class="bubble assistant pending"><span class="spin"></span> 생각하는 중…</div>`);
+      chat.scrollTop = chat.scrollHeight;
+      try {
+        const res = await api("POST", `/sessions/${state.sessionId}/tutor`, { messages: messages.map(({ role, content }) => ({ role, content })) });
+        messages.push({ role: "assistant", content: res.answer, pages: res.pages });
+      } catch (e) { messages.pop(); toast(e.message); }
+      prefs.set(key, JSON.stringify(messages.slice(-30)));
+      draw();
+    };
+    box.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => send(b.dataset.q)));
+    box.querySelector("#tform").onsubmit = (e) => { e.preventDefault(); const q = box.querySelector("#tq"); send(q.value.trim()); q.value = ""; };
+    draw();
   }
 
   function drawSummary(box, s) {
