@@ -175,6 +175,21 @@ ORGANIZE_SCHEMA = {
     "additionalProperties": False,
 }
 
+ASK_SYSTEM = """당신은 수업을 같이 듣는 친절한 조교입니다. 학생이 수업 중에 방금 들은 내용을 묻습니다.
+지금 보는 슬라이드(문단마다 [번호]), 최근 2분 동안 교수님이 한 말(받아쓰기), 학생의 질문을 받습니다.
+
+- answer: 질문에 2~4문장으로 쉽게 답합니다. 교수님이 방금 한 설명을 먼저 근거로 삼고, 쉬운 말과 짧은 예시로 풀어 줍니다.
+  교수님 설명에 없는 내용을 덧붙일 때는 "(교수님 설명 외)"라고 표시합니다. 모르면 지어내지 말고 모른다고 합니다.
+- block_id: 답과 가장 관련 있는 슬라이드 문단 번호. 맞는 문단이 없으면 -1.
+한국어로 씁니다."""
+
+ASK_SCHEMA = {
+    "type": "object",
+    "properties": {"answer": {"type": "string"}, "block_id": {"type": "integer"}},
+    "required": ["answer", "block_id"],
+    "additionalProperties": False,
+}
+
 FIX_SPEECH_SYSTEM = """강의 받아쓰기를 교정합니다. 슬라이드 텍스트와 받아쓰기 한 페이지 분량을 받습니다.
 
 - 잘못 들린 단어만 고칩니다: 비슷한 소리로 잘못 적힌 전문용어("유런" → "뉴런"), 띄어쓰기가 틀린 용어.
@@ -229,11 +244,20 @@ class LLM(Protocol):
 
     async def organize_page(self, page: dict, speech: str, notes: list[dict]) -> list[str]: ...
 
+    async def ask(self, question: str, page: dict, recent_speech: str) -> dict: ...
+
 
 def _organize_prompt(page: dict, speech: str, notes: list[dict]) -> str:
     lines = "\n".join(f"- ({a['type']}) {a['text']}" for a in notes) or "(없음)"
     return (f'<page no="{page["page_no"]}">\n<slide>\n{page["text"] or "(텍스트 없음)"}\n</slide>\n'
             f"<speech>\n{speech or '(없음)'}\n</speech>\n<notes>\n{lines}\n</notes>\n</page>")
+
+
+def _ask_prompt(question: str, page: dict, recent_speech: str) -> str:
+    blocks = "\n".join(f"[{b['id']}] {b['text']}" for b in page.get("blocks", [])) or "(텍스트 없음)"
+    return (f'<slide page_no="{page["page_no"]}">\n{blocks}\n</slide>\n'
+            f"<recent_speech>\n{recent_speech or '(아직 받아쓰기 없음)'}\n</recent_speech>\n"
+            f"<question>\n{question}\n</question>")
 
 
 def _fix_speech_prompt(page: dict, speech: str) -> str:
@@ -388,6 +412,11 @@ class ClaudeLLM:
             response = await stream.get_final_message()
         return [p for p in _response_json(response).get("points", []) if isinstance(p, str) and p.strip()]
 
+    async def ask(self, question: str, page: dict, recent_speech: str) -> dict:
+        params = self._request(settings.annotation_model, settings.annotation_effort, ASK_SYSTEM,
+                               _ask_prompt(question, page, recent_speech), ASK_SCHEMA, max_tokens=4000)
+        return _response_json(await self.client.beta.messages.create(**params))
+
     async def fix_speech(self, page: dict, speech: str) -> str:
         params = self._request(settings.summary_model, "low", FIX_SPEECH_SYSTEM, _fix_speech_prompt(page, speech),
                                FIX_SPEECH_SCHEMA, max_tokens=16000)
@@ -442,6 +471,10 @@ class FakeLLM:
 
     async def organize_page(self, page: dict, speech: str, notes: list[dict]) -> list[str]:
         return [f"{page['page_no']}쪽 정리: {s}" for s in speech.split(". ") if s][:5]
+
+    async def ask(self, question: str, page: dict, recent_speech: str) -> dict:
+        block_id = page["blocks"][0]["id"] if page.get("blocks") else -1
+        return {"answer": f"'{question}'에 대한 답: {recent_speech[-60:]}", "block_id": block_id}
 
 
 def make_llm() -> LLM:

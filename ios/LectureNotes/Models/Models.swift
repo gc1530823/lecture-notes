@@ -34,6 +34,8 @@ enum AnnotationType: String, Codable, CaseIterable {
     case explanation, example, emphasis, exam, notice
     /// 교수님 발언이 아니라 AI가 덧붙인 배경지식·공부 팁
     case tip
+    /// 수업 중 "방금 뭐라고?"로 물어본 질문과 답
+    case qa
 
     var label: String {
         switch self {
@@ -43,6 +45,7 @@ enum AnnotationType: String, Codable, CaseIterable {
         case .exam: "시험"
         case .notice: "공지"
         case .tip: "AI 팁"
+        case .qa: "질문"
         }
     }
 
@@ -54,6 +57,7 @@ enum AnnotationType: String, Codable, CaseIterable {
         case .exam: .red
         case .notice: .purple
         case .tip: .cyan
+        case .qa: .pink
         }
     }
 
@@ -65,6 +69,7 @@ enum AnnotationType: String, Codable, CaseIterable {
         case .exam: "star.fill"
         case .notice: "megaphone"
         case .tip: "sparkles"
+        case .qa: "hand.raised.fill"
         }
     }
 }
@@ -104,7 +109,8 @@ struct Annotation: Codable, Identifiable, Hashable {
         sessionId = try c.decode(String.self, forKey: .sessionId)
         pageNo = try c.decode(Int.self, forKey: .pageNo)
         blockId = try c.decodeIfPresent(Int.self, forKey: .blockId)
-        type = try c.decode(AnnotationType.self, forKey: .type)
+        // 서버에 새 종류가 생겨도 앱이 멈추지 않게, 모르는 종류는 보충설명으로 보여 준다
+        type = (try? c.decode(AnnotationType.self, forKey: .type)) ?? .explanation
         text = try c.decode(String.self, forKey: .text)
         startMs = try c.decode(Int.self, forKey: .startMs)
         editedByUser = try c.decode(Bool.self, forKey: .editedByUser)

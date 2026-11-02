@@ -11,6 +11,7 @@ const TYPES = {
   exam: { label: "시험", icon: "⭐" },
   notice: { label: "공지", icon: "📣" },
   tip: { label: "AI 팁", icon: "✨" },
+  qa: { label: "질문", icon: "🙋" },
 };
 const TASK_KINDS = {
   in_class: { label: "수업 중 과제", icon: "⏱️", color: "var(--record)" },
@@ -274,6 +275,7 @@ async function renderLecture(docId, sessionId) {
       </div>
       <div class="board" id="board"></div>
       <div class="dock">
+        <button class="ask hidden" id="ask">🙋 방금 뭐라고?</button>
         <div class="caption hidden" id="caption"><span class="dot"></span><span id="captext">듣고 있어요…</span></div>
         <div class="bar">
           <div class="pages"><button id="prev">‹</button><span id="pno"></span><button id="next">›</button></div>
@@ -424,6 +426,7 @@ async function renderLecture(docId, sessionId) {
   $("#pendchip").onclick = () => openPending();
   $("#taskchip").onclick = () => openTasks();
   $("#sum").onclick = () => state.sessionId ? openSummary() : toast("강의를 녹음하고 끝내면 요약과 퀴즈가 만들어져요");
+  $("#ask").onclick = openAsk;
   $("#notespdf").onclick = () => state.sessionId ? openNotesPdf() : toast("강의를 녹음하면 필기를 붙인 정리 PDF를 만들 수 있어요");
 
   const onResize = () => { if (Math.abs($("#page").clientWidth - state.pageWidth) > 4) drawPage(); };
@@ -642,6 +645,7 @@ async function renderLecture(docId, sessionId) {
 
   function drawControls() {
     $("#caption").classList.toggle("hidden", !state.recording);
+    $("#ask").classList.toggle("hidden", !state.sessionId);
     $("#status").classList.toggle("on", state.recording);
     $("#status").innerHTML = state.recording
       ? `<span class="wave">${[0.45, 0.8, 1, 0.7, 0.5].map((h, i) => `<i style="height:${h * 22}px;animation-delay:${i * 0.12}s"></i>`).join("")}</span><span class="t">00:00</span>`
@@ -650,6 +654,38 @@ async function renderLecture(docId, sessionId) {
     else if (state.ended) $("#main").innerHTML = `<button class="primary" id="rec" style="height:48px">✨ 요약·퀴즈</button>`;
     else $("#main").innerHTML = `<button class="rec" id="rec" aria-label="녹음 시작">🎙️</button>`;
     $("#rec").onclick = () => (state.recording ? stopLecture() : state.ended ? openSummary() : startLecture());
+  }
+
+  // --- "방금 뭐라고?": 수업 중 질문 → 지금 페이지의 관련 문단 옆에 질문 포스트잇 ---
+
+  const QUICK_QUESTIONS = ["방금 뭐라고 했어?", "쉽게 다시 설명해 줘", "예시 하나만 들어 줘", "이거 시험에 어떻게 나올까?"];
+
+  function openAsk() {
+    const page = state.page;
+    const { el, close } = sheet(`<h3>🙋 방금 뭐라고?</h3>
+      <p class="muted">최근 2분 동안의 설명과 ${page}쪽 자료를 보고 답해서, 관련 문단 옆에 붙여 줘요.</p>
+      <div class="row" style="flex-wrap:wrap;margin-bottom:12px">${QUICK_QUESTIONS.map((q) =>
+        `<button class="chip" data-q="${esc(q)}" style="color:var(--qa-ink);background:color-mix(in srgb,var(--qa-ink) 12%,transparent)">${esc(q)}</button>`).join("")}</div>
+      <form id="askform" class="row"><input id="askq" placeholder="궁금한 걸 적어도 돼요" autocomplete="off" style="flex:1">
+        <button class="primary" style="height:44px;padding:0 18px">묻기</button></form>`);
+    const send = (question) => { close(); askQuestion(question, page); };
+    el.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => send(b.dataset.q)));
+    el.querySelector("#askform").onsubmit = (e) => { e.preventDefault(); send(el.querySelector("#askq").value.trim()); };
+  }
+
+  async function askQuestion(question, page) {
+    const button = $("#ask");
+    button.disabled = true;
+    button.innerHTML = `<span class="spin"></span> 답을 찾는 중…`;
+    try {
+      const note = await api("POST", `/sessions/${state.sessionId}/ask`, { question, page_no: page });
+      state.notes.push(note);
+      if (state.page !== note.page_no) await goTo(note.page_no);
+      if (navigator.vibrate) navigator.vibrate(15);
+      flash(note.id);
+    } catch (e) { toast(e.message); }
+    button.disabled = false;
+    button.textContent = "🙋 방금 뭐라고?";
   }
 
   // --- 필기 수정·삭제 ---

@@ -8,6 +8,8 @@ struct LectureView: View {
     @State private var editing: Annotation?
     @State private var showingSummary = false
     @State private var showingNotesPDF = false
+    @State private var showingAsk = false
+    @State private var asking = false
     @State private var showingPending = false
     @State private var showingTasks = false
     @State private var openTask: LectureTask?
@@ -22,13 +24,14 @@ struct LectureView: View {
         // 데모 강의 화면은 3번 필기를 펼친 상태로 보여 준다
         _selectedAnnotationID = State(initialValue: demo == .lecture ? 3 : nil)
         _showingNotesPDF = State(initialValue: demo == .notesPDF)
+        _showingAsk = State(initialValue: demo == .ask)
     }
 
     private static func makeModel(document: LocalDocument, store: DocumentStore, session: SavedSession?,
                                   demo: DemoScreen?) -> LectureViewModel {
         let model = LectureViewModel(document: document, store: store, existingSession: session)
         switch demo {
-        case .lecture, .notesPDF:
+        case .lecture, .notesPDF, .ask:
             model.applyDemo(annotations: DemoData.annotations, phase: .ended, caption: nil, tasks: DemoData.tasks)
         case .recording:
             model.applyDemo(annotations: Array(DemoData.annotations.prefix(3)), phase: .recording,
@@ -69,6 +72,17 @@ struct LectureView: View {
                     Button { showingSummary = true } label: { Image(systemName: "sparkles.rectangle.stack") }
                 }
             }
+        }
+        .sheet(isPresented: $showingAsk) {
+            AskSheet(pageNo: model.currentPage) { question in
+                showingAsk = false
+                asking = true
+                Task {
+                    await model.ask(question)
+                    asking = false
+                }
+            }
+            .presentationDetents([.height(340)])
         }
         .sheet(isPresented: $showingNotesPDF) {
             if let session = model.session {
@@ -181,6 +195,10 @@ struct LectureView: View {
             .frame(maxHeight: .infinity)
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 10) {
+                    if model.session != nil {
+                        AskButton(asking: asking) { showingAsk = true }
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
                     if model.phase == .recording {
                         CaptionPill(recorder: model.recorder)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -312,6 +330,93 @@ struct LectureView: View {
 }
 
 /// 녹음 시작·끝 버튼. 녹음 중에는 빨간 원이 숨 쉬듯 퍼진다.
+/// "방금 뭐라고?" 버튼. 답을 기다리는 동안은 돌아가는 표시를 보여 준다.
+private struct AskButton: View {
+    let asking: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if asking {
+                    ProgressView().tint(.white)
+                    Text("답을 찾는 중…")
+                } else {
+                    Image(systemName: "hand.raised.fill")
+                    Text("방금 뭐라고?")
+                }
+            }
+            .font(.subheadline.weight(.heavy))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(AnnotationType.qa.inkColor.gradient, in: Capsule())
+            .shadow(color: AnnotationType.qa.inkColor.opacity(0.35), radius: 8, y: 4)
+        }
+        .buttonStyle(PressableStyle(scale: 0.95))
+        .disabled(asking)
+        .sensoryFeedback(.impact(weight: .light), trigger: asking)
+    }
+}
+
+/// 질문 고르기·적기. 비워서 보내면 서버가 "방금 설명 다시"로 묻는다.
+private struct AskSheet: View {
+    let pageNo: Int
+    let onAsk: (String) -> Void
+    @State private var question = ""
+    private let quick = ["방금 뭐라고 했어?", "쉽게 다시 설명해 줘", "예시 하나만 들어 줘", "이거 시험에 어떻게 나올까?"]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("방금 뭐라고?", systemImage: "hand.raised.fill")
+                .font(.title3.weight(.bold))
+                .foregroundStyle(AnnotationType.qa.inkColor)
+            Text("최근 2분 동안의 설명과 \(pageNo)쪽 자료를 보고 답해서, 관련 문단 옆에 붙여 줘요.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            FlowChips(items: quick) { onAsk($0) }
+            HStack(spacing: 10) {
+                TextField("궁금한 걸 적어도 돼요", text: $question)
+                    .textFieldStyle(.roundedBorder)
+                    .submitLabel(.send)
+                    .onSubmit { onAsk(question) }
+                Button("묻기") { onAsk(question) }
+                    .buttonStyle(.borderedProminent)
+                    .tint(AnnotationType.qa.inkColor)
+            }
+        }
+        .padding(20)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .fontDesign(.rounded)
+    }
+}
+
+/// 빠른 질문 칩 두 줄
+private struct FlowChips: View {
+    let items: [String]
+    let onTap: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(stride(from: 0, to: items.count, by: 2)), id: \.self) { start in
+                HStack(spacing: 8) {
+                    ForEach(items[start..<min(start + 2, items.count)], id: \.self) { item in
+                        Button { onTap(item) } label: {
+                            Text(item)
+                                .font(.footnote.weight(.bold))
+                                .foregroundStyle(AnnotationType.qa.inkColor)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(AnnotationType.qa.inkColor.opacity(0.12), in: Capsule())
+                        }
+                        .buttonStyle(PressableStyle(scale: 0.95))
+                    }
+                }
+            }
+        }
+    }
+}
+
 private struct RecordButton: View {
     let isRecording: Bool
     let action: () -> Void

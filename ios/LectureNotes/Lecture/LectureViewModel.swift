@@ -249,6 +249,18 @@ final class LectureViewModel: ObservableObject {
         }
     }
 
+    /// 수업 중 질문. 답은 질문한 페이지의 관련 문단 옆에 질문 포스트잇으로 붙는다.
+    func ask(_ question: String) async {
+        guard let session else { return }
+        let page = currentPage
+        do {
+            let note = try await APIClient.current().ask(sessionId: session.id, question: question, pageNo: page)
+            receive(note)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func delete(_ annotation: Annotation) async {
         do {
             if !demoMode { try await APIClient.current().deleteAnnotation(id: annotation.id) }

@@ -22,6 +22,7 @@ TYPES = {
     "exam": ("시험", (1.00, 0.75, 0.80), (0.88, 0.18, 0.33)),
     "notice": ("공지", (0.85, 0.82, 1.00), (0.42, 0.33, 0.90)),
     "tip": ("AI 팁", (0.78, 0.92, 1.00), (0.05, 0.52, 0.80)),
+    "qa": ("질문", (0.98, 0.85, 0.96), (0.75, 0.22, 0.62)),
 }
 TASK_KINDS = {"in_class": "수업 중 과제", "homework": "숙제", "report": "레포트", "exam_prep": "시험 준비"}
 
@@ -116,7 +117,7 @@ def build_notes_pdf(pdf_path: str, title: str, pages: list[dict], annotations: l
             for i, n in enumerate(notes, start=1):
                 label, paper, ink = TYPES.get(n["type"], TYPES["explanation"])
                 parts.append(f"<div class='note' style='background-color:{_rgb_hex(paper)}'>"
-                             f"<span class='kind' style='color:{_rgb_hex(ink)}'>{i}. {label}</span> {esc(n['text'])}</div>")
+                             f"<span class='kind' style='color:{_rgb_hex(ink)}'>{i}. {label}</span> {esc(n['text']).replace(chr(10), '<br>')}</div>")
         if points:
             parts.append("<h3>정리 노트</h3><ul>" + "".join(f"<li>{esc(p)}</li>" for p in points) + "</ul>")
         elif no in summary_by_page:

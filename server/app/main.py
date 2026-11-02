@@ -300,6 +300,43 @@ def get_summary(session_id: str):
             "progress": app.state.progress.get(session_id)}
 
 
+# "방금 뭐라고?": 수업 중 질문. 최근 2분 설명과 지금 슬라이드를 근거로 답하고, 관련 문단 옆에 질문 포스트잇으로 붙인다
+
+RECENT_SPEECH_MS = 120_000
+QUICK_QUESTION = "방금 설명한 내용을 쉽게 다시 설명해 줘"
+
+
+class AskRequest(BaseModel):
+    question: str = ""
+    page_no: int
+
+
+@app.post("/sessions/{session_id}/ask")
+async def ask(session_id: str, body: AskRequest):
+    session = _session_or_404(session_id)
+    doc = db().get_document(session["document_id"])
+    page = next((p for p in doc["pages"] if p["page_no"] == body.page_no), None)
+    if page is None:
+        raise HTTPException(404, "그 페이지가 없습니다.")
+    segments = db().get_segments(session_id)
+    latest = max((s["start_ms"] for s in segments), default=0)
+    recent = " ".join(s["text"] for s in segments if s["start_ms"] >= latest - RECENT_SPEECH_MS)
+    question = body.question.strip() or QUICK_QUESTION
+    try:
+        result = await app.state.llm.ask(question, page, recent)
+    except anthropic.RateLimitError as exc:
+        raise HTTPException(429, "요청이 많아요. 잠시 뒤 다시 물어봐 주세요.") from exc
+    except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError) as exc:
+        log.exception("질문 답변 실패")
+        raise HTTPException(502, f"답을 만들지 못했어요: {exc}") from exc
+    answer = str(result.get("answer", "")).strip()
+    if not answer:
+        raise HTTPException(502, "답을 만들지 못했어요.")
+    block_ids = {b["id"] for b in page["blocks"]}
+    block_id = result.get("block_id") if result.get("block_id") in block_ids else None
+    return db().add_annotation(session_id, page["id"], block_id, "qa", f"Q. {question}\nA. {answer}", latest)
+
+
 # 강의 정리 PDF: 필기가 붙은 슬라이드 + AI가 쓴 페이지별 전체 정리 + 받아쓰기 + 과제
 
 

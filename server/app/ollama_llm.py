@@ -14,11 +14,14 @@ from .config import settings
 from .llm import (
     ANNOTATION_SCHEMA,
     ANNOTATION_SYSTEM,
+    ASK_SCHEMA,
+    ASK_SYSTEM,
     ORGANIZE_SCHEMA,
     ORGANIZE_SYSTEM,
     TASK_SCHEMA,
     LLMError,
     _annotation_prompt,
+    _ask_prompt,
     _organize_prompt,
     _task_prompt,
 )
@@ -204,3 +207,7 @@ class OllamaLLM:
         data = await self._chat(ORGANIZE_SYSTEM, _organize_prompt(page, speech, notes), ORGANIZE_SCHEMA,
                                 context_tokens=8192)
         return [p for p in data.get("points", []) if isinstance(p, str) and p.strip()]
+
+    async def ask(self, question: str, page: dict, recent_speech: str) -> dict:
+        return await self._chat(ASK_SYSTEM, _ask_prompt(question, page, recent_speech), ASK_SCHEMA,
+                                context_tokens=4096)

@@ -68,6 +68,11 @@ struct APIClient {
         try await send("GET", "sessions/\(sessionId)/summary")
     }
 
+    /// "방금 뭐라고?": 최근 2분 설명과 그 페이지로 답해, 관련 문단 옆에 붙인 질문 필기를 돌려준다
+    func ask(sessionId: String, question: String, pageNo: Int) async throws -> Annotation {
+        try await send("POST", "sessions/\(sessionId)/ask", json: ["question": question, "page_no": pageNo])
+    }
+
     // 강의 정리 PDF
 
     func startNotesPDF(sessionId: String) async throws -> NotesPDFStatus {

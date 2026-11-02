@@ -23,10 +23,13 @@ iPhone 앱 (SwiftUI)                        서버 (FastAPI)
 4. 페이지 확신이 낮으면(0.6 미만) 후보 3쪽을 Claude에게 보여 주고 고르게 한다. Claude도 확신하지 못하면 **보류함**에 넣고, 사용자가 한 번 눌러 원하는 페이지에 붙인다.
 5. 교수님이 짧게 짚고 지나간 개념에는 **AI 팁** 포스트잇(하늘색, "AI가 덧붙인 내용" 표시)이 붙는다.
 6. 강의가 끝나면 요약·퀴즈를 만들고, **웹 검색으로 찾은 추가 자료**("더 알아보기", 출처 링크)를 붙인다.
-7. AI가 놓친 실수는 규칙으로 바로잡는다 (`app/text_fix.py`).
+7. 수업 중 **"🙋 방금 뭐라고?"** 버튼으로 바로 묻는다. "쉽게 다시 설명해 줘", "예시 하나만"처럼 고르거나 직접 적으면,
+   최근 2분 동안의 설명과 지금 슬라이드를 근거로 답해서 관련 문단 옆에 **질문 포스트잇**(분홍)으로 붙인다.
+   교수님 설명에 없는 내용은 "(교수님 설명 외)"로 표시한다. 정리 PDF에도 들어간다.
+8. AI가 놓친 실수는 규칙으로 바로잡는다 (`app/text_fix.py`).
    받아쓰기에서 첫 자음만 잘못 들은 전문용어("유런" → "뉴런")는 강의자료의 용어로 고치고,
    "중간고사에 나온다"는 필기는 AI가 다른 종류로 골랐어도 '시험'으로 맞춘다.
-8. 📄 버튼으로 **강의 정리 PDF**를 만든다. 요약이 아니라 전체 정리다. 페이지마다
+9. 📄 버튼으로 **강의 정리 PDF**를 만든다. 요약이 아니라 전체 정리다. 페이지마다
    - 필기가 붙은 문단에 형광펜과 번호 깃발을 그린 슬라이드
    - 번호에 맞춘 포스트잇 필기
    - AI가 그 페이지에서 교수님이 한 설명을 빠짐없이 항목으로 정리한 **정리 노트** (시험 언급은 ★시험)
@@ -205,6 +208,7 @@ push할 때마다 GitHub Actions(macOS)가 앱을 빌드하고, 데모 모드로
 | POST | `/sessions/{id}/end` | 강의 종료, 요약·퀴즈 생성 시작 |
 | GET | `/sessions/{id}/summary` | `{status, summary}` (status: recording, processing, done, failed) |
 | GET | `/sessions/{id}/annotations` | 필기 목록 |
+| POST | `/sessions/{id}/ask` | 수업 중 질문 (`{"question", "page_no"}`) → 질문 필기(`type: qa`) |
 | PATCH / DELETE | `/annotations/{id}` | 필기 수정(`text`)·페이지에 붙이기(`page_no`) / 삭제 |
 | POST | `/sessions/{id}/notes-pdf` | 강의 정리 PDF 만들기 시작 (`{status, done, total}`) |
 | GET | `/sessions/{id}/notes-pdf/status` | 만들기 상태 (none, building, ready, failed) |

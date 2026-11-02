@@ -19,6 +19,7 @@
   --exam: #ffbfcc;        --exam-ink: #e02e54;
   --notice: #d9d1ff;      --notice-ink: #6b54e6;
   --tip: #c7ebff;         --tip-ink: #0d85cc;
+  --qa: #fbd9f5;          --qa-ink: #bf389e;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -112,7 +113,7 @@ button:active { transform: scale(0.96); }
 .flag::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--ink-c); }
 .flag.sel { transform: translate(-50%, -50%) scale(1.3); }
 .flag.preview { opacity: 0.7; }
-.callout {
+.callout { white-space: pre-line;
   position: absolute; width: min(62%, 260px); padding: 7px 9px;
   color: var(--note-ink); font-size: 12px; font-weight: 700; line-height: 1.35;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
@@ -144,7 +145,7 @@ button:active { transform: scale(0.96); }
 .note.sel { transform: rotate(0deg) scale(1.04) !important; filter: drop-shadow(0 10px 12px rgba(0,0,0,.22)); }
 .note .head { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 900; margin-bottom: 8px; }
 .note .head .num { margin-left: auto; width: 20px; height: 20px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-size: 11px; }
-.note .text { font-size: 14px; font-weight: 600; line-height: 1.45; }
+.note .text { font-size: 14px; font-weight: 600; line-height: 1.45; white-space: pre-line; }
 .note .sub { font-size: 11px; opacity: .55; margin-top: 6px; }
 .note.preview { opacity: .9; outline: 1.5px dashed var(--ink-c); outline-offset: -4px; }
 .spin { display: inline-block; width: 10px; height: 10px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -1px; }
@@ -155,6 +156,12 @@ button:active { transform: scale(0.96); }
 
 /* 아래 조작 막대 */
 .dock { position: fixed; left: 16px; right: 16px; bottom: calc(var(--safe-bottom) + 8px); z-index: 10; display: grid; gap: 10px; }
+.ask {
+  justify-self: end; display: flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 22px;
+  font-size: 14px; font-weight: 800; color: #fff; background: linear-gradient(var(--qa-ink), #a12a84);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--qa-ink) 35%, transparent);
+}
+.ask:disabled { opacity: 0.85; }
 .caption {
   display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: 16px;
   background: color-mix(in srgb, var(--card) 85%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
@@ -215,3 +222,7 @@ textarea.draft { width: 100%; min-height: 260px; border: 0; border-radius: 18px;
 @keyframes fade { from { opacity: 0; } }
 @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+#askq {
+  height: 44px; padding: 0 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card);
+  color: var(--ink); font: inherit; font-size: 15px;
+}

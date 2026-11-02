@@ -356,3 +356,26 @@ def test_notes_pdf_uses_fixed_speech_when_llm_offers_it(client):
     text = "".join(p.get_text() for p in pymupdf.open("pdf", pdf.content)).replace("\xa0", " ")
     explained = text.split("교수님 설명 (받아쓰기)")[1]
     assert "뉴런 일부를" in explained and "유런" not in explained
+
+
+def test_ask_answers_from_recent_speech_and_sticks_a_question_note(client):
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "학습률이 너무 크면 최솟값을 지나쳐서 발산해요.",
+                      "start_ms": 1000, "end_ms": 4000})
+        receive_annotation(ws)
+
+    res = client.post(f"/sessions/{session['id']}/ask", json={"question": "발산이 뭐예요?", "page_no": 1})
+    assert res.status_code == 200, res.text
+    note = res.json()
+    assert note["type"] == "qa" and note["page_no"] == 1
+    assert note["text"].startswith("Q. 발산이 뭐예요?\nA. ") and "발산해요" in note["text"]
+    assert note["block_id"] == doc["pages"][0]["blocks"][0]["id"]
+
+    # 질문 없이 누르면 "방금 설명 다시"로 묻는다
+    quick = client.post(f"/sessions/{session['id']}/ask", json={"page_no": 1}).json()
+    assert "쉽게 다시 설명" in quick["text"]
+    assert client.post(f"/sessions/{session['id']}/ask", json={"page_no": 9}).status_code == 404
+    assert any(a["type"] == "qa" for a in client.get(f"/sessions/{session['id']}/annotations").json())
