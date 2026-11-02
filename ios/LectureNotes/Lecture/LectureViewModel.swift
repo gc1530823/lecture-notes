@@ -46,6 +46,16 @@ final class LectureViewModel: ObservableObject {
     @Published private(set) var latestAnnotationID: Int? = nil
     let player = LecturePlayer()
 
+    // 자막 모드 (청각장애 학생·시끄러운 강의실): 지금 설명하는 문단 표시, 큰 자막, 시험·공지·과제 때 강한 진동
+    @Published var captionMode = UserDefaults.standard.bool(forKey: "captionMode") {
+        didSet { UserDefaults.standard.set(captionMode, forKey: "captionMode") }
+    }
+    @Published private(set) var spokenSpot: SpokenSpot?
+    @Published private(set) var captionLines: [String] = []
+    @Published var importantAlert: ImportantAlert?
+    /// 강의가 끝난 뒤: 슬라이드에 없는 설명을 담은 필기와 그 비율
+    @Published private(set) var beyond: BeyondSlides?
+
     private let store: DocumentStore
     private let socket = LectureSocket()
     private var followingEstimate = false
@@ -72,6 +82,7 @@ final class LectureViewModel: ObservableObject {
         socket.onTask = { [weak self] task in self?.receive(task) }
         socket.onPreview = { [weak self] preview in self?.receive(preview) }
         socket.onPreviewsResolved = { [weak self] ids in self?.resolvePreviews(ids) }
+        socket.onSpoken = { [weak self] page, blockId, text in self?.receiveSpoken(page: page, blockId: blockId, text: text) }
     }
 
     var pages: [Page] { document.document.pages }
@@ -155,8 +166,31 @@ final class LectureViewModel: ObservableObject {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) { tasks[index] = task }
     }
 
+    private func receiveSpoken(page: Int, blockId: Int?, text: String) {
+        withAnimation(.snappy) {
+            spokenSpot = SpokenSpot(pageNo: page, blockId: blockId)
+            captionLines = Array((captionLines + [text]).suffix(3))
+        }
+    }
+
+    /// 자막 모드에서 놓치면 안 되는 순간: 진동을 세게 세 번 주고 화면 위에 크게 띄운다
+    private func alertImportant(symbol: String, title: String, text: String, banner: Bool = true) {
+        guard captionMode else { return }
+        let haptic = UINotificationFeedbackGenerator()
+        for i in 0..<3 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.35) { haptic.notificationOccurred(.warning) }
+        }
+        if banner {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                importantAlert = ImportantAlert(symbol: symbol, title: title, text: text)
+            }
+        }
+    }
+
     private func receive(_ task: LectureTask) {
         guard !tasks.contains(where: { $0.id == task.id }) else { return }
+        // 과제는 위쪽 과제 배너가 이미 크게 뜨므로 진동만 더한다
+        alertImportant(symbol: "list.clipboard", title: "새 과제", text: task.title, banner: false)
         withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
             tasks.append(task)
             freshTask = task
@@ -226,6 +260,7 @@ final class LectureViewModel: ObservableObject {
             errorMessage = error.localizedDescription
         }
         phase = .ended
+        await loadBeyondSlides()
     }
 
     func leave() {
@@ -266,6 +301,21 @@ final class LectureViewModel: ObservableObject {
         player.play(url, fromMs: annotation.startMs)
     }
 
+    func loadBeyondSlides() async {
+        guard let session, phase == .ended, !demoMode else { return }
+        beyond = try? await APIClient.current().beyondSlides(sessionId: session.id)
+    }
+
+    func catchUp(minutes: Double) async -> CatchUp? {
+        guard let session else { return nil }
+        do {
+            return try await APIClient.current().catchUp(sessionId: session.id, minutes: minutes)
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
     /// 수업 중 질문. 답은 질문한 페이지의 관련 문단 옆에 질문 포스트잇으로 붙는다.
     func ask(_ question: String) async {
         guard let session else { return }
@@ -304,6 +354,19 @@ final class LectureViewModel: ObservableObject {
             annotations.append(annotation)
         }
         latestAnnotationID = annotation.id
+        if annotation.type == .exam {
+            alertImportant(symbol: "star.fill", title: "시험에 나온다고 했어요", text: annotation.text)
+        } else if annotation.type == .notice {
+            alertImportant(symbol: "megaphone.fill", title: "공지", text: annotation.text)
+        }
+    }
+
+    /// 데모 모드: 자막 모드 화면
+    func applyCaptionDemo(lines: [String], spot: SpokenSpot, alert: ImportantAlert?) {
+        captionMode = true
+        captionLines = lines
+        spokenSpot = spot
+        importantAlert = alert
     }
 
     /// 데모 모드: 교수님 말이 자막으로 나오고, 필기가 하나씩 붙는 장면을 재생한다.

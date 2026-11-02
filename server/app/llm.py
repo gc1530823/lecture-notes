@@ -190,6 +190,25 @@ ASK_SCHEMA = {
     "additionalProperties": False,
 }
 
+CATCHUP_SYSTEM = """학생이 수업 중에 잠깐 딴생각을 해서 최근 몇 분을 놓쳤습니다. 그동안 교수님이 한 말(받아쓰기)과 그때의 슬라이드를 받습니다.
+
+- 놓친 내용을 3~5개 항목(points)으로, 수업 흐름 순서대로 짧게 정리합니다. 항목 하나는 한 문장입니다.
+- 시험·과제·공지처럼 놓치면 안 되는 말이 있으면 맨 앞에 "⚠" 없이 "[중요]"로 시작하는 항목으로 씁니다.
+- 받아쓰기에 있는 내용만 씁니다. 한국어로 씁니다."""
+
+CATCHUP_SCHEMA = {
+    "type": "object",
+    "properties": {"points": {"type": "array", "items": {"type": "string"}}},
+    "required": ["points"],
+    "additionalProperties": False,
+}
+
+
+def _catchup_prompt(slides: list[dict], speech: str) -> str:
+    slide_text = "\n".join(f'<slide page_no="{p["page_no"]}">\n{p["text"]}\n</slide>' for p in slides)
+    return f"{slide_text}\n<missed_speech>\n{speech}\n</missed_speech>"
+
+
 PREDICT_SYSTEM = """당신은 이 과목 교수님이 낼 시험 문제를 예상하는 조교입니다.
 강의자료 한 페이지의 텍스트, 그 페이지에서 교수님이 한 말(여러 강의의 받아쓰기), 필기를 받습니다.
 
@@ -282,6 +301,8 @@ class LLM(Protocol):
     async def ask(self, question: str, page: dict, recent_speech: str) -> dict: ...
 
     async def predict_questions(self, page: dict, speech: str, notes: list[dict]) -> list[dict]: ...
+
+    async def catch_up(self, slides: list[dict], speech: str) -> list[str]: ...
 
 
 def _organize_prompt(page: dict, speech: str, notes: list[dict]) -> str:
@@ -454,6 +475,12 @@ class ClaudeLLM:
                                _ask_prompt(question, page, recent_speech), ASK_SCHEMA, max_tokens=4000)
         return _response_json(await self.client.beta.messages.create(**params))
 
+    async def catch_up(self, slides: list[dict], speech: str) -> list[str]:
+        params = self._request(settings.annotation_model, settings.annotation_effort, CATCHUP_SYSTEM,
+                               _catchup_prompt(slides, speech), CATCHUP_SCHEMA, max_tokens=4000)
+        data = _response_json(await self.client.beta.messages.create(**params))
+        return [p for p in data.get("points", []) if isinstance(p, str) and p.strip()]
+
     async def predict_questions(self, page: dict, speech: str, notes: list[dict]) -> list[dict]:
         params = self._request(settings.summary_model, settings.summary_effort, PREDICT_SYSTEM,
                                _organize_prompt(page, speech, notes), PREDICT_SCHEMA, max_tokens=16000)
@@ -515,6 +542,9 @@ class FakeLLM:
 
     async def organize_page(self, page: dict, speech: str, notes: list[dict]) -> list[str]:
         return [f"{page['page_no']}쪽 정리: {s}" for s in speech.split(". ") if s][:5]
+
+    async def catch_up(self, slides: list[dict], speech: str) -> list[str]:
+        return [f"놓친 내용: {s}" for s in speech.split(". ") if s][:4]
 
     async def predict_questions(self, page: dict, speech: str, notes: list[dict]) -> list[dict]:
         return [{"question": f"{page['page_no']}쪽 내용을 설명하시오.", "answer": speech[:80],

@@ -9,6 +9,7 @@ struct AnnotationBoardView: View {
     let onEdit: (Annotation) -> Void
     let onDelete: (Annotation) -> Void
     var canPlay = false
+    var beyondIDs: Set<Int> = []
     var onPlay: (Annotation) -> Void = { _ in }
 
     private let columns = [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
@@ -22,7 +23,8 @@ struct AnnotationBoardView: View {
                             selectedID = selectedID == annotation.id ? nil : annotation.id
                         } label: {
                             StickyNote(annotation: annotation, number: index + 1,
-                                       isSelected: selectedID == annotation.id, isPreview: annotation.id < 0)
+                                       isSelected: selectedID == annotation.id, isPreview: annotation.id < 0,
+                                       isBeyondSlides: beyondIDs.contains(annotation.id))
                         }
                         .buttonStyle(PressableStyle())
                         .overlay(alignment: .bottomTrailing) {

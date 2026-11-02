@@ -19,6 +19,7 @@ from .config import settings
 from .db import Database
 from .live_session import LiveSession
 from .llm import LLMError, accept_fixed_speech, make_llm
+from .beyond import beyond_slides
 from .exam_map import score_pages, top_pages
 from .notes_pdf import build_notes_pdf
 from .quick_notes import EXAM_TALK
@@ -351,6 +352,45 @@ async def ask(session_id: str, body: AskRequest):
     return db().add_annotation(session_id, page["id"], block_id, "qa", f"Q. {question}\nA. {answer}", latest)
 
 
+# 딴생각 따라잡기: 최근 몇 분 동안의 설명을 몇 줄로
+
+
+class CatchUpRequest(BaseModel):
+    minutes: float = 3
+
+
+@app.post("/sessions/{session_id}/catch-up")
+async def catch_up(session_id: str, body: CatchUpRequest):
+    session = _session_or_404(session_id)
+    segments = db().get_segments(session_id)
+    latest = max((s["end_ms"] for s in segments), default=0)
+    since = latest - int(body.minutes * 60_000)
+    missed = [s for s in segments if s["end_ms"] >= since]
+    if not missed:
+        return {"points": [], "pages": [], "from_ms": since, "to_ms": latest}
+    page_nos = sorted({s["page_no"] for s in missed if s["page_no"]})
+    texts = {p["page_no"]: p["text"] for p in db().list_pages(session["document_id"])}
+    slides = [{"page_no": no, "text": texts.get(no, "")} for no in page_nos]
+    try:
+        points = await app.state.llm.catch_up(slides, " ".join(s["text"] for s in missed))
+    except anthropic.RateLimitError as exc:
+        raise HTTPException(429, "요청이 많아요. 잠시 뒤 다시 눌러 주세요.") from exc
+    except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError) as exc:
+        log.exception("따라잡기 실패")
+        raise HTTPException(502, f"정리하지 못했어요: {exc}") from exc
+    return {"points": points, "pages": page_nos, "from_ms": max(since, 0), "to_ms": latest}
+
+
+# 교수님만 말한 내용: 슬라이드에 없는 설명의 비율과, 그런 설명을 담은 필기
+
+
+@app.get("/sessions/{session_id}/beyond-slides")
+def get_beyond_slides(session_id: str):
+    session = _session_or_404(session_id)
+    texts = {p["page_no"]: p["text"] for p in db().list_pages(session["document_id"])}
+    return beyond_slides(texts, db().get_segments(session_id), db().list_annotations(session_id))
+
+
 # 시험 예상 지도: 그 자료로 들은 모든 강의에서 페이지마다 시험에 나올 만한 정도(규칙) + 상위 페이지 예상 문제(AI)
 
 
@@ -467,7 +507,8 @@ async def _build_notes_pdf(session_id: str) -> None:
     try:
         data = await asyncio.to_thread(
             build_notes_pdf, _pdf_path(doc["id"]), doc["title"], pages, annotations, segments,
-            db().list_tasks(session_id), db().get_summary(session_id), {"pages": organized}, session["started_at"])
+            db().list_tasks(session_id), db().get_summary(session_id), {"pages": organized}, session["started_at"],
+            beyond_slides(texts, segments, annotations))
         os.makedirs(settings.upload_dir, exist_ok=True)
         with open(_notes_pdf_path(session_id), "wb") as f:
             f.write(data)

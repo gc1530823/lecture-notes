@@ -14,6 +14,8 @@ final class LectureSocket {
     /// 즉시 필기(임시 포스트잇)와, AI 필기가 나와 지울 임시 필기 목록
     var onPreview: ((AnnotationPreview) -> Void)?
     var onPreviewsResolved: (([String]) -> Void)?
+    /// 자막 모드: 방금 받아쓴 문장과, 그 문장이 설명하는 페이지·문단
+    var onSpoken: ((Int, Int?, String) -> Void)?
 
     private var url: URL?
     private var task: URLSessionWebSocketTask?
@@ -114,6 +116,8 @@ final class LectureSocket {
             if let task = event.task { onTask?(task) }
         case "page_estimate":
             if let page = event.page, let confidence = event.confidence { onPageEstimate?(page, confidence) }
+        case "spoken":
+            if let page = event.page, let text = event.text { onSpoken?(page, event.blockId, text) }
         case "error":
             onError?(event.message ?? "알 수 없는 오류")
         default:
@@ -136,4 +140,6 @@ private struct ServerEvent: Decodable {
     let task: LectureTask?
     let preview: AnnotationPreview?
     let ids: [String]?
+    let blockId: Int?
+    let text: String?
 }

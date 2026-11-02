@@ -10,6 +10,7 @@ struct LectureView: View {
     @State private var showingNotesPDF = false
     @State private var showingAsk = false
     @State private var asking = false
+    @State private var catchUpMinutes: Double?
     @State private var showingPending = false
     @State private var showingTasks = false
     @State private var openTask: LectureTask?
@@ -45,6 +46,15 @@ struct LectureView: View {
                             tasks: [drafted, DemoData.tasks[1]])
         case .live:
             model.applyDemo(annotations: [], phase: .recording, caption: "")
+        case .caption:
+            model.applyDemo(annotations: Array(DemoData.annotations.prefix(3)), phase: .recording, caption: "")
+            model.applyCaptionDemo(
+                lines: ["산에서 눈을 감고 가장 가파른 쪽으로 한 걸음씩 내려가는 거죠.",
+                        "그래서 학습률이 너무 크면 최솟값을 지나쳐서 발산해요.",
+                        "이거 중간고사에 꼭 나와요. 학습률이 클 때와 작을 때 차이, 꼭 기억하세요."],
+                spot: SpokenSpot(pageNo: 1, blockId: DemoData.document.document.pages[0].blocks.dropFirst(2).first?.id),
+                alert: ImportantAlert(symbol: "star.fill", title: "시험에 나온다고 했어요",
+                                      text: "학습률이 클 때와 작을 때의 차이 (중간고사)"))
         default:
             break
         }
@@ -60,6 +70,12 @@ struct LectureView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.paper, for: .navigationBar)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { withAnimation(.snappy) { model.captionMode.toggle() } } label: {
+                    Image(systemName: model.captionMode ? "captions.bubble.fill" : "captions.bubble")
+                }
+                .accessibilityLabel(model.captionMode ? "자막 모드 끄기" : "자막 모드 켜기")
+            }
             // 정리 PDF는 녹음 중에도 지금까지의 필기로 만들 수 있다
             if model.session != nil {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -74,15 +90,25 @@ struct LectureView: View {
             }
         }
         .sheet(isPresented: $showingAsk) {
-            AskSheet(pageNo: model.currentPage) { question in
+            AskSheet(pageNo: model.currentPage, onAsk: { question in
                 showingAsk = false
                 asking = true
                 Task {
                     await model.ask(question)
                     asking = false
                 }
+            }, onCatchUp: { minutes in
+                showingAsk = false
+                catchUpMinutes = minutes
+            })
+            .presentationDetents([.height(440)])
+        }
+        .sheet(item: Binding(get: { catchUpMinutes.map(CatchUpRequest.init) }, set: { catchUpMinutes = $0?.minutes })) { request in
+            CatchUpSheet(minutes: request.minutes, load: { await model.catchUp(minutes: request.minutes) }) { page in
+                catchUpMinutes = nil
+                model.currentPage = page
             }
-            .presentationDetents([.height(340)])
+            .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showingNotesPDF) {
             if let session = model.session {
@@ -109,6 +135,19 @@ struct LectureView: View {
             }
         }
         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: model.freshTask)
+        .overlay(alignment: .top) {
+            if let alert = model.importantAlert {
+                ImportantAlertBanner(alert: alert) { withAnimation(.snappy) { model.importantAlert = nil } }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 6)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .task(id: alert.id) {
+                        guard demo == nil else { return }
+                        try? await Task.sleep(for: .seconds(6))
+                        withAnimation(.snappy) { if model.importantAlert?.id == alert.id { model.importantAlert = nil } }
+                    }
+            }
+        }
         .task(id: model.freshTask?.id) {
             // 데모 스크린샷용 배너는 그대로 두고, 실제로는 8초 뒤 접는다
             guard model.freshTask != nil, demo != .recording else { return }
@@ -142,6 +181,7 @@ struct LectureView: View {
                 await model.runDemoLive()
             } else if demo == nil {
                 await model.loadExistingAnnotations()
+                await model.loadBeyondSlides()
             }
         }
         .sensoryFeedback(.impact(weight: .light), trigger: model.annotations.count)
@@ -173,7 +213,8 @@ struct LectureView: View {
                         pdfPage: model.pdf?.page(at: page.pageNo - 1),
                         annotations: model.annotations(onPage: page.pageNo),
                         selectedAnnotationID: $selectedAnnotationID,
-                        spotlightID: selectedAnnotationID ?? freshAnnotationID
+                        spotlightID: selectedAnnotationID ?? freshAnnotationID,
+                        hereBlockID: model.captionMode && model.spokenSpot?.pageNo == page.pageNo ? model.spokenSpot?.blockId : nil
                     )
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
@@ -193,6 +234,7 @@ struct LectureView: View {
                 onEdit: { editing = $0 },
                 onDelete: { annotation in Task { await model.delete(annotation) } },
                 canPlay: model.canPlayRecording,
+                beyondIDs: Set(model.beyond?.annotationIds ?? []),
                 onPlay: { model.playRecording(at: $0) }
             )
             .frame(maxHeight: .infinity)
@@ -203,7 +245,10 @@ struct LectureView: View {
                         AskButton(asking: asking) { showingAsk = true }
                             .frame(maxWidth: .infinity, alignment: .trailing)
                     }
-                    if model.phase == .recording {
+                    if model.phase == .recording && model.captionMode {
+                        BigCaption(lines: model.captionLines, partial: model.recorder.partialText)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    } else if model.phase == .recording {
                         CaptionPill(recorder: model.recorder)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
@@ -395,6 +440,7 @@ private struct AskButton: View {
 private struct AskSheet: View {
     let pageNo: Int
     let onAsk: (String) -> Void
+    let onCatchUp: (Double) -> Void
     @State private var question = ""
     private let quick = ["방금 뭐라고 했어?", "쉽게 다시 설명해 줘", "예시 하나만 들어 줘", "이거 시험에 어떻게 나올까?"]
 
@@ -416,10 +462,95 @@ private struct AskSheet: View {
                     .buttonStyle(.borderedProminent)
                     .tint(AnnotationType.qa.inkColor)
             }
+            Label("딴생각했어요", systemImage: "clock.arrow.circlepath")
+                .font(.headline)
+                .padding(.top, 6)
+            HStack(spacing: 8) {
+                ForEach([1.0, 3.0, 5.0], id: \.self) { minutes in
+                    Button { onCatchUp(minutes) } label: {
+                        Text("최근 \(Int(minutes))분 따라잡기")
+                            .font(.footnote.weight(.bold))
+                            .foregroundStyle(Theme.accent)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Theme.accent.opacity(0.12), in: Capsule())
+                    }
+                    .buttonStyle(PressableStyle(scale: 0.95))
+                }
+            }
         }
         .padding(20)
         .frame(maxHeight: .infinity, alignment: .top)
         .fontDesign(.rounded)
+    }
+}
+
+private struct CatchUpRequest: Identifiable {
+    let minutes: Double
+    var id: Double { minutes }
+}
+
+/// 딴생각 따라잡기: 최근 몇 분 동안의 설명을 몇 줄로
+private struct CatchUpSheet: View {
+    let minutes: Double
+    let load: () async -> CatchUp?
+    let onGoTo: (Int) -> Void
+    @State private var result: CatchUp?
+    @State private var loading = true
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Label("최근 \(Int(minutes))분 따라잡기", systemImage: "clock.arrow.circlepath")
+                    .font(.title3.weight(.bold))
+                if loading {
+                    ProgressView("놓친 설명을 정리하는 중…").frame(maxWidth: .infinity).padding(.top, 20)
+                } else if let result, !result.points.isEmpty {
+                    Text("\(result.fromMs.clockText) ~ \(result.toMs.clockText) 사이에 교수님이 한 설명이에요.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(result.points, id: \.self) { point in
+                            let important = point.hasPrefix("[중요]")
+                            Label(important ? String(point.dropFirst(4)).trimmingCharacters(in: .whitespaces) : point,
+                                  systemImage: important ? "exclamationmark.triangle.fill" : "circle.fill")
+                                .font(.subheadline.weight(important ? .heavy : .regular))
+                                .foregroundStyle(important ? AnnotationType.exam.inkColor : .primary)
+                                .labelStyle(BulletLabelStyle(small: !important))
+                        }
+                    }
+                    .card(padding: 14)
+                    HStack {
+                        ForEach(result.pages, id: \.self) { page in
+                            Button("\(page)쪽 보기") { onGoTo(page) }
+                                .buttonStyle(.bordered)
+                                .tint(Theme.accent)
+                        }
+                    }
+                } else {
+                    Text("그동안 받아쓴 설명이 없어요.").foregroundStyle(.secondary)
+                }
+            }
+            .padding(20)
+        }
+        .fontDesign(.rounded)
+        .task {
+            result = await load()
+            loading = false
+        }
+    }
+}
+
+private struct BulletLabelStyle: LabelStyle {
+    let small: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            configuration.icon
+                .font(small ? .system(size: 6) : .subheadline)
+                .foregroundStyle(small ? Theme.accent : AnnotationType.exam.inkColor)
+            configuration.title
+        }
     }
 }
 
@@ -528,6 +659,55 @@ private struct Waveform: View {
 }
 
 /// 지금 인식 중인 말(확정 전)을 자막처럼 보여 준다.
+/// 자막 모드: 검은 바탕 큰 글씨, 최근 3문장 (지난 문장은 흐리게 한 줄)
+private struct BigCaption: View {
+    let lines: [String]
+    let partial: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            let shown = lines.isEmpty ? [partial.isEmpty ? "듣고 있어요…" : partial] : lines
+            ForEach(Array(shown.enumerated()), id: \.offset) { index, line in
+                let isNow = index == shown.count - 1
+                Text(line)
+                    .font(.system(size: isNow ? 21 : 15, weight: isNow ? .heavy : .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(isNow ? 1 : 0.55))
+                    .lineLimit(isNow ? 4 : 1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(16)
+        .background(Color.black, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .animation(.easeOut(duration: 0.2), value: lines)
+    }
+}
+
+/// 시험 언급·공지 큰 알림
+private struct ImportantAlertBanner: View {
+    let alert: ImportantAlert
+    let onClose: () -> Void
+
+    var body: some View {
+        Button(action: onClose) {
+            HStack(spacing: 12) {
+                Image(systemName: alert.symbol).font(.title)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(alert.title).font(.headline.weight(.heavy))
+                    Text(alert.text).font(.subheadline).lineLimit(3).multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(.white)
+            .padding(16)
+            .background(AnnotationType.exam.inkColor.gradient, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: .black.opacity(0.25), radius: 14, y: 6)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
 private struct CaptionPill: View {
     @ObservedObject var recorder: SpeechRecorder
 

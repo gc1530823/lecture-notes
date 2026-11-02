@@ -2,7 +2,7 @@ import SwiftUI
 
 /// `-demoScreen <이름>` 실행 인자로 고르는 데모 화면
 enum DemoScreen: String {
-    case empty, list, detail, lecture, recording, live, summary, task, notesPDF, ask, examMap
+    case empty, list, detail, lecture, recording, live, summary, task, notesPDF, ask, examMap, caption
 
     static var current: DemoScreen? {
         let arguments = ProcessInfo.processInfo.arguments
@@ -24,7 +24,7 @@ struct DemoRootView: View {
             DocumentListView()
         case .detail:
             NavigationStack { DocumentDetailView(documentID: DemoData.document.id) }
-        case .lecture, .recording, .live, .notesPDF, .ask:
+        case .lecture, .recording, .live, .notesPDF, .ask, .caption:
             NavigationStack {
                 LectureView(document: DemoData.document, store: store,
                             session: [.lecture, .notesPDF, .ask].contains(screen) ? DemoData.document.sessions.first : nil,

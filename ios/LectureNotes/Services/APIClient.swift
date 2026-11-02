@@ -73,6 +73,14 @@ struct APIClient {
         try await send("POST", "sessions/\(sessionId)/ask", json: ["question": question, "page_no": pageNo])
     }
 
+    func catchUp(sessionId: String, minutes: Double) async throws -> CatchUp {
+        try await send("POST", "sessions/\(sessionId)/catch-up", json: ["minutes": minutes])
+    }
+
+    func beyondSlides(sessionId: String) async throws -> BeyondSlides {
+        try await send("GET", "sessions/\(sessionId)/beyond-slides")
+    }
+
     // 시험 예상 지도
 
     func examMap(documentId: String) async throws -> ExamMap {

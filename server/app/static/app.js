@@ -330,7 +330,7 @@ async function renderExamMap(docId) {
 
 // ---------- 포스트잇 ----------
 
-function noteHTML(a, number, { selected = false, preview = false, fresh = false, playable = false } = {}) {
+function noteHTML(a, number, { selected = false, preview = false, fresh = false, playable = false, beyond = false } = {}) {
   const t = TYPES[a.type] || TYPES.explanation;
   return `
     <div class="note-wrap${fresh ? " fresh" : ""}" data-note="${a.id}" style="--tape:${-tilt(a.id) * 1.5}deg">
@@ -341,6 +341,7 @@ function noteHTML(a, number, { selected = false, preview = false, fresh = false,
         <div class="text">${esc(a.text)}</div>
         ${preview ? `<div class="sub"><span class="spin"></span> AI가 정리 중…</div>` : ""}
         ${a.type === "tip" ? `<div class="sub">교수님 말씀이 아니라 AI가 덧붙인 내용이에요</div>` : ""}
+        ${beyond ? `<div class="beyond">${I("chalkboard-teacher")} 슬라이드에 없는 설명</div>` : ""}
         ${a.edited_by_user ? `<div class="sub">${I("pencil-simple")} 직접 수정함</div>` : ""}
       </button>
       ${playable ? `<button class="play" data-play="${a.start_ms}" aria-label="이 필기 때 녹음 듣기">${I("play")} ${clock(a.start_ms)}</button>` : ""}
@@ -363,6 +364,7 @@ async function renderLecture(docId, sessionId) {
     lastManual: 0, estimate: null, wakeLock: null, pageWidth: 0, seen: new Set(), hasAudio: false, player: null,
     // 자막 모드: 지금 설명하는 문단 표시, 최근 문장 크게, 시험·공지·과제 때 강하게 알림
     a11y: prefs.get("a11y") === "1", spoken: null, lines: [],
+    beyond: new Set(), beyondRatio: null,
   };
 
   $app.innerHTML = `
@@ -400,6 +402,7 @@ async function renderLecture(docId, sessionId) {
       state.tasks = await api("GET", `/sessions/${sessionId}/tasks`);
       state.notes.forEach((n) => state.seen.add(n.id));
       checkAudio();
+      checkBeyond();
     }
   } catch (e) {
     toast(`불러오지 못했어요: ${e.message}`);
@@ -478,7 +481,8 @@ async function renderLecture(docId, sessionId) {
     const board = $("#board");
     board.innerHTML = notes.length
       ? notes.map((n, i) => noteHTML(n, i + 1, { selected: n.id === state.selected, preview: n.id < 0, fresh: !state.seen.has(n.id),
-          playable: state.hasAudio && !state.recording && n.id > 0 && n.start_ms != null })).join("")
+          playable: state.hasAudio && !state.recording && n.id > 0 && n.start_ms != null,
+          beyond: state.beyond.has(n.id) })).join("")
       : `<div class="empty-note">${state.recording ? "교수님 설명을 듣고 있어요.<br>필기가 여기에 붙어요." : "이 페이지에는 아직 필기가 없어요"}</div>`;
     notes.forEach((n) => state.seen.add(n.id));
     board.querySelectorAll("[data-note]").forEach((el) => {
@@ -757,6 +761,7 @@ async function renderLecture(docId, sessionId) {
       try { await api("POST", `/sessions/${state.sessionId}/end`); } catch (e) { toast(e.message); }
       state.ended = true;
       checkAudio();
+      checkBeyond();
     }
     state.ws?.close();
     drawControls();
@@ -808,6 +813,16 @@ async function renderLecture(docId, sessionId) {
   }
 
   // --- 필기를 누르면 그 순간의 녹음 듣기 ---
+
+  async function checkBeyond() {
+    // 강의가 끝난 뒤: 슬라이드에 없는 설명을 담은 필기에 표시를 붙인다
+    try {
+      const res = await api("GET", `/sessions/${state.sessionId}/beyond-slides`);
+      state.beyond = new Set(res.annotation_ids);
+      state.beyondRatio = res.ratio;
+    } catch {}
+    drawBoard();
+  }
 
   async function checkAudio() {
     // 녹음이 서버에 있는지 앞 1바이트만 받아 본다
@@ -863,10 +878,30 @@ async function renderLecture(docId, sessionId) {
       <div class="row" style="flex-wrap:wrap;margin-bottom:12px">${QUICK_QUESTIONS.map((q) =>
         `<button class="chip" data-q="${esc(q)}" style="color:var(--qa-ink);background:color-mix(in srgb,var(--qa-ink) 12%,transparent)">${esc(q)}</button>`).join("")}</div>
       <form id="askform" class="row"><input id="askq" placeholder="궁금한 걸 적어도 돼요" autocomplete="off" style="flex:1">
-        <button class="primary" style="height:44px;padding:0 18px">묻기</button></form>`);
+        <button class="primary" style="height:44px;padding:0 18px">묻기</button></form>
+      <h3 style="margin-top:22px">${I("clock-counter-clockwise")} 딴생각했어요</h3>
+      <div class="row" style="flex-wrap:wrap">${[1, 3, 5].map((m) =>
+        `<button class="chip" data-catch="${m}" style="color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)">최근 ${m}분 따라잡기</button>`).join("")}</div>`);
     const send = (question) => { close(); askQuestion(question, page); };
+    el.querySelectorAll("[data-catch]").forEach((b) => (b.onclick = () => { close(); catchUp(Number(b.dataset.catch)); }));
     el.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => send(b.dataset.q)));
     el.querySelector("#askform").onsubmit = (e) => { e.preventDefault(); send(el.querySelector("#askq").value.trim()); };
+  }
+
+  async function catchUp(minutes) {
+    const { el } = sheet(`<h3>${I("clock-counter-clockwise")} 최근 ${minutes}분 따라잡기</h3><div id="catchbox"><p class="muted"><span class="spin"></span> 놓친 설명을 정리하는 중…</p></div>`);
+    const box = el.querySelector("#catchbox");
+    let res;
+    try { res = await api("POST", `/sessions/${state.sessionId}/catch-up`, { minutes }); } catch (e) { box.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+    if (!res.points.length) { box.innerHTML = `<p class="muted">그동안 받아쓴 설명이 없어요.</p>`; return; }
+    box.innerHTML = `<p class="muted">${clock(res.from_ms)} ~ ${clock(res.to_ms)} 사이에 교수님이 한 설명이에요.</p>
+      <div class="card" style="padding:14px 16px">${res.points.map((p) => {
+        const important = p.startsWith("[중요]");
+        return `<p class="catch${important ? " important" : ""}">${important ? I("warning") : I("dot-outline")} ${esc(p.replace(/^\[중요\]\s*/, ""))}</p>`;
+      }).join("")}</div>
+      <div class="row" style="flex-wrap:wrap;margin-top:12px">${res.pages.map((no) =>
+        `<button class="chip" data-goto="${no}" style="color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)">${no}쪽 보기</button>`).join("")}</div>`;
+    box.querySelectorAll("[data-goto]").forEach((b) => (b.onclick = () => { document.querySelector(".sheet-bg").click(); goTo(Number(b.dataset.goto)); }));
   }
 
   async function askQuestion(question, page) {
@@ -1042,6 +1077,7 @@ async function renderLecture(docId, sessionId) {
   function drawSummary(box, s) {
     box.innerHTML = `
       <div class="overview"><small>${I("sparkle")} 한눈에 보는 강의</small>${esc(s.overview)}</div>
+      ${state.beyondRatio ? `<div class="stat">${I("chalkboard-teacher")}<span><b>${Math.round(state.beyondRatio * 100)}%</b> 오늘 교수님 설명 중 슬라이드에 없던 내용<br><small class="muted">"슬라이드에 없는 설명" 표시가 붙은 필기를 꼭 챙겨 보세요</small></span></div>` : ""}
       <button class="card item" id="topdf"><span class="badge">${I("file-pdf")}</span><span style="flex:1"><b>강의 정리 PDF 만들기</b><br><small class="muted">필기 붙은 슬라이드 + 요약이 아닌 전체 정리</small></span></button>
       <h3>페이지별 요약</h3>${s.pages.map((p) => `<button class="card item" data-goto="${p.page_no}"><span class="badge">${p.page_no}</span><span style="flex:1">${esc(p.summary)}</span></button>`).join("")}
       ${s.tips?.length ? `<h3>더 알아보기</h3>${s.tips.map((t) => `<a class="card item" href="${esc(t.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span class="badge">${I("compass")}</span><span><b>${esc(t.title)}</b><br><small class="muted">${esc(t.text)}</small></span></a>`).join("")}` : ""}

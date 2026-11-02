@@ -37,6 +37,8 @@ struct StickyNote: View {
     var isSelected = false
     /// AI가 정리하기 전의 즉시 필기 (점선 테두리 + "정리 중")
     var isPreview = false
+    /// 슬라이드에 없는, 교수님만 말한 설명
+    var isBeyondSlides = false
 
     var body: some View {
         let type = annotation.type
@@ -75,6 +77,14 @@ struct StickyNote: View {
                 Text("교수님 말씀이 아니라 AI가 덧붙인 내용이에요")
                     .font(.caption2)
                     .foregroundStyle(Theme.noteInk.opacity(0.5))
+            }
+            if isBeyondSlides {
+                Label("슬라이드에 없는 설명", systemImage: "person.wave.2.fill")
+                    .font(.caption2.weight(.heavy))
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(.white.opacity(0.6), in: Capsule())
             }
             if annotation.editedByUser {
                 Label("직접 수정함", systemImage: "pencil")

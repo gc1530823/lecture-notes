@@ -57,7 +57,7 @@ jobs:
             sleep 7
             xcrun simctl io "$UDID" screenshot "shots/$2.png"
           }
-          for screen in empty list detail lecture recording summary task notesPDF ask examMap; do shoot "$screen" "$screen"; done
+          for screen in empty list detail lecture recording summary task notesPDF ask examMap caption; do shoot "$screen" "$screen"; done
           # 실시간으로 필기가 붙는 장면은 동영상으로 남긴다
           xcrun simctl terminate "$UDID" com.example.lecturenotes || true
           xcrun simctl io "$UDID" recordVideo --codec h264 --force shots/live.mp4 &

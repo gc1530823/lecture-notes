@@ -9,6 +9,8 @@ struct PageCanvasView: View {
     @Binding var selectedAnnotationID: Int?
     /// 자료 위에 내용을 펼쳐 보여 줄 필기 (방금 들어온 것, 또는 사용자가 고른 것)
     var spotlightID: Int? = nil
+    /// 자막 모드: 교수님이 지금 설명하는 문단
+    var hereBlockID: Int? = nil
 
     @State private var image: UIImage?
 
@@ -51,6 +53,14 @@ struct PageCanvasView: View {
             Highlighter(color: type.inkColor, emphasized: isSelected)
                 .frame(width: block.w * size.width + 8, height: block.h * size.height * 0.9)
                 .position(x: (block.x + block.w / 2) * size.width, y: (block.y + block.h * 0.55) * size.height)
+        }
+
+        if let hereBlockID, let block = blocks[hereBlockID] {
+            HereMarker()
+                .frame(width: block.w * size.width + 14, height: block.h * size.height + 10)
+                .position(x: (block.x + block.w / 2) * size.width, y: (block.y + block.h / 2) * size.height)
+                .allowsHitTesting(false)
+                .transition(.opacity)
         }
 
         ForEach(numbered, id: \.element.id) { index, annotation in
@@ -215,5 +225,26 @@ final class PageRenderer {
         let image = pdfPage.thumbnail(of: CGSize(width: width, height: width / aspect), for: .cropBox)
         cache.setObject(image, forKey: key)
         return image
+    }
+}
+
+/// 자막 모드의 "지금 여기" 테두리 (부드럽게 숨 쉬듯 깜빡인다)
+private struct HereMarker: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .strokeBorder(Theme.accent, lineWidth: 3)
+            .overlay(alignment: .topLeading) {
+                Text("지금 여기")
+                    .font(.caption2.weight(.heavy))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(Theme.accent, in: UnevenRoundedRectangle(topLeadingRadius: 7, bottomTrailingRadius: 7,
+                                                                         topTrailingRadius: 7))
+                    .offset(x: -3, y: -18)
+            }
+            .phaseAnimator([0.0, 1.0]) { marker, phase in
+                marker.shadow(color: Theme.accent.opacity(0.25 + 0.3 * phase), radius: 2 + 6 * phase)
+            } animation: { _ in .easeInOut(duration: 0.8) }
     }
 }

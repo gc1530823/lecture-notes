@@ -267,3 +267,31 @@ struct AnnotationPreview: Decodable, Hashable {
     let text: String
     let startMs: Int
 }
+
+/// 자막 모드: 교수님이 지금 설명하는 페이지와 문단
+struct SpokenSpot: Hashable {
+    let pageNo: Int
+    let blockId: Int?
+}
+
+/// 자막 모드의 큰 알림 (시험 언급·공지)
+struct ImportantAlert: Identifiable, Hashable {
+    let id = UUID()
+    let symbol: String
+    let title: String
+    let text: String
+}
+
+/// 딴생각 따라잡기 (POST /sessions/{id}/catch-up)
+struct CatchUp: Codable, Hashable {
+    let points: [String]
+    let pages: [Int]
+    let fromMs: Int
+    let toMs: Int
+}
+
+/// 교수님만 말한 내용 (GET /sessions/{id}/beyond-slides)
+struct BeyondSlides: Codable, Hashable {
+    let ratio: Double
+    let annotationIds: [Int]
+}

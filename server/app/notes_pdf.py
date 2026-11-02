@@ -82,8 +82,10 @@ def _slide_image(src: pymupdf.Document, page_info: dict, notes: list[dict]) -> b
 
 
 def build_notes_pdf(pdf_path: str, title: str, pages: list[dict], annotations: list[dict], segments: list[dict],
-                    tasks: list[dict], summary: dict | None, organized: dict | None, started_at: float) -> bytes:
+                    tasks: list[dict], summary: dict | None, organized: dict | None, started_at: float,
+                    beyond: dict | None = None) -> bytes:
     src = pymupdf.open(pdf_path)
+    beyond_ids = set((beyond or {}).get("annotation_ids", []))
     archive = pymupdf.Archive(FONTS)
     images: dict[str, bytes] = {}
     esc = html.escape
@@ -94,6 +96,9 @@ def build_notes_pdf(pdf_path: str, title: str, pages: list[dict], annotations: l
     head = [f"<h1>{esc(title)}</h1>",
              f"<p class='muted'>{datetime.fromtimestamp(started_at):%Y년 %m월 %d일 %H:%M} 강의 · "
              f"필기 {sum(1 for a in annotations if not a['pending'])}개 · 과제 {len(tasks)}개</p>"]
+    if beyond and beyond.get("ratio"):
+        head.append(f"<p><b>오늘 교수님 설명의 {round(beyond['ratio'] * 100)}%는 슬라이드에 없던 내용</b>"
+                    "<span class='muted'> · 필기에 [슬라이드에 없음] 표시</span></p>")
     if summary and summary.get("overview"):
         head.append(f"<div class='overview'><b>한눈에 보는 강의</b><br>{esc(summary['overview'])}</div>")
 
@@ -117,7 +122,9 @@ def build_notes_pdf(pdf_path: str, title: str, pages: list[dict], annotations: l
             for i, n in enumerate(notes, start=1):
                 label, paper, ink = TYPES.get(n["type"], TYPES["explanation"])
                 parts.append(f"<div class='note' style='background-color:{_rgb_hex(paper)}'>"
-                             f"<span class='kind' style='color:{_rgb_hex(ink)}'>{i}. {label}</span> {esc(n['text']).replace(chr(10), '<br>')}</div>")
+                             f"<span class='kind' style='color:{_rgb_hex(ink)}'>{i}. {label}</span> {esc(n['text']).replace(chr(10), '<br>')}"
+                             + (" <span class='kind' style='color:#5b4fe0'>[슬라이드에 없음]</span>" if n.get("id") in beyond_ids else "")
+                             + "</div>")
         if points:
             parts.append("<h3>정리 노트</h3><ul>" + "".join(f"<li>{esc(p)}</li>" for p in points) + "</ul>")
         elif no in summary_by_page:

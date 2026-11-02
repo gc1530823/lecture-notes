@@ -15,6 +15,8 @@ from .llm import (
     ANNOTATION_SCHEMA,
     ANNOTATION_SYSTEM,
     ASK_SCHEMA,
+    CATCHUP_SCHEMA,
+    CATCHUP_SYSTEM,
     ASK_SYSTEM,
     ORGANIZE_SCHEMA,
     ORGANIZE_SYSTEM,
@@ -25,6 +27,7 @@ from .llm import (
     clean_predictions,
     _annotation_prompt,
     _ask_prompt,
+    _catchup_prompt,
     _organize_prompt,
     _task_prompt,
 )
@@ -220,3 +223,7 @@ class OllamaLLM:
             PREDICT_SYSTEM, _organize_prompt(page, speech, notes), PREDICT_SCHEMA, 8192,
             lambda d: bool(clean_predictions(d)) and all(_real_text(q["question"]) for q in clean_predictions(d)))
         return clean_predictions(data) if data else []
+
+    async def catch_up(self, slides: list[dict], speech: str) -> list[str]:
+        data = await self._chat(CATCHUP_SYSTEM, _catchup_prompt(slides, speech), CATCHUP_SCHEMA, context_tokens=8192)
+        return [p for p in data.get("points", []) if isinstance(p, str) and p.strip()]

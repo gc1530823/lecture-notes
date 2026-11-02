@@ -452,3 +452,23 @@ def test_spoken_event_points_at_the_paragraph_being_explained(client):
     second = doc["pages"][0]["blocks"][1]
     assert spoken["page"] == 1 and spoken["block_id"] == second["id"]
     assert spoken["text"] == "the learning rate controls step size"
+
+
+def test_catch_up_summarizes_recent_minutes_and_beyond_slides_counts_extra_talk(client):
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "Gradient Descent", "start_ms": 0, "end_ms": 2000})
+        ws.send_json({"type": "transcript_final", "text": "산에서 눈을 감고 가장 가파른 쪽으로 내려간다고 생각하면 돼요.",
+                      "start_ms": 300_000, "end_ms": 304_000})
+        receive_annotation(ws)
+
+    res = client.post(f"/sessions/{session['id']}/catch-up", json={"minutes": 1}).json()
+    assert res["pages"] == [1] and res["to_ms"] == 304_000
+    assert len(res["points"]) == 1 and "산에서" in res["points"][0]  # 5분 전 문장은 빼고 최근 1분만
+
+    beyond = client.get(f"/sessions/{session['id']}/beyond-slides").json()
+    assert 0.5 < beyond["ratio"] < 0.8  # 슬라이드 제목은 있고, 비유 문장은 슬라이드에 없다
+    assert beyond["pages"][0]["page_no"] == 1
+    assert len(beyond["annotation_ids"]) >= 1
