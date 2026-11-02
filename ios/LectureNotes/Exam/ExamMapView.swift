@@ -240,9 +240,11 @@ private struct RankCard: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Theme.accent.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .card(padding: 14)
     }
 }
