@@ -331,3 +331,28 @@ def test_notes_pdf_drops_exam_mark_on_pages_without_exam_talk(client):
     pdf = client.get(f"/sessions/{session['id']}/notes-pdf")
     text = "".join(p.get_text() for p in pymupdf.open("pdf", pdf.content)).replace("\xa0", " ")
     assert "학습률: 이동 크기를 정한다" in text and "★" not in text
+
+
+def test_notes_pdf_uses_fixed_speech_when_llm_offers_it(client):
+    from app.main import app as fastapi_app
+
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "학습할 때 유런 일부를 무작위로 꺼버리는 거예요.",
+                      "start_ms": 1000, "end_ms": 4000})
+        receive_annotation(ws)
+
+    async def fix_speech(page, speech):
+        return speech.replace("유런", "뉴런")
+
+    fastapi_app.state.llm.fix_speech = fix_speech
+    try:
+        client.post(f"/sessions/{session['id']}/notes-pdf")
+    finally:
+        del fastapi_app.state.llm.fix_speech
+    pdf = client.get(f"/sessions/{session['id']}/notes-pdf")
+    text = "".join(p.get_text() for p in pymupdf.open("pdf", pdf.content)).replace("\xa0", " ")
+    explained = text.split("교수님 설명 (받아쓰기)")[1]
+    assert "뉴런 일부를" in explained and "유런" not in explained

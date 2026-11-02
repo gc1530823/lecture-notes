@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from .config import settings
 from .db import Database
 from .live_session import LiveSession
-from .llm import LLMError, make_llm
+from .llm import LLMError, accept_fixed_speech, make_llm
 from .notes_pdf import build_notes_pdf
 from .quick_notes import EXAM_TALK
 from .pdf_parser import PDFParseError, extract_keywords, parse_pdf
@@ -330,19 +330,22 @@ async def _build_notes_pdf(session_id: str) -> None:
         notes = [a for a in annotations if a["page_no"] == page["page_no"] and not a["pending"]]
         digest = hashlib.sha256(json.dumps([speech, [(a["type"], a["text"]) for a in notes]],
                                            ensure_ascii=False).encode()).hexdigest()
-        points = db().get_page_notes(session_id, page["page_no"], digest)
-        if points is None:
+        cached = db().get_page_notes(session_id, page["page_no"], digest)
+        if cached is None:
             try:
                 points = await app.state.llm.organize_page(page, speech, notes)
                 if not EXAM_TALK.search(speech):
                     # 작은 모델은 시험 이야기가 없는 페이지에도 ★시험을 붙이곤 해서, 실제로 말한 페이지에만 남긴다
                     points = [re.sub(r"\s*\(★[^)]*\)", "", p) for p in points]
-                db().save_page_notes(session_id, page["page_no"], digest, points)
             except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
                 # 한 페이지가 실패해도 PDF는 만든다 (그 페이지는 요약이나 받아쓰기만 들어간다)
                 log.exception("%s쪽 정리 실패", page["page_no"])
-                points = []
-        organized.append({"page_no": page["page_no"], "points": points})
+                points = None
+            fixed = await _fix_speech(page, speech)
+            cached = {"points": points or [], "speech": fixed}
+            if points is not None:
+                db().save_page_notes(session_id, page["page_no"], digest, cached)
+        organized.append({"page_no": page["page_no"], **cached})
         state["done"] += 1
     try:
         data = await asyncio.to_thread(
@@ -356,6 +359,19 @@ async def _build_notes_pdf(session_id: str) -> None:
         state["status"] = "failed"
         return
     app.state.notes_pdf.pop(session_id, None)
+
+
+async def _fix_speech(page: dict, speech: str) -> str | None:
+    """잘못 들린 단어만 고친 받아쓰기 (Groq·Claude 모드). 원문을 다시 썼거나 실패하면 None (원문을 쓴다)."""
+    fix = getattr(app.state.llm, "fix_speech", None)
+    if fix is None:
+        return None
+    try:
+        fixed = await fix(page, speech)
+    except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
+        log.exception("%s쪽 받아쓰기 교정 실패", page["page_no"])
+        return None
+    return fixed if fixed != speech and accept_fixed_speech(speech, fixed) else None
 
 
 @app.post("/sessions/{session_id}/notes-pdf", status_code=202)

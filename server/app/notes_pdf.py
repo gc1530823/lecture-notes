@@ -87,6 +87,7 @@ def build_notes_pdf(pdf_path: str, title: str, pages: list[dict], annotations: l
     images: dict[str, bytes] = {}
     esc = html.escape
     points_by_page = {p["page_no"]: p.get("points", []) for p in (organized or {}).get("pages", [])}
+    fixed_speech = {p["page_no"]: p["speech"] for p in (organized or {}).get("pages", []) if p.get("speech")}
     summary_by_page = {p["page_no"]: p["summary"] for p in (summary or {}).get("pages", [])}
 
     head = [f"<h1>{esc(title)}</h1>",
@@ -121,8 +122,9 @@ def build_notes_pdf(pdf_path: str, title: str, pages: list[dict], annotations: l
         elif no in summary_by_page:
             parts.append(f"<h3>정리 노트</h3><p>{esc(summary_by_page[no])}</p>")
         if speech:
-            parts.append("<h3>교수님 설명 (받아쓰기)</h3><p class='small muted'>"
-                         + " ".join(esc(s["text"]) for s in speech) + "</p>")
+            # AI가 잘못 들린 단어만 고친 받아쓰기가 있으면 그것을 쓴다
+            text = fixed_speech.get(no) or " ".join(s["text"] for s in speech)
+            parts.append(f"<h3>교수님 설명 (받아쓰기)</h3><p class='small muted'>{esc(text)}</p>")
 
     parts = []
     pending = [a for a in annotations if a["pending"]]

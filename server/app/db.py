@@ -304,14 +304,18 @@ class Database:
             (session_id, json.dumps(body, ensure_ascii=False)),
         )
 
-    def get_page_notes(self, session_id: str, page_no: int, digest: str) -> list[str] | None:
+    def get_page_notes(self, session_id: str, page_no: int, digest: str) -> dict | None:
+        """{"points": [...], "speech": 교정한 받아쓰기 또는 None}"""
         rows = self._query("SELECT points FROM page_notes WHERE session_id = ? AND page_no = ? AND digest = ?",
                            (session_id, page_no, digest))
-        return json.loads(rows[0]["points"]) if rows else None
+        if not rows:
+            return None
+        value = json.loads(rows[0]["points"])
+        return {"points": value, "speech": None} if isinstance(value, list) else value
 
-    def save_page_notes(self, session_id: str, page_no: int, digest: str, points: list[str]) -> None:
+    def save_page_notes(self, session_id: str, page_no: int, digest: str, notes: dict) -> None:
         self._write("INSERT OR REPLACE INTO page_notes (session_id, page_no, digest, points) VALUES (?, ?, ?, ?)",
-                    (session_id, page_no, digest, json.dumps(points, ensure_ascii=False)))
+                    (session_id, page_no, digest, json.dumps(notes, ensure_ascii=False)))
 
     def get_summary(self, session_id: str) -> dict | None:
         rows = self._query("SELECT body FROM summaries WHERE session_id = ?", (session_id,))

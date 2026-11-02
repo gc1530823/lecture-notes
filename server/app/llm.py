@@ -175,6 +175,31 @@ ORGANIZE_SCHEMA = {
     "additionalProperties": False,
 }
 
+FIX_SPEECH_SYSTEM = """강의 받아쓰기를 교정합니다. 슬라이드 텍스트와 받아쓰기 한 페이지 분량을 받습니다.
+
+- 잘못 들린 단어만 고칩니다: 비슷한 소리로 잘못 적힌 전문용어("유런" → "뉴런"), 띄어쓰기가 틀린 용어.
+- 나머지는 한 글자도 바꾸지 않습니다. 문장을 다듬거나, 줄이거나, 덧붙이지 않습니다.
+- 고친 전체 받아쓰기를 speech에 씁니다."""
+
+FIX_SPEECH_SCHEMA = {
+    "type": "object",
+    "properties": {"speech": {"type": "string"}},
+    "required": ["speech"],
+    "additionalProperties": False,
+}
+
+
+def accept_fixed_speech(original: str, fixed: str) -> bool:
+    """교정이 원문을 다시 쓰거나 줄이지 않았을 때만 받는다 (글자 85% 이상 같고 길이가 비슷해야 한다)."""
+    import difflib
+
+    if not fixed or not original:
+        return False
+    if not 0.9 <= len(fixed) / len(original) <= 1.1:
+        return False
+    return difflib.SequenceMatcher(None, original, fixed).ratio() >= 0.85
+
+
 TIPS_SYSTEM = """당신은 대학생의 복습을 돕는 조교입니다. 강의 요약을 보고 웹 검색으로 믿을 만한 추가 자료를 찾아 주세요.
 
 - 강의의 핵심 개념 2~4개를 골라, 개념마다 학생에게 도움이 될 자료(공식 문서, 대학 강의 노트, 교과서, 위키백과 등) 1개를 찾습니다.
@@ -209,6 +234,10 @@ def _organize_prompt(page: dict, speech: str, notes: list[dict]) -> str:
     lines = "\n".join(f"- ({a['type']}) {a['text']}" for a in notes) or "(없음)"
     return (f'<page no="{page["page_no"]}">\n<slide>\n{page["text"] or "(텍스트 없음)"}\n</slide>\n'
             f"<speech>\n{speech or '(없음)'}\n</speech>\n<notes>\n{lines}\n</notes>\n</page>")
+
+
+def _fix_speech_prompt(page: dict, speech: str) -> str:
+    return f"<slide>\n{page['text'] or '(텍스트 없음)'}\n</slide>\n<speech>\n{speech}\n</speech>"
 
 
 def _annotation_prompt(candidates: list[dict], transcript: str, existing_tasks: list[dict] | None = None) -> str:
@@ -358,6 +387,13 @@ class ClaudeLLM:
         async with self.client.beta.messages.stream(**params) as stream:
             response = await stream.get_final_message()
         return [p for p in _response_json(response).get("points", []) if isinstance(p, str) and p.strip()]
+
+    async def fix_speech(self, page: dict, speech: str) -> str:
+        params = self._request(settings.summary_model, "low", FIX_SPEECH_SYSTEM, _fix_speech_prompt(page, speech),
+                               FIX_SPEECH_SCHEMA, max_tokens=16000)
+        async with self.client.beta.messages.stream(**params) as stream:
+            response = await stream.get_final_message()
+        return str(_response_json(response).get("speech", ""))
 
 
 class FakeLLM:

@@ -94,3 +94,11 @@ def test_unpunctuated_transcript_is_split_at_korean_sentence_endings():
         "학습률이 너무 크면 최소값을 지나쳐서 발산하고 너무 작으면 학습이 엄청 느려집니다",
         "이거 중간고사에 꼭 나와요", "다음 장 역전파 입니다", "결국 연쇄 법칙을 반복해서 쓰는 거예요"]
     assert parts[0].start_ms == 0 and parts[-1].end_ms == 10000
+
+
+def test_fix_speech_only_accepts_small_corrections():
+    from app.llm import accept_fixed_speech
+
+    original = "그래서 드롭아웃은 학습할 때 유런 일부를 무작위로 꺼버리는 거예요."
+    assert accept_fixed_speech(original, original.replace("유런", "뉴런"))
+    assert not accept_fixed_speech(original, "드롭아웃은 뉴런 일부를 무작위로 끈다.")  # 다시 쓴 답은 버린다

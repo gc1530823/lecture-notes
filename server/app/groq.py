@@ -20,7 +20,7 @@ import httpx
 import numpy as np
 
 from .config import settings
-from .llm import LLMError
+from .llm import FIX_SPEECH_SCHEMA, FIX_SPEECH_SYSTEM, LLMError, _fix_speech_prompt
 from .ollama_llm import OllamaLLM
 from .stt import Segment, split_sentences
 
@@ -87,6 +87,11 @@ class GroqLLM(OllamaLLM):
 
     async def warm_up(self) -> None:
         return None
+
+    async def fix_speech(self, page: dict, speech: str) -> str:
+        """정리 PDF의 '교수님 설명'에서 잘못 들린 단어만 고친다 (Groq는 빨라서 페이지마다 한 번 더 불러도 된다)."""
+        data = await self._chat(FIX_SPEECH_SYSTEM, _fix_speech_prompt(page, speech), FIX_SPEECH_SCHEMA, 8192, 0)
+        return str(data.get("speech", ""))
 
 
 def _wav_bytes(audio: np.ndarray) -> bytes:
