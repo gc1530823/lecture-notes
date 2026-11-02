@@ -447,24 +447,49 @@ async function renderLecture(docId, sessionId) {
     drawMarks();
   }
 
-  // 노트 모드: 줄 노트에 AI가 한 줄씩 써 내려간다. 주제가 바뀌면 새 쪽, 쪽마다 AI가 제목을 붙인다
+  // 노트 모드: 디지털 필기 노트처럼 — 색 머리띠(제목·날짜), 모눈 종이, 주제마다 "1. 제목" 아래로 AI가 한 줄씩 써 내려간다.
+  // 주제(쪽)들을 한 장에 이어 쓰고, 지금 설명 중인 주제로 스크롤한다
+  const NOTE_COLORS = ["#d9d1ff", "#c7ebff", "#c2f0cc", "#fff1a8", "#ffd6a8", "#ffc9d4", "#f4d8ff", "#d6e7c8", "#e8e2d6", "#dfe3ea"];
+
+  function noteLine(n) {
+    // "개념: 설명" 꼴이면 개념을 색 글씨로, 둘째 문장부터는 → 로 내려 쓴다
+    const parts = n.text.split(/(?<=[.?!])\s+|\n/).filter(Boolean);
+    const first = esc(parts[0] || n.text).replace(/^([^:：]{2,18})[:：]\s*/, `<b class="kw">$1</b> `);
+    const sub = parts.slice(1).map((p) => `<span class="nb-sub">→ ${esc(p)}</span>`).join("");
+    const mark = { explanation: "-", example: "예)", emphasis: "!", exam: "★", notice: "공지)", tip: "(+)", qa: "Q." }[n.type] || "-";
+    return `<div class="nb-line t-${n.type}${n.id === state.selected ? " sel" : ""}${n.id < 0 ? " preview" : ""}${n.id === state.fresh ? " fresh" : ""}" data-flag="${n.id}" role="button" tabindex="0">
+      <span class="nb-mark">${mark}</span>
+      <span class="nb-text"><span class="nb-main">${first}</span>${sub}${state.beyond.has(n.id) ? ` <small class="nb-beyond">교수님만 말함</small>` : ""}</span>
+      ${state.hasAudio && !state.recording && n.id > 0 ? `<button class="nb-play" data-play="${n.start_ms}" aria-label="이 필기 때 녹음 듣기">${I("play")}</button>` : ""}
+    </div>`;
+  }
+
   function drawNotebook() {
-    const page = pageInfo();
-    const notes = visible();
     const box = $("#page");
     box.classList.add("notebook-page");
-    const t = (n) => TYPES[n.type] || TYPES.explanation;
-    box.innerHTML = `<h2>${state.page}. ${page.text ? esc(page.text) : `<span class="muted">${state.recording ? "주제를 듣는 중…" : "제목 없음"}</span>`}</h2>
-      ${notes.length ? notes.map((n, i) => `
-        <div class="nb-line t-${n.type}${n.id === state.selected ? " sel" : ""}${n.id < 0 ? " preview" : ""}${n.id === state.fresh ? " fresh" : ""}" data-flag="${n.id}" role="button" tabindex="0">
-          <span class="nb-mark" style="color:var(--${n.type}-ink)">${I(t(n).icon)}</span>
-          <span class="nb-text">${esc(n.text)}${state.beyond.has(n.id) ? ` <small class="nb-beyond">교수님만 말함</small>` : ""}</span>
-          ${state.hasAudio && !state.recording && n.id > 0 ? `<button class="nb-play" data-play="${n.start_ms}" aria-label="이 필기 때 녹음 듣기">${I("play")}</button>` : ""}
-        </div>`).join("") : `<p class="nb-line muted">${state.recording ? "교수님 설명을 듣고 있어요. 필기가 여기에 써져요." : "이 쪽에는 아직 필기가 없어요"}</p>`}`;
+    const color = prefs.get(`nbcolor.${docId}`) || NOTE_COLORS[0];
+    box.style.setProperty("--nb", color);
+    const all = [...state.notes, ...state.previews].filter((n) => !n.pending);
+    const date = new Date(state.startedAt || Date.now());
+    const sections = state.doc.pages.map((page) => {
+      const notes = all.filter((n) => n.page_no === page.page_no);
+      const now = page.page_no === state.page;
+      const title = page.text ? esc(page.text) : `<span class="muted">${state.recording && now ? "주제를 듣는 중…" : "제목 없음"}</span>`;
+      return `<section class="nb-sec${now ? " now" : ""}" data-sec="${page.page_no}">
+        <h3><span class="nb-no">${page.page_no}.</span> <span class="nb-title">${title}</span></h3>
+        ${notes.length ? notes.map(noteLine).join("") : `<p class="nb-line muted">${state.recording && now ? "교수님 설명을 듣고 있어요. 필기가 여기에 써져요." : "아직 필기가 없어요"}</p>`}
+      </section>`;
+    }).join("");
+    box.innerHTML = `<header class="nb-head">
+        <span class="nb-label">title</span><b class="nb-doc">${esc(state.doc.title)}</b>
+        <span class="nb-date">${String(date.getFullYear()).slice(2)}. ${String(date.getMonth() + 1).padStart(2, "0")}. ${String(date.getDate()).padStart(2, "0")}</span>
+        <span class="nb-colors">${NOTE_COLORS.map((c) => `<button class="nb-color${c === color ? " on" : ""}" data-color="${c}" style="background:${c}" aria-label="노트 색"></button>`).join("")}</span>
+      </header><div class="nb-body">${sections}</div>`;
+    box.querySelectorAll("[data-color]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); prefs.set(`nbcolor.${docId}`, b.dataset.color); drawNotebook(); }));
     box.querySelectorAll("[data-flag]").forEach((el) => (el.onclick = () => select(state.selected === Number(el.dataset.flag) ? null : Number(el.dataset.flag))));
     box.querySelectorAll("[data-play]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); playFrom(Number(b.dataset.play)); }));
-    const fresh = box.querySelector(".nb-line.fresh");
-    if (fresh) fresh.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const target = box.querySelector(".nb-line.fresh") || (state.notebookScrolled !== state.page && box.querySelector(".nb-sec.now"));
+    if (target) { target.scrollIntoView({ block: "nearest", behavior: "smooth" }); state.notebookScrolled = state.page; }
   }
 
   function drawMarks() {
@@ -817,6 +842,12 @@ async function renderLecture(docId, sessionId) {
       state.ended = true;
       checkAudio();
       checkBeyond();
+      if (state.notebook) {
+        // 마지막 주제의 제목은 연결이 끊긴 뒤에 붙으므로 잠시 뒤 다시 받아 온다
+        setTimeout(async () => {
+          try { state.doc = await api("GET", `/documents/${docId}`); drawNotebook(); } catch {}
+        }, 4000);
+      }
     }
     state.ws?.close();
     drawControls();

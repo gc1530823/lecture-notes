@@ -339,52 +339,73 @@ textarea.draft { width: 100%; min-height: 260px; border: 0; border-radius: 18px;
 .stat > .ic { width: 34px; height: 34px; color: var(--accent); }
 .stat b { font-size: 24px; color: var(--accent); margin-right: 4px; }
 
-/* 노트 모드: 줄 노트 + 손글씨 */
+/* 노트 모드: 디지털 필기 노트 (색 머리띠 + 모눈 + 작은 손글씨) */
 .fab-row { display: flex; gap: 8px; width: max-content; max-width: calc(100% - 32px); }
 .fab-row .primary { white-space: nowrap; padding: 0 18px; height: 52px; display: flex; align-items: center; gap: 6px; }
 .primary.ghost { background: var(--card); color: var(--accent); box-shadow: var(--shadow); }
 .nb-thumb, .nb-tile {
-  display: grid; place-items: center; background: #fffdf6; color: var(--accent);
-  background-image: repeating-linear-gradient(transparent 0 15px, #dfe6f5 15px 16px);
+  display: grid; place-items: center; background: #fffefb; color: var(--accent);
+  background-image: linear-gradient(#eef0f4 1px, transparent 1px), linear-gradient(90deg, #eef0f4 1px, transparent 1px);
+  background-size: 12px 12px;
 }
-.nb-thumb { width: 104px; height: 66px; border-radius: 8px; flex: none; }
-.nb-thumb .ic { width: 30px; height: 30px; }
-.nb-tile { aspect-ratio: 4 / 3; padding: 14px; font: 22px/1.3 "Nanum Pen Script", cursive; color: #2a2a4a; text-align: center; }
+.nb-thumb { width: 104px; height: 66px; border-radius: 8px; flex: none; border-top: 10px solid #d9d1ff; }
+.nb-thumb .ic { width: 26px; height: 26px; }
+.nb-tile { aspect-ratio: 4 / 3; padding: 12px; font: 17px/1.3 "Nanum Pen Script", cursive; color: #2a2a4a; text-align: center; }
 .notebook-page {
-  position: relative; background: #fffdf6; border-radius: 12px; padding: 8px 14px 18px 36px; color: #23233f;
+  --nb: #d9d1ff;
+  position: relative; border-radius: 10px; overflow: hidden; color: #2b2b3a; background-color: #fffefb;
   font-family: "Nanum Pen Script", "Apple SD Gothic Neo", cursive;
-  background-image:
-    linear-gradient(90deg, transparent 26px, #f3b4b4 26px 27px, transparent 27px),
-    repeating-linear-gradient(transparent 0 27px, #dfe6f5 27px 28px);
-  background-position: 0 36px; min-height: 320px;
   box-shadow: 0 6px 14px rgba(0,0,0,.10);
 }
-.notebook-page h2 { margin: 0 0 0; font-size: 23px; line-height: 36px; font-weight: 400; color: #3d36b8; }
+.nb-head {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 10px 14px 9px;
+  background: var(--nb); border-bottom: 1px solid rgba(0,0,0,.06); font-family: ui-rounded, system-ui, sans-serif;
+}
+.nb-label { font-size: 11px; color: rgba(0,0,0,.45); letter-spacing: .5px; }
+.nb-doc { font: 400 19px/1.2 "Nanum Pen Script", cursive; color: #2b2b3a; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-date { font-size: 11px; color: rgba(0,0,0,.45); font-variant-numeric: tabular-nums; }
+.nb-colors { display: flex; gap: 3px; width: 100%; justify-content: flex-end; margin-top: 2px; }
+.nb-color { width: 13px; height: 13px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); padding: 0; }
+.nb-color.on { outline: 2px solid rgba(0,0,0,.45); outline-offset: 1px; }
+.nb-body {
+  padding: 8px 14px 18px 14px;
+  background-image: linear-gradient(#eef0f4 1px, transparent 1px), linear-gradient(90deg, #eef0f4 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.nb-sec { padding: 4px 0 10px; border-radius: 8px; }
+.nb-sec h3 { margin: 6px 0 2px; font-size: 18px; line-height: 26px; font-weight: 400; }
+.nb-sec h3 .nb-no { color: #6b5fd6; }
+.nb-sec h3 .nb-title { background: linear-gradient(transparent 58%, color-mix(in srgb, var(--nb) 85%, transparent) 58%); padding: 0 2px; }
 .nb-line {
-  display: flex; gap: 8px; align-items: flex-start; width: 100%; text-align: left; padding: 0; background: none;
-  font: inherit; font-size: 19px; line-height: 28px; color: inherit;
+  display: flex; gap: 6px; align-items: flex-start; width: 100%; text-align: left; padding: 0 0 0 8px; background: none;
+  font: inherit; font-size: 15.5px; line-height: 22px; color: inherit; cursor: pointer;
 }
 .nb-line.fresh { animation: write .7s ease-out both; }
-.nb-line .nb-mark { flex: none; width: 18px; padding-top: 5px; }
-.nb-line .nb-mark .ic { width: 16px; height: 16px; }
-.nb-line .nb-text { flex: 1; border-radius: 4px; }
-.nb-line.t-exam .nb-text { background: linear-gradient(transparent 55%, color-mix(in srgb, var(--exam-ink) 30%, transparent) 55%); }
-.nb-line.t-emphasis .nb-text { background: linear-gradient(transparent 55%, color-mix(in srgb, var(--emphasis-ink) 30%, transparent) 55%); }
-.nb-line.t-notice .nb-text { text-decoration: underline wavy var(--notice-ink); text-underline-offset: 6px; }
-.nb-line.t-tip .nb-text, .nb-line.t-qa .nb-text { color: var(--tip-ink); }
+.nb-line .nb-mark { flex: none; min-width: 14px; color: #8a86a0; }
+.nb-line .nb-text { flex: 1; }
+.nb-line .nb-main, .nb-line .nb-sub { display: block; }
+.nb-line .nb-sub { padding-left: 14px; color: #55536a; }
+.nb-line .kw { font-weight: 400; color: #e0582e; }
+.nb-line.t-exam .nb-mark { color: #e02e54; }
+.nb-line.t-exam .nb-main { background: linear-gradient(transparent 55%, rgba(255,150,175,.55) 55%); }
+.nb-line.t-emphasis .nb-mark { color: #e08a00; }
+.nb-line.t-emphasis .nb-main { background: linear-gradient(transparent 55%, rgba(255,226,110,.7) 55%); }
+.nb-line.t-example .nb-mark, .nb-line.t-example .nb-main { color: #2f7fd1; }
+.nb-line.t-notice .nb-mark, .nb-line.t-notice .nb-main { color: #d2691e; }
+.nb-line.t-tip .nb-mark, .nb-line.t-tip .nb-text, .nb-line.t-qa .nb-mark, .nb-line.t-qa .nb-text { color: #0d85cc; }
 .nb-line.preview { opacity: .5; }
-.nb-line.sel .nb-text { outline: 2px solid var(--accent); outline-offset: 2px; }
-.notebook-page.cover { min-height: 160px; }
+.nb-line.sel .nb-text { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.nb-line.muted { cursor: default; color: #9a98aa; }
+.nb-play { flex: none; color: var(--accent); padding: 0 2px; }
+.nb-play .ic { width: 15px; height: 15px; }
+.nb-beyond { font: 800 10px/1 ui-rounded, system-ui, sans-serif; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); padding: 2px 5px; border-radius: 6px; vertical-align: 2px; }
+.notebook-page.cover { padding: 18px; min-height: 140px; background-image: linear-gradient(#eef0f4 1px, transparent 1px), linear-gradient(90deg, #eef0f4 1px, transparent 1px); background-size: 22px 22px; border-top: 14px solid #d9d1ff; }
+.notebook-page.cover h2 { font-weight: 400; margin: 0; }
 @keyframes write { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 /* 노트 모드에서는 노트가 화면 대부분을 쓰고, 아래 포스트잇 보드는 숨긴다 */
 .lecture.notebook .pager { flex: 1; overflow-y: auto; padding-bottom: 230px; }
-.lecture.notebook .page { overflow: visible; border-radius: 12px; }
+.lecture.notebook .page { overflow: hidden; border-radius: 10px; }
 .lecture.notebook .board, .lecture.notebook .board-head { display: none; }
-.nb-line { cursor: pointer; }
-.nb-play { flex: none; color: var(--accent); padding: 4px; }
-.nb-play { padding: 2px 4px; }
-.nb-play .ic { width: 17px; height: 17px; }
-.nb-beyond { font: 800 11px/1 ui-rounded, system-ui, sans-serif; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); padding: 3px 6px; border-radius: 8px; vertical-align: 3px; }
 
 /* 공부하기 */
 .tabs { display: flex; gap: 6px; overflow-x: auto; margin: 0 -4px 14px; padding: 2px 4px; scrollbar-width: none; }
