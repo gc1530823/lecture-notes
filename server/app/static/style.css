@@ -248,3 +248,14 @@ textarea.draft { width: 100%; min-height: 260px; border: 0; border-radius: 18px;
 .predict summary { cursor: pointer; font-weight: 800; color: var(--accent); font-size: 13px; }
 .predict p { margin: 6px 0 0; font-size: 14px; line-height: 1.5; }
 .row { display: flex; align-items: center; gap: 10px; }
+
+/* 아이콘 (Phosphor duotone) */
+.ic { width: 1.2em; height: 1.2em; flex: none; vertical-align: -0.24em; }
+.icon-btn .ic { width: 24px; height: 24px; }
+.badge .ic { width: 20px; height: 20px; }
+.task-ic { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: color-mix(in srgb, currentColor 12%, transparent); flex: none; }
+.task-ic .ic { width: 22px; height: 22px; }
+.rec .ic { width: 30px; height: 30px; color: #fff; }
+.chip .ic, .ask .ic { width: 1.15em; height: 1.15em; }
+.note .head .ic { width: 1.1em; height: 1.1em; }
+.muted > .ic:only-child { width: 18px; height: 18px; opacity: 0.6; }

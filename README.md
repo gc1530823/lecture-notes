@@ -199,6 +199,11 @@ open LectureNotes.xcodeproj
 push할 때마다 GitHub Actions(macOS)가 앱을 빌드하고, 데모 모드로 화면마다 시뮬레이터 스크린샷과
 실시간 필기 동영상(`live.mp4`)을 찍어 `screenshots` 브랜치에 올린다. 빌드 경고·오류는 Actions 주석으로 남는다.
 
+## 사용한 오픈소스 자료
+
+- 아이콘: [Phosphor Icons](https://phosphoricons.com) duotone (MIT) — `server/app/static/icons.svg`, 라이선스는 `server/app/static/vendor/phosphor/LICENSE`
+- PDF 보기: pdf.js (Apache-2.0), 한글 글꼴: 나눔고딕 (OFL-1.1)
+
 ## API 요약
 
 | 메서드 | 경로 | 역할 |

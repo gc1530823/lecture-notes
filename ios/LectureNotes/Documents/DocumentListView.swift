@@ -230,8 +230,9 @@ struct DocumentDetailView: View {
                         ExamMapView(document: document)
                     } label: {
                         HStack(spacing: 12) {
-                            Text("🎯")
-                                .font(.title3)
+                            Image(systemName: "scope")
+                                .font(.headline.weight(.bold))
+                                .foregroundStyle(AnnotationType.exam.inkColor)
                                 .frame(width: 36, height: 36)
                                 .background(AnnotationType.exam.inkColor.opacity(0.12), in: Circle())
                             VStack(alignment: .leading, spacing: 2) {

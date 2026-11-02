@@ -147,10 +147,14 @@ extension ExamPageScore {
 
     var heatLabel: String? {
         switch level {
-        case "high": "🔥 시험 유력"
-        case "medium": "⚠️ 나올 수 있음"
+        case "high": "시험 유력"
+        case "medium": "나올 수 있음"
         default: nil
         }
+    }
+
+    var heatSymbol: String {
+        level == "high" ? "flame.fill" : "exclamationmark.triangle.fill"
     }
 }
 
@@ -179,7 +183,7 @@ private struct HeatCell: View {
                         .background(.background, in: RoundedRectangle(cornerRadius: 7))
                     Spacer()
                     if let label = page.heatLabel {
-                        Text(label)
+                        Label(label, systemImage: page.heatSymbol)
                             .font(.caption2.weight(.heavy))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)
@@ -215,7 +219,7 @@ private struct RankCard: View {
                     .background(page.heatColor.opacity(0.16), in: RoundedRectangle(cornerRadius: 9))
                 Text("\(page.pageNo)쪽").font(.headline)
                 if let label = page.heatLabel {
-                    Text(label).font(.subheadline.weight(.bold)).foregroundStyle(page.heatColor)
+                    Label(label, systemImage: page.heatSymbol).font(.subheadline.weight(.bold)).foregroundStyle(page.heatColor)
                 }
             }
             FlowReasons(reasons: page.reasons)

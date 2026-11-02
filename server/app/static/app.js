@@ -5,19 +5,22 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdfjs/pdf.worker.min.js";
 
 const TYPES = {
-  explanation: { label: "보충설명", icon: "💬" },
-  example: { label: "예시", icon: "💡" },
-  emphasis: { label: "강조", icon: "❗" },
-  exam: { label: "시험", icon: "⭐" },
-  notice: { label: "공지", icon: "📣" },
-  tip: { label: "AI 팁", icon: "✨" },
-  qa: { label: "질문", icon: "🙋" },
+  explanation: { label: "보충설명", icon: "chat-teardrop-text" },
+  example: { label: "예시", icon: "lightbulb" },
+  emphasis: { label: "강조", icon: "warning-circle" },
+  exam: { label: "시험", icon: "star" },
+  notice: { label: "공지", icon: "megaphone" },
+  tip: { label: "AI 팁", icon: "sparkle" },
+  qa: { label: "질문", icon: "hand-waving" },
 };
+// 아이콘: Phosphor Icons duotone (MIT, vendor/phosphor/LICENSE). icons.svg 스프라이트에서 이름으로 꺼내 쓴다
+const I = (name, cls = "") => `<svg class="ic ${cls}" aria-hidden="true"><use href="icons.svg#${name}"/></svg>`;
+
 const TASK_KINDS = {
-  in_class: { label: "수업 중 과제", icon: "⏱️", color: "var(--record)" },
-  homework: { label: "숙제", icon: "🏠", color: "var(--accent)" },
-  report: { label: "레포트", icon: "📄", color: "var(--tip-ink)" },
-  exam_prep: { label: "시험 준비", icon: "🎓", color: "var(--emphasis-ink)" },
+  in_class: { label: "수업 중 과제", icon: "timer", color: "var(--record)" },
+  homework: { label: "숙제", icon: "house-line", color: "var(--accent)" },
+  report: { label: "레포트", icon: "file-text", color: "var(--tip-ink)" },
+  exam_prep: { label: "시험 준비", icon: "graduation-cap", color: "var(--emphasis-ink)" },
 };
 const TILTS = [-2.2, 1.6, -1.0, 2.4, -0.5, 1.1];
 const FOLLOW_CONFIDENCE = 0.6;
@@ -136,8 +139,8 @@ async function renderList() {
       ${docs.length ? `<div class="list">${docs.map((d) => `
         <button class="card doc-card" data-id="${d.id}">
           <canvas data-thumb="${d.id}"></canvas>
-          <span style="flex:1"><b>${esc(d.title)}</b><small>📄 ${d.pageCount}쪽 · 🎙️ 강의 ${d.sessions.length}회</small></span>
-          <span class="muted">›</span>
+          <span style="flex:1"><b>${esc(d.title)}</b><small>${I("file-text")} ${d.pageCount}쪽 · ${I("microphone")} 강의 ${d.sessions.length}회</small></span>
+          <span class="muted">${I("caret-right")}</span>
         </button>`).join("")}</div>` : `
         <div class="empty">
           <div class="notes">
@@ -184,26 +187,26 @@ async function renderDetail(docId) {
   if (!doc) return (location.hash = "#/");
   $app.innerHTML = `
     <div class="screen">
-      <div class="topbar"><button class="icon-btn" id="back">‹</button><div class="title">${esc(doc.title)}</div><button class="icon-btn" id="del">🗑</button></div>
+      <div class="topbar"><button class="icon-btn" id="back">${I("caret-left")}</button><div class="title">${esc(doc.title)}</div><button class="icon-btn" id="del">${I("trash")}</button></div>
       <div class="list">
         <div class="page"><canvas id="cover"></canvas></div>
-        <button class="primary red" id="start" style="width:100%;height:56px;border-radius:18px">🎙️ 새 강의 녹음하기</button>
+        <button class="primary red" id="start" style="width:100%;height:56px;border-radius:18px">${I("microphone")} 새 강의 녹음하기</button>
         <button class="card item" id="audio" style="align-items:center">
-          <span class="badge">🎧</span>
+          <span class="badge">${I("headphones")}</span>
           <span style="flex:1"><b>녹음 파일로 정리하기</b><br><small class="muted">iPhone '음성 메모'로 녹음한 파일을 올리면 화면을 꺼 둔 수업도 필기·요약·퀴즈로 만들어요</small></span>
         </button>
         <input type="file" id="audiofile" accept="audio/*,.m4a,.mp3,.wav" class="hidden">
         <button class="card item" id="exammap" style="align-items:center">
-          <span class="badge">🎯</span>
+          <span class="badge">${I("target")}</span>
           <span style="flex:1"><b>시험 예상 지도</b><br><small class="muted">교수님이 강조하고 시험에 나온다고 한 곳을 페이지 위에 표시하고, 예상 문제를 만들어요</small></span>
-          <span class="muted">›</span>
+          <span class="muted">${I("caret-right")}</span>
         </button>
         <h3 style="margin:8px 0 0">지난 강의</h3>
         ${doc.sessions.length ? doc.sessions.map((s, i) => `
           <button class="card item" data-session="${s.id}">
             <span class="badge">${doc.sessions.length - i}</span>
             <span style="flex:1"><b>${doc.sessions.length - i}회차 강의</b><br><small class="muted">${new Date(s.startedAt).toLocaleString("ko-KR")}</small></span>
-            <span class="muted">›</span>
+            <span class="muted">${I("caret-right")}</span>
           </button>`).join("") : `<div class="empty-note">아직 녹음한 강의가 없어요</div>`}
       </div>
     </div>`;
@@ -245,8 +248,8 @@ async function renderDetail(docId) {
 // ---------- 시험 예상 지도 ----------
 
 const HEAT = {
-  high: { label: "🔥 시험 유력", color: "var(--exam-ink)" },
-  medium: { label: "⚠️ 나올 수 있음", color: "var(--emphasis-ink)" },
+  high: { label: `${I("fire")} 시험 유력`, color: "var(--exam-ink)" },
+  medium: { label: `${I("warning")} 나올 수 있음`, color: "var(--emphasis-ink)" },
   low: { label: "", color: "transparent" },
 };
 
@@ -255,7 +258,7 @@ async function renderExamMap(docId) {
   if (!doc) return (location.hash = "#/");
   $app.innerHTML = `
     <div class="screen">
-      <div class="topbar"><button class="icon-btn" id="back">‹</button><div class="title">🎯 시험 예상 지도</div><span style="width:36px"></span></div>
+      <div class="topbar"><button class="icon-btn" id="back">${I("caret-left")}</button><div class="title">${I("target")} 시험 예상 지도</div><span style="width:36px"></span></div>
       <div class="list" id="exam"><p class="muted"><span class="spin"></span> 강의를 모아 분석하는 중…</p></div>
     </div>`;
   $app.querySelector("#back").onclick = () => (location.hash = `#/doc/${docId}`);
@@ -286,11 +289,11 @@ async function renderExamMap(docId) {
             <div class="predict">
               <b><span style="color:var(--accent)">예상 ${j + 1}</span> ${esc(q.question)}</b>
               <details><summary>모범 답안 보기</summary><p>${esc(q.answer)}</p></details>
-              <small class="muted">💡 ${esc(q.reason)}</small>
+              <small class="muted">${I("lightbulb")} ${esc(q.reason)}</small>
             </div>`).join("")}
         </div>`).join("") : `<div class="empty-note">아직 강조하거나 시험에 나온다고 한 곳이 없어요</div>`}
       ${ranked.length ? `<button class="primary" id="predict" style="width:100%;height:52px" ${building ? "disabled" : ""}>
-        ${building ? `<span class="spin"></span> 예상 문제 만드는 중… ${m.job.total ? `(${m.job.done}/${m.job.total}쪽)` : ""}` : stale ? "✨ 예상 문제 만들기" : "✨ 예상 문제 다시 만들기"}</button>` : ""}`;
+        ${building ? `<span class="spin"></span> 예상 문제 만드는 중… ${m.job.total ? `(${m.job.done}/${m.job.total}쪽)` : ""}` : stale ? `${I("sparkle")} 예상 문제 만들기` : `${I("sparkle")} 예상 문제 다시 만들기`}</button>` : ""}`;
     box.querySelectorAll("canvas[data-heat]").forEach(async (canvas) => {
       try { await renderPage(await loadPdf(docId), Number(canvas.dataset.heat), canvas, Math.min((innerWidth - 44) / 2, 340)); } catch {}
     });
@@ -326,12 +329,12 @@ function noteHTML(a, number, { selected = false, preview = false, fresh = false 
     <div class="note-wrap${fresh ? " fresh" : ""}" data-note="${a.id}" style="--tape:${-tilt(a.id) * 1.5}deg">
       <button class="note${selected ? " sel" : ""}${preview ? " preview" : ""}"
         style="background:var(--${a.type});--ink-c:var(--${a.type}-ink);transform:rotate(${tilt(a.id)}deg);width:100%">
-        <div class="head" style="color:var(--${a.type}-ink)">${t.icon} ${t.label}
+        <div class="head" style="color:var(--${a.type}-ink)">${I(t.icon)} ${t.label}
           ${number ? `<span class="num" style="background:var(--${a.type}-ink)">${number}</span>` : ""}</div>
         <div class="text">${esc(a.text)}</div>
         ${preview ? `<div class="sub"><span class="spin"></span> AI가 정리 중…</div>` : ""}
         ${a.type === "tip" ? `<div class="sub">교수님 말씀이 아니라 AI가 덧붙인 내용이에요</div>` : ""}
-        ${a.edited_by_user ? `<div class="sub">✏️ 직접 수정함</div>` : ""}
+        ${a.edited_by_user ? `<div class="sub">${I("pencil-simple")} 직접 수정함</div>` : ""}
       </button>
     </div>`;
 }
@@ -348,7 +351,7 @@ async function renderLecture(docId, sessionId) {
 
   $app.innerHTML = `
     <div class="screen lecture">
-      <div class="topbar"><button class="icon-btn" id="back">‹</button><div class="title" id="title"></div><button class="icon-btn" id="notespdf" title="강의 정리 PDF">📄</button><button class="icon-btn" id="sum" title="요약·퀴즈">✨</button></div>
+      <div class="topbar"><button class="icon-btn" id="back">${I("caret-left")}</button><div class="title" id="title"></div><button class="icon-btn" id="notespdf" title="강의 정리 PDF">${I("file-pdf")}</button><button class="icon-btn" id="sum" title="요약·퀴즈">${I("sparkle")}</button></div>
       <div class="pager"><div class="page" id="page"><canvas></canvas><div class="marks"></div></div></div>
       <div class="board-head">
         <h2 id="bh"></h2><span class="count" id="bc"></span><span class="spacer"></span>
@@ -358,7 +361,7 @@ async function renderLecture(docId, sessionId) {
       </div>
       <div class="board" id="board"></div>
       <div class="dock">
-        <button class="ask hidden" id="ask">🙋 방금 뭐라고?</button>
+        <button class="ask hidden" id="ask">${I("hand-waving")} 방금 뭐라고?</button>
         <div class="caption hidden" id="caption"><span class="dot"></span><span id="captext">듣고 있어요…</span></div>
         <div class="bar">
           <div class="pages"><button id="prev">‹</button><span id="pno"></span><button id="next">›</button></div>
@@ -437,7 +440,7 @@ async function renderLecture(docId, sessionId) {
       const pos = below ? `top:calc(${(block.y + block.h) * 100}% + 6px)` : `bottom:calc(${block ? (1 - block.y) * 100 : 8}% + 6px)`;
       const t = TYPES[spot.type] || TYPES.explanation;
       html += `<div class="callout" data-callout style="left:${left};${pos};background:var(--${spot.type});rotate:${tilt(spot.id) * 0.5}deg">
-        <span class="kind" style="color:var(--${spot.type}-ink)">${t.icon} ${t.label}</span>${esc(spot.text)}</div>`;
+        <span class="kind" style="color:var(--${spot.type}-ink)">${I(t.icon)} ${t.label}</span>${esc(spot.text)}</div>`;
     }
     marks.innerHTML = html;
     marks.querySelectorAll("[data-flag]").forEach((el) => (el.onclick = () => select(Number(el.dataset.flag))));
@@ -462,13 +465,13 @@ async function renderLecture(docId, sessionId) {
     });
     const pending = state.notes.filter((n) => n.pending);
     $("#pendchip").classList.toggle("hidden", !pending.length);
-    $("#pendchip").textContent = `📥 보류 ${pending.length}`;
+    $("#pendchip").innerHTML = `${I("tray-arrow-down")} 보류 ${pending.length}`;
     const open = state.tasks.filter((t) => !t.done);
     $("#taskchip").classList.toggle("hidden", !state.tasks.length);
-    $("#taskchip").textContent = `📋 과제 ${open.length}`;
+    $("#taskchip").innerHTML = `${I("clipboard-text")} 과제 ${open.length}`;
     $("#follow").classList.toggle("hidden", !state.recording);
     const elsewhere = state.estimate && state.estimate !== state.page;
-    $("#follow").textContent = state.autoFollow ? "🪄 자동 넘김" : elsewhere ? `✋ 지금 ${state.estimate}쪽 설명 중` : "✋ 직접 넘김";
+    $("#follow").innerHTML = state.autoFollow ? `${I("magic-wand")} 자동 넘김` : elsewhere ? `${I("hand-palm")} 지금 ${state.estimate}쪽 설명 중` : `${I("hand-palm")} 직접 넘김`;
   }
 
   function redraw() { drawMarks(); drawBoard(); }
@@ -734,8 +737,8 @@ async function renderLecture(docId, sessionId) {
       ? `<span class="wave">${[0.45, 0.8, 1, 0.7, 0.5].map((h, i) => `<i style="height:${h * 22}px;animation-delay:${i * 0.12}s"></i>`).join("")}</span><span class="t">00:00</span>`
       : "";
     if (state.recording) $("#main").innerHTML = `<button class="rec on" id="rec" aria-label="강의 끝내기"><span class="stop"></span></button>`;
-    else if (state.ended) $("#main").innerHTML = `<button class="primary" id="rec" style="height:48px">✨ 요약·퀴즈</button>`;
-    else $("#main").innerHTML = `<button class="rec" id="rec" aria-label="녹음 시작">🎙️</button>`;
+    else if (state.ended) $("#main").innerHTML = `<button class="primary" id="rec" style="height:48px">${I("sparkle")} 요약·퀴즈</button>`;
+    else $("#main").innerHTML = `<button class="rec" id="rec" aria-label="녹음 시작">${I("microphone")}</button>`;
     $("#rec").onclick = () => (state.recording ? stopLecture() : state.ended ? openSummary() : startLecture());
   }
 
@@ -745,7 +748,7 @@ async function renderLecture(docId, sessionId) {
 
   function openAsk() {
     const page = state.page;
-    const { el, close } = sheet(`<h3>🙋 방금 뭐라고?</h3>
+    const { el, close } = sheet(`<h3>${I("hand-waving")} 방금 뭐라고?</h3>
       <p class="muted">최근 2분 동안의 설명과 ${page}쪽 자료를 보고 답해서, 관련 문단 옆에 붙여 줘요.</p>
       <div class="row" style="flex-wrap:wrap;margin-bottom:12px">${QUICK_QUESTIONS.map((q) =>
         `<button class="chip" data-q="${esc(q)}" style="color:var(--qa-ink);background:color-mix(in srgb,var(--qa-ink) 12%,transparent)">${esc(q)}</button>`).join("")}</div>
@@ -768,7 +771,7 @@ async function renderLecture(docId, sessionId) {
       flash(note.id);
     } catch (e) { toast(e.message); }
     button.disabled = false;
-    button.textContent = "🙋 방금 뭐라고?";
+    button.innerHTML = `${I("hand-waving")} 방금 뭐라고?`;
   }
 
   // --- 필기 수정·삭제 ---
@@ -824,10 +827,10 @@ async function renderLecture(docId, sessionId) {
     const k = TASK_KINDS[task.kind] || TASK_KINDS.homework;
     const el = document.createElement("div");
     el.className = "banner";
-    el.innerHTML = `<span style="font-size:22px">${k.icon}</span>
+    el.innerHTML = `<span class="task-ic" style="color:${k.color}">${I(k.icon)}</span>
       <span style="flex:1;min-width:0"><small style="color:${k.color};font-weight:900">새 ${k.label}${task.due_text ? ` · ${esc(task.due_text)}` : ""}</small>
       <b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(task.title)}</b></span>
-      <button class="chip" style="color:#fff;background:${k.color}">바로 하기</button><button class="muted">✕</button>`;
+      <button class="chip" style="color:#fff;background:${k.color}">바로 하기</button><button class="muted">${I("x")}</button>`;
     el.querySelector(".chip").onclick = () => { el.remove(); openTask(task.id); };
     el.querySelector("button.muted").onclick = () => el.remove();
     document.body.append(el);
@@ -837,9 +840,9 @@ async function renderLecture(docId, sessionId) {
   function openTasks() {
     const { el, close } = sheet(`<h3>이번 강의 과제</h3>${state.tasks.map((t) => {
       const k = TASK_KINDS[t.kind] || TASK_KINDS.homework;
-      return `<button class="card item" data-task="${t.id}"><span style="font-size:22px">${t.done ? "✅" : k.icon}</span>
+      return `<button class="card item" data-task="${t.id}"><span class="task-ic" style="color:${t.done ? "#2fb35a" : k.color}">${I(t.done ? "check-circle" : k.icon)}</span>
         <span style="flex:1"><b style="${t.done ? "text-decoration:line-through" : ""}">${esc(t.title)}</b><br>
-        <small class="muted">${k.label}${t.due_text ? ` · ${esc(t.due_text)}` : ""}</small></span>${t.draft ? "✨" : ""}<span class="muted">›</span></button>`;
+        <small class="muted">${k.label}${t.due_text ? ` · ${esc(t.due_text)}` : ""}</small></span>${t.draft ? I("sparkle") : ""}<span class="muted">${I("caret-right")}</span></button>`;
     }).join("")}`);
     el.querySelectorAll("[data-task]").forEach((b) => (b.onclick = () => { close(); openTask(Number(b.dataset.task)); }));
   }
@@ -849,15 +852,15 @@ async function renderLecture(docId, sessionId) {
     const k = TASK_KINDS[task.kind] || TASK_KINDS.homework;
     const { el } = sheet(`
       <div class="card" style="padding:16px;margin-top:6px">
-        <small style="color:${k.color};font-weight:900">${k.icon} ${k.label}${task.due_text ? ` · 🕒 ${esc(task.due_text)}` : ""}</small>
+        <small style="color:${k.color};font-weight:900">${I(k.icon)} ${k.label}${task.due_text ? ` · ${I("clock")} ${esc(task.due_text)}` : ""}</small>
         <h3 style="margin:6px 0">${esc(task.title)}</h3><p class="muted" style="margin:0 0 10px">${esc(task.instructions)}</p>
-        <button class="chip" id="done" style="color:${task.done ? "#2fb35a" : "var(--ink-2)"}">${task.done ? "✅ 완료함" : "○ 완료 표시"}</button>
+        <button class="chip" id="done" style="color:${task.done ? "#2fb35a" : "var(--ink-2)"}">${task.done ? `${I("check-circle")} 완료함` : `${I("circle")} 완료 표시`}</button>
       </div>
       <div id="draftbox" style="margin-top:16px"></div>`);
     el.querySelector("#done").onclick = async () => {
       try {
         Object.assign(task, await api("PATCH", `/tasks/${task.id}`, { done: !task.done }));
-        el.querySelector("#done").textContent = task.done ? "✅ 완료함" : "○ 완료 표시";
+        el.querySelector("#done").innerHTML = task.done ? `${I("check-circle")} 완료함` : `${I("circle")} 완료 표시`;
         drawBoard();
       } catch (e) { toast(e.message); }
     };
@@ -865,20 +868,20 @@ async function renderLecture(docId, sessionId) {
     const showDraft = () => {
       const d = task.draft;
       box.innerHTML = `
-        <h3>☑️ 요구사항 체크리스트</h3><div class="card" style="padding:14px">${d.checklist.map((c) =>
+        <h3>${I("check-square")} 요구사항 체크리스트</h3><div class="card" style="padding:14px">${d.checklist.map((c) =>
           `<label class="row" style="padding:6px 0"><input type="checkbox"> <span>${esc(c)}</span></label>`).join("")}</div>
-        <h3>🔢 개요</h3><div class="card" style="padding:14px">${d.outline.map((o, i) =>
+        <h3>${I("list-numbers")} 개요</h3><div class="card" style="padding:14px">${d.outline.map((o, i) =>
           `<div class="row" style="padding:5px 0;align-items:flex-start"><span class="badge" style="width:22px;height:22px;font-size:12px">${i + 1}</span><span>${esc(o)}</span></div>`).join("")}</div>
-        <div class="row"><h3 style="flex:1">✍️ 초안 (바로 고쳐 쓰세요)</h3><button class="chip" id="copy" style="color:var(--accent)">복사</button></div>
+        <div class="row"><h3 style="flex:1">${I("note-pencil")} 초안 (바로 고쳐 쓰세요)</h3><button class="chip" id="copy" style="color:var(--accent)">복사</button></div>
         <textarea class="draft" id="draft">${esc(d.draft)}</textarea>
         <p style="font-size:13px;color:var(--accent);font-weight:800">근거: ${d.sources.map((s) => `${s}쪽`).join(", ")}</p>
-        <p class="muted" style="font-size:12px">🛡️ AI가 만든 초안이에요. 수업마다 AI 사용 규칙이 다르니 확인하고, 본인 말로 고쳐서 제출하세요.</p>`;
+        <p class="muted" style="font-size:12px">${I("shield-check")} AI가 만든 초안이에요. 수업마다 AI 사용 규칙이 다르니 확인하고, 본인 말로 고쳐서 제출하세요.</p>`;
       box.querySelector("#copy").onclick = async () => {
         try { await navigator.clipboard.writeText(box.querySelector("#draft").value); toast("복사했어요"); } catch { toast("복사하지 못했어요"); }
       };
     };
     if (task.draft) return showDraft();
-    box.innerHTML = `<button class="primary" id="make" style="width:100%;height:56px;border-radius:18px">✨ AI와 바로 하기</button>`;
+    box.innerHTML = `<button class="primary" id="make" style="width:100%;height:56px;border-radius:18px">${I("sparkle")} AI와 바로 하기</button>`;
     box.querySelector("#make").onclick = async (e) => {
       e.target.disabled = true;
       e.target.innerHTML = `<span class="spin"></span> 오늘 강의 내용으로 만드는 중…`;
@@ -889,7 +892,7 @@ async function renderLecture(docId, sessionId) {
       } catch (err) {
         toast(err.message);
         e.target.disabled = false;
-        e.target.textContent = "✨ AI와 바로 하기";
+        e.target.innerHTML = `${I("sparkle")} AI와 바로 하기`;
       }
     };
   }
@@ -909,7 +912,7 @@ async function renderLecture(docId, sessionId) {
       try { res = await api("GET", `${url}/status`); } catch (e) { box.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
     }
     if (res.status === "failed") { box.innerHTML = `<p class="muted">PDF를 만들지 못했어요. 잠시 뒤 다시 눌러 주세요.</p>`; return; }
-    box.innerHTML = `<a class="primary" href="${url}?t=${Date.now()}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;height:48px;text-decoration:none">📄 정리 PDF 열기</a>
+    box.innerHTML = `<a class="primary" href="${url}?t=${Date.now()}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;height:48px;text-decoration:none">${I("file-text")} 정리 PDF 열기</a>
       <p class="muted" style="margin-top:10px"><small>열린 PDF에서 공유 버튼을 누르면 파일·굿노트 등에 저장할 수 있어요.</small></p>`;
   }
 
@@ -928,10 +931,10 @@ async function renderLecture(docId, sessionId) {
 
   function drawSummary(box, s) {
     box.innerHTML = `
-      <div class="overview"><small>✨ 한눈에 보는 강의</small>${esc(s.overview)}</div>
-      <button class="card item" id="topdf"><span class="badge">📄</span><span style="flex:1"><b>강의 정리 PDF 만들기</b><br><small class="muted">필기 붙은 슬라이드 + 요약이 아닌 전체 정리</small></span></button>
+      <div class="overview"><small>${I("sparkle")} 한눈에 보는 강의</small>${esc(s.overview)}</div>
+      <button class="card item" id="topdf"><span class="badge">${I("file-pdf")}</span><span style="flex:1"><b>강의 정리 PDF 만들기</b><br><small class="muted">필기 붙은 슬라이드 + 요약이 아닌 전체 정리</small></span></button>
       <h3>페이지별 요약</h3>${s.pages.map((p) => `<button class="card item" data-goto="${p.page_no}"><span class="badge">${p.page_no}</span><span style="flex:1">${esc(p.summary)}</span></button>`).join("")}
-      ${s.tips?.length ? `<h3>더 알아보기</h3>${s.tips.map((t) => `<a class="card item" href="${esc(t.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span class="badge">🧭</span><span><b>${esc(t.title)}</b><br><small class="muted">${esc(t.text)}</small></span></a>`).join("")}` : ""}
+      ${s.tips?.length ? `<h3>더 알아보기</h3>${s.tips.map((t) => `<a class="card item" href="${esc(t.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span class="badge">${I("compass")}</span><span><b>${esc(t.title)}</b><br><small class="muted">${esc(t.text)}</small></span></a>`).join("")}` : ""}
       <div class="row"><h3 style="flex:1">복습 퀴즈</h3><span class="chip" id="score" style="color:#2fb35a;background:color-mix(in srgb,#2fb35a 12%,transparent)">0 / ${s.quiz.length}</span></div>
       ${s.quiz.map((q, i) => `<div class="card" style="padding:16px;margin-bottom:12px" data-q="${i}"><b><span style="color:var(--accent)">Q${i + 1}</span> ${esc(q.question)}</b>
         ${q.choices.map((c, j) => `<button class="choice" data-c="${j}">○ ${esc(c)}</button>`).join("")}<div class="explain"></div></div>`).join("")}`;
@@ -967,7 +970,7 @@ async function renderLecture(docId, sessionId) {
         state.notes = await api("GET", `/sessions/${state.sessionId}/annotations`);
         state.tasks = await api("GET", `/sessions/${state.sessionId}/tasks`);
         redraw();
-        toast("정리가 끝났어요! ✨ 버튼으로 요약·퀴즈를 볼 수 있어요");
+        toast("정리가 끝났어요! 위쪽 요약 버튼으로 요약·퀴즈를 볼 수 있어요");
       }
       return;
     }
