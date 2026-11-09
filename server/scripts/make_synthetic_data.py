@@ -19,6 +19,7 @@ import json
 import os
 import random
 import time
+import traceback
 
 import httpx
 import pymupdf
@@ -160,36 +161,65 @@ async def run_lecture(http: httpx.AsyncClient, url: str, lecture: dict, notebook
         listener.cancel()
 
     # 수업 중 기능들도 한 번씩 (학습 데이터에 여러 작업이 고르게 들어가게)
+    r = Retrying(http)
     page_no = random.randint(1, max(1, len(lecture["pages"])))
-    await http.post(f"/sessions/{sid}/ask", json={"question": random.choice(
+    await r.json("POST", f"/sessions/{sid}/ask", json={"question": random.choice(
         ["방금 뭐라고 했어?", "쉽게 다시 설명해 줘", "예시 하나만 들어 줘", "이거 시험에 어떻게 나올까?"]), "page_no": page_no})
-    await http.post(f"/sessions/{sid}/catch-up", json={"minutes": random.choice([1, 3, 5])})
-    mark = (await http.post(f"/sessions/{sid}/confused", json={"page_no": page_no})).json()
-    await http.post(f"/marks/{mark['id']}/explain")
+    await r.json("POST", f"/sessions/{sid}/catch-up", json={"minutes": random.choice([1, 3, 5])})
+    mark = await r.json("POST", f"/sessions/{sid}/confused", json={"page_no": page_no})
+    if mark:
+        await r.json("POST", f"/marks/{mark['id']}/explain")
 
-    (await http.post(f"/sessions/{sid}/end")).raise_for_status()
+    await r.json("POST", f"/sessions/{sid}/end")
     for _ in range(200):  # 요약·퀴즈
-        state = (await http.get(f"/sessions/{sid}/summary")).json()
-        if state["status"] in ("done", "failed"):
+        state = await r.json("GET", f"/sessions/{sid}/summary")
+        if not state or state["status"] in ("done", "failed"):
             break
         await asyncio.sleep(3)
     for kind in ("flashcards", "concepts", "mindmap"):
-        await http.post(f"/sessions/{sid}/study/{kind}")
+        await r.json("POST", f"/sessions/{sid}/study/{kind}")
         for _ in range(200):
-            state = (await http.get(f"/sessions/{sid}/study/{kind}")).json()
-            if state["status"] != "building":
+            state = await r.json("GET", f"/sessions/{sid}/study/{kind}")
+            if not state or state["status"] != "building":
                 break
             await asyncio.sleep(3)
-    await http.post(f"/sessions/{sid}/tutor", json={"messages": [{"role": "user", "content": random.choice(
+    await r.json("POST", f"/sessions/{sid}/tutor", json={"messages": [{"role": "user", "content": random.choice(
         ["오늘 강의 핵심이 뭐야?", "시험에 나올 만한 거 알려줘", "제일 어려운 개념 쉽게 설명해 줘"])}]})
     if not notebook:
-        await http.post(f"/documents/{doc['id']}/exam-questions")
+        await r.json("POST", f"/documents/{doc['id']}/exam-questions")
         for _ in range(200):
-            job = (await http.get(f"/documents/{doc['id']}/exam-map")).json()["job"]
-            if job["status"] != "building":
+            state = await r.json("GET", f"/documents/{doc['id']}/exam-map")
+            if not state or state["job"]["status"] != "building":
                 break
             await asyncio.sleep(3)
+    counts["failed"] = r.failed
     return counts
+
+
+class Retrying:
+    """서버가 쉬는 연결을 닫는 순간과 겹치면 ReadError가 나므로 몇 번 다시 보낸다.
+    한 단계가 끝내 실패해도 나머지 단계는 계속하고, 실패한 단계 이름을 남긴다."""
+
+    def __init__(self, http: httpx.AsyncClient):
+        self.http = http
+        self.failed: list[str] = []
+
+    async def json(self, method: str, path: str, **kw):
+        name = f"{method} {path.rsplit('/', 1)[-1]}"
+        for attempt in range(4):
+            try:
+                res = await self.http.request(method, path, **kw)
+            except (httpx.ReadError, httpx.RemoteProtocolError, httpx.ConnectError, httpx.ReadTimeout) as exc:
+                if attempt == 3:
+                    self.failed.append(f"{name} ({type(exc).__name__})")
+                    return None
+                await asyncio.sleep(2 * (attempt + 1))
+                continue
+            if res.status_code >= 400:
+                self.failed.append(f"{name} ({res.status_code})")
+                return None
+            return res.json() if res.content else {}
+        return None
 
 
 async def main(url: str, count: int, seed: int | None) -> None:
@@ -218,8 +248,11 @@ async def main(url: str, count: int, seed: int | None) -> None:
                 extra = f" · 새 주제 {counts['page_added']}" if notebook else ""
                 print(f"    필기 {counts['annotation_added']} · 용어 {counts['term']} · 과제 {counts['task_added']}{extra}"
                       f" · {time.monotonic() - started:.0f}초", flush=True)
+                if counts["failed"]:
+                    print(f"    못 한 단계: {', '.join(counts['failed'])}", flush=True)
             except Exception as exc:  # 하나가 실패해도 나머지는 계속
                 print(f"    실패: {type(exc).__name__}: {exc}", flush=True)
+                traceback.print_exc()
 
 
 if __name__ == "__main__":

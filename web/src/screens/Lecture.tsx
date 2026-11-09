@@ -69,6 +69,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const previewSeq = useRef(-1);
   const previewIds = useRef(new Map<string | number, number>());
   const freshTimer = useRef<number | undefined>(undefined);
+  const notesRef = useRef<Note[]>([]);
+  notesRef.current = notes;
   const a11yRef = useRef(a11y);
   a11yRef.current = a11y;
   pageRef.current = page;
@@ -308,6 +310,34 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
 
   // 강의가 끝나면: 녹음 다시 듣기, 슬라이드에 없던 설명 표시
   const player = usePlayer(sessionId, phase === "ended");
+
+  // 타임라인 다시 보기: 녹음을 틀면 그때 설명하던 쪽으로 넘어가고, 그 무렵 필기를 펼치고, 받아쓰기를 자막으로
+  const [segments, setSegments] = useState<{ start_ms: number; end_ms: number; text: string; page_no: number | null }[]>([]);
+  const [replayLine, setReplayLine] = useState<string | null>(null);
+  const [replayFollow, setReplayFollow] = useState(true);
+  const replayFollowRef = useRef(replayFollow);
+  replayFollowRef.current = replayFollow;
+  useEffect(() => {
+    if (!player.open || !sessionId) return;
+    getJSON<typeof segments>(`/sessions/${sessionId}/transcript`).then(setSegments).catch(() => {});
+  }, [player.open, sessionId]);
+  useEffect(() => {
+    const audio = player.audio.current;
+    if (!player.open || !audio || segments.length === 0) return;
+    let lastNote: number | null = null;
+    const onTime = () => {
+      const t = audio.currentTime * 1000;
+      let seg = null;
+      for (const s of segments) { if (s.start_ms <= t) seg = s; else break; }
+      setReplayLine(seg && t - seg.end_ms < 4000 ? seg.text : null);
+      if (seg?.page_no && replayFollowRef.current && seg.page_no !== pageRef.current) { setPage(seg.page_no); setSelected(null); }
+      // 그 무렵(8초 안) 붙은 필기를 자료 위에 펼친다
+      const near = notesRef.current.filter((n) => !n.pending && n.start_ms <= t && t - n.start_ms < 8000).pop();
+      if (near && near.id !== lastNote) { lastNote = near.id; setFresh(near.id); }
+    };
+    audio.addEventListener("timeupdate", onTime);
+    return () => audio.removeEventListener("timeupdate", onTime);
+  }, [player.open, player.audio, segments]);
   useEffect(() => {
     if (phase !== "ended" || !sessionId) return;
     getJSON<{ annotation_ids?: number[] }>(`/sessions/${sessionId}/beyond-slides`)
@@ -485,7 +515,22 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
       {message && <div className="toast" role="status">{message}</div>}
 
       <footer className="bottom-bar">
-        {player.open && <PlayerBar audio={player.audio.current} onClose={player.close} />}
+        {player.open && (
+          <>
+            {replayLine && <p className="caption-line t-body" aria-live="polite"><Icon name="closed-captioning" size={16} /> {replayLine}</p>}
+            <PlayerBar audio={player.audio.current} onClose={() => { player.close(); setReplayLine(null); }} />
+            <div className="row" style={{ gap: 8 }}>
+              <Chip variant={replayFollow ? "accent" : "default"} onClick={() => setReplayFollow(!replayFollow)}>
+                {replayFollow ? "쪽 따라가기 켜짐" : "쪽 따라가기 꺼짐"}
+              </Chip>
+            </div>
+          </>
+        )}
+        {!player.open && player.hasAudio && phase === "ended" && (
+          <button className="replay-start t-caption" onClick={() => player.playFrom(3000)}>
+            <Icon name="play" size={16} /> 처음부터 다시 보기 · 녹음에 맞춰 쪽·필기·자막이 따라와요
+          </button>
+        )}
         {recording && !a11y && <p className="caption-line t-caption" aria-live="polite"><span className="rec-dot" />{caption}</p>}
         {recording && a11y && (
           <div className="caption-big" aria-live="polite">

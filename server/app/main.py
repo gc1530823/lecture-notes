@@ -2,17 +2,19 @@
 
 import asyncio
 import contextlib
+import datetime
 import hashlib
 import json
 import logging
 import os
 import re
 import time
+from urllib.parse import quote
 from contextlib import asynccontextmanager
 
 import anthropic
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -25,6 +27,7 @@ from .beyond import beyond_slides
 from .study import cloze_items, fallback_mindmap, page_material, terms_of, tutor_context
 from .exam_map import score_pages, top_pages
 from .review import GRADES, NEW_PER_DAY, build_jokbo, card_key, schedule
+from .semester import anki_text, concept_map, exam_plan, semester_context, session_markdown
 from .notes_pdf import build_notes_pdf
 from .quick_notes import EXAM_TALK
 from .recording import audio_file, recorded_ms, wav_parts
@@ -905,6 +908,137 @@ def review_answer(key: str, body: ReviewAnswer):
     updated = schedule(card, GRADES[body.grade])
     db().save_card(updated)
     return updated
+
+
+# 학기 전체: 개념 지도 · 학기 튜터
+
+
+def _lectures() -> list[dict]:
+    out = []
+    for doc in db().list_documents():
+        for s in doc["sessions"]:
+            out.append({"doc_id": doc["id"], "doc_title": doc["title"], "session_id": s["id"], "started_at": s["started_at"]})
+    return out
+
+
+@app.get("/semester/concepts")
+def semester_concepts():
+    lectures = [{**lec, "terms": db().list_terms(lec["session_id"])} for lec in _lectures()]
+    return concept_map(lectures)
+
+
+@app.post("/semester/tutor")
+async def semester_tutor(body: TutorRequest):
+    """여러 강의를 넘나드는 질문 ("3주차랑 7주차 차이가 뭐야?"): 모든 강의의 쪽 중에서 가까운 것만 근거로"""
+    messages = [m.model_dump() for m in body.messages if m.content.strip()][-10:]
+    if not messages or messages[-1]["role"] != "user":
+        raise HTTPException(400, "질문이 없어요.")
+    chunks = []
+    for lec in _lectures():
+        _, material, _ = _study_inputs(lec["session_id"])
+        chunks += [{**p, "doc_title": lec["doc_title"], "doc_id": lec["doc_id"], "session_id": lec["session_id"]} for p in material]
+    if not chunks:
+        raise HTTPException(400, "아직 강의 내용이 없어요.")
+    question = " ".join(m["content"] for m in messages if m["role"] == "user")[-500:]
+    context, chosen = semester_context(chunks, question)
+    try:
+        result = await app.state.llm.tutor(context, messages)
+    except anthropic.RateLimitError as exc:
+        raise HTTPException(429, "요청이 많아요. 잠시 뒤 다시 물어봐 주세요.") from exc
+    except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError) as exc:
+        log.exception("학기 튜터 답변 실패")
+        raise HTTPException(502, f"답을 만들지 못했어요: {exc}") from exc
+    cited = [p for p in result.get("pages", []) if isinstance(p, int) and 1 <= p <= len(chosen)] or list(range(1, len(chosen) + 1))
+    sources = [{"doc_id": chosen[i - 1]["doc_id"], "doc_title": chosen[i - 1]["doc_title"], "session_id": chosen[i - 1]["session_id"],
+                "page_no": chosen[i - 1]["page_no"]} for i in cited]
+    return {"answer": str(result.get("answer", "")).strip(), "sources": sources}
+
+
+# 시험 D-day
+
+
+class ExamCreate(BaseModel):
+    title: str
+    exam_date: str  # YYYY-MM-DD
+    doc_ids: list[str]
+
+
+@app.get("/exams")
+def list_exams():
+    return db().list_exams()
+
+
+@app.post("/exams")
+def create_exam(body: ExamCreate):
+    try:
+        datetime.date.fromisoformat(body.exam_date)
+    except ValueError as exc:
+        raise HTTPException(400, "날짜는 YYYY-MM-DD 로 적어 주세요.") from exc
+    known = {d["id"] for d in db().list_documents()}
+    docs = [d for d in body.doc_ids if d in known]
+    if not docs:
+        raise HTTPException(400, "시험 범위 강의자료를 하나 이상 골라 주세요.")
+    return db().add_exam(body.title.strip() or "시험", body.exam_date, docs)
+
+
+@app.delete("/exams/{exam_id}", status_code=204)
+def delete_exam(exam_id: int):
+    if not db().delete_exam(exam_id):
+        raise HTTPException(404, "시험이 없습니다.")
+
+
+@app.get("/exams/{exam_id}/plan")
+def get_exam_plan(exam_id: int, today: str | None = None):
+    exam = db().get_exam(exam_id)
+    if exam is None:
+        raise HTTPException(404, "시험이 없습니다.")
+    pages, confused_open = [], 0
+    for doc_id in exam["doc_ids"]:
+        if db().get_document(doc_id) is None:
+            continue
+        doc, doc_pages, sessions = _exam_inputs(doc_id)
+        titles = {p["page_no"]: (p.get("text") or "").strip().split("\n")[0][:40] for p in doc_pages}
+        for score in score_pages([p["page_no"] for p in doc_pages], sessions):
+            pages.append({"doc_id": doc_id, "doc_title": doc["title"], "page_no": score["page_no"], "title": titles.get(score["page_no"], ""),
+                          "score": score["score"], "reasons": score["reasons"]})
+        confused_open += sum(1 for sid in db().session_ids(doc_id) for m in db().list_marks(sid) if not m["explanation"])
+    pages.sort(key=lambda p: -p["score"])
+    due = review_today(None)["cards"]
+    due_cards = sum(1 for c in due if c["document_id"] in exam["doc_ids"])
+    day = datetime.date.fromisoformat(today) if today else datetime.date.today()
+    return {**exam_plan(exam["title"], exam["exam_date"], day, pages, due_cards, confused_open), "id": exam_id, "doc_ids": exam["doc_ids"]}
+
+
+# 내보내기: Markdown(노션에 붙여 넣기) · Anki
+
+
+@app.get("/sessions/{session_id}/export.md")
+def export_markdown(session_id: str):
+    session = _session_or_404(session_id)
+    doc = db().get_document(session["document_id"])
+    texts = {p["page_no"]: p["text"] for p in db().list_pages(doc["id"])}
+    pages = [{**p, "text": texts.get(p["page_no"], "")} for p in doc["pages"]]
+    text = session_markdown(doc, session["started_at"], pages, db().list_annotations(session_id), db().get_summary(session_id),
+                            db().list_terms(session_id), db().list_tasks(session_id), db().list_marks(session_id))
+    return Response(text, media_type="text/markdown; charset=utf-8",
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(doc['title'])}.md"})
+
+
+@app.get("/documents/{doc_id}/anki.txt")
+def export_anki(doc_id: str):
+    doc = db().get_document(doc_id)
+    if doc is None:
+        raise HTTPException(404, "강의자료가 없습니다.")
+    _sync_cards(doc_id)
+    cards = [(c["front"], c["back"], c["source"]) for c in db().list_cards(doc_id)]
+    seen = set()
+    for sid in db().session_ids(doc_id):
+        for t in db().list_terms(sid):
+            if t["term"] not in seen:
+                seen.add(t["term"])
+                cards.append((t["term"], t["definition"], "용어"))
+    return Response(anki_text(doc["title"], cards), media_type="text/plain; charset=utf-8",
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(doc['title'])}-anki.txt"})
 
 
 # 개인정보: 녹음·글이 어디로 가는지 그대로 알려 준다 (앱의 녹음 동의 화면이 이것을 보여 준다)

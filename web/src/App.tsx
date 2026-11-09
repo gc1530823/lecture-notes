@@ -4,6 +4,7 @@ import ExamMap from "./screens/ExamMap";
 import { JokboScreen, PrivacyScreen, ReviewScreen } from "./screens/ExamPrep";
 import Home from "./screens/Home";
 import Lecture from "./screens/Lecture";
+import Semester from "./screens/Semester";
 import Session from "./screens/Session";
 import { useRoute } from "./router";
 
@@ -16,6 +17,7 @@ export default function App() {
     case "jokbo": return <JokboScreen docId={route.docId} />;
     case "review": return <ReviewScreen />;
     case "privacy": return <PrivacyScreen />;
+    case "semester": return <Semester tab={route.tab} />;
     case "lecture": return <Lecture key={route.docId + (route.sessionId ?? "")} docId={route.docId} sessionId={route.sessionId} />;
     case "session": return <Session docId={route.docId} sessionId={route.sessionId} tab={route.tab} />;
   }

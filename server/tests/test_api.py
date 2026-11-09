@@ -586,3 +586,43 @@ def test_confused_mark_jokbo_and_spaced_review(client):
 
     info = client.get("/privacy").json()
     assert "밖으로 안 나감" in info["ai"] and info["training"] is False
+
+
+def test_semester_concepts_tutor_exam_plan_and_exports(client):
+    import datetime as dt
+
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "Gradient Descent는 Learning Rate 만큼 움직여요. 이거 시험에 꼭 나와요.",
+                      "start_ms": 0, "end_ms": 3000})
+        receive(ws, "term")
+    client.post(f"/sessions/{sid}/end")
+
+    graph = client.get("/semester/concepts").json()
+    terms = {n["term"] for n in graph["nodes"]}
+    assert terms and all(n["occurrences"] for n in graph["nodes"])
+    occ = graph["nodes"][0]["occurrences"][0]
+    assert {"doc_id", "session_id", "page_no", "doc_title"} <= set(occ)
+
+    res = client.post("/semester/tutor", json={"messages": [{"role": "user", "content": "경사하강법이 뭐야?"}]}).json()
+    assert res["answer"] and res["sources"][0]["doc_id"] and res["sources"][0]["page_no"]
+
+    today = dt.date(2026, 11, 9)
+    exam = client.post("/exams", json={"title": "중간고사", "exam_date": "2026-11-13", "doc_ids": [doc["id"], "nope"]}).json()
+    assert exam["doc_ids"] == [doc["id"]]
+    assert client.post("/exams", json={"title": "x", "exam_date": "내일", "doc_ids": [doc["id"]]}).status_code == 400
+    plan = client.get(f"/exams/{exam['id']}/plan", params={"today": today.isoformat()}).json()
+    assert plan["days_left"] == 4 and len(plan["days"]) == 4 and plan["days"][0]["d"] == 4
+    assert plan["days"][0]["pages"][0]["page_no"] == 1  # 시험 언급이 있던 쪽이 첫날
+    assert "족보 노트" in plan["days"][-1]["todo"][-1]
+    assert exam["id"] in [e["id"] for e in client.get("/exams").json()]
+    assert client.delete(f"/exams/{exam['id']}").status_code == 204
+
+    md = client.get(f"/sessions/{sid}/export.md")
+    assert md.status_code == 200 and md.text.startswith("# ml") and "## 1쪽" in md.text and "**시험**" in md.text
+    assert "## 용어 사전" in md.text
+    client.post(f"/sessions/{sid}/study/flashcards")
+    anki = client.get(f"/documents/{doc['id']}/anki.txt").text.splitlines()
+    assert anki[0] == "#separator:tab" and all(len(line.split("\t")) == 3 for line in anki[3:]) and len(anki) > 3

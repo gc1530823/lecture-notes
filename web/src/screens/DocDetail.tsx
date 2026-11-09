@@ -58,6 +58,8 @@ export default function DocDetail({ docId }: { docId: string }) {
               onClick={() => !upload && audioInput.current?.click()} />
             <input ref={audioInput} type="file" accept="audio/*,.m4a,.mp3,.wav" hidden
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) sendAudio(f); }} />
+            <ListItem icon="cards" title="Anki로 내보내기" subtitle="플래시카드·예상 문제·용어를 Anki 앱에서 가져올 수 있는 파일로 (파일 › 가져오기)"
+              onClick={() => { window.location.href = `${API}/documents/${docId}/anki.txt`; }} />
             <ListItem icon="star" title="족보 노트" subtitle="모든 강의에서 시험에 나온다고 한 것·유력한 쪽·헷갈린 것·예상 문제를 한 장에"
               onClick={() => go({ name: "jokbo", docId })} />
             {doc.kind !== "notebook" && (

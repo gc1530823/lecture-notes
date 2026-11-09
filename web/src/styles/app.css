@@ -211,3 +211,19 @@ a.btn { text-decoration: none; }
   .hidden-answer { filter: none; }
   .term-card { box-shadow: none; border: 1px solid #eee; }
 }
+.replay-start { display: flex; align-items: center; gap: 6px; color: var(--accent-primary); font-weight: 700; padding: 2px 0; text-align: left; }
+.caption-line.t-body { white-space: normal; color: var(--text-primary); }
+
+/* 학기 전체 · 시험 D-day */
+.home-shortcuts { flex-wrap: wrap; gap: var(--space-sm); }
+.concept-map { width: 100%; height: auto; background: var(--bg-card); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); touch-action: manipulation; }
+.concept-label { font: 600 10px var(--font-sans); fill: var(--text-primary); paint-order: stroke; stroke: var(--bg-card); stroke-width: 3px; pointer-events: none; }
+.term-list { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 4px; }
+.dday { font: 900 12px/1 var(--font-sans); width: auto; min-width: 48px; padding: 0 6px; }
+.exam-banner { background: color-mix(in srgb, var(--note-exam-ink) 10%, var(--bg-card)); }
+.exam-banner .dday { color: var(--note-exam-ink); background: color-mix(in srgb, var(--note-exam-ink) 14%, transparent); }
+.plan { display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-sm) 0 var(--space-md); }
+.plan-day { background: var(--bg-card); border-radius: var(--radius-lg); padding: var(--space-md) var(--space-lg); display: flex; flex-direction: column; gap: 4px; box-shadow: var(--shadow-card); }
+.plan-day.today { outline: 2px solid var(--accent-primary); }
+input[type="date"].input { padding: 0 var(--space-lg); }

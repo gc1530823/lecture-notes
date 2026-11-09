@@ -58,6 +58,14 @@ CREATE TABLE IF NOT EXISTS annotations (
     pending INTEGER NOT NULL DEFAULT 0,
     created_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS exams (
+    -- 시험 D-day: 이름·날짜·범위(강의자료 id 목록)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    exam_date TEXT NOT NULL,
+    doc_ids TEXT NOT NULL,
+    created_at REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS marks (
     -- 수업 중 "모르겠다": 그 순간의 쪽과 시각. 설명은 나중에 AI가 채운다
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -357,6 +365,26 @@ class Database:
         self._write("""INSERT INTO feedback (session_id, annotation_id, action, original_text, original_type, new_text, new_page_no, created_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                     (before["session_id"], ann_id, action, original_text, original_type, new_text, new_page_no, time.time()))
+
+    # 시험 D-day
+
+    def add_exam(self, title: str, exam_date: str, doc_ids: list[str]) -> dict:
+        exam_id = self._write("INSERT INTO exams (title, exam_date, doc_ids, created_at) VALUES (?, ?, ?, ?)",
+                              (title, exam_date, json.dumps(doc_ids), time.time()))
+        return self.get_exam(exam_id)
+
+    def get_exam(self, exam_id: int) -> dict | None:
+        rows = self._query("SELECT * FROM exams WHERE id = ?", (exam_id,))
+        if not rows:
+            return None
+        return {**rows[0], "doc_ids": json.loads(rows[0]["doc_ids"])}
+
+    def list_exams(self) -> list[dict]:
+        return [{**r, "doc_ids": json.loads(r["doc_ids"])} for r in self._query("SELECT * FROM exams ORDER BY exam_date")]
+
+    def delete_exam(self, exam_id: int) -> bool:
+        with self._lock, self._conn:
+            return self._conn.execute("DELETE FROM exams WHERE id = ?", (exam_id,)).rowcount > 0
 
     # 모르겠다
 

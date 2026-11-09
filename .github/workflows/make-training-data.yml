@@ -46,7 +46,7 @@ jobs:
           DB_PATH: /tmp/synthetic.db
           UPLOAD_DIR: /tmp/uploads
         run: |
-          nohup python -m uvicorn app.main:app --port 8000 > /tmp/server.log 2>&1 &
+          nohup python -m uvicorn app.main:app --port 8000 --timeout-keep-alive 120 > /tmp/server.log 2>&1 &
           for i in $(seq 60); do curl -sf localhost:8000/health && break; sleep 1; done
       - name: Make lectures
         working-directory: server
@@ -84,6 +84,6 @@ jobs:
         with:
           name: lecture-notes-training
           path: /tmp/bundle
-      - name: Server log (on failure)
-        if: failure()
-        run: tail -100 /tmp/server.log
+      - name: Server errors
+        if: always()
+        run: grep -E -B2 -A12 "Traceback|ERROR" /tmp/server.log | tail -150 || echo "서버 오류 없음"

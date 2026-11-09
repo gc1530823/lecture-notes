@@ -4,6 +4,7 @@ import type { DocumentBrief } from "../api/types";
 import { postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, ListItem } from "../components/ui";
 import { ReviewBanner } from "./ExamPrep";
+import { ExamBanner } from "./Semester";
 import { go } from "../router";
 
 type Filter = "all" | "pdf" | "notebook";
@@ -77,7 +78,13 @@ export default function Home() {
             <Chip key={key} variant={filter === key ? "selected" : "default"} onClick={() => setFilter(key)}>{label}</Chip>
           ))}
         </div>
+        <ExamBanner />
         <ReviewBanner />
+        <div className="row home-shortcuts">
+          <Chip variant="accent" onClick={() => go({ name: "semester", tab: "map" })}>개념 지도</Chip>
+          <Chip variant="accent" onClick={() => go({ name: "semester", tab: "tutor" })}>학기 튜터</Chip>
+          <Chip variant="accent" onClick={() => go({ name: "semester", tab: "exams" })}>시험 D-day</Chip>
+        </div>
         {loading && !docs && <p className="muted">불러오는 중…</p>}
         {error && <Empty icon="warning-circle">서버에 연결할 수 없어요<br /><span className="t-caption">{error}</span></Empty>}
         {docs && shown.length === 0 && (

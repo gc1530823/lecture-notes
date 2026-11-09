@@ -1,3 +1,4 @@
+import { useState } from "react";
 // 강의 다시 보기: 필기(쪽마다 포스트잇 / 노트 모드는 모눈 노트), 공부하기, 용어 사전
 import type { Annotation, DocumentDetail, GlossaryTerm, SummaryResponse } from "../api/types";
 import { useApi } from "../api/useApi";
@@ -28,6 +29,7 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
             <Button variant="secondary" icon={doc.kind === "notebook" ? "notebook" : "file-pdf"}
               onClick={() => go({ name: "lecture", docId, sessionId })}>{doc.kind === "notebook" ? "노트로 보기" : "강의자료 위에서 보기"}</Button>
             <NotesPdf sessionId={sessionId} />
+            <ExportRow sessionId={sessionId} />
             <Notes doc={doc} sessionId={sessionId} />
           </>
         )}
@@ -109,5 +111,25 @@ function Glossary({ sessionId }: { sessionId: string }) {
       <p className="t-caption muted">수업 중에 나온 용어 {terms.length}개 · 나온 순서</p>
       {terms.map((t) => <TermCard key={t.id} term={t.term} page={t.page_no} definition={t.definition} />)}
     </>
+  );
+}
+
+/** 내보내기: Markdown 파일 받기 · 노션에 붙여 넣기 (노션은 Markdown을 붙여 넣으면 제목·목록·굵은 글씨가 그대로 살아남) */
+function ExportRow({ sessionId }: { sessionId: string }) {
+  const url = `${import.meta.env.VITE_API_URL ?? ""}/sessions/${sessionId}/export.md`;
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      const text = await (await fetch(url)).text();
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2500);
+    } catch { alert("복사하지 못했어요. Markdown 받기를 써 주세요."); }
+  };
+  return (
+    <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
+      <a className="chip chip-accent" href={url} download>Markdown 받기</a>
+      <Chip variant={copied ? "selected" : "accent"} onClick={copy}>{copied ? "복사했어요 · 노션에 붙여 넣으세요" : "노션에 붙여 넣기용 복사"}</Chip>
+    </div>
   );
 }
