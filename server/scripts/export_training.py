@@ -52,9 +52,9 @@ def corrections(feedback: list[dict]) -> dict[tuple[str, str], dict]:
     return final
 
 
-def apply_corrections(record: dict, fixes: dict) -> tuple[dict, int]:
+def apply_corrections(record: dict, fixes: dict, output_override: dict | None = None) -> tuple[dict, int]:
     """필기 답을 사용자가 고친 대로 바꾼다. 바꾼 개수도 돌려준다."""
-    output = dict(record["output"])
+    output = dict(record["output"] if output_override is None else output_override)
     changed = 0
     kept = []
     for item in output.get("annotations", []):
@@ -88,7 +88,12 @@ def main(out: str, tasks: set[str] | None, val_ratio: float) -> None:
         return
     fixes = corrections(Database(settings.db_path).list_feedback()) if os.path.exists(settings.db_path) else {}
 
-    seen, rows, stats, corrected = set(), {"train": [], "val": []}, Counter(), 0
+    # "다 보고 쓴" 정답 (scripts/relabel_hindsight.py): 입력은 실시간 요청 그대로, 정답만 바꾼다
+    hindsight = {r["hindsight_of"]: r["output"] for r in records if r.get("hindsight_of")}
+    # 우리 AI가 만든 답은 다시 가르치는 데 쓰지 않는다 (선생님 답만)
+    records = [r for r in records if not r.get("hindsight_of") and not str(r.get("model", "")).startswith("ollama:")]
+
+    seen, rows, stats, corrected, upgraded = set(), {"train": [], "val": []}, Counter(), 0, 0
     for r in records:
         if (tasks and r["task"] not in tasks) or r["task"] == "other":
             continue  # 어느 작업인지 모르는 요청은 뺀다
@@ -97,8 +102,11 @@ def main(out: str, tasks: set[str] | None, val_ratio: float) -> None:
             continue
         seen.add(digest)
         output = r["output"]
+        if r["id"] in hindsight:
+            output = hindsight[r["id"]]
+            upgraded += 1
         if r["task"] == "annotate":
-            output, n = apply_corrections(r, fixes)
+            output, n = apply_corrections(r, fixes, output)
             corrected += n
         row = {"task": r["task"], "schema": r.get("schema"), "messages": [
             {"role": "system", "content": r["system"]},
@@ -116,7 +124,7 @@ def main(out: str, tasks: set[str] | None, val_ratio: float) -> None:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     print(f"요청 {len(records)}개 → 학습 {len(rows['train'])}개 · 검증 {len(rows['val'])}개 (겹친 요청 {len(records) - len(seen)}개 뺌)")
-    print(f"사용자가 고친 필기 {corrected}개를 반영했어요")
+    print(f"사용자가 고친 필기 {corrected}개, \"다 보고 쓴\" 정답 {upgraded}개를 반영했어요")
     for task in sorted({t for t, _ in stats}):
         print(f"  {task:15} 학습 {stats[(task, 'train')]:5} · 검증 {stats[(task, 'val')]:4}")
     print(f"저장: {out}/train.jsonl, {out}/val.jsonl")

@@ -54,6 +54,12 @@ jobs:
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python scripts/make_synthetic_data.py --count "${{ inputs.count }}" --seed "${{ github.run_id }}" --pace 2.0
+      - name: Hindsight answers (다 보고 쓴 정답)
+        working-directory: server
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          DB_PATH: /tmp/synthetic.db
+        run: python scripts/relabel_hindsight.py --limit 150 || echo "다 보고 쓴 정답 만들기 일부 실패 (나머지는 그대로 저장)"
       - name: Build dataset
         working-directory: server
         env:

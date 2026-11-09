@@ -154,3 +154,36 @@ def test_live_audio_flags_a_chunk_spoken_louder_than_usual():
         return normal, loud
 
     assert asyncio.run(run()) == (False, True)
+
+
+def test_export_prefers_hindsight_answer_and_skips_student_outputs(tmp_path, monkeypatch):
+    export = load_script("export_training")
+    base = {"task": "annotate", "session_id": "s1", "system": "S", "schema": {"type": "object"}, "model": "groq:x"}
+    rows = [
+        {**base, "id": "a", "prompt": "P1", "output": {"annotations": [{"text": "실시간 답"}], "tasks": []}},
+        {**base, "id": "h", "prompt": "P1", "output": {"annotations": [{"text": "다 보고 쓴 답"}], "tasks": []}, "hindsight_of": "a"},
+        {**base, "id": "b", "prompt": "P2", "output": {"annotations": [], "tasks": []}, "model": "ollama:lecture-notes"},
+    ]
+    (tmp_path / "raw-202611.jsonl").write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in rows), encoding="utf-8")
+    monkeypatch.setattr(export, "settings", dataclasses.replace(settings, training_dir=str(tmp_path), db_path=str(tmp_path / "x.db")))
+    export.main(str(tmp_path / "out"), None, 0.0)
+    [row] = [json.loads(x) for x in (tmp_path / "out" / "train.jsonl").read_text().splitlines()]
+    assert row["messages"][1]["content"] == "P1"  # 입력은 실시간 요청 그대로
+    assert json.loads(row["messages"][2]["content"])["annotations"][0]["text"] == "다 보고 쓴 답"
+
+
+def test_hindsight_context_adds_what_came_next_and_the_summary(tmp_path):
+    relabel = load_script("relabel_hindsight")
+    db = Database(str(tmp_path / "t.db"))
+    doc = db.create_document("강의", [{"page_no": 1, "width": 1, "height": 1, "text": "a", "blocks": []}], [])
+    sid = db.create_session(doc)
+    page = db.get_document(doc)["pages"][0]["id"]
+    for i, text in enumerate(["자 오늘은 경사하강법입니다.", "학습률이 크면 발산해요.", "그래서 작게 잡는 게 중요합니다.", "다음은 역전파예요."]):
+        db.add_segment(sid, page, i * 1000, i * 1000 + 900, text)
+    db.save_summary(sid, {"overview": "경사하강법과 역전파", "pages": [{"page_no": 1, "summary": "학습률 설명"}]})
+    record = {"session_id": sid, "prompt": "<slide/>\n\n<new_speech>\n자 오늘은 경사하강법입니다. 학습률이 크면 발산해요.\n</new_speech>"}
+    extra = relabel.context_for(record, db)
+    assert "그래서 작게 잡는 게 중요합니다." in extra and "다음은 역전파예요." in extra
+    assert "학습률이 크면 발산해요." not in extra.split("<after_speech>")[1].split("</after_speech>")[0]
+    assert "경사하강법과 역전파" in extra
+    assert relabel.context_for({**record, "session_id": "없는 강의"}, db) is None
