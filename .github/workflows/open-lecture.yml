@@ -1,0 +1,84 @@
+name: Open lecture test
+
+# 공개 강의(재사용이 허락된 것)로 실제 품질을 잰다: 슬라이드 PDF + 강의 영상 → 받아쓰기·필기·요약·정리 PDF,
+# 공식 자막이 있으면 받아쓰기 정확도(WER)까지. 결과는 result/<이름> 브랜치에.
+# 기본값: MIT OpenCourseWare 6.0001 (Fall 2016) 1강 "What is Computation?" — CC BY-NC-SA 4.0, 비영리 테스트용
+# 유튜브 영상은 약관상 내려받지 않는다 (MIT OCW는 archive.org 사본 mp4를 함께 공개한다).
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "결과 이름"
+        default: "mit-6.0001-lec1"
+      slides:
+        description: "슬라이드 PDF 주소 또는 그 링크가 있는 페이지"
+        default: "https://ocw.mit.edu/courses/6-0001-introduction-to-computer-science-and-programming-in-python-fall-2016/resources/mit6_0001f16_lec1/"
+      video:
+        description: "mp4 주소 또는 영상 페이지 (페이지에서 mp4·자막 링크를 찾는다)"
+        default: "https://ocw.mit.edu/courses/6-0001-introduction-to-computer-science-and-programming-in-python-fall-2016/resources/lecture-1-what-is-computation/"
+      minutes:
+        description: "앞에서부터 몇 분만 쓸지 (Groq 무료 한도 때문에 15분 정도 권장, 0 = 전체)"
+        default: "15"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -q -r server/requirements.txt && sudo apt-get install -y -q ffmpeg > /dev/null
+      - name: Get lecture
+        run: python server/scripts/fetch_open_lecture.py "${{ inputs.slides }}" "${{ inputs.video }}" /tmp/inbox
+      - name: Cut audio
+        run: |
+          LIMIT=""
+          if [ "${{ inputs.minutes }}" != "0" ]; then LIMIT="-t $(( ${{ inputs.minutes }} * 60 ))"; fi
+          ffmpeg -loglevel error -i /tmp/inbox/video.mp4 $LIMIT -vn -ac 1 -ar 16000 -c:a aac -b:a 64k /tmp/inbox/lecture.m4a
+          ls -la /tmp/inbox
+      - name: Process
+        working-directory: server
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MAX_RETRIES: "20"
+          TRAINING_LOG: "1"
+          TRAINING_DIR: /tmp/training
+        run: |
+          if [ -z "$GROQ_API_KEY" ]; then echo "::error::GROQ_API_KEY secret이 없습니다"; exit 1; fi
+          (ENABLE_WEB_TIPS=0 uvicorn app.main:app --port 8000 --timeout-keep-alive 120 > /tmp/server.log 2>&1 &)
+          for i in $(seq 1 30); do curl -s localhost:8000/health > /dev/null && break; sleep 1; done
+          set -o pipefail
+          python scripts/process_recording.py /tmp/inbox/slides.pdf /tmp/inbox/lecture.m4a /tmp/result --ask "방금 설명한 거 쉽게 다시 설명해 줘" 2>&1 | tee /tmp/run.txt
+      - name: Score transcript
+        if: always()
+        working-directory: server
+        run: |
+          CAP=$(ls /tmp/inbox/captions.* 2>/dev/null | head -1)
+          if [ -n "$CAP" ] && [ -f /tmp/result/받아쓰기.txt ]; then
+            python scripts/score_transcript.py "$CAP" /tmp/result "${{ inputs.minutes }}" /tmp/inbox/slides.pdf
+          else
+            echo "자막이나 받아쓰기가 없어 정확도는 재지 않았어요"
+          fi
+      - name: Upload result
+        if: always()
+        env:
+          NAME: ${{ inputs.name }}
+        run: |
+          mkdir -p /tmp/result && cd /tmp/result
+          cp /tmp/server.log server.log 2>/dev/null || true
+          cp /tmp/inbox/slides.pdf 강의자료.pdf 2>/dev/null || true
+          mkdir -p training && cp /tmp/training/raw-*.jsonl training/ 2>/dev/null || true
+          printf '출처: %s\n%s\n라이선스: MIT OpenCourseWare CC BY-NC-SA 4.0 (비영리 테스트용)\n' "${{ inputs.slides }}" "${{ inputs.video }}" > 출처.txt
+          git init -q -b result
+          git add .
+          git -c user.name="ci" -c user.email="ci@users.noreply.github.com" commit -qm "open lecture result: $NAME"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" "HEAD:result/$NAME"
+      - name: Server errors
+        if: always()
+        run: grep -E -B2 -A20 "Traceback|ERROR" /tmp/server.log | tail -120 || echo "서버 오류 없음"
