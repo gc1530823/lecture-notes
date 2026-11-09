@@ -544,3 +544,45 @@ def test_live_glossary_pops_new_terms_once(client):
     assert second["term"] == "Gradient"  # 이미 띄운 용어는 다시 띄우지 않는다
     terms = client.get(f"/sessions/{session['id']}/glossary").json()
     assert [t["term"] for t in terms] == ["Backpropagation", "Gradient"]
+
+
+def test_confused_mark_jokbo_and_spaced_review(client):
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "학습률이 너무 크면 발산해요. 이거 시험에 꼭 나와요.",
+                      "start_ms": 1000, "end_ms": 4000})
+        receive_annotation(ws)
+
+    # 모르겠다: 누르는 순간에는 표시만 (AI 없이 바로)
+    mark = client.post(f"/sessions/{sid}/confused", json={"page_no": 1}).json()
+    assert mark["page_no"] == 1 and mark["at_ms"] == 4000 and "발산" in mark["speech"] and mark["explanation"] is None
+    explained = client.post(f"/marks/{mark['id']}/explain").json()
+    assert explained["explanation"]
+    assert [m["id"] for m in client.get(f"/sessions/{sid}/marks").json()] == [mark["id"]]
+
+    # 족보: 시험 필기·유력한 쪽·모르겠다가 모인다
+    assert client.post(f"/documents/{doc['id']}/exam-questions").status_code == 202
+    sheet = client.get(f"/documents/{doc['id']}/jokbo").json()
+    assert sheet["lectures"] == 1 and sheet["exam"] and sheet["exam"][0]["page_no"] == 1
+    assert sheet["top_pages"][0]["page_no"] == 1 and sheet["top_pages"][0]["reasons"]
+    assert sheet["confused"][0]["explanation"] == explained["explanation"]
+    assert sheet["predicted"][0]["question"]
+
+    # 복습: 플래시카드·예상 문제·모르겠다 설명이 카드가 되고, 답하면 다음 날짜가 정해진다
+    client.post(f"/sessions/{sid}/study/flashcards")
+    today = client.get("/review/today", params={"document_id": doc["id"]}).json()
+    sources = [c["source"] for c in today["cards"]]
+    assert sources[0] == "confused" and "exam" in sources and "flashcard" in sources and today["new"] == len(sources)
+    first = today["cards"][0]
+    after = client.post(f"/review/{first['card_key']}", json={"grade": "good"}).json()
+    assert after["reps"] == 1 and after["interval"] == 1.0 and after["due_at"] > time.time() + 80000
+    again = client.post(f"/review/{today['cards'][1]['card_key']}", json={"grade": "again"}).json()
+    assert again["lapses"] == 1 and again["due_at"] < time.time() + 700
+    left = client.get("/review/today", params={"document_id": doc["id"]}).json()
+    assert first["card_key"] not in [c["card_key"] for c in left["cards"]]
+    assert client.post(f"/review/{first['card_key']}", json={"grade": "meh"}).status_code == 400
+
+    info = client.get("/privacy").json()
+    assert "밖으로 안 나감" in info["ai"] and info["training"] is False

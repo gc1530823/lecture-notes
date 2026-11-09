@@ -11,11 +11,17 @@ export type Route =
   | { name: "doc"; docId: string }
   | { name: "exam"; docId: string }
   | { name: "lecture"; docId: string; sessionId?: string }
+  | { name: "jokbo"; docId: string }
+  | { name: "review" }
+  | { name: "privacy" }
   | { name: "session"; docId: string; sessionId: string; tab: string };
 
 export function parse(hash: string): Route {
   const parts = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   if (parts[0] === "doc" && parts[1] && parts[2] === "exam") return { name: "exam", docId: parts[1] };
+  if (parts[0] === "review") return { name: "review" };
+  if (parts[0] === "privacy") return { name: "privacy" };
+  if (parts[0] === "doc" && parts[1] && parts[2] === "jokbo") return { name: "jokbo", docId: parts[1] };
   if (parts[0] === "doc" && parts[1] && parts[2] === "lecture") return { name: "lecture", docId: parts[1], sessionId: parts[3] };
   if (parts[0] === "doc" && parts[1] && parts[2] === "session" && parts[3])
     return { name: "session", docId: parts[1], sessionId: parts[3], tab: parts[4] ?? "notes" };
@@ -28,6 +34,9 @@ export function href(route: Route): string {
     case "home": return "#/";
     case "doc": return `#/doc/${route.docId}`;
     case "exam": return `#/doc/${route.docId}/exam`;
+    case "jokbo": return `#/doc/${route.docId}/jokbo`;
+    case "review": return "#/review";
+    case "privacy": return "#/privacy";
     case "lecture": return `#/doc/${route.docId}/lecture${route.sessionId ? `/${route.sessionId}` : ""}`;
     case "session": return `#/doc/${route.docId}/session/${route.sessionId}/${route.tab}`;
   }

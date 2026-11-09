@@ -2,7 +2,8 @@
 import { useRef, useState } from "react";
 import type { DocumentBrief } from "../api/types";
 import { postJSON, useApi } from "../api/useApi";
-import { Button, Chip, Empty, ListItem } from "../components/ui";
+import { Button, Chip, Empty, Icon, ListItem } from "../components/ui";
+import { ReviewBanner } from "./ExamPrep";
 import { go } from "../router";
 
 type Filter = "all" | "pdf" | "notebook";
@@ -64,7 +65,10 @@ export default function Home() {
   return (
     <div className="screen">
       <header className="home-head">
-        <span className="t-caption muted">{today}</span>
+        <div className="row">
+          <span className="t-caption muted grow">{today}</span>
+          <button className="top-bar-back" onClick={() => go({ name: "privacy" })} aria-label="개인정보와 녹음"><Icon name="shield-check" /></button>
+        </div>
         <h1 className="t-title-l">내 강의</h1>
       </header>
       <div className="screen-body">
@@ -73,6 +77,7 @@ export default function Home() {
             <Chip key={key} variant={filter === key ? "selected" : "default"} onClick={() => setFilter(key)}>{label}</Chip>
           ))}
         </div>
+        <ReviewBanner />
         {loading && !docs && <p className="muted">불러오는 중…</p>}
         {error && <Empty icon="warning-circle">서버에 연결할 수 없어요<br /><span className="t-caption">{error}</span></Empty>}
         {docs && shown.length === 0 && (

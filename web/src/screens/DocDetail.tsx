@@ -58,6 +58,8 @@ export default function DocDetail({ docId }: { docId: string }) {
               onClick={() => !upload && audioInput.current?.click()} />
             <input ref={audioInput} type="file" accept="audio/*,.m4a,.mp3,.wav" hidden
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) sendAudio(f); }} />
+            <ListItem icon="star" title="족보 노트" subtitle="모든 강의에서 시험에 나온다고 한 것·유력한 쪽·헷갈린 것·예상 문제를 한 장에"
+              onClick={() => go({ name: "jokbo", docId })} />
             {doc.kind !== "notebook" && (
               <ListItem icon="target" title="시험 예상 지도" subtitle="여러 강의에서 교수님이 강조한 쪽을 모아 봐요"
                 onClick={() => go({ name: "exam", docId })} />

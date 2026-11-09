@@ -5,6 +5,7 @@ import type { Annotation, DocumentDetail, GlossaryTerm, Page } from "../api/type
 import { getJSON, postJSON } from "../api/useApi";
 import { browserRecognizer, LiveSocket, startMicrophone, type Mic, type ServerEvent } from "../lib/live";
 import { clock, NotesPdf, PlayerBar, TaskDetail, TaskList, usePlayer, type FullTask } from "./LectureExtras";
+import { ConsentSheet } from "./ExamPrep";
 import { loadPdf, renderPage, type PdfDoc } from "../lib/pdf";
 import { Button, Chip, Icon, NOTE_LABEL, PostIt, TermCard, TopBar } from "../components/ui";
 import { go } from "../router";
@@ -54,6 +55,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const [asking, setAsking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0); // 서버 정리가 끝나면 다시 불러오기
+  const [confused, setConfused] = useState(0); // 이번 강의에서 "모르겠어요"를 누른 수
+  const [askConsent, setAskConsent] = useState(false);
 
   // 이벤트 처리기에서 최신 값을 읽기 위한 거울
   const live = useRef<LiveSocket | null>(null);
@@ -318,6 +321,24 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     toast(on ? "자막 모드: 지금 설명하는 곳을 표시하고, 시험·공지·과제 때 진동으로 알려요" : "자막 모드를 껐어요");
   };
 
+  // --- 모르겠어요: 수업 흐름을 끊지 않게 표시만 하고, 설명은 끝난 뒤 공부하기 › 모르겠다에서 ---
+  const markConfused = async () => {
+    if (!sessionId) return;
+    try {
+      await postJSON(`/sessions/${sessionId}/confused`, { page_no: page });
+      setConfused((n) => n + 1);
+      navigator.vibrate?.(15);
+      toast("표시했어요 · 끝나고 쉽게 설명해 드릴게요");
+    } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
+  };
+
+  // 녹음 전 한 번: 교수님 허락 · 데이터가 어디로 가는지 확인 (이 기기에 기억)
+  const startWithConsent = () => {
+    let agreed = false;
+    try { agreed = localStorage.getItem("ln.consent") === "1"; } catch { /* 저장소를 못 쓰면 매번 묻는다 */ }
+    if (agreed) void start(); else setAskConsent(true);
+  };
+
   // --- 방금 뭐라고? / 따라잡기 ---
   const ask = async (question: string) => {
     if (!sessionId) return;
@@ -487,12 +508,17 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
                 : serverStatus?.status === "processing" ? "필기·요약 정리 중…" : serverStatus?.status === "failed" ? "정리하지 못했어요" : "강의가 끝났어요") : "버튼을 누르면 녹음을 시작해요"}
             </span>
           </div>
+          {recording && (
+            <button className="round round-soft confused-btn" onClick={markConfused} aria-label="모르겠어요 (표시만 하고 끝나고 설명)">
+              <Icon name="hand-palm" />{confused > 0 && <span className="badge">{confused}</span>}
+            </button>
+          )}
           {sessionId && phase !== "idle" && (
             <button className="round round-soft" onClick={() => setSheet("ask")} disabled={asking} aria-label="방금 뭐라고?">
               {asking ? <span className="spin" /> : <Icon name="hand-waving" />}
             </button>
           )}
-          {phase === "idle" && <button className="round round-record" onClick={start} aria-label="녹음 시작"><Icon name="microphone" size={28} /></button>}
+          {phase === "idle" && <button className="round round-record" onClick={startWithConsent} aria-label="녹음 시작"><Icon name="microphone" size={28} /></button>}
           {recording && <button className="round round-record on" onClick={() => void stop()} aria-label="강의 끝내기"><span className="stop" /></button>}
           {phase === "ending" && <span className="round round-soft"><span className="spin" /></span>}
           {phase === "ended" && sessionId && (
@@ -500,6 +526,14 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           )}
         </div>
       </footer>
+
+      {askConsent && (
+        <ConsentSheet onCancel={() => setAskConsent(false)} onAgree={() => {
+          try { localStorage.setItem("ln.consent", "1"); } catch { /* 괜찮다 */ }
+          setAskConsent(false);
+          void start();
+        }} />
+      )}
 
       {sheet && (
         <>

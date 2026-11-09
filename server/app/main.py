@@ -24,6 +24,7 @@ from .llm import LLMError, accept_fixed_speech, make_llm
 from .beyond import beyond_slides
 from .study import cloze_items, fallback_mindmap, page_material, terms_of, tutor_context
 from .exam_map import score_pages, top_pages
+from .review import GRADES, NEW_PER_DAY, build_jokbo, card_key, schedule
 from .notes_pdf import build_notes_pdf
 from .quick_notes import EXAM_TALK
 from .recording import audio_file, recorded_ms, wav_parts
@@ -770,6 +771,153 @@ def update_annotation(ann_id: int, body: AnnotationUpdate):
 def delete_annotation(ann_id: int):
     if not db().delete_annotation(ann_id):
         raise HTTPException(404, "필기가 없습니다.")
+
+
+# "모르겠다": 수업 중 한 번 누르면 그 순간을 표시만 하고(수업 흐름을 끊지 않게), 설명은 나중에 만든다
+
+CONFUSED_BEFORE_MS, CONFUSED_AFTER_MS = 90_000, 30_000
+CONFUSED_QUESTION = "이 부분을 잘 모르겠어요. 핵심만 쉽게 다시 설명해 주세요."
+
+
+class ConfusedRequest(BaseModel):
+    page_no: int
+
+
+@app.post("/sessions/{session_id}/confused")
+def mark_confused(session_id: str, body: ConfusedRequest):
+    _session_or_404(session_id)
+    segments = db().get_segments(session_id)
+    at = max((s["end_ms"] for s in segments), default=0)
+    speech = " ".join(s["text"] for s in segments if s["end_ms"] >= at - 60_000)
+    return db().add_mark(session_id, body.page_no, at, speech[-600:])
+
+
+@app.get("/sessions/{session_id}/marks")
+def list_marks(session_id: str):
+    _session_or_404(session_id)
+    return db().list_marks(session_id)
+
+
+@app.post("/marks/{mark_id}/explain")
+async def explain_mark(mark_id: int):
+    mark = db().get_mark(mark_id)
+    if mark is None:
+        raise HTTPException(404, "표시가 없습니다.")
+    session = db().get_session(mark["session_id"])
+    doc = db().get_document(session["document_id"])
+    page = next((p for p in doc["pages"] if p["page_no"] == mark["page_no"]), None) or doc["pages"][0]
+    # 누른 뒤에 교수님이 이어서 한 설명까지 넣어야 무엇이 헷갈렸는지 알 수 있다
+    speech = " ".join(s["text"] for s in db().get_segments(session["id"])
+                      if mark["at_ms"] - CONFUSED_BEFORE_MS <= s["end_ms"] <= mark["at_ms"] + CONFUSED_AFTER_MS)
+    try:
+        result = await app.state.llm.ask(CONFUSED_QUESTION, page, speech or mark["speech"])
+    except anthropic.RateLimitError as exc:
+        raise HTTPException(429, "요청이 많아요. 잠시 뒤 다시 시도해 주세요.") from exc
+    except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError) as exc:
+        log.exception("모르겠다 설명 실패")
+        raise HTTPException(502, f"설명을 만들지 못했어요: {exc}") from exc
+    answer = str(result.get("answer", "")).strip()
+    if not answer:
+        raise HTTPException(502, "설명을 만들지 못했어요.")
+    return db().set_mark_explanation(mark_id, answer)
+
+
+@app.delete("/marks/{mark_id}", status_code=204)
+def delete_mark(mark_id: int):
+    if not db().delete_mark(mark_id):
+        raise HTTPException(404, "표시가 없습니다.")
+
+
+# 족보 노트: 한 강의자료의 모든 강의에서 시험에 필요한 것만 모은 한 장 (AI 없이 이미 만든 것을 모은다)
+
+
+@app.get("/documents/{doc_id}/jokbo")
+def jokbo(doc_id: str):
+    doc, pages, exam_sessions = _exam_inputs(doc_id)
+    scores = score_pages([p["page_no"] for p in pages], exam_sessions)
+    top = top_pages(scores, limit=5)
+    questions = []
+    for p in pages:
+        cached = db().get_exam_questions(doc_id, p["page_no"])
+        if cached:
+            questions.append({"page_no": p["page_no"], "questions": cached[1]})
+    sessions = []
+    for sid, material in zip(db().session_ids(doc_id), exam_sessions):
+        sessions.append({"id": sid, "annotations": material["annotations"], "terms": db().list_terms(sid),
+                         "marks": db().list_marks(sid), "summary": db().get_summary(sid)})
+    return build_jokbo({**doc, "pages": pages}, sessions, scores, top, questions)
+
+
+# 망각 곡선 복습: 플래시카드·예상 문제·"모르겠다" 설명을 카드로 모아, 틀린 것은 자주 아는 것은 드물게
+
+
+def _sync_cards(doc_id: str) -> None:
+    for sid in db().session_ids(doc_id):
+        saved = db().get_study(sid, "flashcards")
+        for card in (saved[1] if saved else []) or []:
+            front, back = str(card.get("front", "")).strip(), str(card.get("back", "")).strip()
+            if front and back:
+                db().upsert_card(card_key("flashcard", front), doc_id, "flashcard", front, back, card.get("page_no"))
+        for mark in db().list_marks(sid):
+            if mark["explanation"]:
+                front = "헷갈렸던 부분: " + (mark["speech"][-120:] or f"{mark['page_no']}쪽")
+                db().upsert_card(card_key("confused", str(mark["id"])), doc_id, "confused", front, mark["explanation"], mark["page_no"])
+    for p in db().get_document(doc_id)["pages"]:
+        cached = db().get_exam_questions(doc_id, p["page_no"])
+        for q in (cached[1] if cached else []):
+            if q.get("question") and q.get("answer"):
+                db().upsert_card(card_key("exam", q["question"]), doc_id, "exam", q["question"], q["answer"], p["page_no"])
+
+
+SOURCE_ORDER = {"confused": 0, "exam": 1, "flashcard": 2}
+
+
+@app.get("/review/today")
+def review_today(document_id: str | None = None):
+    docs = [document_id] if document_id else [d["id"] for d in db().list_documents()]
+    titles = {d["id"]: d["title"] for d in db().list_documents()}
+    for doc_id in docs:
+        if doc_id in titles:
+            _sync_cards(doc_id)
+    cards = [c for doc_id in docs for c in db().list_cards(doc_id)]
+    now = time.time()
+    due = sorted((c for c in cards if c["due_at"] is not None and c["due_at"] <= now), key=lambda c: (-c["lapses"], c["due_at"]))
+    # 오늘 처음 본 카드 수만큼 새 카드를 덜 꺼낸다
+    started_today = sum(1 for c in cards if c["last_at"] and c["reps"] <= 1 and c["lapses"] == 0 and now - c["last_at"] < 86400)
+    fresh = sorted((c for c in cards if c["due_at"] is None), key=lambda c: (SOURCE_ORDER.get(c["source"], 9), c["created_at"]))
+    fresh = fresh[:max(0, NEW_PER_DAY - started_today)]
+    upcoming = min((c["due_at"] for c in cards if c["due_at"] and c["due_at"] > now), default=None)
+    return {"cards": [{**c, "title": titles.get(c["document_id"], ""), "new": c["due_at"] is None} for c in due + fresh],
+            "due": len(due), "new": len(fresh), "total": len(cards), "next_due_at": upcoming}
+
+
+class ReviewAnswer(BaseModel):
+    grade: str  # again | hard | good | easy
+
+
+@app.post("/review/{key}")
+def review_answer(key: str, body: ReviewAnswer):
+    card = db().get_card(key)
+    if card is None:
+        raise HTTPException(404, "카드가 없습니다.")
+    if body.grade not in GRADES:
+        raise HTTPException(400, "grade는 again, hard, good, easy 중 하나입니다.")
+    updated = schedule(card, GRADES[body.grade])
+    db().save_card(updated)
+    return updated
+
+
+# 개인정보: 녹음·글이 어디로 가는지 그대로 알려 준다 (앱의 녹음 동의 화면이 이것을 보여 준다)
+
+
+@app.get("/privacy")
+def privacy():
+    where = {"groq": "Groq (미국 클라우드, 무료 사용량)", "ollama": "이 서버 컴퓨터 안 (Ollama, 밖으로 안 나감)",
+             "claude": "Anthropic Claude API (미국 클라우드)", "fake": "테스트용 가짜 응답 (밖으로 안 나감)"}
+    stt = {"groq": "Groq Whisper (미국 클라우드)", "whisper": "이 서버 컴퓨터 안 (Whisper, 밖으로 안 나감)", "fake": "테스트용"}
+    return {"ai": where.get(settings.llm_mode, settings.llm_mode), "speech": stt.get(settings.stt_mode, settings.stt_mode),
+            "storage": "녹음·필기·강의자료는 이 서버에만 저장돼요. 자료를 지우면 녹음과 필기도 함께 지워져요.",
+            "training": settings.training_log}
 
 
 # 웹앱 (iPhone Safari·안드로이드·PC 브라우저에서 바로 쓰는 버전). API 경로와 겹치지 않게 /app 아래에 둔다.

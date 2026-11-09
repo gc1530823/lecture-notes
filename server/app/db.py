@@ -58,6 +58,32 @@ CREATE TABLE IF NOT EXISTS annotations (
     pending INTEGER NOT NULL DEFAULT 0,
     created_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS marks (
+    -- 수업 중 "모르겠다": 그 순간의 쪽과 시각. 설명은 나중에 AI가 채운다
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    page_no INTEGER NOT NULL,
+    at_ms INTEGER NOT NULL,
+    speech TEXT NOT NULL DEFAULT '',
+    explanation TEXT,
+    created_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS reviews (
+    -- 망각 곡선 복습 일정 (카드 하나에 한 줄). 카드 내용은 플래시카드·예상 문제·모르겠다 설명에서 온다
+    card_key TEXT PRIMARY KEY,
+    document_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    front TEXT NOT NULL,
+    back TEXT NOT NULL,
+    page_no INTEGER,
+    ease REAL NOT NULL DEFAULT 2.5,
+    interval REAL NOT NULL DEFAULT 0,
+    reps INTEGER NOT NULL DEFAULT 0,
+    lapses INTEGER NOT NULL DEFAULT 0,
+    due_at REAL,
+    last_at REAL,
+    created_at REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS feedback (
     -- 사용자가 AI 필기를 고친 기록: 우리 AI 학습 데이터를 바로잡는 데 쓴다 (scripts/export_training.py)
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -220,10 +246,11 @@ class Database:
             sessions = [r[0] for r in self._conn.execute("SELECT id FROM sessions WHERE document_id = ?", (doc_id,))]
             pages = [r[0] for r in self._conn.execute("SELECT id FROM pages WHERE document_id = ?", (doc_id,))]
             for sid in sessions:
-                for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes", "study_sets", "glossary", "feedback"):
+                for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes", "study_sets", "glossary", "feedback", "marks"):
                     self._conn.execute(f"DELETE FROM {table} WHERE session_id = ?", (sid,))
             self._conn.execute("DELETE FROM sessions WHERE document_id = ?", (doc_id,))
             self._conn.execute("DELETE FROM exam_questions WHERE document_id = ?", (doc_id,))
+            self._conn.execute("DELETE FROM reviews WHERE document_id = ?", (doc_id,))
             for pid in pages:
                 self._conn.execute("DELETE FROM blocks WHERE page_id = ?", (pid,))
             self._conn.execute("DELETE FROM pages WHERE document_id = ?", (doc_id,))
@@ -330,6 +357,49 @@ class Database:
         self._write("""INSERT INTO feedback (session_id, annotation_id, action, original_text, original_type, new_text, new_page_no, created_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                     (before["session_id"], ann_id, action, original_text, original_type, new_text, new_page_no, time.time()))
+
+    # 모르겠다
+
+    def add_mark(self, session_id: str, page_no: int, at_ms: int, speech: str) -> dict:
+        mark_id = self._write("INSERT INTO marks (session_id, page_no, at_ms, speech, created_at) VALUES (?, ?, ?, ?, ?)",
+                              (session_id, page_no, at_ms, speech, time.time()))
+        return self.get_mark(mark_id)
+
+    def get_mark(self, mark_id: int) -> dict | None:
+        rows = self._query("SELECT * FROM marks WHERE id = ?", (mark_id,))
+        return rows[0] if rows else None
+
+    def list_marks(self, session_id: str) -> list[dict]:
+        return self._query("SELECT * FROM marks WHERE session_id = ? ORDER BY at_ms", (session_id,))
+
+    def set_mark_explanation(self, mark_id: int, text: str) -> dict | None:
+        self._write("UPDATE marks SET explanation = ? WHERE id = ?", (text, mark_id))
+        return self.get_mark(mark_id)
+
+    def delete_mark(self, mark_id: int) -> bool:
+        with self._lock, self._conn:
+            return self._conn.execute("DELETE FROM marks WHERE id = ?", (mark_id,)).rowcount > 0
+
+    # 복습 일정
+
+    def upsert_card(self, key: str, document_id: str, source: str, front: str, back: str, page_no: int | None) -> None:
+        """새 카드는 일정 없이(due_at NULL) 넣고, 이미 있으면 내용만 고친다 (일정은 그대로)."""
+        self._write("""INSERT INTO reviews (card_key, document_id, source, front, back, page_no, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(card_key) DO UPDATE SET front = excluded.front, back = excluded.back, page_no = excluded.page_no""",
+                    (key, document_id, source, front, back, page_no, time.time()))
+
+    def get_card(self, key: str) -> dict | None:
+        rows = self._query("SELECT * FROM reviews WHERE card_key = ?", (key,))
+        return rows[0] if rows else None
+
+    def list_cards(self, document_id: str | None = None) -> list[dict]:
+        if document_id:
+            return self._query("SELECT * FROM reviews WHERE document_id = ?", (document_id,))
+        return self._query("SELECT * FROM reviews")
+
+    def save_card(self, card: dict) -> None:
+        self._write("UPDATE reviews SET ease = ?, interval = ?, reps = ?, lapses = ?, due_at = ?, last_at = ? WHERE card_key = ?",
+                    (card["ease"], card["interval"], card["reps"], card["lapses"], card["due_at"], card["last_at"], card["card_key"]))
 
     def list_feedback(self) -> list[dict]:
         return self._query("SELECT * FROM feedback ORDER BY id")

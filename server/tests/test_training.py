@@ -119,3 +119,21 @@ def test_eval_scores_annotations():
     assert g["block_ok"] == 1 and g["type_ok"] == 1 and g["count_ok"] == 1 and g["text_f1"] > 0.5
     assert b["block_ok"] == 0 and b["count_ok"] == 0 and b["text_f1"] < 0.2
     assert ev.score_annotate({"annotations": []}, {"annotations": []})["silent_ok"] == 1
+
+
+def test_spaced_repetition_intervals_grow_and_lapses_reset():
+    from app.review import schedule
+
+    card = {"ease": 2.5, "interval": 0.0, "reps": 0, "lapses": 0}
+    c1 = schedule(card, 2, now=0)
+    c2 = schedule(c1, 2, now=0)
+    c3 = schedule(c2, 2, now=0)
+    assert (c1["interval"], c2["interval"]) == (1.0, 3.0) and c3["interval"] == 7.5
+    easy = schedule(c2, 3, now=0)
+    assert easy["interval"] > c3["interval"] and easy["ease"] > c2["ease"]
+    lapse = schedule(c3, 0, now=0)
+    assert lapse["reps"] == 0 and lapse["lapses"] == 1 and lapse["due_at"] == 600 and lapse["ease"] == 2.3
+    worst = card
+    for _ in range(20):
+        worst = schedule(worst, 0, now=0)
+    assert worst["ease"] == 1.3  # 너무 낮아지지 않는다

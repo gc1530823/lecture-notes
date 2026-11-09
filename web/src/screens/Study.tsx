@@ -3,8 +3,9 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { ClozeItem, Concept, Flashcard, MindNode, StudyResponse, SummaryResponse, TutorReply } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, TermCard } from "../components/ui";
+import { ConfusedPane } from "./ExamPrep";
 
-const KINDS = [["summary", "요약"], ["quiz", "퀴즈"], ["flashcards", "플래시카드"], ["concepts", "개념"], ["mindmap", "마인드맵"], ["cloze", "암기"], ["tutor", "AI 튜터"]] as const;
+const KINDS = [["summary", "요약"], ["quiz", "퀴즈"], ["flashcards", "플래시카드"], ["concepts", "개념"], ["mindmap", "마인드맵"], ["cloze", "암기"], ["confused", "모르겠다"], ["tutor", "AI 튜터"]] as const;
 type Kind = (typeof KINDS)[number][0];
 
 export default function Study({ sessionId }: { sessionId: string }) {
@@ -21,6 +22,7 @@ export default function Study({ sessionId }: { sessionId: string }) {
       )} />}
       {kind === "mindmap" && <AIStudy<MindNode> sessionId={sessionId} kind="mindmap" render={(b) => <MindMap root={b} />} />}
       {kind === "cloze" && <Cloze sessionId={sessionId} />}
+      {kind === "confused" && <ConfusedPane sessionId={sessionId} />}
       {kind === "tutor" && <Tutor sessionId={sessionId} />}
     </>
   );

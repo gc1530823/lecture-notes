@@ -188,3 +188,26 @@ a { color: inherit; text-decoration: none; }
 textarea.draft { min-height: 220px; padding: var(--space-md) var(--space-lg); resize: vertical; line-height: 1.6; }
 a.btn { text-decoration: none; }
 .banner > .chip { align-self: flex-start; }
+
+/* 시험 공부: 족보 노트 · 오늘의 복습 · 개인정보 */
+.review-banner { background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-card)); }
+.confused-btn { position: relative; }
+.grade-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-sm); }
+.grade-row .btn { padding-inline: 0; min-height: 48px; }
+.privacy-list { display: flex; flex-direction: column; gap: var(--space-sm); padding-left: 18px; }
+.jokbo-head { display: flex; flex-direction: column; gap: var(--space-xs); padding: var(--space-sm) 0; }
+.jokbo-section { background: var(--bg-card); border-radius: var(--radius-lg); border-left: 4px solid var(--accent-primary); padding: var(--space-lg);
+  display: flex; flex-direction: column; gap: var(--space-sm); box-shadow: var(--shadow-card); break-inside: avoid; }
+.jokbo-line { padding: 2px 0; }
+.jokbo-page { display: flex; flex-direction: column; gap: 2px; padding: var(--space-sm) 0; border-top: 1px solid var(--border-line); }
+.jokbo-page:first-of-type { border-top: 0; }
+.jokbo-terms { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-sm); }
+.hidden-answer { filter: blur(5px); user-select: none; }
+@media print {
+  .no-print, .top-bar-back, .top-bar button { display: none !important; }
+  body { background: #fff; }
+  .screen { max-width: none; }
+  .jokbo-section { box-shadow: none; border: 1px solid #ddd; border-left-width: 4px; }
+  .hidden-answer { filter: none; }
+  .term-card { box-shadow: none; border: 1px solid #eee; }
+}
