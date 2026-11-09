@@ -9,10 +9,13 @@ const KINDS = [["summary", "요약"], ["quiz", "퀴즈"], ["flashcards", "플래
 type Kind = (typeof KINDS)[number][0];
 
 export default function Study({ sessionId }: { sessionId: string }) {
-  const [kind, setKind] = useState<Kind>("flashcards");
+  const [kind, setKind] = useState<Kind | "bilingual">("flashcards");
+  // 영어 강의면 "영어 이중 노트" 탭을 맨 앞에 보여 준다
+  const { data: lang } = useApi<{ english: boolean }>(`/sessions/${sessionId}/language`);
   return (
     <>
       <div className="scroll-x" role="tablist" aria-label="공부 도구">
+        {lang?.english && <Chip variant={kind === "bilingual" ? "accent" : "default"} onClick={() => setKind("bilingual")}>영어 이중 노트</Chip>}
         {KINDS.map(([k, label]) => <Chip key={k} variant={kind === k ? "accent" : "default"} onClick={() => setKind(k)}>{label}</Chip>)}
       </div>
       {(kind === "summary" || kind === "quiz") && <SummaryPane sessionId={sessionId} quiz={kind === "quiz"} />}
@@ -23,6 +26,7 @@ export default function Study({ sessionId }: { sessionId: string }) {
       {kind === "mindmap" && <AIStudy<MindNode> sessionId={sessionId} kind="mindmap" render={(b) => <MindMap root={b} />} />}
       {kind === "cloze" && <Cloze sessionId={sessionId} />}
       {kind === "confused" && <ConfusedPane sessionId={sessionId} />}
+      {kind === "bilingual" && <AIStudy<{ en: string; ko: string; page_no: number }[]> sessionId={sessionId} kind="bilingual" render={(b) => <Bilingual pairs={b} />} />}
       {kind === "tutor" && <Tutor sessionId={sessionId} />}
     </>
   );
@@ -229,6 +233,32 @@ function Tutor({ sessionId }: { sessionId: string }) {
         <input className="input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="궁금한 것을 물어보세요" aria-label="질문" />
         <Button type="submit" disabled={busy || !input.trim()} aria-label="보내기" icon="chats-circle" />
       </form>
+    </>
+  );
+}
+
+/** 영어 이중 노트: 쪽마다 교수님 영어 문장과 한국어 번역을 나란히. 번역 가리고 읽기 연습도 */
+function Bilingual({ pairs }: { pairs: { en: string; ko: string; page_no: number }[] }) {
+  const [hideKo, setHideKo] = useState(false);
+  if (pairs.length === 0) return <Empty icon="chats-circle">번역할 영어 문장이 없었어요</Empty>;
+  const pages = [...new Set(pairs.map((p) => p.page_no))];
+  return (
+    <>
+      <div className="row">
+        <span className="t-caption muted grow">왼쪽 영어 원문 · 오른쪽 한국어 번역</span>
+        <Chip variant={hideKo ? "selected" : "default"} onClick={() => setHideKo(!hideKo)}>{hideKo ? "번역 보기" : "번역 가리기"}</Chip>
+      </div>
+      {pages.map((no) => (
+        <section key={no} className="banner">
+          <span className="t-caption faint">{no}쪽</span>
+          {pairs.filter((p) => p.page_no === no).map((p, i) => (
+            <div key={i} className="bi-row">
+              <p className="t-body" lang="en">{p.en}</p>
+              <p className={`t-body muted${hideKo ? " hidden-answer" : ""}`}>{p.ko}</p>
+            </div>
+          ))}
+        </section>
+      ))}
     </>
   );
 }

@@ -13,6 +13,7 @@ import httpx
 from . import training_log
 from .config import settings
 from .llm import (
+    BOARD_SYSTEM,
     ANNOTATION_SCHEMA,
     ASK_SCHEMA,
     CATCHUP_SCHEMA,
@@ -163,8 +164,8 @@ class OllamaLLM:
             log.warning("Ollama 모델을 미리 올리지 못했습니다 (%s)", settings.ollama_url)
 
     async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict],
-                       notebook: bool = False, known_terms: list[str] | None = None) -> dict:
-        data = await self._chat(annotation_system(notebook),
+                       notebook: bool = False, known_terms: list[str] | None = None, meeting: bool = False) -> dict:
+        data = await self._chat(annotation_system(notebook, meeting),
                                 _annotation_prompt(candidates, transcript, existing_tasks, known_terms),
                                 ANNOTATION_SCHEMA, context_tokens=4096)
         return {"annotations": data.get("annotations", []), "tasks": data.get("tasks", []), "terms": data.get("terms", [])}
@@ -246,6 +247,21 @@ class OllamaLLM:
     async def title_topic(self, speech: str) -> str:
         data = await self._chat(TITLE_SYSTEM, f"<speech>\n{speech[-3000:]}\n</speech>", TITLE_SCHEMA, context_tokens=4096)
         return str(data.get("title", "")).strip()
+
+    async def read_board(self, image: bytes, mime: str) -> dict:
+        """사진을 읽는 Ollama 모델(OLLAMA_VISION_MODEL, 예: qwen2.5vl:3b)로 칠판 사진을 필기로 옮긴다."""
+        import base64
+
+        payload = {"model": settings.ollama_vision_model, "stream": False, "format": "json", "think": False,
+                   "messages": [{"role": "system", "content": BOARD_SYSTEM},
+                                {"role": "user", "content": "이 사진을 필기로 옮겨 주세요.", "images": [base64.b64encode(image).decode()]}]}
+        try:
+            response = await self.client.post("/api/chat", json=payload)
+        except httpx.HTTPError as exc:
+            raise LLMError(f"Ollama에 연결할 수 없습니다: {exc}") from exc
+        if response.status_code >= 400:
+            raise LLMError(f"사진 읽는 모델({settings.ollama_vision_model})을 쓸 수 없습니다: {response.text[:120]}")
+        return json.loads(response.json().get("message", {}).get("content") or "{}")
 
     async def study_page(self, kind: str, page: dict, speech: str, notes: list[dict]) -> list[dict]:
         system, schema, key = STUDY_KINDS[kind]

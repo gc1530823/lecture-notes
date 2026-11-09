@@ -23,7 +23,8 @@ SILENCE_TO_CUT_MS = 700     # 이만큼 조용하면 문장이 끝났다고 본�
 MAX_CHUNK_MS = 10_000       # 말이 안 끊겨도 이 길이에서는 끊는다
 PRE_ROLL = RATE * 3 // 10   # 말 시작 직전 0.3초는 남긴다 (첫 음절이 잘리지 않게)
 
-OnText = Callable[[str, int, int], Awaitable[None]]
+OnText = Callable[[str, int, int, bool], Awaitable[None]]
+LOUD_RATIO = 1.4  # 최근 조각들의 가운데 크기보다 이만큼 크면 목소리를 높인 것
 
 
 class LiveAudio:
@@ -38,6 +39,10 @@ class LiveAudio:
         self.speech_ms = 0
         self.noise = 300.0            # 배경 소음 크기 추정 (int16 RMS)
         self.last_text = ""
+        # 목소리 강조: 조각마다 말소리 평균 크기를 재어, 최근 조각들보다 확 크면 "목소리 높임"으로 본다
+        self.speech_energy = 0.0
+        self.speech_frames = 0
+        self.levels: list[float] = []
         self._queue: asyncio.Queue = asyncio.Queue()
         self._worker = asyncio.create_task(self._run())
         # 수업 전체 녹음을 남겨 두면 나중에 다시 정리할 수 있다
@@ -60,6 +65,9 @@ class LiveAudio:
                 self.noise = 0.95 * self.noise + 0.05 * rms
             ms = len(frame) * 1000 // RATE
             self.speech_ms += ms if speaking else 0
+            if speaking:
+                self.speech_energy += rms
+                self.speech_frames += 1
             self.silent_ms = 0 if speaking else self.silent_ms + ms
             self.buffer = np.concatenate([self.buffer, frame])
             self.total_samples += len(frame)
@@ -77,10 +85,21 @@ class LiveAudio:
         self.buffer_start_ms = self.total_samples * 1000 // RATE
         self.speech_ms = 0
         self.silent_ms = 0
+        self.speech_energy = 0.0
+        self.speech_frames = 0
+
+    def _loud(self) -> bool:
+        if not self.speech_frames:
+            return False
+        level = self.speech_energy / self.speech_frames
+        history = sorted(self.levels[-30:])
+        loud = len(history) >= 5 and level > history[len(history) // 2] * LOUD_RATIO
+        self.levels.append(level)
+        return loud
 
     def _cut(self) -> None:
         if self.speech_ms > 0:
-            self._queue.put_nowait((self.buffer_start_ms, self.buffer.copy()))
+            self._queue.put_nowait((self.buffer_start_ms, self.buffer.copy(), self._loud()))
         self._reset()
 
     async def _run(self) -> None:
@@ -88,7 +107,7 @@ class LiveAudio:
             item = await self._queue.get()
             if item is None:
                 return
-            start_ms, pcm = item
+            start_ms, pcm, loud = item
             audio = pcm.astype(np.float32) / 32768.0
             prompt = f"{self.hint} {self.last_text}".strip()
             try:
@@ -98,7 +117,7 @@ class LiveAudio:
                 continue
             for seg in split_sentences(segments):
                 self.last_text = seg.text
-                await self.on_text(seg.text, start_ms + seg.start_ms, start_ms + seg.end_ms)
+                await self.on_text(seg.text, start_ms + seg.start_ms, start_ms + seg.end_ms, loud)
 
     async def close(self) -> None:
         self._cut()

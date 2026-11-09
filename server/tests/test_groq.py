@@ -102,3 +102,24 @@ def test_fix_speech_only_accepts_small_corrections():
     original = "그래서 드롭아웃은 학습할 때 유런 일부를 무작위로 꺼버리는 거예요."
     assert accept_fixed_speech(original, original.replace("유런", "뉴런"))
     assert not accept_fixed_speech(original, "드롭아웃은 뉴런 일부를 무작위로 끈다.")  # 다시 쓴 답은 버린다
+
+
+def test_study_tools_work_with_groq_page_material(tmp_path, monkeypatch):
+    """Groq·Ollama 모드에서 플래시카드·개념을 만들 때 쪽 자료(slide)를 프롬프트가 읽는 모양(text)으로 넘긴다."""
+    import asyncio
+    import httpx
+    from app.groq import GroqLLM
+    from app.llm import _organize_prompt
+
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content)["messages"][1]["content"])
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(
+            {"cards": [{"front": "경사하강법이란?", "back": "기울기 반대로 이동"}]}, ensure_ascii=False)}}]})
+
+    llm = GroqLLM(transport=httpx.MockTransport(handler))
+    page = {"page_no": 1, "title": "경사하강법", "slide": "경사하강법 슬라이드", "speech": "설명", "notes": []}
+    cards = asyncio.run(llm.study_page("flashcards", {**page, "text": page["slide"]}, page["speech"], page["notes"]))
+    assert cards[0]["front"] == "경사하강법이란?" and "경사하강법 슬라이드" in seen[0]
+    assert "경사하강법 슬라이드" in _organize_prompt({**page, "text": page["slide"]}, "", [])

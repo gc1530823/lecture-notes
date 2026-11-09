@@ -227,3 +227,13 @@ a.btn { text-decoration: none; }
 .plan-day { background: var(--bg-card); border-radius: var(--radius-lg); padding: var(--space-md) var(--space-lg); display: flex; flex-direction: column; gap: 4px; box-shadow: var(--shadow-card); }
 .plan-day.today { outline: 2px solid var(--accent-primary); }
 input[type="date"].input { padding: 0 var(--space-lg); }
+
+/* 3순위: 회의 · 칠판 사진 · 목소리 높임 · 영어 이중 노트 */
+.notebook-band.meeting { background: var(--note-tip-ink); }
+.postit-photo { width: 100%; max-height: 160px; object-fit: cover; border-radius: 4px; }
+.nb-photo { display: block; max-width: 220px; max-height: 140px; margin: 6px 0 2px; border-radius: 6px; object-fit: cover; }
+.loud-tag { flex: none; padding: 1px 6px; border-radius: var(--radius-full); background: var(--note-emphasis-paper); color: var(--note-emphasis-ink); font-weight: 700; }
+.action-row { display: flex; align-items: center; gap: var(--space-sm); padding: 4px 0; }
+.bi-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); padding: var(--space-sm) 0; border-top: 1px solid var(--border-line); }
+.bi-row:first-of-type { border-top: 0; }
+@media (max-width: 420px) { .bi-row { grid-template-columns: 1fr; gap: 2px; } }

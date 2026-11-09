@@ -124,7 +124,7 @@ def make_pdf(lecture: dict) -> bytes:
     return doc.tobytes()
 
 
-async def run_lecture(http: httpx.AsyncClient, url: str, lecture: dict, notebook: bool) -> dict:
+async def run_lecture(http: httpx.AsyncClient, url: str, lecture: dict, notebook: bool, pace: float = 0.6) -> dict:
     if notebook:
         doc = (await http.post("/documents/notebook", json={"title": lecture["title"]})).raise_for_status().json()
     else:
@@ -149,7 +149,7 @@ async def run_lecture(http: httpx.AsyncClient, url: str, lecture: dict, notebook
             length = max(1500, len(s["text"]) * 180)  # 한 글자에 0.18초쯤
             await ws.send(json.dumps({"type": "transcript_final", "text": s["text"], "start_ms": at, "end_ms": at + length}))
             at += length + 400
-            await asyncio.sleep(0.6)
+            await asyncio.sleep(pace)  # Groq 무료 한도(분당 토큰)를 넘지 않게 천천히
         await ws.send(json.dumps({"type": "flush"}))
         # 마지막 필기가 올 때까지 기다린다 (새 이벤트가 20초 동안 없으면 끝)
         last, idle = sum(counts.values()), 0
@@ -222,7 +222,7 @@ class Retrying:
         return None
 
 
-async def main(url: str, count: int, seed: int | None) -> None:
+async def main(url: str, count: int, seed: int | None, pace: float = 0.6) -> None:
     key = os.environ.get("GROQ_API_KEY")
     if not key:
         raise SystemExit("GROQ_API_KEY가 필요합니다 (강의를 만드는 데 씁니다)")
@@ -244,7 +244,7 @@ async def main(url: str, count: int, seed: int | None) -> None:
             try:
                 lecture = await make_lecture(groq, model, subject, topic, rng.randint(4, 7), rng.randint(24, 40))
                 print(f"    슬라이드 {len(lecture['pages'])}장 · 문장 {len(lecture['speech'])}개", flush=True)
-                counts = await run_lecture(http, url, lecture, notebook)
+                counts = await run_lecture(http, url, lecture, notebook, pace)
                 extra = f" · 새 주제 {counts['page_added']}" if notebook else ""
                 print(f"    필기 {counts['annotation_added']} · 용어 {counts['term']} · 과제 {counts['task_added']}{extra}"
                       f" · {time.monotonic() - started:.0f}초", flush=True)
@@ -260,5 +260,6 @@ if __name__ == "__main__":
     parser.add_argument("--url", default="http://localhost:8000")
     parser.add_argument("--count", type=int, default=3)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--pace", type=float, default=0.6, help="문장 사이 간격(초). 무료 한도에 걸리면 늘린다")
     args = parser.parse_args()
-    asyncio.run(main(args.url, args.count, args.seed))
+    asyncio.run(main(args.url, args.count, args.seed, args.pace))

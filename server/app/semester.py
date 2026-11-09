@@ -17,6 +17,9 @@ TYPE_LABEL = {"explanation": "보충설명", "example": "예시", "emphasis": "�
               "tip": "AI 팁", "qa": "질문"}
 
 
+MEETING_LABEL = {"emphasis": "결정", "explanation": "논의", "example": "근거", "notice": "일정", "qa": "미결"}
+
+
 def term_key(term: str) -> str:
     return re.sub(r"[\s\W_]+", "", term.lower())
 
@@ -125,7 +128,8 @@ def session_markdown(doc: dict, started_at: float, pages: list[dict], notes: lis
             out += ["> " + " ".join(page_summary[page["page_no"]].split()), ""]
         for n in mine:
             text = n["text"].replace("\n", " ")
-            out.append(f"- **{TYPE_LABEL.get(n['type'], n['type'])}** {text}")
+            labels = MEETING_LABEL if doc.get("kind") == "meeting" else TYPE_LABEL
+            out.append(f"- **{labels.get(n['type'], TYPE_LABEL.get(n['type'], n['type']))}** {text}")
         out.append("")
     if marks:
         out += ["## 헷갈렸던 곳", ""]
@@ -136,7 +140,7 @@ def session_markdown(doc: dict, started_at: float, pages: list[dict], notes: lis
         out += [f"- **{t['term']}** — {t['definition']}" for t in terms]
         out.append("")
     if tasks:
-        out += ["## 과제", ""]
+        out += ["## 할 일" if doc.get("kind") == "meeting" else "## 과제", ""]
         out += [f"- [{'x' if t['done'] else ' '}] {t['title']}{f' ({t['due_text']})' if t['due_text'] else ''} — {t['instructions']}" for t in tasks]
         out.append("")
     if summary and summary.get("quiz"):

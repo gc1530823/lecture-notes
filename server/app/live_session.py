@@ -26,7 +26,9 @@ Send = Callable[[dict], Awaitable[None]]
 # 교수님이 실제로 무언가를 시키는 말. 이런 말이 없으면 모델이 과제를 뽑아도 버린다 (작은 모델의 오탐지 방지).
 DIRECTIVE = re.compile(
     r"(해|써|풀어|읽어|정리해|공부해|준비해|만들어|찾아)\s*(오|와|보|봐)\s*(세요|요|라)|내세요|제출|과제|숙제|"
-    r"레포트|리포트|발표|올려\s*(주세요|놓으세요)|까지\s*(내|해)"
+    r"레포트|리포트|발표|올려\s*(주세요|놓으세요)|까지\s*(내|해)|"
+    # 회의: "제가 하기로", "민수 씨가 맡아서", "금요일까지 공유"
+    r"하기로|맡아|맡을|담당|까지\s*\S*\s*(공유|정리|준비|보내)"
 )
 
 
@@ -57,7 +59,8 @@ class LiveSession:
         self.pages = db.list_pages(self.document_id)
         doc = db.get_document(self.document_id)
         # 노트 모드: 슬라이드가 없으므로 페이지를 추적하지 않고, 주제가 바뀌면 새 쪽을 연다
-        self.notebook = (doc or {}).get("kind") == "notebook"
+        self.notebook = (doc or {}).get("kind") in ("notebook", "meeting")
+        self.meeting = (doc or {}).get("kind") == "meeting"
         self._page_sentences = 0
         # 실시간 용어 사전: 이미 띄운 용어 (같은 용어를 다시 띄우지 않는다)
         self._known_terms = {_term_key(t["term"]): t["term"] for t in db.list_terms(self.session_id)}
@@ -94,9 +97,9 @@ class LiveSession:
             self.audio = LiveAudio(transcriber, " ".join(doc["keywords"][:40]), self._on_heard, wav_path, offset_ms)
         self.audio.feed(data)
 
-    async def _on_heard(self, text: str, start_ms: int, end_ms: int) -> None:
-        await self.send({"type": "heard", "text": text})
-        await self._on_transcript({"text": text, "start_ms": start_ms, "end_ms": end_ms})
+    async def _on_heard(self, text: str, start_ms: int, end_ms: int, loud: bool = False) -> None:
+        await self.send({"type": "heard", "text": text, "loud": loud})
+        await self._on_transcript({"text": text, "start_ms": start_ms, "end_ms": end_ms, "loud": loud})
 
     def _blocks(self, page_id: int) -> list[dict]:
         if page_id not in self._block_cache:
@@ -180,7 +183,8 @@ class LiveSession:
         moved = self.estimate is not None and estimate.page_no != self.estimate.page_no
         self.estimate = estimate
         page = self.pages[estimate.page_no - 1]
-        self.db.add_segment(self.session_id, page["id"], start_ms, end_ms, text)
+        loud = bool(message.get("loud"))
+        self.db.add_segment(self.session_id, page["id"], start_ms, end_ms, text, loud)
         # 자막 모드: 지금 말한 문장과 슬라이드에서 가장 가까운 문단 (화면에 "지금 여기" 표시)
         block = best_block(self._blocks(page["id"]), text)
         await self.send({"type": "spoken", "page": estimate.page_no, "block_id": block["id"] if block else None,
@@ -195,7 +199,7 @@ class LiveSession:
         if self.batch is None:
             self.batch = Batch(estimate, start_ms, [], time.monotonic())
         self.batch.estimate = estimate
-        self.batch.texts.append(text)
+        self.batch.texts.append(f"(목소리 높임) {text}" if loud else text)
 
         if sum(len(t) for t in self.batch.texts) >= settings.min_chars_per_call:
             self._schedule_flush()
@@ -224,7 +228,7 @@ class LiveSession:
     def _send_preview(self, batch: Batch) -> None:
         """AI를 기다리지 않고 바로 임시 포스트잇을 띄운다."""
         page = self.pages[batch.estimate.page_no - 1]
-        note = quick_note(self.db.get_blocks(page["id"]), batch.texts)
+        note = quick_note(self.db.get_blocks(page["id"]), [t.replace("(목소리 높임) ", "") for t in batch.texts])
         self._preview_count += 1
         preview = {"id": f"p{self._preview_count}", "page_no": batch.estimate.page_no, "page_id": page["id"],
                    "start_ms": batch.start_ms, **note}
@@ -262,7 +266,7 @@ class LiveSession:
         try:
             existing_tasks = self.db.list_tasks(self.session_id)
             training_log.current_session.set(self.session_id)
-            results = await self.llm.annotate(candidates, transcript, existing_tasks, notebook=self.notebook,
+            results = await self.llm.annotate(candidates, transcript, existing_tasks, notebook=self.notebook, meeting=self.meeting,
                                               known_terms=list(self._known_terms.values()))
         except anthropic.RateLimitError:
             log.warning("필기 생성: 요청 한도 초과")

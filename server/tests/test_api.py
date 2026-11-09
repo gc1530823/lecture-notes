@@ -626,3 +626,86 @@ def test_semester_concepts_tutor_exam_plan_and_exports(client):
     client.post(f"/sessions/{sid}/study/flashcards")
     anki = client.get(f"/documents/{doc['id']}/anki.txt").text.splitlines()
     assert anki[0] == "#separator:tab" and all(len(line.split("\t")) == 3 for line in anki[3:]) and len(anki) > 3
+
+
+def test_meeting_mode_minutes_with_decisions_and_owners(client):
+    doc = client.post("/documents/notebook", json={"title": "캡스톤 회의", "kind": "meeting"}).json()
+    assert doc["kind"] == "meeting"
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "발표 자료는 민수 씨가 금요일까지 정리하기로 했습니다. 그렇게 결정합시다.",
+                      "start_ms": 0, "end_ms": 4000})
+        receive(ws, "task_added")
+    m = client.get(f"/sessions/{sid}/minutes").json()
+    assert m["title"] == "캡스톤 회의" and m["decisions"] and m["actions"][0]["owner"] == "민수"
+    assert m["actions"][0]["title"] == "자료 정리" and m["actions"][0]["due"] == "금요일까지"
+
+
+def test_loud_voice_is_kept_and_counts_on_the_exam_map(client):
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "Gradient Descent 학습률 정말 중요합니다 꼭 기억하세요.",
+                      "start_ms": 0, "end_ms": 3000, "loud": True})
+        receive_annotation(ws)
+    segments = client.get(f"/sessions/{sid}/transcript").json()
+    assert segments[0]["loud"] == 1
+    page = client.get(f"/documents/{doc['id']}/exam-map").json()["pages"][0]
+    assert "목소리 높여 말함 1번" in page["reasons"]
+
+
+def test_board_photo_becomes_a_note_with_the_picture(client):
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    res = client.post(f"/sessions/{sid}/photo", data={"page_no": "2"}, files={"file": ("board.jpg", b"\xff\xd8fakejpeg", "image/jpeg")})
+    note = res.json()
+    assert res.status_code == 200 and note["page_no"] == 2 and note["text"].startswith("칠판:") and note["photo_id"]
+    assert client.get(f"/photos/{note['photo_id']}").content == b"\xff\xd8fakejpeg"
+    listed = client.get(f"/sessions/{sid}/annotations").json()
+    assert listed[0]["photo_id"] == note["photo_id"]
+
+
+def test_english_lecture_gets_bilingual_pairs(client, monkeypatch):
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "Gradient descent moves against the gradient to minimize the loss.",
+                      "start_ms": 0, "end_ms": 3000})
+        receive_annotation(ws)
+    assert client.get(f"/sessions/{sid}/language").json()["english"] is True
+
+    async def fake_page(self, kind, page, speech, notes):
+        return [{"en": speech, "ko": "경사하강법은 손실을 줄이려고 기울기 반대로 움직인다."}]
+
+    monkeypatch.setattr(type(client.app.state.llm), "study_page", fake_page)
+    assert client.post(f"/sessions/{sid}/study/bilingual").status_code == 202
+    body = client.get(f"/sessions/{sid}/study/bilingual").json()["body"]
+    assert body[0]["page_no"] == 1 and body[0]["en"].startswith("Gradient") and body[0]["ko"]
+
+
+def test_shared_jokbo_merges_friends_and_counts_people(client):
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "학습률이 크면 발산해요. 이거 시험에 꼭 나와요.", "start_ms": 0, "end_ms": 3000})
+        receive_annotation(ws)
+    share = client.get(f"/documents/{doc['id']}/share", params={"nickname": "지수"}).json()
+    assert share["format"] == "lecture-notes-share/1" and share["exam"]
+    # 같은 PDF를 올린 친구의 서버라고 치고, 친구가 2쪽에도 시험 표시를 했다
+    friend = {**share, "exam": share["exam"] + [{"page_no": 2, "text": "역전파 유도 시험", "lecture": 1}],
+              "terms": [{"term": "Backpropagation", "definition": "오차를 거꾸로", "page_no": 2}]}
+    assert client.post(f"/documents/{doc['id']}/shared", json={"nickname": "지수", "share": friend}).status_code == 200
+    other = upload(client)
+    bad = client.post(f"/documents/{doc['id']}/shared", json={"share": {**friend, "fingerprint": "x"}})
+    assert bad.status_code == 400 and other
+    sheet = client.get(f"/documents/{doc['id']}/jokbo").json()
+    assert sheet["friends"] == ["지수"]
+    assert sheet["crowd"][0]["page_no"] == 1 and sheet["crowd"][0]["people"] == ["나", "지수"]
+    assert any(c["page_no"] == 2 and c["people"] == ["지수"] for c in sheet["crowd"])
+    assert "Backpropagation" in [t["term"] for t in sheet["terms"]]
+    [entry] = client.get(f"/documents/{doc['id']}/shared").json()
+    assert client.delete(f"/shared/{entry['id']}").status_code == 204

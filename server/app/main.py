@@ -127,13 +127,15 @@ def get_document_pdf(doc_id: str):
 
 class NotebookRequest(BaseModel):
     title: str = ""
+    kind: str = "notebook"  # notebook = 자료 없는 수업, meeting = 회의
 
 
 @app.post("/documents/notebook")
 def create_notebook(body: NotebookRequest):
-    """강의자료 없는 수업: 빈 줄 노트로 시작한다. 교수님이 주제를 바꿀 때마다 쪽이 늘고, 쪽마다 AI가 제목을 붙인다."""
-    title = body.title.strip() or time.strftime("%m월 %d일 수업")
-    return db().get_document(db().create_notebook(title))
+    """강의자료 없는 수업(또는 회의): 빈 줄 노트로 시작한다. 주제가 바뀔 때마다 쪽이 늘고, 쪽마다 AI가 제목을 붙인다."""
+    kind = "meeting" if body.kind == "meeting" else "notebook"
+    title = body.title.strip() or time.strftime("%m월 %d일 회의" if kind == "meeting" else "%m월 %d일 수업")
+    return db().get_document(db().create_notebook(title, kind))
 
 
 @app.get("/documents")
@@ -264,7 +266,8 @@ def get_transcript(session_id: str):
 @app.get("/sessions/{session_id}/annotations")
 def list_annotations(session_id: str):
     _session_or_404(session_id)
-    return db().list_annotations(session_id)
+    photos = db().photo_by_annotation(session_id)
+    return [{**a, "photo_id": photos.get(a["id"])} for a in db().list_annotations(session_id)]
 
 
 @app.websocket("/sessions/{session_id}/stream")
@@ -428,7 +431,7 @@ def get_beyond_slides(session_id: str):
 
 # 공부 도구 (유니브 AI처럼): 플래시카드 · 개념 메모 · 마인드맵 · 암기(빈칸) · AI 튜터
 
-STUDY_AI_KINDS = ("flashcards", "concepts", "mindmap")
+STUDY_AI_KINDS = ("flashcards", "concepts", "mindmap", "bilingual")
 
 
 def _study_inputs(session_id: str) -> tuple[dict, list[dict], str]:
@@ -466,7 +469,8 @@ async def _build_study(session_id: str, kind: str) -> None:
             body = []
             for page in material:
                 try:
-                    items = await app.state.llm.study_page(kind, page, page["speech"], page["notes"])
+                    # 쪽 자료는 slide에 슬라이드 글이 있다 (프롬프트는 page["text"]를 읽는다)
+                    items = await app.state.llm.study_page(kind, {**page, "text": page["slide"]}, page["speech"], page["notes"])
                     body += [{**item, "page_no": page["page_no"]} for item in items]
                 except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
                     log.exception("%s쪽 %s 만들기 실패", page["page_no"], kind)
@@ -848,7 +852,7 @@ def jokbo(doc_id: str):
     for sid, material in zip(db().session_ids(doc_id), exam_sessions):
         sessions.append({"id": sid, "annotations": material["annotations"], "terms": db().list_terms(sid),
                          "marks": db().list_marks(sid), "summary": db().get_summary(sid)})
-    return build_jokbo({**doc, "pages": pages}, sessions, scores, top, questions)
+    return build_jokbo({**doc, "pages": pages}, sessions, scores, top, questions, db().list_shared(doc_id))
 
 
 # 망각 곡선 복습: 플래시카드·예상 문제·"모르겠다" 설명을 카드로 모아, 틀린 것은 자주 아는 것은 드물게
@@ -1039,6 +1043,136 @@ def export_anki(doc_id: str):
                 cards.append((t["term"], t["definition"], "용어"))
     return Response(anki_text(doc["title"], cards), media_type="text/plain; charset=utf-8",
                     headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(doc['title'])}-anki.txt"})
+
+
+# 회의록: 회의 모드의 필기를 결정 · 할 일 · 미결 · 논의로 (AI 없이 모은다)
+
+
+@app.get("/sessions/{session_id}/minutes")
+def minutes(session_id: str):
+    session = _session_or_404(session_id)
+    doc = db().get_document(session["document_id"])
+    texts = {p["page_no"]: p["text"] for p in db().list_pages(doc["id"])}
+    notes = [a for a in db().list_annotations(session_id) if not a["pending"]]
+
+    def pick(*kinds):
+        return [{"page_no": a["page_no"], "text": a["text"]} for a in notes if a["type"] in kinds]
+
+    tasks = db().list_tasks(session_id)
+    actions = []
+    for t in tasks:
+        title = t["title"]
+        owner = title[1:title.index("]")] if title.startswith("[") and "]" in title else "미정"
+        actions.append({"id": t["id"], "owner": owner, "title": title.split("]", 1)[-1].strip() if "]" in title else title,
+                        "due": t["due_text"], "detail": t["instructions"], "done": t["done"]})
+    return {"title": doc["title"], "started_at": session["started_at"],
+            "topics": [{"page_no": no, "title": texts.get(no) or f"{no}번 주제"} for no in sorted({a["page_no"] for a in notes})],
+            "decisions": pick("emphasis"), "open": pick("qa"), "notices": pick("notice"),
+            "discussion": pick("explanation", "example"), "actions": actions,
+            "summary": (db().get_summary(session_id) or {}).get("overview", "")}
+
+
+# 칠판·화이트보드 사진: 찍으면 AI가 읽어 지금 쪽에 필기로 붙인다 (읽지 못해도 사진은 필기로 남는다)
+
+MAX_PHOTO_BYTES = 12 * 1024 * 1024
+
+
+@app.post("/sessions/{session_id}/photo")
+async def add_photo(session_id: str, page_no: int = Form(...), file: UploadFile = File(...)):
+    session = _session_or_404(session_id)
+    data = await file.read()
+    if len(data) > MAX_PHOTO_BYTES:
+        raise HTTPException(413, "사진은 12MB 이하만 올릴 수 있어요.")
+    mime = file.content_type if (file.content_type or "").startswith("image/") else "image/jpeg"
+    doc = db().get_document(session["document_id"])
+    page = next((p for p in doc["pages"] if p["page_no"] == page_no), None) or doc["pages"][0]
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    path = os.path.join(settings.upload_dir, f"photo-{session_id}-{int(time.time() * 1000)}")
+    with open(path, "wb") as f:
+        f.write(data)
+    photo_id = db().add_photo(session_id, page["page_no"], path, mime)
+    try:
+        read = await app.state.llm.read_board(data, mime)
+        summary, text = str(read.get("summary", "")).strip(), str(read.get("text", "")).strip()
+        note_text = f"칠판: {summary}" + (f"\n{text}" if text else "")
+    except Exception:  # 사진을 읽는 모델이 없거나 실패해도 사진은 남긴다
+        log.exception("칠판 사진 읽기 실패")
+        note_text = "칠판 사진 (글을 읽지 못했어요)"
+    segments = db().get_segments(session_id)
+    at = max((s["end_ms"] for s in segments), default=0)
+    note = db().add_annotation(session_id, page["id"], None, "example", note_text[:1500], at)
+    db().link_photo(photo_id, note["id"])
+    return {**note, "photo_id": photo_id}
+
+
+@app.get("/photos/{photo_id}")
+def get_photo(photo_id: int):
+    photo = db().get_photo(photo_id)
+    if photo is None or not os.path.exists(photo["path"]):
+        raise HTTPException(404, "사진이 없습니다.")
+    return FileResponse(photo["path"], media_type=photo["mime"])
+
+
+# 영어 이중 노트: 받아쓰기가 영어인지 보고(앱이 탭을 보여 줄지 정한다), 쪽마다 원문·번역 짝은 공부 도구처럼 만든다
+
+
+@app.get("/sessions/{session_id}/language")
+def language(session_id: str):
+    _session_or_404(session_id)
+    text = " ".join(s["text"] for s in db().get_segments(session_id))
+    letters = [c for c in text if c.isalpha()]
+    latin = sum(1 for c in letters if c.isascii())
+    ratio = latin / len(letters) if letters else 0.0
+    return {"english_ratio": round(ratio, 3), "english": ratio >= 0.6}
+
+
+# 함께 만드는 족보: 로그인 없이 파일로 주고받는다. 같은 강의자료(쪽 수·첫 쪽 글이 같은 것)끼리만 합친다
+
+
+def _fingerprint(doc_id: str) -> str:
+    pages = db().list_pages(doc_id)
+    first = (pages[0]["text"] if pages else "")[:200]
+    return hashlib.sha1(f"{len(pages)}\0{' '.join(first.split())}".encode()).hexdigest()[:16]
+
+
+class ShareImport(BaseModel):
+    nickname: str = ""
+    share: dict
+
+
+@app.get("/documents/{doc_id}/share")
+def export_share(doc_id: str, nickname: str = ""):
+    sheet = jokbo(doc_id)
+    body = {k: sheet[k] for k in ("exam", "emphasis", "notice", "terms", "predicted")}
+    body["confused"] = [c for c in sheet["confused"] if c["explanation"]]
+    return {"format": "lecture-notes-share/1", "title": sheet["title"], "fingerprint": _fingerprint(doc_id),
+            "nickname": nickname.strip()[:20], "created_at": time.time(), **body}
+
+
+@app.post("/documents/{doc_id}/shared")
+def import_share(doc_id: str, body: ShareImport):
+    if db().get_document(doc_id) is None:
+        raise HTTPException(404, "강의자료가 없습니다.")
+    share = body.share
+    if share.get("format") != "lecture-notes-share/1":
+        raise HTTPException(400, "강의노트 족보 파일이 아니에요.")
+    if share.get("fingerprint") != _fingerprint(doc_id):
+        raise HTTPException(400, "다른 강의자료의 족보예요. 같은 PDF로 들은 친구의 파일만 합칠 수 있어요.")
+    keep = {k: share.get(k, [])[:300] for k in ("exam", "emphasis", "notice", "terms", "predicted", "confused")}
+    nickname = (body.nickname or share.get("nickname") or "친구").strip()[:20]
+    return db().add_shared(doc_id, nickname, keep)
+
+
+@app.get("/documents/{doc_id}/shared")
+def list_shared(doc_id: str):
+    return [{"id": s["id"], "nickname": s["nickname"], "created_at": s["created_at"],
+             "counts": {k: len(v) for k, v in s["body"].items()}} for s in db().list_shared(doc_id)]
+
+
+@app.delete("/shared/{shared_id}", status_code=204)
+def delete_shared(shared_id: int):
+    if not db().delete_shared(shared_id):
+        raise HTTPException(404, "없는 족보 파일입니다.")
 
 
 # 개인정보: 녹음·글이 어디로 가는지 그대로 알려 준다 (앱의 녹음 동의 화면이 이것을 보여 준다)

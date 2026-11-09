@@ -51,18 +51,20 @@ export default function DocDetail({ docId }: { docId: string }) {
           <>
             <p className="t-caption muted">{subtitleOf(doc)}</p>
             <Button block variant="record" icon="microphone" onClick={() => go({ name: "lecture", docId })}>
-              수업 시작
+              {doc.kind === "meeting" ? "회의 기록 시작" : "수업 시작"}
             </Button>
             <ListItem icon="headphones" title={upload ?? "녹음 파일로 정리하기"}
               subtitle="'음성 메모'로 녹음한 파일을 올리면 화면을 꺼 둔 수업도 필기·요약·퀴즈로 만들어요"
               onClick={() => !upload && audioInput.current?.click()} />
             <input ref={audioInput} type="file" accept="audio/*,.m4a,.mp3,.wav" hidden
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) sendAudio(f); }} />
+            {doc.kind !== "meeting" && <>
             <ListItem icon="cards" title="Anki로 내보내기" subtitle="플래시카드·예상 문제·용어를 Anki 앱에서 가져올 수 있는 파일로 (파일 › 가져오기)"
               onClick={() => { window.location.href = `${API}/documents/${docId}/anki.txt`; }} />
             <ListItem icon="star" title="족보 노트" subtitle="모든 강의에서 시험에 나온다고 한 것·유력한 쪽·헷갈린 것·예상 문제를 한 장에"
               onClick={() => go({ name: "jokbo", docId })} />
-            {doc.kind !== "notebook" && (
+            </>}
+            {doc.kind === "slides" && (
               <ListItem icon="target" title="시험 예상 지도" subtitle="여러 강의에서 교수님이 강조한 쪽을 모아 봐요"
                 onClick={() => go({ name: "exam", docId })} />
             )}

@@ -21,7 +21,7 @@ import numpy as np
 
 from . import training_log
 from .config import settings
-from .llm import FIX_SPEECH_SCHEMA, FIX_SPEECH_SYSTEM, LLMError, _fix_speech_prompt
+from .llm import BOARD_SYSTEM, FIX_SPEECH_SCHEMA, FIX_SPEECH_SYSTEM, LLMError, _fix_speech_prompt
 from .ollama_llm import OllamaLLM
 from .stt import Segment, split_sentences
 
@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 BASE_URL = "https://api.groq.com/openai/v1"
 # 무료 등급은 파일 하나에 25MB까지라, 16kHz 모노 32kbps mp3(1시간 약 14MB)로 바꾼 뒤 10분씩 나눠 보낸다
 CHUNK_SECONDS = 600
-MAX_RETRIES = 6
+MAX_RETRIES = int(os.getenv("GROQ_MAX_RETRIES", "6"))  # 데이터 만들기처럼 몰아서 쓸 때는 늘린다
 
 
 def _wait_seconds(response: httpx.Response, attempt: int) -> float:
@@ -90,6 +90,27 @@ class GroqLLM(OllamaLLM):
 
     async def warm_up(self) -> None:
         return None
+
+    async def read_board(self, image: bytes, mime: str) -> dict:
+        """Groq의 사진 읽는 모델(GROQ_VISION_MODEL)로 칠판 사진을 필기로 옮긴다 (무료 사용량)."""
+        import base64
+
+        payload = {
+            "model": settings.groq_vision_model,
+            "messages": [{"role": "system", "content": BOARD_SYSTEM},
+                         {"role": "user", "content": [
+                             {"type": "text", "text": "이 사진을 필기로 옮겨 주세요."},
+                             {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{base64.b64encode(image).decode()}"}}]}],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.1,
+        }
+        try:
+            response = await self.client.post("/chat/completions", json=payload, headers=_auth())
+        except httpx.HTTPError as exc:
+            raise LLMError(f"Groq에 연결할 수 없습니다: {exc}") from exc
+        if response.status_code >= 400:
+            raise LLMError(f"사진을 읽지 못했습니다 ({response.status_code}): {response.text[:150]}")
+        return json.loads(response.json()["choices"][0]["message"].get("content") or "{}")
 
     async def fix_speech(self, page: dict, speech: str) -> str:
         """정리 PDF의 '교수님 설명'에서 잘못 들린 단어만 고친다 (Groq는 빨라서 페이지마다 한 번 더 불러도 된다)."""

@@ -24,6 +24,9 @@ class Settings:
     groq_live_whisper_model: str = os.getenv("GROQ_LIVE_WHISPER_MODEL", "whisper-large-v3-turbo")
     ollama_url: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
     ollama_model: str = os.getenv("OLLAMA_MODEL", "qwen3:8b")
+    # 칠판 사진을 읽는 모델 (사진 입력이 되는 모델)
+    groq_vision_model: str = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+    ollama_vision_model: str = os.getenv("OLLAMA_VISION_MODEL", "qwen2.5vl:3b")
 
     # 실시간 필기용 모델과 강의 후 요약·퀴즈용 모델
     annotation_model: str = os.getenv("ANNOTATION_MODEL", "claude-opus-5-5")

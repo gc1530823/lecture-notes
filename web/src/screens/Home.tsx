@@ -11,7 +11,7 @@ type Filter = "all" | "pdf" | "notebook";
 
 export function subtitleOf(doc: DocumentBrief): string {
   const lectures = doc.sessions.length ? `강의 ${doc.sessions.length}번` : "아직 강의 없음";
-  const kind = doc.kind === "notebook" ? `노트 · 주제 ${doc.page_count}개` : `슬라이드 ${doc.page_count}쪽`;
+  const kind = doc.kind === "meeting" ? `회의 · 안건 ${doc.page_count}개` : doc.kind === "notebook" ? `노트 · 주제 ${doc.page_count}개` : `슬라이드 ${doc.page_count}쪽`;
   return `${kind} · ${lectures} · ${relativeDay(doc.created_at)}`;
 }
 
@@ -46,12 +46,12 @@ export default function Home() {
     }
   };
 
-  const newNotebook = async () => {
-    const title = prompt("수업 이름", "새 노트 수업");
+  const newNotebook = async (kind: "notebook" | "meeting" = "notebook") => {
+    const title = prompt(kind === "meeting" ? "회의 이름" : "수업 이름", kind === "meeting" ? "팀 회의" : "새 노트 수업");
     if (title === null) return;
     setBusy("노트를 만드는 중…");
     try {
-      const doc = await postJSON<{ id: string }>("/documents/notebook", { title });
+      const doc = await postJSON<{ id: string }>("/documents/notebook", { title, kind });
       go({ name: "doc", docId: doc.id });
     } catch (e) {
       alert(e instanceof Error ? e.message : String(e));
@@ -60,7 +60,7 @@ export default function Home() {
     }
   };
 
-  const shown = (docs ?? []).filter((d) => filter === "all" || (filter === "notebook" ? d.kind === "notebook" : d.kind !== "notebook"));
+  const shown = (docs ?? []).filter((d) => filter === "all" || (filter === "notebook" ? d.kind !== "slides" : d.kind === "slides"));
   const today = new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" });
 
   return (
@@ -84,6 +84,7 @@ export default function Home() {
           <Chip variant="accent" onClick={() => go({ name: "semester", tab: "map" })}>개념 지도</Chip>
           <Chip variant="accent" onClick={() => go({ name: "semester", tab: "tutor" })}>학기 튜터</Chip>
           <Chip variant="accent" onClick={() => go({ name: "semester", tab: "exams" })}>시험 D-day</Chip>
+          <Chip variant="accent" onClick={() => void newNotebook("meeting")}>회의 기록</Chip>
         </div>
         {loading && !docs && <p className="muted">불러오는 중…</p>}
         {error && <Empty icon="warning-circle">서버에 연결할 수 없어요<br /><span className="t-caption">{error}</span></Empty>}
@@ -94,12 +95,12 @@ export default function Home() {
           </Empty>
         )}
         {shown.map((doc) => (
-          <ListItem key={doc.id} icon={doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
+          <ListItem key={doc.id} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
             subtitle={subtitleOf(doc)} onClick={() => go({ name: "doc", docId: doc.id })} />
         ))}
       </div>
       <div className="home-actions">
-        <Button variant="secondary" icon="note-pencil" onClick={newNotebook} disabled={!!busy}>노트 수업</Button>
+        <Button variant="secondary" icon="note-pencil" onClick={() => newNotebook()} disabled={!!busy}>노트 수업</Button>
         <Button icon="tray-arrow-down" onClick={() => file.current?.click()} disabled={!!busy}>{busy ?? "강의자료 올리기"}</Button>
         <input ref={file} type="file" accept="application/pdf" hidden
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />

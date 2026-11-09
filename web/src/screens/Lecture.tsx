@@ -57,6 +57,9 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const [refresh, setRefresh] = useState(0); // 서버 정리가 끝나면 다시 불러오기
   const [confused, setConfused] = useState(0); // 이번 강의에서 "모르겠어요"를 누른 수
   const [askConsent, setAskConsent] = useState(false);
+  const [loud, setLoud] = useState(false); // 방금 문장을 목소리 높여 말했는지 (자막 옆에 표시)
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
 
   // 이벤트 처리기에서 최신 값을 읽기 위한 거울
   const live = useRef<LiveSocket | null>(null);
@@ -89,7 +92,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         const d = await getJSON<DocumentDetail>(`/documents/${docId}`);
         if (!alive) return;
         setDoc(d);
-        if (d.kind !== "notebook") loadPdf(docId).then((p) => alive && setPdf(p)).catch((e) => setError(e.message));
+        if (d.kind === "slides") loadPdf(docId).then((p) => alive && setPdf(p)).catch((e) => setError(e.message));
         if (initialSession) {
           const [a, t, g] = await Promise.all([
             getJSON<Annotation[]>(`/sessions/${initialSession}/annotations`),
@@ -224,6 +227,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         break;
       case "heard":
         setCaption(e.text);
+        setLoud(Boolean((e as { loud?: boolean }).loud));
         break;
       case "spoken":
         setCaption(e.text);
@@ -362,6 +366,24 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
   };
 
+  // 칠판·화이트보드 사진: 찍으면 AI가 읽어 지금 쪽에 필기로 붙인다
+  const sendPhoto = async (file: File) => {
+    if (!sessionId) return;
+    setPhotoBusy(true);
+    try {
+      const form = new FormData();
+      form.append("page_no", String(page));
+      form.append("file", file);
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/sessions/${sessionId}/photo`, { method: "POST", body: form });
+      const note = await res.json();
+      if (!res.ok) throw new Error(note?.detail ?? "사진을 올리지 못했어요");
+      setNotes((n) => [...n, note]);
+      flash(note.id);
+      toast("칠판 사진을 필기로 붙였어요");
+    } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
+    setPhotoBusy(false);
+  };
+
   // 녹음 전 한 번: 교수님 허락 · 데이터가 어디로 가는지 확인 (이 기기에 기억)
   const startWithConsent = () => {
     let agreed = false;
@@ -421,7 +443,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   if (!doc) return <div className="screen"><TopBar title="불러오는 중…" onBack={() => go({ name: "doc", docId })} /></div>;
 
   const recording = phase === "recording";
-  const notebook = doc.kind === "notebook";
+  const notebook = doc.kind === "notebook" || doc.kind === "meeting";
   const all = [...notes, ...previews];
   const visible = all.filter((n) => n.page_no === page && !n.pending);
   const pending = notes.filter((n) => n.pending);
@@ -487,7 +509,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
                   <div key={n.id} className={`postit-slot${n.id === selected ? " sel" : ""}${n.id === fresh ? " fresh" : ""}${n.preview ? " preview" : ""}`}
                     onClick={() => setSelected(selected === n.id ? null : n.id)}
                     onContextMenu={(e) => { e.preventDefault(); void editNote(n); }}>
-                    <PostIt type={n.type} number={i + 1}
+                    <PostIt type={n.type} number={i + 1} photo={n.photo_id ? `${import.meta.env.VITE_API_URL ?? ""}/photos/${n.photo_id}` : null}
                       tag={n.preview ? "AI가 정리 중…" : beyond.has(n.id) ? "슬라이드에 없는 설명" : n.edited_by_user ? "직접 수정함" : undefined}>{n.text}</PostIt>
                     {player.hasAudio && !n.preview && (
                       <button className="play-chip" onClick={(e) => { e.stopPropagation(); player.playFrom(n.start_ms); }} aria-label="이 필기 때 녹음 듣기">
@@ -531,7 +553,9 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
             <Icon name="play" size={16} /> 처음부터 다시 보기 · 녹음에 맞춰 쪽·필기·자막이 따라와요
           </button>
         )}
-        {recording && !a11y && <p className="caption-line t-caption" aria-live="polite"><span className="rec-dot" />{caption}</p>}
+        {recording && !a11y && (
+          <p className="caption-line t-caption" aria-live="polite"><span className="rec-dot" />{loud && <span className="loud-tag">목소리 높임</span>}{caption}</p>
+        )}
         {recording && a11y && (
           <div className="caption-big" aria-live="polite">
             {(lines.length ? lines : [caption]).map((l, i, arr) => <p key={i} className={i === arr.length - 1 ? "now" : ""}>{l}</p>)}
@@ -553,6 +577,13 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
                 : serverStatus?.status === "processing" ? "필기·요약 정리 중…" : serverStatus?.status === "failed" ? "정리하지 못했어요" : "강의가 끝났어요") : "버튼을 누르면 녹음을 시작해요"}
             </span>
           </div>
+          {sessionId && phase !== "idle" && (
+            <button className="round round-soft" onClick={() => photoInput.current?.click()} disabled={photoBusy} aria-label="칠판 사진 찍기">
+              {photoBusy ? <span className="spin" /> : <Icon name="camera" />}
+              <input ref={photoInput} type="file" accept="image/*" capture="environment" hidden
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void sendPhoto(f); }} />
+            </button>
+          )}
           {recording && (
             <button className="round round-soft confused-btn" onClick={markConfused} aria-label="모르겠어요 (표시만 하고 끝나고 설명)">
               <Icon name="hand-palm" />{confused > 0 && <span className="badge">{confused}</span>}
@@ -768,10 +799,13 @@ function NotebookSheet({ doc, notes, page, recording, fresh, selected, onSelect,
   const freshRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => { freshRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [fresh]);
   const date = new Date(startedAt || Date.now());
-  const MARK: Record<string, string> = { explanation: "-", example: "예)", emphasis: "!", exam: "★", notice: "공지)", tip: "(+)", qa: "Q." };
+  const meeting = doc.kind === "meeting";
+  const MARK: Record<string, string> = meeting
+    ? { explanation: "-", example: "근거)", emphasis: "결정)", exam: "!", notice: "일정)", tip: "(+)", qa: "미결)" }
+    : { explanation: "-", example: "예)", emphasis: "!", exam: "★", notice: "공지)", tip: "(+)", qa: "Q." };
   return (
     <div className="notebook">
-      <header className="notebook-band">
+      <header className={`notebook-band${meeting ? " meeting" : ""}`}>
         <span className="t-caption">{date.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</span>
         <strong className="t-title-m">{doc.title}</strong>
       </header>
@@ -785,11 +819,12 @@ function NotebookSheet({ doc, notes, page, recording, fresh, selected, onSelect,
                 <span className="note-num">{p.page_no}</span>
                 <h3 className="t-title-s">{p.text || <span className="faint">{recording && current ? "주제를 듣는 중…" : "제목 없음"}</span>}</h3>
               </div>
-              {mine.length === 0 && <p className="t-note faint">{recording && current ? "교수님 설명을 듣고 있어요. 필기가 여기에 써져요." : "아직 필기가 없어요"}</p>}
+              {mine.length === 0 && <p className="t-note faint">{recording && current ? (meeting ? "회의를 듣고 있어요. 결정·할 일이 여기에 써져요." : "교수님 설명을 듣고 있어요. 필기가 여기에 써져요.") : "아직 필기가 없어요"}</p>}
               {mine.map((n) => (
                 <p key={n.id} ref={n.id === fresh ? freshRef : undefined} onClick={() => onSelect(selected === n.id ? null : n.id)}
                   className={`t-note nb-line${n.type === "exam" || n.type === "emphasis" ? " note-hl" : ""}${n.preview ? " preview" : ""}${n.id === fresh ? " fresh" : ""}`}>
                   <span className="nb-mark" style={{ color: `var(--note-${n.type}-ink)` }}>{MARK[n.type] ?? "-"}</span> {n.text}
+                  {n.photo_id && <img className="nb-photo" src={`${import.meta.env.VITE_API_URL ?? ""}/photos/${n.photo_id}`} alt="칠판 사진" loading="lazy" />}
                 </p>
               ))}
             </section>

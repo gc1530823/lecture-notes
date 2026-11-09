@@ -66,14 +66,22 @@ export const NOTE_LABEL: Record<NoteType, string> = {
   explanation: "보충설명", example: "예시", emphasis: "강조", exam: "시험", notice: "공지", tip: "AI 팁", qa: "질문",
 };
 
-export function PostIt({ type, number, children, tag }: { type: NoteType; number?: number; children: ReactNode; tag?: string }) {
+// 회의 모드에서는 같은 종류를 회의록의 이름으로 보여 준다
+export const MEETING_LABEL: Partial<Record<NoteType, string>> = {
+  emphasis: "결정", explanation: "논의", example: "근거", notice: "일정", qa: "미결",
+};
+
+export function PostIt({ type, number, children, tag, photo, meeting }: {
+  type: NoteType; number?: number; children: ReactNode; tag?: string; photo?: string | null; meeting?: boolean;
+}) {
   const style = { "--paper": `var(--note-${type}-paper)`, "--ink": `var(--note-${type}-ink)` } as CSSProperties;
   return (
     <article className="postit" style={style}>
       <div className="postit-head">
-        <span>{NOTE_LABEL[type] ?? type}</span>
+        <span>{(meeting && MEETING_LABEL[type]) || NOTE_LABEL[type] || type}</span>
         {number !== undefined && <span className="postit-badge">{number}</span>}
       </div>
+      {photo && <img className="postit-photo" src={photo} alt="칠판 사진" loading="lazy" />}
       <p className="t-note" style={{ whiteSpace: "pre-wrap" }}>{children}</p>
       {tag && <span className="postit-tag">{tag}</span>}
     </article>

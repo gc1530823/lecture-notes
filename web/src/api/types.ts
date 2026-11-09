@@ -30,6 +30,7 @@ export interface Annotation {
   start_ms: number;
   pending: boolean;
   edited_by_user: boolean;
+  photo_id?: number | null; // 칠판 사진으로 만든 필기
 }
 
 export interface Segment { start_ms: number; end_ms: number; text: string; page_no: number | null }

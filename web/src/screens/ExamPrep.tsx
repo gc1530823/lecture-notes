@@ -1,5 +1,5 @@
 // 시험 공부 화면: 족보 노트 · 오늘의 복습(망각 곡선) · 개인정보와 녹음 동의
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, PostIt, TermCard, TopBar } from "../components/ui";
@@ -9,6 +9,8 @@ const API = import.meta.env.VITE_API_URL ?? "";
 
 interface Jokbo {
   title: string;
+  friends: string[];
+  crowd: { page_no: number; title: string; people: string[]; notes: { who: string; text: string; kind: string }[] }[];
   lectures: number;
   exam: { page_no: number; text: string; lecture: number }[];
   emphasis: { page_no: number; text: string; lecture: number }[];
@@ -37,6 +39,23 @@ export function JokboScreen({ docId }: { docId: string }) {
               <span className="t-caption muted">강의 {data.lectures}번 모아 보기 · AI가 새로 쓰지 않고 수업에서 나온 것만 모았어요</span>
               <h1 className="t-title-l">{data.title}</h1>
             </header>
+
+            <ShareBox docId={docId} friends={data.friends} />
+
+            {data.crowd.length > 0 && (
+              <Section icon="users" title={`함께 본 족보 · 나와 친구 ${data.friends.length}명`} tone="exam">
+                {data.crowd.slice(0, 12).map((c) => (
+                  <div key={c.page_no} className="jokbo-page">
+                    <div className="row">
+                      <strong className="t-title-s grow">{c.page_no}쪽{c.title ? ` · ${c.title}` : ""}</strong>
+                      <span className="chip chip-selected">{c.people.length}명</span>
+                    </div>
+                    <span className="t-caption muted">{c.people.join(", ")}이(가) 시험·강조로 적음</span>
+                    {groupNotes(c.notes).slice(0, 3).map((n, i) => <p key={i} className="t-body">· {n.text} <span className="t-caption faint">({n.who.join(", ")})</span></p>)}
+                  </div>
+                ))}
+              </Section>
+            )}
 
             {data.exam.length > 0 && (
               <Section icon="star" title="교수님이 시험에 나온다고 한 것" tone="exam">
@@ -325,3 +344,64 @@ export function ConfusedPane({ sessionId }: { sessionId: string }) {
   );
 }
 
+
+/** 함께 만드는 족보: 로그인 없이 파일로. 내 족보 파일을 보내고, 친구 파일을 합치면 여럿이 표시한 쪽이 위로 */
+function ShareBox({ docId, friends }: { docId: string; friends: string[] }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  const exportFile = async () => {
+    const nickname = prompt("친구에게 보일 내 이름", "") ?? "";
+    const res = await fetch(`${API}/documents/${docId}/share?nickname=${encodeURIComponent(nickname)}`);
+    if (!res.ok) return alert("족보 파일을 만들지 못했어요");
+    const data = await res.json();
+    const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `${data.title} 족보${nickname ? ` (${nickname})` : ""}.json` });
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const importFile = async (file: File) => {
+    setBusy(true);
+    try {
+      const share = JSON.parse(await file.text());
+      const nickname = prompt("이 족보를 보낸 친구 이름", share.nickname || "친구") ?? "친구";
+      const res = await fetch(`${API}/documents/${docId}/shared`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nickname, share }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.detail ?? "합치지 못했어요");
+      window.location.reload();
+    } catch (e) { alert(e instanceof Error ? e.message : "족보 파일을 읽지 못했어요"); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="banner no-print">
+      <div className="row">
+        <span className="list-item-icon"><Icon name="users" /></span>
+        <span className="grow">
+          <strong className="t-title-s" style={{ display: "block" }}>함께 만드는 족보</strong>
+          <span className="t-caption muted">{friends.length ? `${friends.join(", ")}의 족보를 합쳤어요` : "같은 수업 친구와 족보 파일을 주고받아 합쳐요 (카톡·메일로 보내면 돼요)"}</span>
+        </span>
+      </div>
+      <div className="row">
+        <Button className="grow" variant="secondary" onClick={exportFile}>내 족보 보내기</Button>
+        <Button className="grow" onClick={() => input.current?.click()} disabled={busy}>{busy ? "합치는 중…" : "친구 족보 합치기"}</Button>
+        <input ref={input} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void importFile(f); }} />
+      </div>
+    </div>
+  );
+}
+
+/** 같은 글(띄어쓰기·문장부호 무시)은 한 줄로 모으고 누가 적었는지만 합친다 */
+function groupNotes(notes: { who: string; text: string }[]) {
+  const groups = new Map<string, { text: string; who: string[] }>();
+  for (const n of notes) {
+    const key = n.text.replace(/[\s\p{P}]/gu, "").slice(0, 60);
+    const g = groups.get(key) ?? { text: n.text, who: [] };
+    if (!g.who.includes(n.who)) g.who.push(n.who);
+    groups.set(key, g);
+  }
+  return [...groups.values()].sort((a, b) => b.who.length - a.who.length);
+}

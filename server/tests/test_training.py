@@ -137,3 +137,20 @@ def test_spaced_repetition_intervals_grow_and_lapses_reset():
     for _ in range(20):
         worst = schedule(worst, 0, now=0)
     assert worst["ease"] == 1.3  # 너무 낮아지지 않는다
+
+
+def test_live_audio_flags_a_chunk_spoken_louder_than_usual():
+    from app.live_stt import LiveAudio
+
+    async def run():
+        audio = LiveAudio(None, "", None)
+        audio.levels = [1000.0] * 8
+        audio.speech_energy, audio.speech_frames = 1150.0, 1
+        normal = audio._loud()
+        audio.speech_energy, audio.speech_frames = 2000.0, 1
+        loud = audio._loud()
+        audio._queue.put_nowait(None)
+        await audio._worker
+        return normal, loud
+
+    assert asyncio.run(run()) == (False, True)

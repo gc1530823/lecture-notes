@@ -71,8 +71,26 @@ NOTEBOOK_RULES = """
 - 교수님이 말한 핵심 용어·정의·순서·비교를 빠뜨리지 않고, 군말은 뺍니다."""
 
 
-def annotation_system(notebook: bool) -> str:
-    return ANNOTATION_SYSTEM + (NOTEBOOK_RULES if notebook else "")
+# 회의 모드: 같은 필기 종류를 회의록의 뜻으로 바꿔 쓴다 (화면도 이 이름으로 보여 준다)
+MEETING_RULES = """
+
+이것은 수업이 아니라 회의 녹음입니다. 회의록을 씁니다 (교수님 대신 참석자들의 발언):
+- type의 뜻을 바꿔 씁니다: emphasis = 결정된 것("결정: ..."), explanation = 논의 요점, example = 근거·자료·숫자,
+  notice = 일정·공지, qa = 아직 안 정해진 것·물어볼 것. exam과 tip은 쓰지 않습니다.
+- tasks는 회의에서 맡은 할 일입니다: kind는 "in_class", title은 "[담당자] 할 일" (담당자를 모르면 "[미정]"),
+  instructions는 무엇을 어떻게, due_text는 말한 기한 (없으면 빈 문자열).
+- terms에는 회의에 나온 전문용어·약어만 넣습니다."""
+
+# 영어 강의와 목소리 강조: 수업·회의 모두에 붙는 규칙
+SPEECH_RULES = """
+
+받아쓰기 읽는 법:
+- 문장 앞의 "(목소리 높임)"은 말하는 사람이 앞뒤보다 크게 말한 곳입니다. 강조나 시험 언급일 가능성이 높으니 놓치지 마세요.
+- 발언이 영어이면 필기는 한국어로 쓰고, 핵심 용어와 정의는 영어 원문을 괄호로 함께 씁니다 (예: "과적합 (overfitting): ...")."""
+
+
+def annotation_system(notebook: bool, meeting: bool = False) -> str:
+    return ANNOTATION_SYSTEM + (NOTEBOOK_RULES if notebook else "") + (MEETING_RULES if meeting else "") + SPEECH_RULES
 
 
 ANNOTATION_SCHEMA = {
@@ -348,17 +366,37 @@ PREDICT_SCHEMA = {
 }
 
 
+BILINGUAL_SYSTEM = """영어 강의 한 페이지의 받아쓰기(교수님 말)를 받아, 문장마다 영어 원문과 한국어 번역을 나란히 놓습니다.
+- pairs에 말한 순서대로 넣습니다. en은 받아쓰기 문장을 그대로 (군말 "um", "you know"만 지움), ko는 자연스러운 한국어 번역.
+- 전문용어는 한국어 번역 뒤에 영어를 괄호로 씁니다 (예: "과적합(overfitting)"). 최대 30문장."""
+
+BILINGUAL_SCHEMA = {
+    "type": "object",
+    "properties": {"pairs": {"type": "array", "items": {
+        "type": "object", "properties": {"en": {"type": "string"}, "ko": {"type": "string"}},
+        "required": ["en", "ko"], "additionalProperties": False}}},
+    "required": ["pairs"],
+    "additionalProperties": False,
+}
+
 STUDY_KINDS = {
     "flashcards": (FLASHCARD_SYSTEM, FLASHCARD_SCHEMA, "cards"),
     "concepts": (CONCEPT_SYSTEM, CONCEPT_SCHEMA, "concepts"),
+    "bilingual": (BILINGUAL_SYSTEM, BILINGUAL_SCHEMA, "pairs"),
 }
-STUDY_KEYS = {"flashcards": ("front", "back"), "concepts": ("term", "definition")}
+STUDY_KEYS = {"flashcards": ("front", "back"), "concepts": ("term", "definition"), "bilingual": ("en", "ko")}
+STUDY_LIMIT = {"bilingual": 30}
+
+# 칠판·화이트보드 사진 읽기 (사진을 읽는 모델이 있을 때)
+BOARD_SYSTEM = """수업 중 학생이 찍은 칠판·화이트보드·화면 사진입니다. 사진에 적힌 것을 필기로 옮깁니다.
+- text: 사진에 적힌 글·수식·도표 내용을 그대로 옮겨 적습니다 (수식은 읽을 수 있게, 도표는 "A → B"처럼). 못 읽는 곳은 [?].
+- summary: 무엇에 대한 판서인지 한두 문장으로. JSON으로만 답합니다: {"text": "...", "summary": "..."}"""
 
 
 def clean_study(kind: str, items: list) -> list[dict]:
     required = STUDY_KEYS[kind]
     return [{k: str(v).strip() for k, v in item.items()} for item in items
-            if isinstance(item, dict) and all(str(item.get(k, "")).strip() for k in required)][:5]
+            if isinstance(item, dict) and all(str(item.get(k, "")).strip() for k in required)][:STUDY_LIMIT.get(kind, 5)]
 
 
 def clean_predictions(data: dict) -> list[dict]:
@@ -412,7 +450,7 @@ class LLMError(RuntimeError):
 
 class LLM(Protocol):
     async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict],
-                       notebook: bool = False, known_terms: list[str] | None = None) -> dict: ...
+                       notebook: bool = False, known_terms: list[str] | None = None, meeting: bool = False) -> dict: ...
 
     async def draft_task(self, task: dict, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict: ...
 
@@ -435,6 +473,8 @@ class LLM(Protocol):
     async def mindmap(self, title: str, pages: list[dict]) -> dict: ...
 
     async def tutor(self, context: str, messages: list[dict]) -> dict: ...
+
+    async def read_board(self, image: bytes, mime: str) -> dict: ...
 
 
 def _organize_prompt(page: dict, speech: str, notes: list[dict]) -> str:
@@ -549,11 +589,11 @@ class ClaudeLLM:
         return params
 
     async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict],
-                       notebook: bool = False, known_terms: list[str] | None = None) -> dict:
+                       notebook: bool = False, known_terms: list[str] | None = None, meeting: bool = False) -> dict:
         params = self._request(
             settings.annotation_model,
             settings.annotation_effort,
-            annotation_system(notebook),
+            annotation_system(notebook, meeting),
             _annotation_prompt(candidates, transcript, existing_tasks, known_terms),
             ANNOTATION_SCHEMA,
             max_tokens=8000,
@@ -622,6 +662,17 @@ class ClaudeLLM:
                                MINDMAP_SCHEMA, max_tokens=8000)
         return _response_json(await self.client.beta.messages.create(**params))
 
+    async def read_board(self, image: bytes, mime: str) -> dict:
+        import base64
+
+        response = await self.client.messages.create(
+            model=settings.annotation_model, max_tokens=2000, system=BOARD_SYSTEM,
+            messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": mime, "data": base64.b64encode(image).decode()}},
+                {"type": "text", "text": "이 사진을 필기로 옮겨 주세요."}]}])
+        text = "".join(b.text for b in response.content if getattr(b, "type", "") == "text")
+        return json.loads(text[text.find("{"): text.rfind("}") + 1])
+
     async def tutor(self, context: str, messages: list[dict]) -> dict:
         params = self._request(settings.annotation_model, settings.annotation_effort, TUTOR_SYSTEM,
                                _tutor_prompt(context, messages), TUTOR_SCHEMA, max_tokens=4000)
@@ -657,7 +708,8 @@ class FakeLLM:
     """API 키 없이 앱 흐름을 확인하기 위한 가짜 응답."""
 
     async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict],
-                       notebook: bool = False, known_terms: list[str] | None = None) -> dict:
+                       notebook: bool = False, known_terms: list[str] | None = None, meeting: bool = False) -> dict:
+        transcript = transcript.replace("(목소리 높임) ", "")
         if len(candidates) > 1 and "애매" in transcript:
             return {"annotations": [{"page_no": -1, "block_id": -1, "type": "explanation", "text": transcript[:60]}],
                     "tasks": []}
@@ -667,6 +719,9 @@ class FakeLLM:
         tasks = []
         if "과제" in transcript and not existing_tasks:
             tasks = [{"kind": "homework", "title": "과제", "instructions": transcript, "due_text": "다음 주 금요일까지"}]
+        if meeting and "하기로" in transcript:
+            type_ = "emphasis"
+            tasks = [{"kind": "in_class", "title": "[민수] 자료 정리", "instructions": transcript, "due_text": "금요일까지"}]
         # 용어 사전: 대문자로 시작하는 영어 낱말을 용어로 본다
         known = {t.lower() for t in known_terms or []}
         terms = [{"term": w, "definition": f"{w}의 뜻 (가짜 응답)"}
@@ -710,6 +765,8 @@ class FakeLLM:
 
     async def study_page(self, kind: str, page: dict, speech: str, notes: list[dict]) -> list[dict]:
         first = speech.split(".")[0][:40]
+        if kind == "bilingual":
+            return [{"en": sentence.strip(), "ko": f"(가짜 번역) {sentence.strip()[:30]}"} for sentence in speech.split(". ") if sentence.strip()][:5]
         if kind == "flashcards":
             return [{"front": f"{page['page_no']}쪽의 핵심은?", "back": first}]
         return [{"term": f"{page['page_no']}쪽 개념", "definition": first, "example": ""}]
@@ -720,6 +777,9 @@ class FakeLLM:
 
     async def tutor(self, context: str, messages: list[dict]) -> dict:
         return {"answer": f"'{messages[-1]['content']}'에 대한 튜터 답 (가짜 응답)", "pages": []}
+
+    async def read_board(self, image: bytes, mime: str) -> dict:
+        return {"text": "f(x) = wx + b → 손실 L(w)", "summary": f"칠판 사진 {len(image)}바이트 (가짜 응답)"}
 
     async def catch_up(self, slides: list[dict], speech: str) -> list[str]:
         return [f"놓친 내용: {s}" for s in speech.split(". ") if s][:4]

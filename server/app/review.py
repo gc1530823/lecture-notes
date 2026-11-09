@@ -62,7 +62,8 @@ def _dedupe(items: list[dict], key) -> list[dict]:
     return out
 
 
-def build_jokbo(doc: dict, sessions: list[dict], scores: list[dict], top: list[int], questions: list[dict]) -> dict:
+def build_jokbo(doc: dict, sessions: list[dict], scores: list[dict], top: list[int], questions: list[dict],
+                shared: list[dict] | None = None) -> dict:
     """sessions: [{id, started_at, annotations, terms, marks, summary}]"""
     notes = [dict(a, lecture=i + 1) for i, s in enumerate(sessions) for a in s["annotations"] if not a["pending"]]
     by_page = {p["page_no"]: p for p in doc["pages"]}
@@ -89,8 +90,40 @@ def build_jokbo(doc: dict, sessions: list[dict], scores: list[dict], top: list[i
     confused = [dict(m, lecture=i + 1) for i, s in enumerate(sessions) for m in s["marks"]]
     predicted = [{"page_no": q["page_no"], **item} for q in questions for item in q["questions"]]
 
+    # 함께 만드는 족보: 쪽마다 시험·강조로 적은 사람 수 (나 + 친구들). 여럿이 적은 쪽일수록 위로
+    shared = shared or []
+    crowd: dict[int, dict] = {}
+
+    def vote(who: str, page_no: int, text: str, kind: str) -> None:
+        entry = crowd.setdefault(page_no, {"page_no": page_no, "title": title(page_no), "people": [], "notes": []})
+        if who not in entry["people"]:
+            entry["people"].append(who)
+        entry["notes"].append({"who": who, "text": text, "kind": kind})
+
+    if shared:
+        for kind in ("exam", "emphasis"):
+            for n in pick(kind):
+                vote("나", n["page_no"], n["text"], kind)
+        for s in shared:
+            for kind in ("exam", "emphasis"):
+                for n in s["body"].get(kind, []):
+                    if isinstance(n, dict) and n.get("page_no") in by_page:
+                        vote(s["nickname"], n["page_no"], str(n.get("text", "")), kind)
+            for t in s["body"].get("terms", []):
+                if isinstance(t, dict) and t.get("term"):
+                    terms.append({**t, "lecture": 0})
+            for q in s["body"].get("predicted", []):
+                if isinstance(q, dict) and q.get("question"):
+                    predicted.append({"page_no": q.get("page_no"), "question": q["question"], "answer": q.get("answer", ""),
+                                      "reason": q.get("reason", ""), "from": s["nickname"]})
+        terms = _dedupe(terms, lambda t: t["term"])
+        predicted = _dedupe(predicted, lambda q: q["question"])
+
     return {
         "title": doc["title"],
+        "friends": [s["nickname"] for s in shared],
+        "crowd": sorted((c for c in crowd.values() if len(c["people"]) >= 2 or not any(p == "나" for p in c["people"])),
+                        key=lambda c: (-len(c["people"]), c["page_no"])),
         "lectures": len(sessions),
         "exam": pick("exam"),
         "emphasis": pick("emphasis"),

@@ -58,6 +58,24 @@ CREATE TABLE IF NOT EXISTS annotations (
     pending INTEGER NOT NULL DEFAULT 0,
     created_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS photos (
+    -- 칠판·화이트보드 사진: 찍은 쪽, 그 사진으로 만든 필기
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    page_no INTEGER NOT NULL,
+    annotation_id INTEGER,
+    path TEXT NOT NULL,
+    mime TEXT NOT NULL,
+    created_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS shared (
+    -- 함께 만드는 족보: 친구가 보내 준 족보 파일 (같은 강의자료끼리)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id TEXT NOT NULL,
+    nickname TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS exams (
     -- 시험 D-day: 이름·날짜·범위(강의자료 id 목록)
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -183,6 +201,11 @@ class Database:
         if "kind" not in columns:
             self._conn.execute("ALTER TABLE documents ADD COLUMN kind TEXT NOT NULL DEFAULT 'slides'")
             self._conn.commit()
+        # loud: 목소리를 높여 말한 문장 (실시간 녹음에서 소리 크기로 잰다)
+        columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(transcript_segments)")}
+        if "loud" not in columns:
+            self._conn.execute("ALTER TABLE transcript_segments ADD COLUMN loud INTEGER NOT NULL DEFAULT 0")
+            self._conn.commit()
 
     def _query(self, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
         with self._lock:
@@ -197,12 +220,12 @@ class Database:
     # 노트 모드: 강의자료 없이 시작해, 교수님이 주제를 바꿀 때마다 쪽을 하나씩 늘린다 (쪽 text = 그 주제의 제목)
     NOTEBOOK_PAGE = (595.0, 842.0)  # A4 세로
 
-    def create_notebook(self, title: str) -> str:
+    def create_notebook(self, title: str, kind: str = "notebook") -> str:
         doc_id = uuid.uuid4().hex
         with self._lock, self._conn:
             self._conn.execute(
-                "INSERT INTO documents (id, title, page_count, keywords, created_at, kind) VALUES (?, ?, 1, '[]', ?, 'notebook')",
-                (doc_id, title, time.time()),
+                "INSERT INTO documents (id, title, page_count, keywords, created_at, kind) VALUES (?, ?, 1, '[]', ?, ?)",
+                (doc_id, title, time.time(), kind),
             )
             self._conn.execute("INSERT INTO pages (document_id, page_no, width, height, text) VALUES (?, 1, ?, ?, '')",
                                (doc_id, *self.NOTEBOOK_PAGE))
@@ -254,11 +277,12 @@ class Database:
             sessions = [r[0] for r in self._conn.execute("SELECT id FROM sessions WHERE document_id = ?", (doc_id,))]
             pages = [r[0] for r in self._conn.execute("SELECT id FROM pages WHERE document_id = ?", (doc_id,))]
             for sid in sessions:
-                for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes", "study_sets", "glossary", "feedback", "marks"):
+                for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes", "study_sets", "glossary", "feedback", "marks", "photos"):
                     self._conn.execute(f"DELETE FROM {table} WHERE session_id = ?", (sid,))
             self._conn.execute("DELETE FROM sessions WHERE document_id = ?", (doc_id,))
             self._conn.execute("DELETE FROM exam_questions WHERE document_id = ?", (doc_id,))
             self._conn.execute("DELETE FROM reviews WHERE document_id = ?", (doc_id,))
+            self._conn.execute("DELETE FROM shared WHERE document_id = ?", (doc_id,))
             for pid in pages:
                 self._conn.execute("DELETE FROM blocks WHERE page_id = ?", (pid,))
             self._conn.execute("DELETE FROM pages WHERE document_id = ?", (doc_id,))
@@ -310,15 +334,15 @@ class Database:
             (status, ended, session_id),
         )
 
-    def add_segment(self, session_id: str, page_id: int | None, start_ms: int, end_ms: int, text: str) -> int:
+    def add_segment(self, session_id: str, page_id: int | None, start_ms: int, end_ms: int, text: str, loud: bool = False) -> int:
         return self._write(
-            "INSERT INTO transcript_segments (session_id, page_id, start_ms, end_ms, text) VALUES (?, ?, ?, ?, ?)",
-            (session_id, page_id, start_ms, end_ms, text),
+            "INSERT INTO transcript_segments (session_id, page_id, start_ms, end_ms, text, loud) VALUES (?, ?, ?, ?, ?, ?)",
+            (session_id, page_id, start_ms, end_ms, text, int(loud)),
         )
 
     def get_segments(self, session_id: str) -> list[dict]:
         return self._query(
-            """SELECT s.start_ms, s.end_ms, s.text, p.page_no
+            """SELECT s.start_ms, s.end_ms, s.text, s.loud, p.page_no
                FROM transcript_segments s LEFT JOIN pages p ON p.id = s.page_id
                WHERE s.session_id = ? ORDER BY s.start_ms, s.id""",
             (session_id,),
@@ -365,6 +389,38 @@ class Database:
         self._write("""INSERT INTO feedback (session_id, annotation_id, action, original_text, original_type, new_text, new_page_no, created_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                     (before["session_id"], ann_id, action, original_text, original_type, new_text, new_page_no, time.time()))
+
+    # 칠판 사진
+
+    def add_photo(self, session_id: str, page_no: int, path: str, mime: str) -> int:
+        return self._write("INSERT INTO photos (session_id, page_no, path, mime, created_at) VALUES (?, ?, ?, ?, ?)",
+                           (session_id, page_no, path, mime, time.time()))
+
+    def link_photo(self, photo_id: int, annotation_id: int) -> None:
+        self._write("UPDATE photos SET annotation_id = ? WHERE id = ?", (annotation_id, photo_id))
+
+    def get_photo(self, photo_id: int) -> dict | None:
+        rows = self._query("SELECT * FROM photos WHERE id = ?", (photo_id,))
+        return rows[0] if rows else None
+
+    def photo_by_annotation(self, session_id: str) -> dict[int, int]:
+        return {r["annotation_id"]: r["id"] for r in self._query(
+            "SELECT id, annotation_id FROM photos WHERE session_id = ? AND annotation_id IS NOT NULL", (session_id,))}
+
+    # 함께 만드는 족보
+
+    def add_shared(self, document_id: str, nickname: str, body: dict) -> dict:
+        shared_id = self._write("INSERT INTO shared (document_id, nickname, body, created_at) VALUES (?, ?, ?, ?)",
+                                (document_id, nickname, json.dumps(body, ensure_ascii=False), time.time()))
+        return {"id": shared_id, "nickname": nickname}
+
+    def list_shared(self, document_id: str) -> list[dict]:
+        return [{**r, "body": json.loads(r["body"])} for r in self._query(
+            "SELECT * FROM shared WHERE document_id = ? ORDER BY id", (document_id,))]
+
+    def delete_shared(self, shared_id: int) -> bool:
+        with self._lock, self._conn:
+            return self._conn.execute("DELETE FROM shared WHERE id = ?", (shared_id,)).rowcount > 0
 
     # 시험 D-day
 
