@@ -225,7 +225,7 @@ class Database:
         doc = docs[0]
         doc["keywords"] = json.loads(doc["keywords"])
         pages = self._query(
-            "SELECT id, page_no, width, height FROM pages WHERE document_id = ? ORDER BY page_no", (doc_id,)
+            "SELECT id, page_no, width, height, text FROM pages WHERE document_id = ? ORDER BY page_no", (doc_id,)
         )
         for page in pages:
             page["blocks"] = self.get_blocks(page["id"])

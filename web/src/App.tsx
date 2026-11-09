@@ -1,21 +1,16 @@
-import { useEffect, useState } from "react";
-import { api } from "./api/client";
+// Figma "강의노트 디자인 / 03 디자인" 화면을 옮긴 새 프론트. 화면은 해시 주소로 고른다 (router.ts).
+import DocDetail from "./screens/DocDetail";
+import ExamMap from "./screens/ExamMap";
+import Home from "./screens/Home";
+import Session from "./screens/Session";
+import { useRoute } from "./router";
 
-// 새 프론트 자리: Figma 디자인이 나오면 화면을 이 위에 만든다. 지금은 서버 연동만 확인한다.
 export default function App() {
-  const [health, setHealth] = useState<string>("서버 확인 중…");
-
-  useEffect(() => {
-    api.GET("/health").then(({ data, error }) => {
-      setHealth(error ? "서버에 연결할 수 없어요" : `서버 연결됨 · ${JSON.stringify(data)}`);
-    });
-  }, []);
-
-  return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: 24 }}>
-      <h1>강의노트 (새 프론트)</h1>
-      <p>Figma 디자인을 바탕으로 만드는 중이에요.</p>
-      <p>{health}</p>
-    </main>
-  );
+  const route = useRoute();
+  switch (route.name) {
+    case "home": return <Home />;
+    case "doc": return <DocDetail key={route.docId} docId={route.docId} />;
+    case "exam": return <ExamMap docId={route.docId} />;
+    case "session": return <Session docId={route.docId} sessionId={route.sessionId} tab={route.tab} />;
+  }
 }

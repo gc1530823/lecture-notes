@@ -1,0 +1,68 @@
+/* 디자인 토큰: Figma "강의노트 디자인" 파일의 변수(Color Light/Dark, Spacing)와 글자·그림자 스타일을 그대로 옮긴 것.
+   Figma에서 값을 바꾸면 여기도 같이 바꾼다. 이름은 Figma 변수 이름의 / 를 - 로 바꾼 것. */
+:root {
+  --bg-paper: #f6f3ee;
+  --bg-card: #ffffff;
+  --text-primary: #1f1d1b;
+  --text-secondary: #6b6760;
+  --text-tertiary: #a29e96;
+  --text-on-accent: #ffffff;
+  --text-note: #211f1c;
+  --accent-primary: #5c54eb;
+  --accent-record: #f0454a;
+  --border-line: #e8e4de;
+
+  --note-explanation-paper: #ffed94;
+  --note-explanation-ink: #d99e00;
+  --note-example-paper: #c2f0cc;
+  --note-example-ink: #219e54;
+  --note-emphasis-paper: #ffd6a8;
+  --note-emphasis-ink: #ed7312;
+  --note-exam-paper: #ffbfcc;
+  --note-exam-ink: #e02e54;
+  --note-notice-paper: #d9d1ff;
+  --note-notice-ink: #6b54e6;
+  --note-tip-paper: #c7ebff;
+  --note-tip-ink: #0d85cc;
+  --note-qa-paper: #fbd9f5;
+  --note-qa-ink: #bf389e;
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 999px;
+
+  --shadow-card: 0 4px 14px rgb(0 0 0 / 0.07);
+  --shadow-note: 0 6px 10px rgb(0 0 0 / 0.12);
+
+  --font-sans: "Noto Sans KR", system-ui, -apple-system, sans-serif;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-paper: #141416;
+    --bg-card: #26262b;
+    --text-primary: #f2f0ec;
+    --text-secondary: #a9a59e;
+    --text-tertiary: #6f6c67;
+    --accent-primary: #7a73ff;
+    --accent-record: #ff5a5f;
+    --border-line: #34343a;
+    --shadow-card: 0 4px 14px rgb(0 0 0 / 0.35);
+  }
+}
+
+/* 글자 스타일 (Figma Text styles) */
+.t-title-l { font: 900 28px/36px var(--font-sans); }
+.t-title-m { font: 700 20px/28px var(--font-sans); }
+.t-title-s { font: 700 16px/22px var(--font-sans); }
+.t-body { font: 400 15px/22px var(--font-sans); }
+.t-note { font: 700 14px/20px var(--font-sans); }
+.t-caption { font: 500 12px/16px var(--font-sans); }
