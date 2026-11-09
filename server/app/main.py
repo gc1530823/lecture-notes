@@ -773,4 +773,5 @@ if os.path.isdir(WEB_DIST):
 
 @app.get("/", include_in_schema=False)
 def root():
-    return RedirectResponse("/app/")
+    # 새 프론트를 빌드해 두었으면 그쪽으로, 아니면 기존 웹앱으로
+    return RedirectResponse("/web/" if os.path.isdir(WEB_DIST) else "/app/")

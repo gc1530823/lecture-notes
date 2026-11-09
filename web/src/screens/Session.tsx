@@ -3,6 +3,7 @@ import type { Annotation, DocumentDetail, GlossaryTerm, SummaryResponse } from "
 import { useApi } from "../api/useApi";
 import { Button, Chip, Empty, NoteSection, PostIt, TermCard, TopBar } from "../components/ui";
 import { go } from "../router";
+import { NotesPdf } from "./LectureExtras";
 import Study from "./Study";
 
 const TABS = [["notes", "필기"], ["study", "공부하기"], ["glossary", "용어 사전"]] as const;
@@ -26,6 +27,7 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
           <>
             <Button variant="secondary" icon={doc.kind === "notebook" ? "notebook" : "file-pdf"}
               onClick={() => go({ name: "lecture", docId, sessionId })}>{doc.kind === "notebook" ? "노트로 보기" : "강의자료 위에서 보기"}</Button>
+            <NotesPdf sessionId={sessionId} />
             <Notes doc={doc} sessionId={sessionId} />
           </>
         )}

@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { Annotation, DocumentDetail, GlossaryTerm, Page } from "../api/types";
 import { getJSON, postJSON } from "../api/useApi";
-import { browserRecognizer, LiveSocket, startMicrophone, type Mic, type ServerEvent, type Task } from "../lib/live";
+import { browserRecognizer, LiveSocket, startMicrophone, type Mic, type ServerEvent } from "../lib/live";
+import { clock, NotesPdf, PlayerBar, TaskDetail, TaskList, usePlayer, type FullTask } from "./LectureExtras";
 import { loadPdf, renderPage, type PdfDoc } from "../lib/pdf";
 import { Button, Chip, Icon, NOTE_LABEL, PostIt, TermCard, TopBar } from "../components/ui";
 import { go } from "../router";
@@ -12,15 +13,17 @@ const FOLLOW_CONFIDENCE = 0.6;
 const MANUAL_PAUSE_MS = 20_000;
 const QUICK_QUESTIONS = ["방금 뭐라고 했어?", "쉽게 다시 설명해 줘", "예시 하나만 들어 줘", "이거 시험에 어떻게 나올까?"];
 const TASK_LABEL: Record<string, string> = { in_class: "수업 중 과제", homework: "숙제", report: "레포트", exam_prep: "시험 준비" };
+const STRONG_BUZZ = [220, 120, 220, 120, 220];
+
+// 기기별 설정. 사생활 보호 모드 등에서 저장소를 못 쓰면 기본값으로 동작한다
+const prefs = {
+  get(key: string) { try { return localStorage.getItem(`ln.${key}`); } catch { return null; } },
+  set(key: string, value: string) { try { localStorage.setItem(`ln.${key}`, value); } catch { /* 저장 못 해도 괜찮다 */ } },
+};
 
 type Note = Annotation & { preview?: boolean };
-type Sheet = null | "ask" | "glossary" | "pending" | { catchUp: number };
+type Sheet = null | "ask" | "glossary" | "pending" | "tasks" | "pdf" | { catchUp: number } | { task: number };
 
-const clock = (ms: number) => {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
-  return `${h ? `${h}:${String(m).padStart(2, "0")}` : m}:${String(sec).padStart(2, "0")}`;
-};
 
 export default function Lecture({ docId, sessionId: initialSession }: { docId: string; sessionId?: string }) {
   const [doc, setDoc] = useState<DocumentDetail | null>(null);
@@ -29,7 +32,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const [page, setPage] = useState(1);
   const [notes, setNotes] = useState<Note[]>([]);
   const [previews, setPreviews] = useState<Note[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<FullTask[]>([]);
   const [terms, setTerms] = useState<GlossaryTerm[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [fresh, setFresh] = useState<number | null>(null);
@@ -41,7 +44,12 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const [autoFollow, setAutoFollow] = useState(true);
   const [caption, setCaption] = useState("듣고 있어요…");
   const [toastTerms, setToastTerms] = useState<GlossaryTerm[]>([]);
-  const [banner, setBanner] = useState<{ icon: string; title: string; text: string } | null>(null);
+  const [banner, setBanner] = useState<{ icon: string; title: string; text: string; task?: number } | null>(null);
+  // 자막 모드: 최근 문장 3줄을 크게, 지금 설명하는 문단 표시, 시험·공지·과제 때 강하게 진동 (청각장애 학생·시끄러운 강의실)
+  const [a11y, setA11y] = useState(() => prefs.get("a11y") === "1");
+  const [lines, setLines] = useState<string[]>([]);
+  const [spoken, setSpoken] = useState<{ page: number; block_id: number | null } | null>(null);
+  const [beyond, setBeyond] = useState<Set<number>>(new Set());
   const [sheet, setSheet] = useState<Sheet>(null);
   const [asking, setAsking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -57,6 +65,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const previewSeq = useRef(-1);
   const previewIds = useRef(new Map<string | number, number>());
   const freshTimer = useRef<number | undefined>(undefined);
+  const a11yRef = useRef(a11y);
+  a11yRef.current = a11y;
   pageRef.current = page;
   followRef.current = autoFollow;
 
@@ -77,7 +87,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         if (initialSession) {
           const [a, t, g] = await Promise.all([
             getJSON<Annotation[]>(`/sessions/${initialSession}/annotations`),
-            getJSON<Task[]>(`/sessions/${initialSession}/tasks`).catch(() => []),
+            getJSON<FullTask[]>(`/sessions/${initialSession}/tasks`).catch(() => []),
             getJSON<GlossaryTerm[]>(`/sessions/${initialSession}/glossary`).catch(() => []),
           ]);
           if (!alive) return;
@@ -142,8 +152,12 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         setNotes((n) => (n.some((x) => x.id === e.annotation.id) ? n : [...n, e.annotation]));
         navigator.vibrate?.(15);
         flash(e.annotation.id);
-        if (e.annotation.type === "exam") setBanner({ icon: "star", title: "시험에 나온다고 했어요", text: e.annotation.text });
-        else if (e.annotation.type === "notice") setBanner({ icon: "megaphone", title: "공지", text: e.annotation.text });
+        if (e.annotation.type === "exam" || e.annotation.type === "notice") {
+          setBanner(e.annotation.type === "exam"
+            ? { icon: "star", title: "시험에 나온다고 했어요", text: e.annotation.text }
+            : { icon: "megaphone", title: "공지", text: e.annotation.text });
+          if (a11yRef.current) navigator.vibrate?.(STRONG_BUZZ);
+        }
         break;
       case "term":
         setTerms((t) => (t.some((x) => x.id === e.term.id) ? t : [...t, e.term]));
@@ -165,11 +179,16 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
       }
       case "task_added":
         setTasks((t) => [...t, e.task]);
-        setBanner({ icon: "clipboard-text", title: `새 ${TASK_LABEL[e.task.kind] ?? "과제"}${e.task.due_text ? ` · ${e.task.due_text}` : ""}`, text: e.task.title });
+        setBanner({ icon: "clipboard-text", title: `새 ${TASK_LABEL[e.task.kind] ?? "과제"}${e.task.due_text ? ` · ${e.task.due_text}` : ""}`, text: e.task.title, task: e.task.id });
+        if (a11yRef.current) navigator.vibrate?.(STRONG_BUZZ);
         break;
       case "heard":
+        setCaption(e.text);
+        break;
       case "spoken":
         setCaption(e.text);
+        setLines((l) => [...l, e.text].slice(-3));
+        setSpoken({ page: e.page, block_id: e.block_id });
         break;
       case "error":
         toast(e.message);
@@ -249,6 +268,21 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const handleRef = useRef(handle);
   handleRef.current = handle;
 
+  // 강의가 끝나면: 녹음 다시 듣기, 슬라이드에 없던 설명 표시
+  const player = usePlayer(sessionId, phase === "ended");
+  useEffect(() => {
+    if (phase !== "ended" || !sessionId) return;
+    getJSON<{ annotation_ids?: number[] }>(`/sessions/${sessionId}/beyond-slides`)
+      .then((r) => setBeyond(new Set(r.annotation_ids ?? []))).catch(() => {});
+  }, [phase, sessionId]);
+
+  const toggleA11y = () => {
+    const on = !a11y;
+    setA11y(on);
+    prefs.set("a11y", on ? "1" : "0");
+    toast(on ? "자막 모드: 지금 설명하는 곳을 표시하고, 시험·공지·과제 때 진동으로 알려요" : "자막 모드를 껐어요");
+  };
+
   // --- 방금 뭐라고? / 따라잡기 ---
   const ask = async (question: string) => {
     if (!sessionId) return;
@@ -316,14 +350,22 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   return (
     <div className="screen lecture">
       <TopBar title={doc.title} onBack={back} action={
-        <button className="top-bar-back" aria-label={`용어 사전 ${terms.length}개`} onClick={() => setSheet("glossary")} style={{ position: "relative" }}>
-          <Icon name="book-open-text" />
-          {terms.length > 0 && <span className="badge">{terms.length}</span>}
-        </button>
+        <div className="row" style={{ gap: 0 }}>
+          <button className="top-bar-back" aria-label={`용어 사전 ${terms.length}개`} onClick={() => setSheet("glossary")} style={{ position: "relative" }}>
+            <Icon name="book-open-text" />
+            {terms.length > 0 && <span className="badge">{terms.length}</span>}
+          </button>
+          <button className={`top-bar-back${a11y ? " on" : ""}`} aria-label="자막 모드 (크게 보기·중요할 때 진동)" aria-pressed={a11y} onClick={toggleA11y}>
+            <Icon name="closed-captioning" />
+          </button>
+          {sessionId && phase === "ended" && (
+            <button className="top-bar-back" aria-label="강의 정리 PDF" onClick={() => setSheet("pdf")}><Icon name="file-pdf" /></button>
+          )}
+        </div>
       } />
 
       {banner && (
-        <button className="live-banner" role="alert" onClick={() => setBanner(null)}>
+        <button className="live-banner" role="alert" onClick={() => { if (banner.task) setSheet({ task: banner.task }); setBanner(null); }}>
           <Icon name={banner.icon} /><span className="grow"><b className="t-caption">{banner.title}</b><span className="t-body">{banner.text}</span></span>
         </button>
       )}
@@ -333,21 +375,24 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           <NotebookSheet doc={doc} notes={all} page={page} recording={recording} fresh={fresh} startedAt={startedAt} onSelect={setSelected} selected={selected} />
         ) : (
           <SlideView pdf={pdf} page={pageInfo} notes={visible} selected={selected} fresh={fresh}
+            here={a11y && spoken?.page === page ? spoken.block_id : null}
             onSelect={(id) => setSelected((s) => (s === id ? null : id))} onSwipe={(d) => goTo(page + d)} />
         )}
 
-        {!notebook && (
-          <>
+        {(!notebook || tasks.length > 0 || pending.length > 0) && (
             <div className="row lecture-head">
-              <h2 className="t-title-s grow">{page}쪽 필기 <span className="faint">{visible.length}</span></h2>
-              {tasks.length > 0 && <Chip variant="accent">과제 {tasks.filter((t) => !t.done).length}</Chip>}
+              <h2 className="t-title-s grow">{notebook ? "" : <>{page}쪽 필기 <span className="faint">{visible.length}</span></>}</h2>
+              {tasks.length > 0 && <Chip variant="accent" onClick={() => setSheet("tasks")}>과제 {tasks.filter((t) => !t.done).length}</Chip>}
               {pending.length > 0 && <Chip variant="default" onClick={() => setSheet("pending")}>보류 {pending.length}</Chip>}
-              {recording && (
+              {recording && !notebook && (
                 <Chip variant={autoFollow ? "accent" : "default"} onClick={() => setAutoFollow(!autoFollow)}>
                   {autoFollow ? "자동 넘김" : elsewhere ? `지금 ${estimate}쪽 설명 중` : "직접 넘김"}
                 </Chip>
               )}
             </div>
+        )}
+        {!notebook && (
+          <>
             {visible.length === 0 ? (
               <p className="muted lecture-empty">{recording ? "교수님 설명을 듣고 있어요. 필기가 여기에 붙어요." : "이 쪽에는 아직 필기가 없어요"}</p>
             ) : (
@@ -356,7 +401,13 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
                   <div key={n.id} className={`postit-slot${n.id === selected ? " sel" : ""}${n.id === fresh ? " fresh" : ""}${n.preview ? " preview" : ""}`}
                     onClick={() => setSelected(selected === n.id ? null : n.id)}
                     onContextMenu={(e) => { e.preventDefault(); void editNote(n); }}>
-                    <PostIt type={n.type} number={i + 1} tag={n.preview ? "AI가 정리 중…" : n.edited_by_user ? "직접 수정함" : undefined}>{n.text}</PostIt>
+                    <PostIt type={n.type} number={i + 1}
+                      tag={n.preview ? "AI가 정리 중…" : beyond.has(n.id) ? "슬라이드에 없는 설명" : n.edited_by_user ? "직접 수정함" : undefined}>{n.text}</PostIt>
+                    {player.hasAudio && !n.preview && (
+                      <button className="play-chip" onClick={(e) => { e.stopPropagation(); player.playFrom(n.start_ms); }} aria-label="이 필기 때 녹음 듣기">
+                        <Icon name="play" size={14} /> {clock(n.start_ms)}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -378,7 +429,13 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
       {message && <div className="toast" role="status">{message}</div>}
 
       <footer className="bottom-bar">
-        {recording && <p className="caption-line t-caption" aria-live="polite"><span className="rec-dot" />{caption}</p>}
+        {player.open && <PlayerBar audio={player.audio.current} onClose={player.close} />}
+        {recording && !a11y && <p className="caption-line t-caption" aria-live="polite"><span className="rec-dot" />{caption}</p>}
+        {recording && a11y && (
+          <div className="caption-big" aria-live="polite">
+            {(lines.length ? lines : [caption]).map((l, i, arr) => <p key={i} className={i === arr.length - 1 ? "now" : ""}>{l}</p>)}
+          </div>
+        )}
         <div className="row">
           <div className="grow">
             {notebook ? (
@@ -412,10 +469,16 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         <>
           <div className="sheet-bg" onClick={() => setSheet(null)} />
           <div className="sheet" role="dialog" aria-modal="true">
+            {sheet === "tasks" && <TaskList tasks={tasks} onOpen={(id) => setSheet({ task: id })} />}
+            {typeof sheet === "object" && "task" in sheet && (() => {
+              const t = tasks.find((x) => x.id === sheet.task);
+              return t ? <TaskDetail task={t} toast={toast} onChange={(u) => setTasks((all) => all.map((x) => (x.id === u.id ? u : x)))} /> : null;
+            })()}
+            {sheet === "pdf" && sessionId && <NotesPdf sessionId={sessionId} />}
             {sheet === "ask" && (
               <AskSheet page={page} onAsk={ask} onCatchUp={(m) => setSheet({ catchUp: m })} />
             )}
-            {typeof sheet === "object" && sessionId && (
+            {typeof sheet === "object" && "catchUp" in sheet && sessionId && (
               <CatchUp sessionId={sessionId} minutes={sheet.catchUp} onGo={(no) => { setSheet(null); goTo(no); }} />
             )}
             {sheet === "glossary" && (
@@ -496,8 +559,8 @@ function CatchUp({ sessionId, minutes, onGo }: { sessionId: string; minutes: num
 }
 
 /** 강의자료 한 쪽 + 형광펜(필기가 붙은 문단) + 번호 깃발 + 방금 들어온/고른 필기를 자료 위에 펼친 쪽지 */
-function SlideView({ pdf, page, notes, selected, fresh, onSelect, onSwipe }: {
-  pdf: PdfDoc | null; page: Page | undefined; notes: Note[]; selected: number | null; fresh: number | null;
+function SlideView({ pdf, page, notes, selected, fresh, here, onSelect, onSwipe }: {
+  pdf: PdfDoc | null; page: Page | undefined; notes: Note[]; selected: number | null; fresh: number | null; here: number | null;
   onSelect: (id: number | null) => void; onSwipe: (dir: 1 | -1) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -561,6 +624,10 @@ function SlideView({ pdf, page, notes, selected, fresh, onSelect, onSwipe }: {
               onClick={() => onSelect(n.id)} aria-label={`${i + 1}번 필기`}>{i + 1}</button>
           );
         })}
+        {here != null && blocks.get(here) && (() => {
+          const b = blocks.get(here)!;
+          return <div className="here" style={{ left: `calc(${b.x * 100}% - 6px)`, top: `calc(${b.y * 100}% - 4px)`, width: `calc(${b.w * 100}% + 12px)`, height: `calc(${b.h * 100}% + 8px)` }}><span>지금 여기</span></div>;
+        })()}
         {spot && (
           <button className="callout" onClick={() => onSelect(null)} style={{
             left: spotBlock ? `clamp(8px, ${spotBlock.x * 100}%, calc(38% - 8px))` : "4%",
