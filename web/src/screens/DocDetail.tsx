@@ -21,8 +21,7 @@ export default function DocDetail({ docId }: { docId: string }) {
         {doc && (
           <>
             <p className="t-caption muted">{subtitleOf(doc)}</p>
-            {/* 실시간 녹음 화면은 아직 기존 웹앱(/app)에 있다. 옮기기 전까지 그쪽으로 보낸다 */}
-            <Button block variant="record" icon="microphone" onClick={() => { window.location.href = `/app/#/lecture/${doc.id}`; }}>
+            <Button block variant="record" icon="microphone" onClick={() => go({ name: "lecture", docId })}>
               수업 시작
             </Button>
             {doc.kind !== "notebook" && (

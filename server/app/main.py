@@ -765,6 +765,11 @@ def delete_annotation(ann_id: int):
 # 웹앱 (iPhone Safari·안드로이드·PC 브라우저에서 바로 쓰는 버전). API 경로와 겹치지 않게 /app 아래에 둔다.
 app.mount("/app", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static"), html=True), name="web")
 
+# 새 프론트(web/, React). `cd web && npm run build`로 만든 결과가 있으면 /web 에서 보여 준다
+WEB_DIST = os.path.join(os.path.dirname(__file__), "..", "..", "web", "dist")
+if os.path.isdir(WEB_DIST):
+    app.mount("/web", StaticFiles(directory=WEB_DIST, html=True), name="web-new")
+
 
 @app.get("/", include_in_schema=False)
 def root():

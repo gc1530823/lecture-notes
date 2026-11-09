@@ -1,7 +1,7 @@
 // 강의 다시 보기: 필기(쪽마다 포스트잇 / 노트 모드는 모눈 노트), 공부하기, 용어 사전
 import type { Annotation, DocumentDetail, GlossaryTerm, SummaryResponse } from "../api/types";
 import { useApi } from "../api/useApi";
-import { Chip, Empty, NoteSection, PostIt, TermCard, TopBar } from "../components/ui";
+import { Button, Chip, Empty, NoteSection, PostIt, TermCard, TopBar } from "../components/ui";
 import { go } from "../router";
 import Study from "./Study";
 
@@ -22,7 +22,13 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
             </Chip>
           ))}
         </div>
-        {tab === "notes" && doc && <Notes doc={doc} sessionId={sessionId} />}
+        {tab === "notes" && doc && (
+          <>
+            <Button variant="secondary" icon={doc.kind === "notebook" ? "notebook" : "file-pdf"}
+              onClick={() => go({ name: "lecture", docId, sessionId })}>{doc.kind === "notebook" ? "노트로 보기" : "강의자료 위에서 보기"}</Button>
+            <Notes doc={doc} sessionId={sessionId} />
+          </>
+        )}
         {tab === "study" && <Study sessionId={sessionId} />}
         {tab === "glossary" && <Glossary sessionId={sessionId} />}
       </div>

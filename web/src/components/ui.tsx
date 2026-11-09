@@ -7,7 +7,7 @@ import type { NoteType } from "../api/types";
 export function Icon({ name, size = 22 }: { name: string; size?: number }) {
   return (
     <svg className="icon" width={size} height={size} aria-hidden="true">
-      <use href={`/icons.svg#${name}`} />
+      <use href={`${import.meta.env.BASE_URL}icons.svg#${name}`} />
     </svg>
   );
 }

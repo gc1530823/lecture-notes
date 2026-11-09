@@ -2,6 +2,7 @@
 import DocDetail from "./screens/DocDetail";
 import ExamMap from "./screens/ExamMap";
 import Home from "./screens/Home";
+import Lecture from "./screens/Lecture";
 import Session from "./screens/Session";
 import { useRoute } from "./router";
 
@@ -11,6 +12,7 @@ export default function App() {
     case "home": return <Home />;
     case "doc": return <DocDetail key={route.docId} docId={route.docId} />;
     case "exam": return <ExamMap docId={route.docId} />;
+    case "lecture": return <Lecture key={route.docId + (route.sessionId ?? "")} docId={route.docId} sessionId={route.sessionId} />;
     case "session": return <Session docId={route.docId} sessionId={route.sessionId} tab={route.tab} />;
   }
 }
