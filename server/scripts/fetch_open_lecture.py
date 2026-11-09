@@ -4,6 +4,7 @@
 유튜브 영상은 약관상 내려받지 않는다 (링크가 유튜브뿐이면 멈추고 알려 준다).
 
 사용법: python scripts/fetch_open_lecture.py <슬라이드 페이지 또는 PDF 주소> <영상 페이지 또는 mp4 주소> <저장 폴더>
+      python scripts/fetch_open_lecture.py --course <MIT OCW 과목 주소> <강의 번호> <저장 폴더>
 """
 
 import html
@@ -71,7 +72,27 @@ def main(slides: str, video: str, out: str) -> None:
         print("  공식 자막은 없었어요 (받아쓰기 정확도는 재지 않음)")
 
 
+def course(base: str, number: int, out: str) -> None:
+    """MIT OCW 과목 주소와 강의 번호로: 슬라이드 목록에서 n번 PDF, 영상 목록에서 n번 강의 페이지를 찾는다."""
+    base = base.rstrip("/")
+    slide_links = links(f"{base}/pages/lecture-slides-code/")
+    pattern = re.compile(rf"lec{number}(?!\d)", re.I)
+    pdf = next((c for c in slide_links if c.lower().endswith(".pdf") and pattern.search(c)), None)
+    if pdf is None:  # PDF가 리소스 페이지 뒤에 있는 과목
+        page = next((c for c in slide_links if "/resources/" in c and pattern.search(c)), None)
+        pdf = page
+    video_links = links(f"{base}/pages/lecture-videos/")
+    video = next((c for c in video_links if re.search(rf"/resources/lecture-{number}-", c)), None)
+    if not pdf or not video:
+        raise SystemExit(f"{number}강을 찾지 못했습니다 (슬라이드 {pdf}, 영상 {video})")
+    print(f"{number}강: 슬라이드 {pdf}\n      영상 {video}", flush=True)
+    main(pdf, video, out)
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        raise SystemExit(__doc__)
-    main(*sys.argv[1:])
+    if len(sys.argv) == 5 and sys.argv[1] == "--course":
+        course(sys.argv[2], int(sys.argv[3]), sys.argv[4])
+    elif len(sys.argv) == 4:
+        main(*sys.argv[1:])
+    else:
+        raise SystemExit(__doc__ + "\n또는: --course <과목 주소> <강의 번호> <저장 폴더>")

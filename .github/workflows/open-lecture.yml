@@ -5,8 +5,14 @@ name: Open lecture test
 # 기본값: MIT OpenCourseWare 6.0001 (Fall 2016) 1강 "What is Computation?" — CC BY-NC-SA 4.0, 비영리 테스트용
 # 유튜브 영상은 약관상 내려받지 않는다 (MIT OCW는 archive.org 사본 mp4를 함께 공개한다).
 on:
+  # 하루 한 강의씩 자동으로 (Groq 무료 한도가 하루 20만 토큰이라 한 번에 많이 못 한다). 강의 번호는 날짜로 돌아가며 고른다
+  schedule:
+    - cron: "17 19 * * *"   # 매일 한국 시각 새벽 4시 17분
   workflow_dispatch:
     inputs:
+      lecture:
+        description: "MIT 6.0001 강의 번호 (1~12). 넣으면 아래 slides·video 대신 과목에서 찾는다"
+        default: ""
       name:
         description: "결과 이름"
         default: "mit-6.0001-lec1"
@@ -25,7 +31,7 @@ concurrency: training-data
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 200
     permissions:
       contents: write
     steps:
@@ -43,11 +49,23 @@ jobs:
             git archive origin/training-data raw | tar -x -C server/data/training --strip-components=1 || true
           fi
       - name: Get lecture
-        run: python server/scripts/fetch_open_lecture.py "${{ inputs.slides }}" "${{ inputs.video }}" /tmp/inbox
+        run: |
+          COURSE="https://ocw.mit.edu/courses/6-0001-introduction-to-computer-science-and-programming-in-python-fall-2016"
+          N="${{ inputs.lecture }}"
+          if [ "${{ github.event_name }}" = "schedule" ]; then N=$(( $(date +%j | sed 's/^0*//') % 12 + 1 )); fi
+          if [ -n "$N" ]; then
+            echo "NAME=mit-6.0001-lec$N" >> "$GITHUB_ENV"
+            python server/scripts/fetch_open_lecture.py --course "$COURSE" "$N" /tmp/inbox
+          else
+            echo "NAME=${{ inputs.name }}" >> "$GITHUB_ENV"
+            python server/scripts/fetch_open_lecture.py "${{ inputs.slides }}" "${{ inputs.video }}" /tmp/inbox
+          fi
       - name: Cut audio
         run: |
           LIMIT=""
-          if [ "${{ inputs.minutes }}" != "0" ]; then LIMIT="-t $(( ${{ inputs.minutes }} * 60 ))"; fi
+          MIN="${{ inputs.minutes || '15' }}"
+          echo "MINUTES=$MIN" >> "$GITHUB_ENV"
+          if [ "$MIN" != "0" ]; then LIMIT="-t $(( MIN * 60 ))"; fi
           ffmpeg -loglevel error -i /tmp/inbox/video.mp4 $LIMIT -vn -ac 1 -ar 16000 -c:a aac -b:a 64k /tmp/inbox/lecture.m4a
           ls -la /tmp/inbox
       - name: Process
@@ -68,7 +86,7 @@ jobs:
         run: |
           CAP=$(ls /tmp/inbox/captions.* 2>/dev/null | head -1)
           if [ -n "$CAP" ] && [ -f /tmp/result/받아쓰기.txt ]; then
-            python scripts/score_transcript.py "$CAP" /tmp/result "${{ inputs.minutes }}" /tmp/inbox/slides.pdf
+            python scripts/score_transcript.py "$CAP" /tmp/result "$MINUTES" /tmp/inbox/slides.pdf
           else
             echo "자막이나 받아쓰기가 없어 정확도는 재지 않았어요"
           fi
@@ -85,17 +103,15 @@ jobs:
           cp ../training/data/*.jsonl /tmp/branch/data/ 2>/dev/null || true
           printf '# 우리 AI 학습 데이터\n연습 강의(Make training data)와 공개 강의(Open lecture test)에서 모은 것. 진짜 수업 녹음은 올리지 않는다.\n' > /tmp/branch/README.md
           cd /tmp/branch && git init -q -b training-data && git add -A
-          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "학습 데이터: 공개 강의 ${{ inputs.name }}"
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "학습 데이터: 공개 강의 $NAME"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" training-data
       - name: Upload result
         if: always()
-        env:
-          NAME: ${{ inputs.name }}
         run: |
           mkdir -p /tmp/result && cd /tmp/result
           cp /tmp/server.log server.log 2>/dev/null || true
           cp /tmp/inbox/slides.pdf 강의자료.pdf 2>/dev/null || true
-          printf '출처: %s\n%s\n라이선스: MIT OpenCourseWare CC BY-NC-SA 4.0 (비영리 테스트용)\n' "${{ inputs.slides }}" "${{ inputs.video }}" > 출처.txt
+          printf '출처: MIT OpenCourseWare 6.0001 (%s)\n라이선스: CC BY-NC-SA 4.0 (비영리 테스트용)\n' "$NAME" > 출처.txt
           git init -q -b result
           git add .
           git -c user.name="ci" -c user.email="ci@users.noreply.github.com" commit -qm "open lecture result: $NAME"
