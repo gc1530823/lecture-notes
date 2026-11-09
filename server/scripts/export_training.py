@@ -90,8 +90,8 @@ def main(out: str, tasks: set[str] | None, val_ratio: float) -> None:
 
     seen, rows, stats, corrected = set(), {"train": [], "val": []}, Counter(), 0
     for r in records:
-        if tasks and r["task"] not in tasks:
-            continue
+        if (tasks and r["task"] not in tasks) or r["task"] == "other":
+            continue  # 어느 작업인지 모르는 요청은 뺀다
         digest = hashlib.sha1((r["system"] + "\0" + r["prompt"]).encode()).hexdigest()
         if digest in seen:
             continue

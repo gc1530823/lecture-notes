@@ -1,0 +1,89 @@
+name: Make training data
+
+# 우리 AI의 학습 데이터를 만든다 (진짜 강의 녹음이 없어도).
+# Groq(큰 AI)가 연습용 강의(슬라이드 + 교수님 받아쓰기)를 만들고, 서버에 실시간 강의처럼 흘려보내
+# 서버가 큰 AI에 보낸 요청·답을 모은다 → training-data 브랜치에 쌓고, 학습에 바로 쓸 묶음을 Artifact로 올린다.
+# 실행: Actions 탭 → Make training data → Run workflow (강의 수 입력)
+# 필요: Settings → Secrets and variables → Actions 에 GROQ_API_KEY (이미 넣어 둠)
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "만들 연습 강의 수 (하나에 3~8분, Groq 무료 한도 안에서 하루 10~20개 정도)"
+        default: "5"
+        required: true
+
+concurrency: training-data
+
+jobs:
+  make:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -q -r server/requirements.txt
+      - name: Restore earlier data
+        run: |
+          mkdir -p server/data/training
+          if git fetch -q --depth 1 origin training-data 2>/dev/null; then
+            git archive origin/training-data raw | tar -x -C server/data/training --strip-components=1 || true
+          fi
+          ls server/data/training | head
+      - name: Start server (collecting)
+        working-directory: server
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          LLM_MODE: groq
+          STT_MODE: fake
+          TRAINING_LOG: "1"
+          DB_PATH: /tmp/synthetic.db
+          UPLOAD_DIR: /tmp/uploads
+        run: |
+          nohup python -m uvicorn app.main:app --port 8000 > /tmp/server.log 2>&1 &
+          for i in $(seq 60); do curl -sf localhost:8000/health && break; sleep 1; done
+      - name: Make lectures
+        working-directory: server
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python scripts/make_synthetic_data.py --count "${{ inputs.count }}" --seed "${{ github.run_id }}"
+      - name: Build dataset
+        working-directory: server
+        env:
+          DB_PATH: /tmp/synthetic.db
+        run: python scripts/export_training.py --out ../training/data
+      - name: Save to training-data branch
+        run: |
+          rm -rf /tmp/branch && mkdir -p /tmp/branch/raw /tmp/branch/data
+          cp server/data/training/raw-*.jsonl /tmp/branch/raw/
+          cp training/data/*.jsonl /tmp/branch/data/
+          cat > /tmp/branch/README.md <<'EOF'
+          # 우리 AI 학습 데이터 (연습 강의로 만든 것)
+          - raw/: 서버가 큰 AI(Groq)에 보낸 요청과 답 (scripts/export_training.py 의 입력)
+          - data/train.jsonl, data/val.jsonl: 학습용 묶음 (training/finetune.py 의 입력)
+          main 브랜치의 Make training data 워크플로가 실행될 때마다 쌓인다. 진짜 강의 녹음은 여기 올리지 않는다.
+          EOF
+          cd /tmp/branch
+          git init -q -b training-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "학습 데이터: 연습 강의 ${{ inputs.count }}개 추가 (run ${{ github.run_id }})"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" training-data
+      - name: Bundle for Colab
+        run: |
+          mkdir -p /tmp/bundle
+          cp training/data/*.jsonl training/finetune.py training/Modelfile training/finetune.ipynb /tmp/bundle/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lecture-notes-training
+          path: /tmp/bundle
+      - name: Server log (on failure)
+        if: failure()
+        run: tail -100 /tmp/server.log

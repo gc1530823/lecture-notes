@@ -20,6 +20,17 @@
                   ollama create lecture-notes ─▶ LLM_MODE=ollama OLLAMA_MODEL=lecture-notes   ⑤ 바꾸기
 ```
 
+## ⓪ 바로 시작: 연습 강의로 첫 데이터 만들기 (진짜 녹음 없이)
+
+GitHub → Actions → **Make training data** → Run workflow (강의 수 입력, 기본 5).
+Groq가 여러 과목의 연습 강의(슬라이드 + 교수님 말투 받아쓰기, 시험 언급·과제·전문용어 포함)를 만들고,
+서버에 실시간 강의처럼 흘려보내 필기·요약·플래시카드·예상 문제·튜터 등 모든 작업의 요청·답을 모읍니다.
+
+- 실행할 때마다 `training-data` 브랜치에 쌓입니다 (연습 강의라 개인정보 없음). 하루 10~20개씩 며칠 돌리면 수백 개가 됩니다.
+- 실행 결과 페이지 아래 **Artifacts → lecture-notes-training.zip** 에 학습 묶음(train/val + finetune.py + Modelfile + 노트북)이 있습니다.
+- 그 zip을 [Colab 노트북](finetune.ipynb)에 올리고 위에서부터 ▶ 를 누르면 ③이 끝납니다.
+- 연습 강의만으로 배운 모델은 진짜 수업 말투에 약할 수 있어서, 진짜 강의(①)를 모아 다시 가르치는 것이 다음 단계입니다.
+
 ## ① 모으기
 
 서버를 켤 때 `TRAINING_LOG=1`을 넣으면, AI에 보낸 요청과 답이 `server/data/training/raw-YYYYMM.jsonl`에 쌓입니다.
@@ -43,6 +54,8 @@ python scripts/export_training.py --tasks annotate        # 실시간 필기만
 `training/data/train.jsonl`, `val.jsonl`이 생깁니다. 검증용은 학습에 안 쓴 강의에서 뽑습니다.
 
 ## ③ 가르치기 (Google Colab 무료 T4, 1~2시간)
+
+가장 쉬운 방법: [finetune.ipynb](finetune.ipynb)를 Colab에서 열고(파일 → 노트 업로드) 위에서부터 실행. 직접 하려면:
 
 1. [colab.research.google.com](https://colab.research.google.com) → 새 노트 → 런타임 → 런타임 유형 변경 → **T4 GPU**
 2. 왼쪽 파일 칸에 `train.jsonl`, `val.jsonl`, `finetune.py`를 올립니다.
