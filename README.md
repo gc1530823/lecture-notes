@@ -50,6 +50,13 @@ iPhone 앱 (SwiftUI)                        서버 (FastAPI)
 
 ## 폴더 구성
 
+| 폴더 | 내용 | 자동 테스트 |
+| --- | --- | --- |
+| `server/` | 백엔드 (FastAPI, AI·받아쓰기·PDF) + 지금의 웹앱 시제품(`server/app/static/`) | Server, Free AI test |
+| `web/` | 새 웹 프론트 (React + TypeScript), 서버 API 타입을 자동으로 맞춘다 | Web |
+| `ios/` | iPhone 앱 (SwiftUI) | iOS |
+| `design/` | Figma 디자인과 디자인 토큰 | - |
+
 | 경로 | 내용 |
 | --- | --- |
 | `server/app/main.py` | REST API와 WebSocket 엔드포인트 |

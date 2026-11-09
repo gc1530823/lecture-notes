@@ -1,0 +1,34 @@
+name: Web
+
+# 새 프론트(web/): 타입 검사·린트·빌드, 그리고 서버 API 명세와 프론트 타입이 어긋나지 않았는지 확인한다.
+on:
+  push:
+    paths: ["web/**", "server/app/**", ".github/workflows/web.yml"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -q -r ../server/requirements.txt
+      - run: npm ci
+      - name: API types match the server
+        run: |
+          (cd ../server && python scripts/export_openapi.py ../web/openapi.json)
+          npm run api:types
+          git diff --exit-code -- openapi.json src/api/schema.d.ts || { echo "::error::서버 API가 바뀌었어요. web에서 npm run api:sync 후 커밋하세요"; exit 1; }
+      - run: npm run lint
+      - run: npm run build
