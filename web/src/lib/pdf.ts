@@ -3,7 +3,7 @@
 
 interface PdfPage {
   getViewport(o: { scale: number }): { width: number; height: number };
-  render(o: { canvasContext: CanvasRenderingContext2D; viewport: unknown }): { promise: Promise<void> };
+  render(o: { canvasContext: CanvasRenderingContext2D; viewport: unknown }): { promise: Promise<void>; cancel(): void };
 }
 export interface PdfDoc { numPages: number; getPage(n: number): Promise<PdfPage> }
 interface PdfJs {
@@ -42,12 +42,26 @@ export function loadPdf(docId: string): Promise<PdfDoc> {
   return docs.get(docId)!;
 }
 
+// 한 캔버스에 두 번 동시에 그리면 pdf.js가 오류를 내므로, 새로 그리기 전에 그리던 것을 멈춘다
+const running = new WeakMap<HTMLCanvasElement, { cancel(): void }>();
+
 export async function renderPage(pdf: PdfDoc, pageNo: number, canvas: HTMLCanvasElement, width: number) {
+  running.get(canvas)?.cancel();
   const page = await pdf.getPage(pageNo);
+  running.get(canvas)?.cancel();
   const base = page.getViewport({ scale: 1 });
   const ratio = Math.min(window.devicePixelRatio || 1, 3);
   const viewport = page.getViewport({ scale: (width / base.width) * ratio });
+  // 크기를 바꾸면 캔버스가 지워지므로, 그리던 것을 멈춘 뒤에 바꾼다
   canvas.width = viewport.width;
   canvas.height = viewport.height;
-  await page.render({ canvasContext: canvas.getContext("2d")!, viewport }).promise;
+  const task = page.render({ canvasContext: canvas.getContext("2d")!, viewport });
+  running.set(canvas, task);
+  try {
+    await task.promise;
+  } catch (e) {
+    if ((e as { name?: string })?.name !== "RenderingCancelledException") throw e;
+  } finally {
+    if (running.get(canvas) === task) running.delete(canvas);
+  }
 }

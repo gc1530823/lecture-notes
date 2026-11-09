@@ -1,0 +1,15 @@
+# Ollama 모델 정의: 미세조정한 GGUF를 "lecture-notes" 라는 이름으로 등록한다.
+#   ollama create lecture-notes -f Modelfile
+# FROM 줄의 파일 이름을 finetune.py가 만든 .gguf 이름에 맞춘다.
+FROM ./lecture-notes-gguf/unsloth.Q4_K_M.gguf
+
+# Qwen3 Instruct 대화 형식 (ChatML)
+TEMPLATE """{{- if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}{{- range .Messages }}<|im_start|>{{ .Role }}
+{{ .Content }}<|im_end|>
+{{ end }}<|im_start|>assistant
+"""
+PARAMETER stop "<|im_end|>"
+PARAMETER temperature 0.2
+PARAMETER num_ctx 8192

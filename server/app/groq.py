@@ -19,6 +19,7 @@ from collections.abc import Callable
 import httpx
 import numpy as np
 
+from . import training_log
 from .config import settings
 from .llm import FIX_SPEECH_SCHEMA, FIX_SPEECH_SYSTEM, LLMError, _fix_speech_prompt
 from .ollama_llm import OllamaLLM
@@ -83,7 +84,9 @@ class GroqLLM(OllamaLLM):
         content = response.json()["choices"][0]["message"].get("content") or ""
         if not content:
             raise LLMError("Groq 응답이 비어 있습니다.")
-        return json.loads(content)
+        data = json.loads(content)
+        training_log.record(system, prompt, schema, data, f"groq:{settings.groq_model}")
+        return data
 
     async def warm_up(self) -> None:
         return None

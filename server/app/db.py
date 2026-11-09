@@ -58,6 +58,18 @@ CREATE TABLE IF NOT EXISTS annotations (
     pending INTEGER NOT NULL DEFAULT 0,
     created_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS feedback (
+    -- 사용자가 AI 필기를 고친 기록: 우리 AI 학습 데이터를 바로잡는 데 쓴다 (scripts/export_training.py)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    annotation_id INTEGER NOT NULL,
+    action TEXT NOT NULL,          -- edit | delete | move
+    original_text TEXT NOT NULL,   -- AI가 처음 쓴 글 (같은 필기를 여러 번 고쳐도 처음 것)
+    original_type TEXT NOT NULL,
+    new_text TEXT,
+    new_page_no INTEGER,
+    created_at REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id TEXT NOT NULL REFERENCES sessions(id),
@@ -208,7 +220,7 @@ class Database:
             sessions = [r[0] for r in self._conn.execute("SELECT id FROM sessions WHERE document_id = ?", (doc_id,))]
             pages = [r[0] for r in self._conn.execute("SELECT id FROM pages WHERE document_id = ?", (doc_id,))]
             for sid in sessions:
-                for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes", "study_sets", "glossary"):
+                for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes", "study_sets", "glossary", "feedback"):
                     self._conn.execute(f"DELETE FROM {table} WHERE session_id = ?", (sid,))
             self._conn.execute("DELETE FROM sessions WHERE document_id = ?", (doc_id,))
             self._conn.execute("DELETE FROM exam_questions WHERE document_id = ?", (doc_id,))
@@ -309,16 +321,33 @@ class Database:
             params += (page_id,)
         return [_annotation(r) for r in self._query(sql + " ORDER BY a.id", params)]
 
+    def _feedback(self, ann_id: int, action: str, new_text: str | None = None, new_page_no: int | None = None) -> None:
+        before = self.get_annotation(ann_id)
+        if before is None:
+            return
+        first = self._query("SELECT original_text, original_type FROM feedback WHERE annotation_id = ? ORDER BY id LIMIT 1", (ann_id,))
+        original_text, original_type = (first[0]["original_text"], first[0]["original_type"]) if first else (before["text"], before["type"])
+        self._write("""INSERT INTO feedback (session_id, annotation_id, action, original_text, original_type, new_text, new_page_no, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (before["session_id"], ann_id, action, original_text, original_type, new_text, new_page_no, time.time()))
+
+    def list_feedback(self) -> list[dict]:
+        return self._query("SELECT * FROM feedback ORDER BY id")
+
     def update_annotation(self, ann_id: int, text: str) -> dict | None:
+        self._feedback(ann_id, "edit", new_text=text)
         self._write("UPDATE annotations SET text = ?, edited_by_user = 1 WHERE id = ?", (text, ann_id))
         return self.get_annotation(ann_id)
 
     def move_annotation(self, ann_id: int, page_id: int) -> dict | None:
         """보류함의 필기를 사용자가 고른 페이지에 붙인다 (문단 연결은 풀고 페이지 여백에 둔다)."""
+        page = self._query("SELECT page_no FROM pages WHERE id = ?", (page_id,))
+        self._feedback(ann_id, "move", new_page_no=page[0]["page_no"] if page else None)
         self._write("UPDATE annotations SET page_id = ?, block_id = NULL, pending = 0 WHERE id = ?", (page_id, ann_id))
         return self.get_annotation(ann_id)
 
     def delete_annotation(self, ann_id: int) -> bool:
+        self._feedback(ann_id, "delete")
         with self._lock, self._conn:
             return self._conn.execute("DELETE FROM annotations WHERE id = ?", (ann_id,)).rowcount > 0
 

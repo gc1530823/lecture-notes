@@ -53,6 +53,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const [sheet, setSheet] = useState<Sheet>(null);
   const [asking, setAsking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [refresh, setRefresh] = useState(0); // 서버 정리가 끝나면 다시 불러오기
 
   // 이벤트 처리기에서 최신 값을 읽기 위한 거울
   const live = useRef<LiveSocket | null>(null);
@@ -94,13 +95,47 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           setNotes(a);
           setTasks(t);
           setTerms(g);
+          // 다시 볼 때 1쪽에 필기가 없으면 필기가 있는 첫 쪽부터 연다
+          const first = a.filter((n) => !n.pending).map((n) => n.page_no).sort((x, y) => x - y)[0];
+          if (first && !a.some((n) => n.page_no === pageRef.current && !n.pending)) setPage(first);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       }
     })();
     return () => { alive = false; };
-  }, [docId, initialSession]);
+  }, [docId, initialSession, refresh]);
+
+  // 녹음 파일로 정리 중인 강의: 끝날 때까지 필기를 다시 받아 온다
+  const [serverStatus, setServerStatus] = useState<{ status: string; progress: number | null } | null>(null);
+  useEffect(() => {
+    if (!initialSession) return;
+    let alive = true;
+    let timer: number | undefined;
+    const poll = async () => {
+      try {
+        const s = await getJSON<{ status: string; progress: number | null }>(`/sessions/${initialSession}/summary`);
+        if (!alive) return;
+        const busy = s.status === "transcribing" || s.status === "processing";
+        setServerStatus((prev) => {
+          if (!busy && prev && prev.status !== s.status) setRefresh((n) => n + 1); // 막 끝났으면 마지막 필기를 한 번 더 받는다
+          return s;
+        });
+        if (busy) {
+          const [a, t, g] = await Promise.all([
+            getJSON<Annotation[]>(`/sessions/${initialSession}/annotations`),
+            getJSON<FullTask[]>(`/sessions/${initialSession}/tasks`).catch(() => []),
+            getJSON<GlossaryTerm[]>(`/sessions/${initialSession}/glossary`).catch(() => []),
+          ]);
+          if (!alive) return;
+          setNotes(a); setTasks(t); setTerms(g);
+          timer = window.setTimeout(poll, 3000);
+        }
+      } catch { /* 다음에 다시 */ }
+    };
+    void poll();
+    return () => { alive = false; window.clearTimeout(timer); };
+  }, [initialSession]);
 
   // 화면을 떠나면 녹음을 멈춘다
   useEffect(() => () => {
@@ -448,7 +483,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               </div>
             )}
             <span className="t-caption muted" style={{ display: "block" }}>
-              {recording ? `녹음 중 ${clock(now - startedAt)}` : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? "강의가 끝났어요" : "버튼을 누르면 녹음을 시작해요"}
+              {recording ? `녹음 중 ${clock(now - startedAt)}` : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}`
+                : serverStatus?.status === "processing" ? "필기·요약 정리 중…" : serverStatus?.status === "failed" ? "정리하지 못했어요" : "강의가 끝났어요") : "버튼을 누르면 녹음을 시작해요"}
             </span>
           </div>
           {sessionId && phase !== "idle" && (

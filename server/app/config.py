@@ -7,6 +7,9 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Settings:
     db_path: str = os.getenv("DB_PATH", "data/lecture_notes.db")
+    # 우리 AI 만들기: 1이면 AI에 보낸 요청과 답을 학습 데이터로 남긴다 (서버 안에만 저장, app/training_log.py)
+    training_log: bool = os.getenv("TRAINING_LOG", "0") == "1"
+    training_dir: str = os.getenv("TRAINING_DIR", "data/training")
     upload_dir: str = os.getenv("UPLOAD_DIR", "data/uploads")
 
     # "groq"   = Groq 클라우드 (무료 사용량 안에서 무료, 빠름). GROQ_API_KEY가 있으면 기본값

@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from . import training_log
 from .config import settings
 from .db import Database
 from .live_session import LiveSession
@@ -52,6 +53,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Lecture Notes MVP", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def remember_session(request, call_next):
+    """학습 데이터에 어느 강의의 요청인지 남기려고, /sessions/{id}/... 요청이면 강의 id를 기억해 둔다."""
+    parts = request.url.path.split("/")
+    if len(parts) > 2 and parts[1] == "sessions" and len(parts[2]) == 32:
+        training_log.current_session.set(parts[2])
+    return await call_next(request)
 
 
 def db() -> Database:

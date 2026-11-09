@@ -10,6 +10,7 @@ import re
 
 import httpx
 
+from . import training_log
 from .config import settings
 from .llm import (
     ANNOTATION_SCHEMA,
@@ -149,7 +150,9 @@ class OllamaLLM:
         content = response.json().get("message", {}).get("content", "")
         if not content:
             raise LLMError("Ollama 응답이 비어 있습니다.")
-        return json.loads(content)
+        data = json.loads(content)
+        training_log.record(system, prompt, schema, data, f"ollama:{settings.ollama_model}")
+        return data
 
     async def warm_up(self) -> None:
         """서버를 켤 때 모델을 메모리에 미리 올려, 첫 필기가 늦지 않게 한다."""

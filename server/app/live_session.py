@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 
+from . import training_log
 from .alignment import NEXT_PATTERNS, TOPIC_SHIFT, Estimate, PageIndex, PageTracker, best_block
 from .config import settings
 from .db import Database
@@ -260,6 +261,7 @@ class LiveSession:
         transcript = " ".join(batch.texts)
         try:
             existing_tasks = self.db.list_tasks(self.session_id)
+            training_log.current_session.set(self.session_id)
             results = await self.llm.annotate(candidates, transcript, existing_tasks, notebook=self.notebook,
                                               known_terms=list(self._known_terms.values()))
         except anthropic.RateLimitError:

@@ -5,3 +5,8 @@ server/data/
 ios/*.xcodeproj/
 ios/LectureNotes/Info.plist
 .DS_Store
+
+# 우리 AI 학습 데이터·모델 (강의 내용이 들어 있어 올리지 않는다)
+training/data/
+training/lecture-notes-*/
+training/*.gguf

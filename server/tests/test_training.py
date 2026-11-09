@@ -1,0 +1,121 @@
+"""우리 AI 학습 데이터: 모으기(training_log) → 고친 기록(feedback) → 내보내기(export_training) → 채점(eval_model)"""
+
+import asyncio
+import dataclasses
+import importlib.util
+import json
+import os
+
+os.environ.setdefault("LLM_MODE", "fake")
+
+import httpx  # noqa: E402
+
+from app import training_log  # noqa: E402
+from app.config import settings  # noqa: E402
+from app.db import Database  # noqa: E402
+from app.ollama_llm import OllamaLLM  # noqa: E402
+
+SCRIPTS = os.path.join(os.path.dirname(__file__), "..", "scripts")
+
+
+def load_script(name: str):
+    spec = importlib.util.spec_from_file_location(name, os.path.join(SCRIPTS, f"{name}.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_records_requests_only_when_enabled(tmp_path, monkeypatch):
+    reply = {"annotations": [{"page_no": 1, "block_id": 7, "type": "exam", "text": "시험 출제"}], "tasks": [], "terms": []}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"message": {"content": json.dumps(reply, ensure_ascii=False)}})
+
+    llm = OllamaLLM(transport=httpx.MockTransport(handler))
+    candidates = [{"page_no": 1, "page_id": 1, "blocks": [{"id": 7, "text": "경사하강법"}], "existing": []}]
+
+    monkeypatch.setattr(training_log, "settings", dataclasses.replace(settings, training_log=False, training_dir=str(tmp_path)))
+    asyncio.run(llm.annotate(candidates, "이거 시험에 나와요", []))
+    assert not list(tmp_path.iterdir())
+
+    monkeypatch.setattr(training_log, "settings", dataclasses.replace(settings, training_log=True, training_dir=str(tmp_path)))
+
+    async def in_session():
+        training_log.current_session.set("s1")
+        await llm.annotate(candidates, "이거 시험에 나와요", [], notebook=True)
+
+    asyncio.run(in_session())
+    [path] = tmp_path.iterdir()
+    [entry] = [json.loads(line) for line in path.read_text().splitlines()]
+    assert entry["task"] == "annotate"  # 노트 모드 프롬프트도 같은 작업
+    assert entry["session_id"] == "s1"
+    assert entry["output"] == reply
+    assert "이거 시험에 나와요" in entry["prompt"]
+
+
+def test_feedback_keeps_first_ai_text(tmp_path):
+    db = Database(str(tmp_path / "t.db"))
+    doc = db.create_document("강의", [{"page_no": 1, "width": 1, "height": 1, "text": "a", "blocks": [{"x": 0, "y": 0, "w": 1, "h": 1, "text": "a"}]},
+                                       {"page_no": 2, "width": 1, "height": 1, "text": "b", "blocks": []}], [])
+    pages = db.get_document(doc)["pages"]
+    sid = db.create_session(doc)
+    a = db.add_annotation(sid, pages[0]["id"], None, "explanation", "AI가 쓴 글", 0)
+    b = db.add_annotation(sid, pages[0]["id"], None, "tip", "틀린 필기", 0)
+    c = db.add_annotation(sid, pages[0]["id"], None, "example", "쪽이 틀린 필기", 0, pending=True)
+    db.update_annotation(a["id"], "한 번 고침")
+    db.update_annotation(a["id"], "두 번 고침")
+    db.delete_annotation(b["id"])
+    db.move_annotation(c["id"], pages[1]["id"])
+
+    export = load_script("export_training")
+    fixes = export.corrections(db.list_feedback())
+    assert fixes[(sid, "AI가 쓴 글")] == {"deleted": False, "text": "두 번 고침", "page_no": None}
+    assert fixes[(sid, "틀린 필기")]["deleted"] is True
+    assert fixes[(sid, "쪽이 틀린 필기")]["page_no"] == 2
+
+    record = {"session_id": sid, "output": {"annotations": [
+        {"page_no": 1, "block_id": 1, "type": "explanation", "text": "AI가 쓴 글"},
+        {"page_no": 1, "block_id": 1, "type": "tip", "text": "틀린 필기"},
+        {"page_no": 1, "block_id": 1, "type": "example", "text": "쪽이 틀린 필기"},
+        {"page_no": 1, "block_id": 2, "type": "exam", "text": "그대로 둔 필기"},
+    ], "tasks": []}}
+    output, changed = export.apply_corrections(record, fixes)
+    assert changed == 3
+    assert [n["text"] for n in output["annotations"]] == ["두 번 고침", "쪽이 틀린 필기", "그대로 둔 필기"]
+    assert output["annotations"][1]["page_no"] == 2
+
+
+def test_export_dedupes_and_splits_by_lecture(tmp_path, monkeypatch, capsys):
+    export = load_script("export_training")
+    raw = tmp_path / "raw-202611.jsonl"
+    lines = []
+    for i in range(40):
+        lines.append({"id": f"r{i}", "task": "annotate", "session_id": f"s{i % 8}", "system": "S", "prompt": f"P{i}",
+                      "schema": {"type": "object"}, "output": {"annotations": [], "tasks": []}, "model": "groq:x"})
+    lines.append(dict(lines[0], id="dup"))  # 같은 요청 한 번 더
+    raw.write_text("\n".join(json.dumps(x) for x in lines) + "\n" + '{"깨진 줄', encoding="utf-8")
+    monkeypatch.setattr(export, "settings", dataclasses.replace(settings, training_dir=str(tmp_path), db_path=str(tmp_path / "none.db")))
+    out = tmp_path / "out"
+    export.main(str(out), None, 0.25)
+
+    train = [json.loads(x) for x in (out / "train.jsonl").read_text().splitlines()]
+    val = [json.loads(x) for x in (out / "val.jsonl").read_text().splitlines()]
+    assert len(train) + len(val) == 40
+    assert train[0]["messages"][0] == {"role": "system", "content": "S"}
+    assert json.loads(train[0]["messages"][2]["content"]) == {"annotations": [], "tasks": []}
+    # 같은 강의의 요청은 한쪽에만
+    sessions_train = {int(r["messages"][1]["content"][1:]) % 8 for r in train}
+    sessions_val = {int(r["messages"][1]["content"][1:]) % 8 for r in val}
+    assert not sessions_train & sessions_val
+
+
+def test_eval_scores_annotations():
+    ev = load_script("eval_model")
+    gold = {"annotations": [{"block_id": 3, "type": "exam", "text": "경사하강법은 시험에 나온다"}]}
+    good = {"annotations": [{"block_id": 3, "type": "exam", "text": "경사하강법 시험에 나옴"}]}
+    bad = {"annotations": [{"block_id": 9, "type": "tip", "text": "전혀 다른 말"}, {"block_id": 1, "type": "tip", "text": "또 다른 말"}]}
+    g = ev.score_annotate(good, gold)
+    b = ev.score_annotate(bad, gold)
+    assert g["block_ok"] == 1 and g["type_ok"] == 1 and g["count_ok"] == 1 and g["text_f1"] > 0.5
+    assert b["block_ok"] == 0 and b["count_ok"] == 0 and b["text_f1"] < 0.2
+    assert ev.score_annotate({"annotations": []}, {"annotations": []})["silent_ok"] == 1

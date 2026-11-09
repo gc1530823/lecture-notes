@@ -52,10 +52,11 @@ iPhone 앱 (SwiftUI)                        서버 (FastAPI)
 
 | 폴더 | 내용 | 자동 테스트 |
 | --- | --- | --- |
-| `server/` | 백엔드 (FastAPI, AI·받아쓰기·PDF) + 지금의 웹앱 시제품(`server/app/static/`) | Server, Free AI test |
-| `web/` | 새 웹 프론트 (React + TypeScript), 서버 API 타입을 자동으로 맞춘다 | Web |
+| `server/` | 백엔드 (FastAPI, AI·받아쓰기·PDF) + 예전 웹앱(`server/app/static/`, `/app/`) | Server, Free AI test |
+| `web/` | 웹앱 (React + TypeScript, Figma 디자인). 빌드하면 서버 `/` 에서 열린다 | Web |
 | `ios/` | iPhone 앱 (SwiftUI) | iOS |
 | `design/` | Figma 디자인과 디자인 토큰 | - |
+| `training/` | 우리 AI 만들기: 모은 강의 데이터로 작은 공개 모델을 미세조정 (무료 Colab GPU) → Ollama | Server (데이터 처리 부분) |
 
 | 경로 | 내용 |
 | --- | --- |
@@ -163,7 +164,8 @@ Opus·Sonnet 모델에는 안전 필터가 요청을 거절할 때 다른 모델
 
 ## 2. 웹앱으로 쓰기 (Mac·앱스토어 없이, 무료)
 
-서버를 켜면 같은 주소에서 웹앱이 열린다: `http://<서버 주소>:8000/app/`
+한 번 `cd web && npm install && npm run build` 해 두고 서버를 켜면 같은 주소에서 웹앱이 열린다: `http://<서버 주소>:8000/`
+(빌드하지 않았으면 예전 웹앱 `/app/` 으로 열린다)
 
 - **iPhone**: Safari로 열고 공유 → "홈 화면에 추가"를 누르면 앱처럼 쓸 수 있다.
 - **받아쓰기는 Whisper**: 녹음 중 마이크 소리(16kHz)를 서버로 보내면, 서버가 말이 끊기는 곳(0.7초 침묵, 길어도 10초)마다 잘라
@@ -180,6 +182,7 @@ Opus·Sonnet 모델에는 안전 필터가 요청을 거절할 때 다른 모델
 | `WHISPER_MODEL` | `small` | 녹음 파일 받아쓰기 모델 (`base`는 빠르고 덜 정확, `medium`은 느리고 더 정확) |
 | `STT_MODE` | `whisper` | `fake`로 두면 가짜 받아쓰기 (화면 개발용) |
 | `UPLOAD_DIR` | `data/uploads` | 올린 PDF·녹음 파일 저장 위치 |
+| `TRAINING_LOG` | `0` | `1`이면 AI 요청·답과 필기 고친 기록을 학습 데이터로 남긴다 (서버 안에만, [training/README.md](training/README.md)) |
 
 ### 자료가 사라지지 않게 (Codespaces)
 
