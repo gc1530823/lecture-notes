@@ -17,8 +17,63 @@ export type ServerEvent =
   | { type: "spoken"; text: string; page: number; block_id: number | null }
   | { type: "error"; message: string };
 
+/** 안드로이드 앱 안에서 열렸을 때 앱이 넣어 주는 기능 (android/…/MainActivity.kt 의 Bridge) */
+interface AndroidBridge {
+  start(wsUrl: string): void;
+  send(text: string): void;
+  stop(): void;
+  isRecording(): boolean;
+  saveFile(name: string, mime: string, text: string): void;
+  print(title: string): void;
+  changeServer(): void;
+  keepScreenOn(on: boolean): void;
+}
+
+export function android(): AndroidBridge | null {
+  return (window as unknown as { AndroidLive?: AndroidBridge }).AndroidLive ?? null;
+}
+
+export function streamUrl(sessionId: string): string {
+  const base = import.meta.env.VITE_API_URL ? new URL(import.meta.env.VITE_API_URL) : window.location;
+  const proto = base.protocol === "https:" ? "wss" : "ws";
+  return `${proto}://${base.host}/sessions/${sessionId}/stream`;
+}
+
+export interface Live {
+  connect(): void;
+  send(message: object): void;
+  sendAudio(buffer: ArrayBuffer): void;
+  close(): void;
+  /** 이 연결이 마이크도 직접 맡는지 (안드로이드 앱: 화면이 꺼져도 녹음이 이어진다) */
+  readonly nativeMic: boolean;
+}
+
+/** 안드로이드 앱: 녹음과 서버 연결을 앱의 서비스가 하고, 이벤트만 화면으로 받는다 */
+export class NativeLive implements Live {
+  readonly nativeMic = true;
+  private bridge: AndroidBridge;
+  private sessionId: string;
+
+  constructor(bridge: AndroidBridge, sessionId: string, onEvent: (e: ServerEvent) => void) {
+    this.bridge = bridge;
+    this.sessionId = sessionId;
+    (window as unknown as { __androidLiveEvent?: (t: string) => void }).__androidLiveEvent = (text: string) => {
+      try { onEvent(JSON.parse(text)); } catch { /* 모르는 이벤트 */ }
+    };
+  }
+
+  connect() { this.bridge.start(streamUrl(this.sessionId)); }
+  send(message: object) { this.bridge.send(JSON.stringify(message)); }
+  sendAudio() { /* 앱이 직접 녹음해 보낸다 */ }
+  close() {
+    this.bridge.stop();
+    (window as unknown as { __androidLiveEvent?: unknown }).__androidLiveEvent = undefined;
+  }
+}
+
 /** 끊기면 다시 잇고, 끊긴 동안의 소리(최대 약 60초)와 메시지는 모아 두었다가 보낸다 */
-export class LiveSocket {
+export class LiveSocket implements Live {
+  readonly nativeMic = false;
   private ws: WebSocket | null = null;
   private closed = false;
   private audioBacklog: ArrayBuffer[] = [];
@@ -34,9 +89,7 @@ export class LiveSocket {
   }
 
   connect() {
-    const base = import.meta.env.VITE_API_URL ? new URL(import.meta.env.VITE_API_URL) : window.location;
-    const proto = base.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${proto}://${base.host}/sessions/${this.sessionId}/stream`);
+    const ws = new WebSocket(streamUrl(this.sessionId));
     this.ws = ws;
     ws.onopen = () => {
       // 서버는 연결마다 상태를 새로 만들므로 보던 쪽부터 알린다

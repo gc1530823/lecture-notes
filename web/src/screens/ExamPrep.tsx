@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, PostIt, TermCard, TopBar } from "../components/ui";
+import { android } from "../lib/live";
 import { go } from "../router";
 
 const API = import.meta.env.VITE_API_URL ?? "";
@@ -29,7 +30,7 @@ export function JokboScreen({ docId }: { docId: string }) {
   return (
     <div className="screen jokbo">
       <TopBar title="족보 노트" onBack={() => go({ name: "doc", docId })}
-        action={<button className="top-bar-back no-print" onClick={() => window.print()} aria-label="인쇄 · PDF로 저장"><Icon name="file-pdf" /></button>} />
+        action={<button className="top-bar-back no-print" onClick={() => { const app = android(); if (app) app.print("족보 노트"); else window.print(); }} aria-label="인쇄 · PDF로 저장"><Icon name="file-pdf" /></button>} />
       <div className="screen-body">
         {error && <Empty icon="warning-circle">{error}</Empty>}
         {data && data.lectures === 0 && <Empty icon="notebook">강의를 녹음하면 시험에 필요한 것만 모아 드려요</Empty>}
@@ -303,6 +304,7 @@ export function PrivacyScreen() {
       <div className="screen-body">
         <div className="banner"><p className="t-body"><b>녹음은 교수님 허락을 받고, 본인 공부에만 써 주세요.</b></p></div>
         <PrivacyFacts info={info} />
+        {android() && <Button block variant="secondary" onClick={() => android()?.changeServer()}>서버 주소 바꾸기</Button>}
         <Button block variant="record" icon="trash" onClick={wipe} disabled={busy || !docs?.length}>
           {busy ? "지우는 중…" : `내 자료 모두 지우기${docs?.length ? ` (${docs.length}개)` : ""}`}
         </Button>
@@ -355,6 +357,9 @@ function ShareBox({ docId, friends }: { docId: string; friends: string[] }) {
     const res = await fetch(`${API}/documents/${docId}/share?nickname=${encodeURIComponent(nickname)}`);
     if (!res.ok) return alert("족보 파일을 만들지 못했어요");
     const data = await res.json();
+    const name = `${data.title} 족보${nickname ? ` (${nickname})` : ""}.json`;
+    const app = android();
+    if (app) return app.saveFile(name, "application/json", JSON.stringify(data));
     const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
     const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `${data.title} 족보${nickname ? ` (${nickname})` : ""}.json` });
     a.click();

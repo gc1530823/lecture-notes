@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { Annotation, DocumentDetail, GlossaryTerm, Page } from "../api/types";
 import { getJSON, postJSON } from "../api/useApi";
-import { browserRecognizer, LiveSocket, startMicrophone, type Mic, type ServerEvent } from "../lib/live";
+import { android, browserRecognizer, LiveSocket, NativeLive, startMicrophone, type Live, type Mic, type ServerEvent } from "../lib/live";
 import { clock, NotesPdf, PlayerBar, TaskDetail, TaskList, usePlayer, type FullTask } from "./LectureExtras";
 import { ConsentSheet } from "./ExamPrep";
 import { loadPdf, renderPage, type PdfDoc } from "../lib/pdf";
@@ -62,7 +62,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const photoInput = useRef<HTMLInputElement>(null);
 
   // 이벤트 처리기에서 최신 값을 읽기 위한 거울
-  const live = useRef<LiveSocket | null>(null);
+  const live = useRef<Live | null>(null);
   const mic = useRef<Mic | null>(null);
   const recognizer = useRef<{ stop(): void } | null>(null);
   const wakeLock = useRef<{ release(): Promise<void> } | null>(null);
@@ -144,6 +144,26 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     void poll();
     return () => { alive = false; window.clearTimeout(timer); };
   }, [initialSession]);
+
+  // 화면이 다시 켜지면 그동안 놓친 필기·과제·용어를 다시 받아 온다
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || !sessionId || phase !== "recording") return;
+      Promise.all([
+        getJSON<Annotation[]>(`/sessions/${sessionId}/annotations`),
+        getJSON<FullTask[]>(`/sessions/${sessionId}/tasks`).catch(() => null),
+        getJSON<GlossaryTerm[]>(`/sessions/${sessionId}/glossary`).catch(() => null),
+        getJSON<DocumentDetail>(`/documents/${docId}`).catch(() => null),
+      ]).then(([a, t, g, d]) => {
+        setNotes(a);
+        if (t) setTasks(t);
+        if (g) setTerms(g);
+        if (d) setDoc(d);
+      }).catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [sessionId, phase, docId]);
 
   // 화면을 떠나면 녹음을 멈춘다
   useEffect(() => () => {
@@ -248,14 +268,16 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
 
   // --- 녹음 ---
   const start = async () => {
+    const app = android();
     // 마이크는 버튼을 누른 바로 그 순간에 켜야 iPhone Safari가 허락한다 (서버 응답을 기다리기 전에)
-    const micStart = startMicrophone((pcm) => live.current?.sendAudio(pcm));
+    // 안드로이드 앱 안에서는 앱이 직접 녹음한다 (화면이 꺼져도 이어진다)
+    const micStart = app ? Promise.resolve(null) : startMicrophone((pcm) => live.current?.sendAudio(pcm));
     micStart.catch(() => {}); // 실패는 아래에서 다룬다
     let id: string;
     try {
       id = (await postJSON<{ id: string }>("/sessions", { document_id: docId })).id;
     } catch (e) {
-      micStart.then((m) => m.stop()).catch(() => {});
+      micStart.then((m) => m?.stop()).catch(() => {});
       return toast(e instanceof Error ? e.message : String(e));
     }
     const began = Date.now();
@@ -264,11 +286,12 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     setNow(began);
     setPhase("recording");
     window.history.replaceState(null, "", `#/doc/${docId}/lecture/${id}`);
-    const socket = new LiveSocket(id, (e) => handleRef.current(e), () => pageRef.current);
+    const socket: Live = app ? new NativeLive(app, id, (e) => handleRef.current(e)) : new LiveSocket(id, (e) => handleRef.current(e), () => pageRef.current);
     live.current = socket;
     socket.connect();
     try {
       mic.current = await micStart;
+      if (app) app.keepScreenOn(false); // 앱은 화면을 꺼도 되니 켜 둘 필요가 없다
     } catch {
       // 마이크 소리를 직접 못 받는 브라우저: 내장 음성 인식으로 대신한다
       const rec = browserRecognizer(

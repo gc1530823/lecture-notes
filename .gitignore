@@ -10,3 +10,11 @@ ios/LectureNotes/Info.plist
 training/data/
 training/lecture-notes-*/
 training/*.gguf
+
+# 안드로이드 빌드 결과·서명 키
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.keystore
+*.jks
