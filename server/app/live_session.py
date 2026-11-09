@@ -1,9 +1,9 @@
 """WebSocket 강의 세션 하나의 상태: 받아쓰기로 현재 페이지를 추정하고, 모아 두었다가 필기를 만든다."""
 
 import asyncio
-import re
 import json
 import logging
+import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -40,6 +40,11 @@ class Batch:
     previews: list[dict] = field(default_factory=list)
 
 
+def _term_key(term: str) -> str:
+    """"SGD (확률적 경사하강법)"과 "sgd"를 같은 용어로 본다."""
+    return re.sub(r"\s+|\(.*?\)", "", term).lower()
+
+
 class LiveSession:
     def __init__(self, db: Database, llm: LLM, session: dict, send: Send):
         self.db = db
@@ -53,6 +58,8 @@ class LiveSession:
         # 노트 모드: 슬라이드가 없으므로 페이지를 추적하지 않고, 주제가 바뀌면 새 쪽을 연다
         self.notebook = (doc or {}).get("kind") == "notebook"
         self._page_sentences = 0
+        # 실시간 용어 사전: 이미 띄운 용어 (같은 용어를 다시 띄우지 않는다)
+        self._known_terms = {_term_key(t["term"]): t["term"] for t in db.list_terms(self.session_id)}
         self._titles: set[asyncio.Task] = set()
         self.tracker = PageTracker(PageIndex([p["text"] for p in self.pages]))
         self.vocab = vocabulary([p["text"] for p in self.pages])
@@ -253,7 +260,8 @@ class LiveSession:
         transcript = " ".join(batch.texts)
         try:
             existing_tasks = self.db.list_tasks(self.session_id)
-            results = await self.llm.annotate(candidates, transcript, existing_tasks, notebook=self.notebook)
+            results = await self.llm.annotate(candidates, transcript, existing_tasks, notebook=self.notebook,
+                                              known_terms=list(self._known_terms.values()))
         except anthropic.RateLimitError:
             log.warning("필기 생성: 요청 한도 초과")
             await self.send({"type": "error", "message": "요청이 많아 잠시 AI 정리를 건너뜁니다."})
@@ -295,4 +303,14 @@ class LiveSession:
                 pending=pending,
             )
             await self.send({"type": "annotation_added", "annotation": annotation})
+
+        for item in results.get("terms", [])[:3]:
+            term = str(item.get("term", "")).strip()[:60]
+            definition = str(item.get("definition", "")).strip()[:300]
+            key = _term_key(term)
+            if len(key) < 2 or not definition or key in self._known_terms:
+                continue
+            self._known_terms[key] = term
+            entry = self.db.add_term(self.session_id, batch.estimate.page_no, term, definition, batch.start_ms)
+            await self.send({"type": "term", "term": entry})
         return True

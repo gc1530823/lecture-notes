@@ -386,12 +386,12 @@ async function renderLecture(docId, sessionId) {
     lastManual: 0, estimate: null, wakeLock: null, pageWidth: 0, seen: new Set(), hasAudio: false, player: null,
     // 자막 모드: 지금 설명하는 문단 표시, 최근 문장 크게, 시험·공지·과제 때 강하게 알림
     a11y: prefs.get("a11y") === "1", spoken: null, lines: [],
-    beyond: new Set(), beyondRatio: null,
+    beyond: new Set(), beyondRatio: null, terms: [],
   };
 
   $app.innerHTML = `
     <div class="screen lecture" id="lecture">
-      <div class="topbar"><button class="icon-btn" id="back">${I("caret-left")}</button><div class="title" id="title"></div><button class="icon-btn" id="a11y" title="자막 모드 (크게 보기·중요할 때 진동)" aria-pressed="false">${I("closed-captioning")}</button><button class="icon-btn" id="notespdf" title="강의 정리 PDF">${I("file-pdf")}</button><button class="icon-btn" id="sum" title="공부하기 (요약·퀴즈·플래시카드·마인드맵·개념 메모·암기·AI 튜터)">${I("sparkle")}</button></div>
+      <div class="topbar"><button class="icon-btn" id="back">${I("caret-left")}</button><div class="title" id="title"></div><button class="icon-btn glossary-btn" id="glossary" title="용어 사전">${I("book-open-text")}<span class="count hidden" id="gcount"></span></button><button class="icon-btn" id="a11y" title="자막 모드 (크게 보기·중요할 때 진동)" aria-pressed="false">${I("closed-captioning")}</button><button class="icon-btn" id="notespdf" title="강의 정리 PDF">${I("file-pdf")}</button><button class="icon-btn" id="sum" title="공부하기 (요약·퀴즈·플래시카드·마인드맵·개념 메모·암기·AI 튜터)">${I("sparkle")}</button></div>
       <div class="pager"><div class="page" id="page"><canvas></canvas><div class="marks"></div></div></div>
       <div class="board-head">
         <h2 id="bh"></h2><span class="count" id="bc"></span><span class="spacer"></span>
@@ -426,6 +426,7 @@ async function renderLecture(docId, sessionId) {
       state.notes.forEach((n) => state.seen.add(n.id));
       checkAudio();
       checkBeyond();
+      state.terms = await api("GET", `/sessions/${sessionId}/glossary`).catch(() => []);
     }
   } catch (e) {
     toast(`불러오지 못했어요: ${e.message}`);
@@ -613,6 +614,7 @@ async function renderLecture(docId, sessionId) {
   $("#taskchip").onclick = () => openTasks();
   $("#sum").onclick = () => state.sessionId ? openSummary() : toast("강의를 녹음하고 끝내면 요약과 퀴즈가 만들어져요");
   $("#ask").onclick = openAsk;
+  $("#glossary").onclick = () => openGlossary();
   $("#a11y").onclick = () => { setA11y(!state.a11y); toast(state.a11y ? "자막 모드: 지금 설명하는 곳을 표시하고, 시험·공지·과제 때 진동으로 알려요" : "자막 모드를 껐어요"); };
   $("#notespdf").onclick = () => state.sessionId ? openNotesPdf() : toast("강의를 녹음하면 필기를 붙인 정리 PDF를 만들 수 있어요");
 
@@ -716,6 +718,12 @@ async function renderLecture(docId, sessionId) {
       flash(event.annotation.id);
       if (event.annotation.type === "exam") alertImportant("star", "시험에 나온다고 했어요", event.annotation.text);
       else if (event.annotation.type === "notice") alertImportant("megaphone", "공지", event.annotation.text);
+    } else if (event.type === "term") {
+      // 실시간 용어 사전: 처음 나온 전문용어를 카드로 띄우고 서랍에 쌓는다
+      if (state.terms.some((t) => t.id === event.term.id)) return;
+      state.terms.push(event.term);
+      drawGlossaryCount();
+      showTermCard(event.term);
     } else if (event.type === "page_added") {
       // 노트 모드: 교수님이 주제를 바꿔 새 쪽이 생겼다
       state.doc.pages.push(event.page);
@@ -865,6 +873,42 @@ async function renderLecture(docId, sessionId) {
     else if (state.ended) $("#main").innerHTML = `<button class="primary" id="rec" style="height:48px">${I("graduation-cap")} 공부하기</button>`;
     else $("#main").innerHTML = `<button class="rec" id="rec" aria-label="녹음 시작">${I("microphone")}</button>`;
     $("#rec").onclick = () => (state.recording ? stopLecture() : state.ended ? openSummary() : startLecture());
+  }
+
+  // --- 실시간 용어 사전 ---
+
+  function drawGlossaryCount() {
+    const badge = $("#gcount");
+    badge.textContent = state.terms.length;
+    badge.classList.toggle("hidden", !state.terms.length);
+  }
+
+  function showTermCard(term) {
+    const stack = document.querySelector(".term-stack") || document.body.appendChild(Object.assign(document.createElement("div"), { className: "term-stack" }));
+    const card = document.createElement("button");
+    card.className = "term-card";
+    card.innerHTML = `<b>${I("book-open-text")} ${esc(term.term)}</b><span>${esc(term.definition)}</span>`;
+    card.onclick = () => { card.remove(); openGlossary(term.id); };
+    stack.prepend(card);
+    [...stack.children].slice(2).forEach((c) => c.remove());
+    setTimeout(() => card.classList.add("out"), 7000);
+    setTimeout(() => card.remove(), 7400);
+  }
+
+  function openGlossary(focusId) {
+    const { el } = sheet(`<h3>${I("book-open-text")} 용어 사전 <small class="muted">${state.terms.length}개</small></h3>
+      <input class="search" id="gq" placeholder="용어 찾기" autocomplete="off"><div id="glist"></div>`);
+    const draw = (q = "") => {
+      const shown = state.terms.filter((t) => !q || `${t.term} ${t.definition}`.toLowerCase().includes(q.toLowerCase()));
+      el.querySelector("#glist").innerHTML = shown.length ? shown.map((t) => `<div class="card concept${t.id === focusId ? " focus" : ""}" id="term-${t.id}">
+          <div class="row"><b style="flex:1">${esc(t.term)}</b>${t.page_no ? `<button class="chip pagechip" data-goto="${t.page_no}">${t.page_no}쪽</button>` : ""}<small class="muted">${clock(t.start_ms)}</small></div>
+          <p>${esc(t.definition)}</p></div>`).join("")
+        : `<p class="muted">${state.terms.length ? "찾는 용어가 없어요." : "강의 중에 전문용어가 나오면 여기에 모여요."}</p>`;
+      el.querySelectorAll("[data-goto]").forEach((b) => (b.onclick = () => { document.querySelector(".sheet-bg").click(); goTo(Number(b.dataset.goto)); }));
+    };
+    el.querySelector("#gq").oninput = (e) => draw(e.target.value.trim());
+    draw();
+    el.querySelector(`#term-${focusId}`)?.scrollIntoView({ block: "center" });
   }
 
   // --- 자막 모드 (청각장애 학생·시끄러운 강의실) ---
@@ -1262,7 +1306,11 @@ async function renderLecture(docId, sessionId) {
   }
 
   function showConcepts(box) {
-    loadStudy("concepts", box, (items) => {
+    loadStudy("concepts", box, (generated) => {
+      // 수업 중에 실시간으로 모은 용어 + 강의 뒤 AI가 정리한 개념
+      const seen = new Set(generated.map((c) => c.term.toLowerCase()));
+      const items = [...state.terms.filter((t) => !seen.has(t.term.toLowerCase()))
+        .map((t) => ({ term: t.term, definition: t.definition, example: "", page_no: t.page_no })), ...generated];
       box.innerHTML = `<input id="csearch" class="search" placeholder="개념 찾기" autocomplete="off"><div id="clist"></div>`;
       const draw = (q = "") => {
         const shown = items.filter((c) => !q || `${c.term} ${c.definition} ${c.example}`.includes(q));
@@ -1420,6 +1468,7 @@ async function renderLecture(docId, sessionId) {
   drawControls();
   drawBoard();
   if (state.a11y) setA11y(true);
+  drawGlossaryCount();
   if (sessionId) pollProcessing();
 
   current = () => {
@@ -1428,7 +1477,7 @@ async function renderLecture(docId, sessionId) {
     document.removeEventListener("visibilitychange", onVisibility);
     if (state.recording) stopLecture(false);
     window.removeEventListener("resize", onResize);
-    document.querySelectorAll(".sheet, .sheet-bg, .banner, .alert").forEach((n) => n.remove());
+    document.querySelectorAll(".sheet, .sheet-bg, .banner, .alert, .term-stack").forEach((n) => n.remove());
   };
 }
 

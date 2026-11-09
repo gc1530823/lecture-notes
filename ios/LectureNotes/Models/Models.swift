@@ -350,3 +350,12 @@ struct TutorMessage: Codable, Hashable, Identifiable {
     let content: String
     var pages: [Int] = []
 }
+
+/// 실시간 용어 사전: 강의 중에 처음 나온 전문용어
+struct GlossaryTerm: Codable, Hashable, Identifiable {
+    let id: Int
+    let pageNo: Int?
+    let term: String
+    let definition: String
+    let startMs: Int
+}

@@ -222,6 +222,13 @@ async def _process_audio(session_id: str, document_id: str, path: str) -> None:
     await _summarize(session_id, document_id)
 
 
+@app.get("/sessions/{session_id}/glossary")
+def get_glossary(session_id: str):
+    """실시간 용어 사전: 강의 중에 처음 나온 전문용어와 뜻 (나온 순서대로)."""
+    _session_or_404(session_id)
+    return db().list_terms(session_id)
+
+
 @app.get("/sessions/{session_id}/audio")
 def get_session_audio(session_id: str):
     """강의 녹음 (필기를 누르면 그 순간부터 듣기). 구간 요청(Range)을 지원해 원하는 위치부터 재생된다."""
@@ -640,7 +647,7 @@ async def _build_notes_pdf(session_id: str) -> None:
         data = await asyncio.to_thread(
             build_notes_pdf, _pdf_path(doc["id"]), doc["title"], pages, annotations, segments,
             db().list_tasks(session_id), db().get_summary(session_id), {"pages": organized}, session["started_at"],
-            beyond_slides(texts, segments, annotations))
+            beyond_slides(texts, segments, annotations), db().list_terms(session_id))
         os.makedirs(settings.upload_dir, exist_ok=True)
         with open(_notes_pdf_path(session_id), "wb") as f:
             f.write(data)

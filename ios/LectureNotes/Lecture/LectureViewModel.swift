@@ -53,6 +53,9 @@ final class LectureViewModel: ObservableObject {
     @Published private(set) var spokenSpot: SpokenSpot?
     @Published private(set) var captionLines: [String] = []
     @Published var importantAlert: ImportantAlert?
+    /// 실시간 용어 사전: 모은 용어와, 방금 나와 화면에 잠깐 띄울 용어
+    @Published private(set) var terms: [GlossaryTerm] = []
+    @Published var freshTerm: GlossaryTerm?
     /// 강의가 끝난 뒤: 슬라이드에 없는 설명을 담은 필기와 그 비율
     @Published private(set) var beyond: BeyondSlides?
 
@@ -83,6 +86,7 @@ final class LectureViewModel: ObservableObject {
         socket.onTask = { [weak self] task in self?.receive(task) }
         socket.onPreview = { [weak self] preview in self?.receive(preview) }
         socket.onPreviewsResolved = { [weak self] ids in self?.resolvePreviews(ids) }
+        socket.onTerm = { [weak self] term in self?.receive(term) }
         socket.onPageAdded = { [weak self] page in self?.receivePageAdded(page) }
         socket.onPageTitle = { [weak self] pageNo, title in self?.receivePageTitle(pageNo, title) }
         socket.onSpoken = { [weak self] page, blockId, text in self?.receiveSpoken(page: page, blockId: blockId, text: text) }
@@ -171,6 +175,14 @@ final class LectureViewModel: ObservableObject {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) { tasks[index] = task }
     }
 
+    private func receive(_ term: GlossaryTerm) {
+        guard !terms.contains(where: { $0.id == term.id }) else { return }
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
+            terms.append(term)
+            freshTerm = term
+        }
+    }
+
     private func receivePageAdded(_ page: Page) {
         guard !pages.contains(where: { $0.pageNo == page.pageNo }) else { return }
         withAnimation(.snappy) {
@@ -236,6 +248,7 @@ final class LectureViewModel: ObservableObject {
             let api = try APIClient.current()
             annotations = try await api.annotations(sessionId: session.id)
             tasks = try await api.tasks(sessionId: session.id)
+            terms = (try? await api.glossary(sessionId: session.id)) ?? []
             if isNotebook { pages = try await api.document(id: document.id).pages }
         } catch {
             errorMessage = error.localizedDescription

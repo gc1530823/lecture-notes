@@ -160,10 +160,11 @@ class OllamaLLM:
             log.warning("Ollama 모델을 미리 올리지 못했습니다 (%s)", settings.ollama_url)
 
     async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict],
-                       notebook: bool = False) -> dict:
-        data = await self._chat(annotation_system(notebook), _annotation_prompt(candidates, transcript, existing_tasks),
+                       notebook: bool = False, known_terms: list[str] | None = None) -> dict:
+        data = await self._chat(annotation_system(notebook),
+                                _annotation_prompt(candidates, transcript, existing_tasks, known_terms),
                                 ANNOTATION_SCHEMA, context_tokens=4096)
-        return {"annotations": data.get("annotations", []), "tasks": data.get("tasks", [])}
+        return {"annotations": data.get("annotations", []), "tasks": data.get("tasks", []), "terms": data.get("terms", [])}
 
     async def draft_task(self, task: dict, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict:
         data = await self._chat_checked(TASK_DRAFT_SYSTEM, _task_prompt(task, pages, segments, annotations),

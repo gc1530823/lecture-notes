@@ -90,6 +90,10 @@ struct APIClient {
         try await send("GET", "sessions/\(sessionId)/beyond-slides")
     }
 
+    func glossary(sessionId: String) async throws -> [GlossaryTerm] {
+        try await send("GET", "sessions/\(sessionId)/glossary")
+    }
+
     // 공부 도구
 
     func study<Payload: Decodable>(sessionId: String, kind: String, as: Payload.Type) async throws -> StudyResponse<Payload> {

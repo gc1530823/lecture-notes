@@ -84,6 +84,17 @@ CREATE TABLE IF NOT EXISTS exam_questions (
     PRIMARY KEY (document_id, page_no)
 );
 
+-- 실시간 용어 사전: 강의 중에 처음 나온 전문용어와 뜻
+CREATE TABLE IF NOT EXISTS glossary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL REFERENCES sessions(id),
+    page_no INTEGER,
+    term TEXT NOT NULL,
+    definition TEXT NOT NULL,
+    start_ms INTEGER NOT NULL,
+    created_at REAL NOT NULL
+);
+
 -- 공부 도구 (플래시카드·개념 메모·마인드맵). digest가 같으면 다시 만들지 않는다
 CREATE TABLE IF NOT EXISTS study_sets (
     session_id TEXT NOT NULL REFERENCES sessions(id),
@@ -197,7 +208,7 @@ class Database:
             sessions = [r[0] for r in self._conn.execute("SELECT id FROM sessions WHERE document_id = ?", (doc_id,))]
             pages = [r[0] for r in self._conn.execute("SELECT id FROM pages WHERE document_id = ?", (doc_id,))]
             for sid in sessions:
-                for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes", "study_sets"):
+                for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes", "study_sets", "glossary"):
                     self._conn.execute(f"DELETE FROM {table} WHERE session_id = ?", (sid,))
             self._conn.execute("DELETE FROM sessions WHERE document_id = ?", (doc_id,))
             self._conn.execute("DELETE FROM exam_questions WHERE document_id = ?", (doc_id,))
@@ -366,6 +377,16 @@ class Database:
     def save_page_notes(self, session_id: str, page_no: int, digest: str, notes: dict) -> None:
         self._write("INSERT OR REPLACE INTO page_notes (session_id, page_no, digest, points) VALUES (?, ?, ?, ?)",
                     (session_id, page_no, digest, json.dumps(notes, ensure_ascii=False)))
+
+    def add_term(self, session_id: str, page_no: int | None, term: str, definition: str, start_ms: int) -> dict:
+        term_id = self._write(
+            "INSERT INTO glossary (session_id, page_no, term, definition, start_ms, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (session_id, page_no, term, definition, start_ms, time.time()))
+        return self._query("SELECT id, page_no, term, definition, start_ms FROM glossary WHERE id = ?", (term_id,))[0]
+
+    def list_terms(self, session_id: str) -> list[dict]:
+        return self._query("SELECT id, page_no, term, definition, start_ms FROM glossary WHERE session_id = ? ORDER BY id",
+                           (session_id,))
 
     def get_study(self, session_id: str, kind: str) -> tuple[str, object] | None:
         rows = self._query("SELECT digest, body FROM study_sets WHERE session_id = ? AND kind = ?", (session_id, kind))

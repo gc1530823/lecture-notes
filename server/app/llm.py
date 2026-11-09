@@ -53,7 +53,13 @@ ANNOTATION_SYSTEM = """당신은 대학 강의를 듣는 학생 대신 강의자
 - kind: in_class(수업 시간 안에 하는 것) | homework | report | exam_prep
 - title: 한 줄 제목. instructions: 교수님이 말한 요구사항(주제, 분량, 형식, 제출 방법)을 빠짐없이.
 - due_text: 마감을 교수님이 말한 그대로("다음 주 금요일까지", "수업 끝나기 전"). 말하지 않았으면 빈 문자열.
-- 과제를 뽑아도 notice 필기는 그대로 함께 씁니다."""
+- 과제를 뽑아도 notice 필기는 그대로 함께 씁니다.
+
+용어 사전 (terms):
+- 새 발언에 나온 전문용어(학문·업무 용어, 약어, 고유한 개념 이름) 가운데 학생이 뜻을 모를 만한 것을 최대 3개 넣습니다.
+  "학생", "문제", "오늘"처럼 흔한 말은 넣지 않습니다. 이미 정의한 용어(known_terms)는 다시 넣지 않습니다.
+- term: 용어 (영어 약어면 "SGD (확률적 경사하강법)"처럼 풀어서). definition: 한 문장 뜻.
+  교수님 설명을 먼저 근거로 쓰고, 발언에 뜻이 없어 일반 지식으로 쓰면 끝에 "(강의 밖)"을 붙입니다."""
 
 # 노트 모드(강의자료 없는 수업): 슬라이드가 없으므로 학생이 공책에 정리하듯 쓰게 한다
 NOTEBOOK_RULES = """
@@ -100,8 +106,17 @@ ANNOTATION_SCHEMA = {
                 "additionalProperties": False,
             },
         },
+        "terms": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"term": {"type": "string"}, "definition": {"type": "string"}},
+                "required": ["term", "definition"],
+                "additionalProperties": False,
+            },
+        },
     },
-    "required": ["annotations", "tasks"],
+    "required": ["annotations", "tasks", "terms"],
     "additionalProperties": False,
 }
 
@@ -397,7 +412,7 @@ class LLMError(RuntimeError):
 
 class LLM(Protocol):
     async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict],
-                       notebook: bool = False) -> dict: ...
+                       notebook: bool = False, known_terms: list[str] | None = None) -> dict: ...
 
     async def draft_task(self, task: dict, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict: ...
 
@@ -439,7 +454,8 @@ def _fix_speech_prompt(page: dict, speech: str) -> str:
     return f"<slide>\n{page['text'] or '(텍스트 없음)'}\n</slide>\n<speech>\n{speech}\n</speech>"
 
 
-def _annotation_prompt(candidates: list[dict], transcript: str, existing_tasks: list[dict] | None = None) -> str:
+def _annotation_prompt(candidates: list[dict], transcript: str, existing_tasks: list[dict] | None = None,
+                       known_terms: list[str] | None = None) -> str:
     """candidates: [{"page_no", "blocks": [{id, text}], "existing": [{type, text}]}]"""
     parts = []
     for page in candidates:
@@ -450,7 +466,9 @@ def _annotation_prompt(candidates: list[dict], transcript: str, existing_tasks: 
             f"<existing_notes>\n{existing_lines}\n</existing_notes>\n</slide>"
         )
     tasks = "\n".join(f"- {t['title']}" for t in existing_tasks or []) or "(없음)"
-    return "\n\n".join(parts) + f"\n\n<existing_tasks>\n{tasks}\n</existing_tasks>\n\n<new_speech>\n{transcript}\n</new_speech>"
+    terms = ", ".join((known_terms or [])[-60:]) or "(없음)"
+    return ("\n\n".join(parts) + f"\n\n<existing_tasks>\n{tasks}\n</existing_tasks>\n\n<known_terms>\n{terms}\n</known_terms>"
+            f"\n\n<new_speech>\n{transcript}\n</new_speech>")
 
 
 def _summary_prompt(pages: list[dict], segments: list[dict], annotations: list[dict]) -> str:
@@ -531,12 +549,12 @@ class ClaudeLLM:
         return params
 
     async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict],
-                       notebook: bool = False) -> dict:
+                       notebook: bool = False, known_terms: list[str] | None = None) -> dict:
         params = self._request(
             settings.annotation_model,
             settings.annotation_effort,
             annotation_system(notebook),
-            _annotation_prompt(candidates, transcript, existing_tasks),
+            _annotation_prompt(candidates, transcript, existing_tasks, known_terms),
             ANNOTATION_SCHEMA,
             max_tokens=8000,
         )
@@ -639,7 +657,7 @@ class FakeLLM:
     """API 키 없이 앱 흐름을 확인하기 위한 가짜 응답."""
 
     async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict],
-                       notebook: bool = False) -> dict:
+                       notebook: bool = False, known_terms: list[str] | None = None) -> dict:
         if len(candidates) > 1 and "애매" in transcript:
             return {"annotations": [{"page_no": -1, "block_id": -1, "type": "explanation", "text": transcript[:60]}],
                     "tasks": []}
@@ -649,8 +667,12 @@ class FakeLLM:
         tasks = []
         if "과제" in transcript and not existing_tasks:
             tasks = [{"kind": "homework", "title": "과제", "instructions": transcript, "due_text": "다음 주 금요일까지"}]
+        # 용어 사전: 대문자로 시작하는 영어 낱말을 용어로 본다
+        known = {t.lower() for t in known_terms or []}
+        terms = [{"term": w, "definition": f"{w}의 뜻 (가짜 응답)"}
+                 for w in dict.fromkeys(re.findall(r"(?<![A-Za-z])[A-Z][A-Za-z]{3,}(?![A-Za-z])", transcript)) if w.lower() not in known][:3]
         return {"annotations": [{"page_no": page["page_no"], "block_id": block_id, "type": type_,
-                                 "text": transcript[:60]}], "tasks": tasks}
+                                 "text": transcript[:60]}], "tasks": tasks, "terms": terms}
 
     async def draft_task(self, task: dict, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict:
         return {"checklist": [task["instructions"][:40], "마감 확인"], "outline": ["서론", "본론", "결론"],

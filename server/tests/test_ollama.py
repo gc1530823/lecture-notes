@@ -26,9 +26,9 @@ def test_annotate_sends_schema_and_parses_reply():
     reply = {"annotations": [{"page_no": 1, "block_id": 7, "type": "exam", "text": "시험 출제"}], "tasks": []}
     llm = llm_returning(200, {"message": {"content": json.dumps(reply, ensure_ascii=False)}}, seen)
     result = asyncio.run(llm.annotate(CANDIDATES, "이거 시험에 나와요", []))
-    assert result == reply
+    assert result == {**reply, "terms": []}
     request = seen[0]
-    assert request["format"]["required"] == ["annotations", "tasks"]
+    assert request["format"]["required"] == ["annotations", "tasks", "terms"]
     assert request["stream"] is False and request["think"] is False
     assert "[7] 경사하강법" in request["messages"][1]["content"]
 

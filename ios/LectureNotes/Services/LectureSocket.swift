@@ -19,6 +19,8 @@ final class LectureSocket {
     /// 노트 모드: 주제가 바뀌어 새 쪽이 생겼다 / 다 쓴 쪽에 제목이 붙었다
     var onPageAdded: ((Page) -> Void)?
     var onPageTitle: ((Int, String) -> Void)?
+    /// 실시간 용어 사전: 처음 나온 전문용어
+    var onTerm: ((GlossaryTerm) -> Void)?
 
     private var url: URL?
     private var task: URLSessionWebSocketTask?
@@ -119,6 +121,8 @@ final class LectureSocket {
             if let task = event.task { onTask?(task) }
         case "page_estimate":
             if let page = event.page, let confidence = event.confidence { onPageEstimate?(page, confidence) }
+        case "term":
+            if let term = event.term { onTerm?(term) }
         case "page_added":
             if let page = event.newPage { onPageAdded?(page) }
         case "page_title":
@@ -150,11 +154,12 @@ private struct ServerEvent: Decodable {
     let blockId: Int?
     let text: String?
     let title: String?
+    let term: GlossaryTerm?
     /// page_added의 page는 숫자가 아니라 쪽 정보다
     let newPage: Page?
 
     enum CodingKeys: String, CodingKey {
-        case type, annotation, message, page, confidence, task, preview, ids, blockId, text, title
+        case type, annotation, message, page, confidence, task, preview, ids, blockId, text, title, term
     }
 
     init(from decoder: Decoder) throws {
@@ -171,5 +176,6 @@ private struct ServerEvent: Decodable {
         blockId = try? c.decodeIfPresent(Int.self, forKey: .blockId)
         text = try? c.decodeIfPresent(String.self, forKey: .text)
         title = try? c.decodeIfPresent(String.self, forKey: .title)
+        term = try? c.decodeIfPresent(GlossaryTerm.self, forKey: .term)
     }
 }

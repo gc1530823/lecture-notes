@@ -11,6 +11,7 @@ struct LectureView: View {
     @State private var showingAsk = false
     @State private var asking = false
     @State private var catchUpMinutes: Double?
+    @State private var showingGlossary = false
     @State private var showingPending = false
     @State private var showingTasks = false
     @State private var openTask: LectureTask?
@@ -73,6 +74,22 @@ struct LectureView: View {
         .toolbarBackground(Theme.paper, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                Button { showingGlossary = true } label: {
+                    Image(systemName: "book.pages")
+                        .overlay(alignment: .topTrailing) {
+                            if !model.terms.isEmpty {
+                                Text("\(model.terms.count)")
+                                    .font(.caption2.weight(.heavy))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 4)
+                                    .background(Theme.accent, in: Capsule())
+                                    .offset(x: 8, y: -6)
+                            }
+                        }
+                }
+                .accessibilityLabel("용어 사전 \(model.terms.count)개")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button { withAnimation(.snappy) { model.captionMode.toggle() } } label: {
                     Image(systemName: model.captionMode ? "captions.bubble.fill" : "captions.bubble")
                 }
@@ -111,6 +128,25 @@ struct LectureView: View {
                 model.currentPage = page
             }
             .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showingGlossary) {
+            GlossarySheet(terms: model.terms) { page in
+                showingGlossary = false
+                model.currentPage = page
+            }
+            .presentationDetents([.medium, .large])
+        }
+        .overlay(alignment: .bottomLeading) {
+            if let term = model.freshTerm {
+                TermCard(term: term) { showingGlossary = true; model.freshTerm = nil }
+                    .padding(.leading, 12)
+                    .padding(.bottom, 190)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+                    .task(id: term.id) {
+                        try? await Task.sleep(for: .seconds(7))
+                        withAnimation(.easeOut) { if model.freshTerm?.id == term.id { model.freshTerm = nil } }
+                    }
+            }
         }
         .sheet(isPresented: $showingNotesPDF) {
             if let session = model.session {
@@ -397,6 +433,65 @@ struct LectureView: View {
 }
 
 /// 녹음 시작·끝 버튼. 녹음 중에는 빨간 원이 숨 쉬듯 퍼진다.
+/// 실시간 용어 카드: 강의 중에 처음 나온 전문용어를 잠깐 띄운다
+private struct TermCard: View {
+    let term: GlossaryTerm
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 2) {
+                Label(term.term, systemImage: "book.pages").font(.subheadline.weight(.bold)).foregroundStyle(Theme.accent)
+                Text(term.definition).font(.caption).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.leading)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(maxWidth: 250, alignment: .leading)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(alignment: .leading) { Theme.accent.frame(width: 4).clipShape(Capsule()) }
+            .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
+        }
+        .buttonStyle(.plain)
+        .sensoryFeedback(.impact(weight: .light), trigger: term.id)
+    }
+}
+
+/// 용어 사전: 이번 강의에서 나온 용어와 뜻, 찾기
+private struct GlossarySheet: View {
+    let terms: [GlossaryTerm]
+    let onSelectPage: (Int) -> Void
+    @State private var query = ""
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if terms.isEmpty {
+                    Text("강의 중에 전문용어가 나오면 여기에 모여요.").foregroundStyle(.secondary)
+                }
+                ForEach(terms.filter { query.isEmpty || "\($0.term) \($0.definition)".localizedCaseInsensitiveContains(query) }) { term in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(term.term).font(.headline)
+                            Spacer()
+                            if let page = term.pageNo {
+                                Button("\(page)쪽") { onSelectPage(page) }.font(.caption.weight(.bold)).buttonStyle(.bordered)
+                            }
+                            Text(term.startMs.clockText).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        }
+                        Text(term.definition).font(.subheadline)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+            .searchable(text: $query, prompt: "용어 찾기")
+            .navigationTitle("용어 사전 \(terms.count)개")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .tint(Theme.accent)
+        .fontDesign(.rounded)
+    }
+}
+
 /// 필기에서 연 녹음 재생 막대
 private struct PlayerBar: View {
     @ObservedObject var player: LecturePlayer

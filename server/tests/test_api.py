@@ -38,7 +38,7 @@ def receive(ws, kind: str = "annotation_added") -> dict:
     while True:
         event = ws.receive_json()
         assert event["type"] in ("page_estimate", "annotation_added", "task_added", "annotation_preview",
-                                 "previews_resolved", "heard", "spoken", "page_added", "page_title"), event
+                                 "previews_resolved", "heard", "spoken", "page_added", "page_title", "term"), event
         if event["type"] == kind:
             return event
 
@@ -180,7 +180,7 @@ def test_instant_preview_arrives_before_ai_note_and_is_resolved(client):
 def test_task_without_directive_is_dropped(client, monkeypatch):
     import app.llm as llm_module
 
-    async def eager(self, candidates, transcript, existing_tasks, notebook=False):
+    async def eager(self, candidates, transcript, existing_tasks, **kwargs):
         # 작은 모델처럼 "시험에 나온다"를 과제로 잘못 뽑는 경우
         return {"annotations": [], "tasks": [{"kind": "exam_prep", "title": "시험 준비", "instructions": "학습률",
                                               "due_text": ""}]}
@@ -527,3 +527,20 @@ def test_study_tools_flashcards_concepts_mindmap_cloze_and_tutor(client):
     res = client.post(f"/sessions/{sid}/tutor", json={"messages": [{"role": "user", "content": "경사하강법이 뭐야?"}]})
     assert res.status_code == 200 and res.json()["answer"] and res.json()["pages"] == [1]
     assert client.get(f"/sessions/{sid}/study/nope").status_code == 404
+
+
+def test_live_glossary_pops_new_terms_once(client):
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "Backpropagation은 연쇄 법칙을 반복해서 쓰는 거예요.",
+                      "start_ms": 0, "end_ms": 3000})
+        term = receive(ws, "term")["term"]
+        ws.send_json({"type": "transcript_final", "text": "다시 말하지만 Backpropagation이 핵심이고 Gradient도 봅시다.",
+                      "start_ms": 4000, "end_ms": 7000})
+        second = receive(ws, "term")["term"]
+    assert term["term"] == "Backpropagation" and term["page_no"] == 2 and term["definition"]  # 역전파 슬라이드로 넘어간다
+    assert second["term"] == "Gradient"  # 이미 띄운 용어는 다시 띄우지 않는다
+    terms = client.get(f"/sessions/{session['id']}/glossary").json()
+    assert [t["term"] for t in terms] == ["Backpropagation", "Gradient"]

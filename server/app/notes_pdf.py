@@ -83,7 +83,7 @@ def _slide_image(src: pymupdf.Document, page_info: dict, notes: list[dict]) -> b
 
 def build_notes_pdf(pdf_path: str, title: str, pages: list[dict], annotations: list[dict], segments: list[dict],
                     tasks: list[dict], summary: dict | None, organized: dict | None, started_at: float,
-                    beyond: dict | None = None) -> bytes:
+                    beyond: dict | None = None, glossary: list[dict] | None = None) -> bytes:
     # 노트 모드(강의자료 없는 수업)는 슬라이드 그림 없이 주제 제목과 필기·정리만 넣는다
     src = pymupdf.open(pdf_path) if pdf_path and os.path.exists(pdf_path) else None
     beyond_ids = set((beyond or {}).get("annotation_ids", []))
@@ -151,6 +151,11 @@ def build_notes_pdf(pdf_path: str, title: str, pages: list[dict], annotations: l
             parts.append(f"<h3>{esc(t['title'])}{done}</h3><p class='muted small'>{TASK_KINDS.get(t['kind'], '')}{due}</p>"
                          f"<p>{esc(t['instructions'])}</p>")
 
+    if glossary:
+        parts.append("<h2>용어 사전</h2><ul>" + "".join(
+            f"<li><b>{esc(t['term'])}</b> — {esc(t['definition'])}"
+            + (f" <span class='muted small'>({t['page_no']}쪽)</span>" if t.get("page_no") else "") + "</li>"
+            for t in glossary) + "</ul>")
     if parts:
         sections.append(parts)
     if sections:
