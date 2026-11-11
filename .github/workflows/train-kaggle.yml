@@ -37,7 +37,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - run: pip install -q "kaggle>=1.8.0"  # 새 방식 API 토큰(KAGGLE_API_TOKEN)은 1.8.0부터
+      - run: pip install -q "kaggle>=1.8.0" six  # 새 방식 API 토큰(KAGGLE_API_TOKEN)은 1.8.0부터, six는 kaggle이 빠뜨린 의존성
       - name: Get training data
         run: |
           git fetch -q --depth 1 origin training-data
