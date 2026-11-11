@@ -53,6 +53,24 @@ python scripts/export_training.py --tasks annotate        # 실시간 필기만
 
 `training/data/train.jsonl`, `val.jsonl`이 생깁니다. 검증용은 학습에 안 쓴 강의에서 뽑습니다.
 
+## ③-자동: Kaggle 무료 GPU로 알아서 가르치기 (추천)
+
+한 번만 설정하면 GitHub가 Kaggle에 학습을 맡기고, 끝나면 모델을 **Releases → 우리 AI (최신)** 에 올리고 검증 점수까지 붙인다.
+
+1. [kaggle.com](https://www.kaggle.com) 가입 → Settings → **Phone verification** (이걸 해야 GPU를 쓸 수 있다)
+2. Settings → API → **Create New Token** → `kaggle.json` (username, key)
+3. 저장소 Settings → Secrets and variables → Actions 에 `KAGGLE_USERNAME`, `KAGGLE_KEY`
+   (새 방식 토큰 하나만 받았으면 `KAGGLE_API_TOKEN` + `KAGGLE_USERNAME`). 키는 채팅·저장소에 올리지 않는다.
+4. Actions → **Train on Kaggle** → Run workflow. 매주 월요일 새벽에도 학습 데이터가 200개 이상이면 알아서 돈다.
+
+받아서 쓰기: 릴리스의 `lecture-notes.gguf.part00`, `part01`… 과 `Modelfile` 을 한 폴더에 받고
+
+```bash
+cat lecture-notes.gguf.part* > lecture-notes.gguf     # Windows: copy /b lecture-notes.gguf.part00+lecture-notes.gguf.part01 lecture-notes.gguf
+ollama create lecture-notes -f Modelfile
+LLM_MODE=ollama OLLAMA_MODEL=lecture-notes uvicorn app.main:app --port 8000
+```
+
 ## ③ 가르치기 (Google Colab 무료 T4, 1~2시간)
 
 가장 쉬운 방법: [finetune.ipynb](finetune.ipynb)를 Colab에서 열고(파일 → 노트 업로드) 위에서부터 실행. 직접 하려면:

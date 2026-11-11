@@ -1,0 +1,114 @@
+name: Train on Kaggle
+
+# 우리 AI를 자동으로 학습시킨다: training-data 브랜치의 데이터 → Kaggle 무료 GPU에서 미세조정 → 모델 파일을 릴리스에 올린다.
+# 필요: 저장소 Secrets에 KAGGLE_USERNAME + KAGGLE_KEY (또는 KAGGLE_API_TOKEN). Kaggle 계정은 휴대폰 인증을 해야 GPU를 쓸 수 있다.
+# 실행: Actions → Train on Kaggle → Run workflow. 매주 일요일에도 데이터가 충분하면(200개 이상) 자동으로 돈다.
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "바탕 모델 (4B가 기본, 컴퓨터가 느리면 unsloth/Qwen3-1.7B 처럼 작은 것)"
+        default: "unsloth/Qwen3-4B-Instruct-2507"
+      only:
+        description: "이 작업만 배우기 (예: annotate). 비우면 전부"
+        default: ""
+  schedule:
+    - cron: "41 17 * * 0"   # 매주 월요일 한국 시각 새벽 2시 41분
+
+concurrency: train-kaggle
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: write
+    env:
+      KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+      KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check Kaggle key
+        run: |
+          if [ -z "$KAGGLE_USERNAME" ] || { [ -z "$KAGGLE_KEY" ] && [ -z "$KAGGLE_API_TOKEN" ]; }; then
+            echo "::error::KAGGLE_USERNAME과 KAGGLE_KEY(또는 KAGGLE_API_TOKEN) Secrets가 필요해요. training/README.md 참고"; exit 1
+          fi
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -q kaggle
+      - name: Get training data
+        run: |
+          git fetch -q --depth 1 origin training-data
+          mkdir -p /tmp/ds
+          git archive origin/training-data data | tar -x -C /tmp/ds --strip-components=1
+          wc -l /tmp/ds/*.jsonl
+          N=$(wc -l < /tmp/ds/train.jsonl)
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$N" -lt 200 ]; then
+            echo "학습 데이터가 아직 $N개라 이번 주는 건너뛰어요 (200개 이상일 때 자동 학습)"; echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+          cp training/finetune.py training/Modelfile /tmp/ds/
+          printf 'base=%s\nonly=%s\n' "${{ inputs.base || 'unsloth/Qwen3-4B-Instruct-2507' }}" "${{ inputs.only }}" > /tmp/ds/settings.txt
+      - name: Upload data to Kaggle
+        if: env.SKIP != '1'
+        run: |
+          cat > /tmp/ds/dataset-metadata.json <<EOF
+          {"title": "lecture-notes-data", "id": "$KAGGLE_USERNAME/lecture-notes-data", "licenses": [{"name": "other"}], "isPrivate": true}
+          EOF
+          kaggle datasets version -p /tmp/ds -m "run ${{ github.run_id }}" --dir-mode zip 2>/dev/null || kaggle datasets create -p /tmp/ds --dir-mode zip
+          # 새 버전이 준비될 때까지 기다린다
+          for i in $(seq 1 30); do
+            kaggle datasets status "$KAGGLE_USERNAME/lecture-notes-data" | grep -qi ready && break; sleep 10
+          done
+      - name: Train on Kaggle GPU
+        if: env.SKIP != '1'
+        run: |
+          mkdir -p /tmp/kernel && cp training/kaggle_run.py /tmp/kernel/
+          cat > /tmp/kernel/kernel-metadata.json <<EOF
+          {"id": "$KAGGLE_USERNAME/lecture-notes-finetune", "title": "lecture-notes-finetune", "code_file": "kaggle_run.py",
+           "language": "python", "kernel_type": "script", "is_private": true, "enable_gpu": true, "enable_internet": true,
+           "dataset_sources": ["$KAGGLE_USERNAME/lecture-notes-data"]}
+          EOF
+          kaggle kernels push -p /tmp/kernel
+          # 학습이 끝날 때까지 (최대 약 5시간)
+          for i in $(seq 1 600); do
+            STATUS=$(kaggle kernels status "$KAGGLE_USERNAME/lecture-notes-finetune" 2>&1 || true)
+            echo "$STATUS" | tail -1
+            echo "$STATUS" | grep -qi "complete" && break
+            if echo "$STATUS" | grep -qiE "error|cancel"; then
+              kaggle kernels output "$KAGGLE_USERNAME/lecture-notes-finetune" -p /tmp/out || true
+              tail -50 /tmp/out/*.log 2>/dev/null; exit 1
+            fi
+            sleep 30
+          done
+      - name: Download model
+        if: env.SKIP != '1'
+        run: |
+          kaggle kernels output "$KAGGLE_USERNAME/lecture-notes-finetune" -p /tmp/out
+          ls -la /tmp/out
+          test -f /tmp/out/lecture-notes.gguf
+      - name: Score the model on validation data
+        if: env.SKIP != '1'
+        continue-on-error: true
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh > /dev/null
+          (ollama serve > /tmp/ollama.log 2>&1 &) ; sleep 5
+          cd /tmp/out && sed -i 's|^FROM .*|FROM ./lecture-notes.gguf|' Modelfile && ollama create lecture-notes -f Modelfile
+          cd $GITHUB_WORKSPACE/server && pip install -q -r requirements.txt
+          LLM_MODE=ollama OLLAMA_MODEL=lecture-notes python scripts/eval_model.py --data /tmp/ds/val.jsonl --limit 30 | tee /tmp/out/score.txt
+      - name: Publish model (release model-latest)
+        if: env.SKIP != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd /tmp/out
+          # GitHub 릴리스 파일은 2GB까지라 1.9GB씩 나눠 올린다 (받아서 이어 붙이면 원래 파일)
+          split -b 1900m -d lecture-notes.gguf lecture-notes.gguf.part
+          sed -i 's|^FROM .*|FROM ./lecture-notes.gguf|' Modelfile
+          N=$(wc -l < /tmp/ds/train.jsonl)
+          NOTES="우리 AI (학습 데이터 ${N}개, 바탕 ${{ inputs.base || 'unsloth/Qwen3-4B-Instruct-2507' }}). 받는 법: training/README.md
+          $(cat score.txt 2>/dev/null | tail -8)"
+          gh release delete model-latest -y --cleanup-tag > /dev/null 2>&1 || true
+          gh release create model-latest lecture-notes.gguf.part* Modelfile $( [ -f score.txt ] && echo score.txt ) \
+            --title "우리 AI (최신)" --notes "$NOTES" --prerelease
