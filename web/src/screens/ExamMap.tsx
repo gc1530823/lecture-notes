@@ -18,9 +18,10 @@ export default function ExamMap({ docId }: { docId: string }) {
             <p className="t-caption muted">강의 {data.lectures}번 · 교수님이 강조한 쪽일수록 진해요</p>
             <div className="heat-grid" role="list">
               {data.pages.map((p) => (
-                <div key={p.page_no} role="listitem" className="heat-cell" title={p.reasons.join(", ") || "언급 적음"}
+                <div key={p.page_no} role="listitem" className="heat-cell" data-i={p.page_no} title={p.reasons.join(", ") || "언급 적음"}
                   aria-label={`${p.page_no}쪽 ${p.level === "high" ? "유력" : p.level === "medium" ? "보통" : "낮음"}`}
                   style={{
+                    animationDelay: `${Math.min(p.page_no, 30) * 25}ms`,
                     background: `color-mix(in srgb, var(--note-exam-ink) ${Math.round(8 + p.score * 85)}%, transparent)`,
                     color: p.score > 0.55 ? "var(--text-on-accent)" : "var(--text-primary)",
                   }}>

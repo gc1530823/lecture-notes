@@ -6,10 +6,15 @@ import Home from "./screens/Home";
 import Lecture from "./screens/Lecture";
 import Semester from "./screens/Semester";
 import Session from "./screens/Session";
-import { useRoute } from "./router";
+import { href, useRoute } from "./router";
 
 export default function App() {
   const route = useRoute();
+  // 화면이 바뀔 때마다 새로 그려 들어오는 모션을 준다 (styles/app.css 의 .route)
+  return <div className="route" key={href(route)}>{screen(route)}</div>;
+}
+
+function screen(route: ReturnType<typeof useRoute>) {
   switch (route.name) {
     case "home": return <Home />;
     case "doc": return <DocDetail key={route.docId} docId={route.docId} />;

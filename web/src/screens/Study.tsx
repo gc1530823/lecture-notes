@@ -96,7 +96,7 @@ function Flashcards({ cards }: { cards: Flashcard[] }) {
   return (
     <>
       <p className="t-caption faint" style={{ textAlign: "center" }}>{index + 1} / {deck.length}{i >= cards.length ? " · 다시 보기" : ""}</p>
-      <button className="flashcard" data-flipped={flipped} onClick={() => setFlipped(!flipped)} aria-live="polite">
+      <button key={`${i}-${flipped}`} className="flashcard flip-in" data-flipped={flipped} onClick={() => setFlipped(!flipped)} aria-live="polite">
         <Chip variant="accent">{card.page_no}쪽</Chip>
         <span className={flipped ? "t-body" : "t-title-m"}>{flipped ? card.back : card.front}</span>
         <span className="t-caption faint">{flipped ? "질문으로 돌아가기" : "눌러서 답 보기"}</span>
