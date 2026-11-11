@@ -119,6 +119,6 @@ jobs:
           N=$(wc -l < /tmp/ds/train.jsonl)
           NOTES="우리 AI (학습 데이터 ${N}개, 바탕 ${{ inputs.base || 'unsloth/Qwen3-4B-Instruct-2507' }}). 받는 법: training/README.md
           $(cat score.txt 2>/dev/null | tail -8)"
-          gh release delete model-latest -y --cleanup-tag > /dev/null 2>&1 || true
-          gh release create model-latest lecture-notes.gguf.part* Modelfile $( [ -f score.txt ] && echo score.txt ) \
+          gh release delete model-latest -y --cleanup-tag --repo "${{ github.repository }}" > /dev/null 2>&1 || true
+          gh release create model-latest --repo "${{ github.repository }}" lecture-notes.gguf.part* Modelfile $( [ -f score.txt ] && echo score.txt ) \
             --title "우리 AI (최신)" --notes "$NOTES" --prerelease
