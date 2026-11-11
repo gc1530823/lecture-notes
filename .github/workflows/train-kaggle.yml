@@ -12,6 +12,10 @@ on:
       only:
         description: "이 작업만 배우기 (예: annotate). 비우면 전부"
         default: ""
+      download_only:
+        description: "다시 학습하지 않고 Kaggle에 남은 마지막 결과만 받아 채점·올리기"
+        type: boolean
+        default: false
   schedule:
     - cron: "41 17 * * 0"   # 매주 월요일 한국 시각 새벽 2시 41분
 
@@ -51,7 +55,7 @@ jobs:
           cp training/finetune.py training/Modelfile /tmp/ds/
           printf 'base=%s\nonly=%s\n' "${{ inputs.base || 'unsloth/Qwen3-4B-Instruct-2507' }}" "${{ inputs.only }}" > /tmp/ds/settings.txt
       - name: Upload data to Kaggle
-        if: env.SKIP != '1'
+        if: env.SKIP != '1' && !inputs.download_only
         run: |
           cat > /tmp/ds/dataset-metadata.json <<EOF
           {"title": "lecture-notes-data", "id": "$KAGGLE_USERNAME/lecture-notes-data", "licenses": [{"name": "other"}], "isPrivate": true}
@@ -62,7 +66,7 @@ jobs:
             kaggle datasets status "$KAGGLE_USERNAME/lecture-notes-data" | grep -qi ready && break; sleep 10
           done
       - name: Train on Kaggle GPU
-        if: env.SKIP != '1'
+        if: env.SKIP != '1' && !inputs.download_only
         run: |
           mkdir -p /tmp/kernel && cp training/kaggle_run.py /tmp/kernel/
           cat > /tmp/kernel/kernel-metadata.json <<EOF
@@ -86,8 +90,14 @@ jobs:
         if: env.SKIP != '1'
         run: |
           kaggle kernels output "$KAGGLE_USERNAME/lecture-notes-finetune" -p /tmp/out
+          # 학습 도구가 폴더·파일 이름을 바꿔 저장하기도 해서, 어디 있든 .gguf와 Modelfile을 찾아 모은다
+          GGUF=$(find /tmp/out -name '*.gguf' -printf '%s %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+          test -n "$GGUF" || { echo "::error::모델 파일(.gguf)을 찾지 못했어요"; tail -80 /tmp/out/*.log; exit 1; }
+          [ "$GGUF" = /tmp/out/lecture-notes.gguf ] || mv "$GGUF" /tmp/out/lecture-notes.gguf
+          MF=$(find /tmp/out -name Modelfile | head -1)
+          if [ -n "$MF" ] && [ "$MF" != /tmp/out/Modelfile ]; then mv "$MF" /tmp/out/Modelfile; fi
+          [ -f /tmp/out/Modelfile ] || cp training/Modelfile /tmp/out/Modelfile
           ls -la /tmp/out
-          test -f /tmp/out/lecture-notes.gguf
       - name: Score the model on validation data
         if: env.SKIP != '1'
         continue-on-error: true

@@ -33,8 +33,10 @@ subprocess.run([sys.executable, "-m", "pip", "install", "-q", "unsloth"], check=
 subprocess.run([sys.executable, "finetune.py", "--train", "train.jsonl", "--val", "val.jsonl", "--base", base, *extra], check=True)
 
 # 결과만 남긴다 (Kaggle 출력은 /kaggle/working 전체라 중간 파일은 지운다)
-for gguf in glob.glob("lecture-notes-gguf/*.gguf"):
-    shutil.move(gguf, os.path.join(work, "lecture-notes.gguf"))
-for junk in ("lecture-notes-gguf", "outputs", "unsloth_compiled_cache", "lecture-notes-lora"):
+# 학습 도구 버전에 따라 "lecture-notes-gguf_gguf/<바탕 모델>.Q4_K_M.gguf"처럼 이름이 바뀌어 저장되기도 한다
+found = sorted(glob.glob("**/*.gguf", recursive=True), key=os.path.getsize)
+if found:
+    shutil.move(found[-1], os.path.join(work, "lecture-notes.gguf"))
+for junk in glob.glob("lecture-notes-gguf*") + ["outputs", "unsloth_compiled_cache", "lecture-notes-lora"]:
     shutil.rmtree(junk, ignore_errors=True)
 print("완료:", os.listdir(work))
