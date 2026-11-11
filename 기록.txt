@@ -1,0 +1,26 @@
+서버: {'ok': True, 'llm_mode': 'groq', 'model': 'openai/gpt-oss-120b', 'stt_mode': 'groq'}
+강의자료: slides (35쪽)
+녹음 파일: 7.4MB
+  [     0초] 정리: transcribing
+  [     9초] 정리: transcribing 50%
+  [    12초] 정리: transcribing
+  [   390초] 정리: processing
+  [   495초] 정리: done
+받아쓰기 303문장 · 필기 23개 (보류함 0개) · 과제 0개 · 요약 done
+[질문 6쪽] Q. 방금 설명한 거 쉽게 다시 설명해 줘
+A. 교수님이 말씀하신 대로, 함수는 입력을 받아서 내부에서 원하는 작업을 수행하고, 마지막에 return 문으로 결과를 돌려주는 작은 프로그램이에요. 마치 프로젝터가 내부 구조를 몰라도 화면을 보여주는 것처럼, 함수도 내부 구현을 몰라도 사용법만 알면 됩니다.
+  [   502초] 정리 PDF: building 0/13쪽
+  [   511초] 정리 PDF: building 1/13쪽
+  [   520초] 정리 PDF: building 2/13쪽
+  [   553초] 정리 PDF: building 3/13쪽
+  [   565초] 정리 PDF: building 4/13쪽
+  [   601초] 정리 PDF: building 5/13쪽
+  [   619초] 정리 PDF: building 6/13쪽
+  [   622초] 정리 PDF: building 7/13쪽
+  [   634초] 정리 PDF: building 8/13쪽
+  [   649초] 정리 PDF: building 9/13쪽
+  [   673초] 정리 PDF: building 10/13쪽
+  [   685초] 정리 PDF: building 11/13쪽
+  [   688초] 정리 PDF: building 12/13쪽
+  [   697초] 정리 PDF: ready
+끝 · 전체 697초 · 정리 PDF ready

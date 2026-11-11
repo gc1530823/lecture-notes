@@ -1,0 +1,303 @@
+[00:00] (1쪽) FUNCTIONS DECOMPOSITION ABSTRACTION
+[00:30] (1쪽) All right, everyone, let's get started.
+[00:32] (1쪽) 大家, 시작해봅시다.
+[00:33] (1쪽) All right, good afternoon on this rainy, sad afternoon.
+[00:36] (1쪽) 晴天,晴天에 좋은 아침입니다.
+[00:37] (4쪽) I'm glad we're inside, though.
+[00:38] (4쪽) でも, 저희가 안에 있는게 좋네요.
+[00:39] (4쪽) Okay, so lecture four of 6.0001 and 600.
+[00:42] (4쪽) 六.0001과600의 4講堂.
+[00:43] (4쪽) Quick, quick recap of what we did last time.
+[00:45] (4쪽) 前回, 저희가 지난 시간에
+[00:46] (4쪽) So last time we did a little bit more string manipulations.
+[00:48] (4쪽) 前回, 우리가 조금 더 string manipulations을 했었죠.
+[00:49] (4쪽) And then we saw how you can use for loops over strings directly.
+[00:52] (4쪽) 그리고, 우리가 직접 4 loop을 4개의 string에 사용할 수 있었죠.
+[00:54] (4쪽) So instead of having for loops that iterate over range, 四 loop을 4개의 range에 의해 사용하는 게 아니라
+[00:57] (4쪽) 0, 1, 2, 3, 4, and so on.
+[00:58] (4쪽) 与此同时, 0, 1, 2, 3, 4, 그리고如此.
+[00:59] (4쪽) It was more powerful to sometimes use four loops 多数次, 4组组을 4개의 수단으로
+[01:03] (4쪽) that iterate over string objects directly.
+[01:06] (4쪽) 与 string object directly.
+[01:08] (4쪽) That was the first half of the lecture.
+[01:09] (4쪽) 第一半是学習的第一部分。
+[01:10] (4쪽) In the second half, we started looking at different ways 第二半,
+[01:11] (4쪽) you can implement different implementations to the same problem.
+[01:16] (4쪽) 不同的方式,同样的方式,
+[01:17] (4쪽) to the same problem.
+[01:18] (4쪽) 同样的方式,同样的方式,
+[01:19] (4쪽) We saw the problem of finding the cube root.
+[01:21] (4쪽) cube root의 찾는 문제.
+[01:22] (4쪽) We saw some implementations.
+[01:25] (4쪽) 計算方式,
+[01:25] (4쪽) GUESS AND CHECK METHOD APPROXIMATION METHOD
+[01:29] (4쪽) 그리고 이 방법은 BISECTION METHOD이 가장 강력한 방법이라고 생각했습니다.
+[01:34] (4쪽) 이 방법은 제가 0에서 100으로 맞춘 방법을 사용한 방법을 기억하실 수 있습니다.
+[01:41] (4쪽) 이 방법을 사용하는 방법으로 정말 빠르게 맞춘 방법을 봤습니다.
+[01:46] (2쪽) 이 방법은 지금 제공하는 방법입니다.
+[01:51] (4쪽) OKAY TODAY SO THAT THAT THAT SORT OF THAT SORT OF FINISHES INTRODUCTION TO SOME OF THE MORE BASIC MECHANISMS IN PYTHON AND TODAY WE'RE GOING TO TALK ABOUT HOW TO STRUCTURE YOUR PROGRAMS SUCH THAT YOU WRITE NICE COHERENT CODE REUSABLE CODE BY HIDING SOME AWAY SOME OF THE DETAILS IN YOUR CODE OKAY AND TO DO THAT WE'RE GOING TO LOOK AT THESE THINGS CALLED FUNCTIONS
+[02:21] (4쪽) 제작진이 제EVEL VIEW of how we write the code so far.
+[02:25] (4쪽) 高度的看法, 지금까지的文字寫法.
+[02:26] (4쪽) So far, the way that you've been writing code for your programs is 目前, 프로그램에 대한文字寫法的方式 you open a file, you type some code to solve a particular problem given, 開放了一份文件,解決某個問題
+[02:37] (4쪽) like in your problem sets.
+[02:38] (4쪽) 例如,問題 세트中
+[02:40] (4쪽) Each file contains some piece of code.
+[02:42] (4쪽) 每份文件中,各項文件中有某些文件
+[02:43] (4쪽) You have sequences of instructions that contain maybe 指示項目,
+[02:46] (4쪽) assignments, loops, conditionals, and so on and so on.
+[02:49] (4쪽) 教室, 루프,条件, 그리고等等
+[02:50] (4쪽) But really, you have one file that contains each code.
+[02:53] (4쪽) 実際上, 각項文件中, 각項文件中
+[02:53] (4쪽) and you write everything in that particular file.
+[02:56] (4쪽) 全て 그 파일에 적는 것입니다.
+[02:56] (4쪽) But this is okay for smaller problems that we've been seeing so far.
+[03:01] (4쪽) 但現在 우리가見到的小問題上
+[03:01] (4쪽) but when you're starting to write large pieces of code, 但你開始寫大部分的文字
+[03:03] (4쪽) it's going to get really messy really quickly.
+[03:06] (4쪽) 非常複雜,非常 빠르게 변화할 것입니다.
+[03:06] (4쪽) So think about if you want to use a for loop in one part of your code.
+[03:09] (4쪽) コード의 한 부분에
+[03:09] (4쪽) and you find it useful to use that same for loop in another part of your code.
+[03:13] (4쪽) 同樣的,コード의另一部分에
+[03:13] (4쪽) at some point in the future as you're debugging your code, 未來,你改變你的原本的for loop
+[03:18] (4쪽) you might want to change your original for loop.
+[03:20] (4쪽) 다른의 곳에
+[03:20] (4쪽) FOURLOOP FOURLOOP
+[03:50] (5쪽) add more functionality to your programs.
+[03:52] (5쪽) 更多功能을增加하는方法.
+[03:54] (4쪽) How many different things, 各 프로그램의不同要素材
+[03:56] (4쪽) how many different features can your program do?
+[03:57] (4쪽) 各 프로그램의不同要素材
+[03:58] (4쪽) rather than how long can your code be?
+[03:59] (4쪽) 程式의長期性能?
+[04:01] (4쪽) That will help you later on look at your code 後來,
+[04:03] (4쪽) if you need it for a future class.
+[04:03] (4쪽) 未來의 학습에 필요하면
+[04:04] (6쪽) and it will help others if they want to look at your code 後來,
+[04:05] (6쪽) if they find it useful.
+[04:07] (6쪽) 用心的 경우,
+[04:07] (6쪽) later on if they find it useful.
+[04:09] (6쪽) 後來,
+[04:10] (6쪽) Today we are introducing this idea of functions.
+[04:12] (6쪽) 今天,
+[04:12] (6쪽) functions are mechanisms to achieve  функ션.
+[04:16] (6쪽) decomposition and abstraction.
+[04:17] (6쪽) 解析和 엑스트랙션.
+[04:17] (6쪽) 2가지 키워드에 대해 설명드리겠습니다.
+[04:24] (6쪽) FUNCTIONS의 컨텍스트에 대해 DECOMPOSITION ABSTRACTION을 소개해드리겠습니다.
+[04:29] (6쪽) 첫 번째는 실생활의 예를 들어봅시다.
+[04:33] (6쪽) 프로젝터를 사용하겠습니다.
+[04:36] (6쪽) 손을 쭉쭉 잡습니다.
+[04:39] (6쪽) if i give you all of the electronic components that are part of a projector, right?
+[04:55] (6쪽) 如果我給你所有電子組件, 螢光、燈、鏡子、所有不同的部分, 誰會可以建造一個鏡子?
+[05:02] (6쪽) 誰會可以建造一個鏡子?
+[05:04] (6쪽) do i see a hand?
+[05:07] (10쪽) no?
+[05:08] (10쪽) oh yeah nice you can also lie i won't know the difference but if yDECOMPOSITION ABSTRACTION
+[05:24] (10쪽) of the class.
+[05:25] (6쪽) That's perfect.
+[05:26] (6쪽) That's exactly the answers I was trying to get at here.
+[05:30] (6쪽) So none of us really know how projector works, right?
+[05:33] (6쪽) The internals.
+[05:34] (6쪽) But a lot more of us know how to work a projector, right?
+[05:38] (6쪽) Just given maybe a set of basic instructions or just intuitively speaking.
+[05:43] (6쪽) Okay.
+[05:43] (6쪽) So you see the projector as sort of a black box, right?
+[05:47] (6쪽) You don't need to know how it works in order to use it, right?
+[05:51] (6쪽) You know maybe what inputs it might take, what's it,
+[05:54] (6쪽) high level, right?
+[05:56] (6쪽) 高層的工作,對嗎?
+[05:56] (6쪽) whatever is on my screen and put it up on the large screen there, 視線上的任何東西都放在我面前
+[06:01] (6쪽) just magnify it.
+[06:02] (6쪽) 光線上的任何東西都放在我面前
+[06:03] (6쪽) but you don't know how it does it, right?
+[06:04] (6쪽) 但你不知道它怎麼做
+[06:04] (6쪽) how the components work together.
+[06:06] (6쪽) 成品如何合作
+[06:06] (6쪽) so that's the idea of abstraction.
+[06:08] (6쪽) 這樣就是 abstraction.
+[06:08] (6쪽) you don't need to know how the projector works in order to use it.
+[06:12] (6쪽) 用它使用的方法,你不需要知道
+[06:13] (6쪽) okay, that's abstraction.
+[06:14] (6쪽) 這樣就是 abstraction.
+[06:15] (6쪽) the other half of that was decomposition.
+[06:17] (6쪽) 另一半就是 DECOMPOSITION
+[06:18] (6쪽) so let's say that now given a projector, 現在,我用一個偵測器
+[06:22] (6쪽) I want to project a very, very large image down on a very large stage.
+[06:27] (6쪽) 想要在非常大的畫面下投放一個非常大的畫面
+[06:28] (6쪽) For example, this is from one of the Olympics.
+[06:30] (6쪽) 例如這是一場 올림픽比賽
+[06:31] (6쪽) It's a stage of 10 football fields, something like that.
+[06:34] (6쪽) 這是一場10個球場,類似的
+[06:35] (6쪽) Something massive.
+[06:35] (6쪽) 非常巨大的東西
+[06:36] (6쪽) You could build one projector that's able to project a very large image, 能夠建造一個非常大的畫面
+[06:39] (6쪽) but that would be really expensive, 但那會很貴
+[06:41] (6쪽) and you'd have to build this one projector that's used for this one time.
+[06:44] (6쪽) 而且你會需要一個一個的畫面
+[06:47] (6쪽) So instead, what you could do is you could take a bunch of smaller projectors.
+[06:51] (6쪽) 而你可以用一些比較小的畫面
+[06:52] (7쪽) and feed different inputs to each one of them.
+[06:55] (6쪽) 各각의 input에 다양한 input을 옮겨서
+[06:56] (7쪽) and as you're feeding different inputs, 各각의 input에 다양한 input을 옮겨서
+[06:58] (7쪽) each one is going to show a different output.
+[06:59] (7쪽) 各각의 input에 다양한 input을 옮겨서
+[07:00] (7쪽) and then you're going to be able to have 各각의 output에 다양한 input을 옮겨서
+[07:01] (7쪽) all of these different projectors working together 各각의 output에 다양한 projectorsを
+[07:02] (7쪽) to solve this larger problem of 共同的に
+[07:05] (7쪽) projecting this really cool image on a very large stage.
+[07:07] (7쪽) 非常 멋진 이미지를
+[07:08] (7쪽) project at a very large stage.
+[07:10] (7쪽) 非常 큰 스테이지에 연결하는 문제입니다.
+[07:11] (7쪽) So that's the idea of decomposition.
+[07:14] (7쪽) 그는 DECOMPOSITION의 개념입니다.
+[07:16] (7쪽) You take the same projector, 同じ projectors를
+[07:19] (7쪽) 다른 인풋을 먹여요.
+[07:21] (7쪽) 그는 그 뒷면의 똑같은 일을 합니다.
+[07:23] (7쪽) 하지만 각각의 인풋에 다른 output를 생성할 것입니다.
+[07:25] (7쪽) 그래서 이 다양한 기술의 output를 제공하는 것입니다.
+[07:27] (7쪽) So these different devices are going to work together 各 제품이 동의 목표에 to achieve the same common goal.
+[07:33] (7쪽) 同じ目標을達成するために That's the idea of decomposition.
+[07:35] (7쪽) 同じ目標을達成するための構想です。
+[07:36] (7쪽) So these were applied to the problem of  이는
+[07:39] (7쪽) projecting large image or projector in general 大型 이미지, 전형적인 프로젝터에
+[07:42] (8쪽) but we can apply these exact same concepts to programming.
+[07:45] (8쪽) 同じ 컨셉을 프로그래밍에 사용할 수 있습니다.
+[07:47] (8쪽) So decomposition is really just the problem of デコンポジション은
+[07:50] (8쪽) creating structure in your code.
+[07:52] (8쪽) コード의 구성성에 대한 문제입니다.
+[07:53] (7쪽) Projector example separate devices working together.
+[07:55] (7쪽) 顧客規模例,各 기능이 함께 사용됩니다.
+[07:58] (7쪽) Programming to achieve decomposition, 計算方法, DECOMPOSITION을達成するため
+[08:01] (9쪽) you're dividing your code into smaller modules.
+[08:02] (9쪽) コードを小さく分割するため
+[08:03] (9쪽) These are going to be self-contained.
+[08:04] (9쪽) コードが独自含まれている
+[08:05] (9쪽) You can think of them as mini programs.
+[08:08] (9쪽) コードを小さく分割するため
+[08:09] (9쪽) You feed in some input to them.
+[08:10] (9쪽) コード에入力すると
+[08:10] (9쪽) They do a little task.
+[08:11] (9쪽) コードに入力すると
+[08:12] (9쪽) Then they give you something back.
+[08:13] (9쪽) コードに入力すると
+[08:13] (9쪽) They go off and do their thing.
+[08:15] (9쪽) コードを取り戻すと
+[08:15] (9쪽) They give back a result.
+[08:16] (9쪽) 結果を取り戻すこと
+[08:17] (9쪽) 이 모듈은 코드를 분석할 수 있습니다.
+[08:19] (9쪽) 이 모듈은 코드를 분석할 수 있습니다.
+[08:22] (9쪽) 그리고 중요한 것은, 이것은 사용 가능합니다.
+[08:26] (9쪽) 그래서, 모듈을 한 번 써서, 한 가지 코드를 만들 수 있는 작은 코드입니다.
+[08:30] (9쪽) 한 번을 드리브하고, 그리고 여러 번 코드를 사용할 수 있습니다.
+[08:35] (9쪽) 다른 인품들과 함께.
+[08:37] (9쪽) 이 방법은 코드를 정리하고, 코드를 적용하고,
+[08:41] (9쪽) 코드를 적용하고, 코드를 적용하고,
+[08:43] (9쪽) FUNCTIONS are going to be used to achieve decomposition and to create structure in our code.
+[08:48] (9쪽) We're going to see functions today in this lecture and in a few weeks you're going to actually see when we talk about object-oriented programming how you can achieve decomposition with classes.
+[08:59] (9쪽) And with classes you can create your own object types like ints and floats.
+[09:03] (9쪽) You can create your own object types for whatever you want.
+[09:06] (9쪽) But that's later.
+[09:06] (9쪽) DECOMPOSITION is creating structure in your code.
+[09:11] (9쪽) 解割是新的構成,新的構成
+[09:12] (9쪽) ABSTRACTION is the idea of suppressing details.
+[09:14] (10쪽) 而 ABSTRACTION是解割的意思
+[09:15] (10쪽) So in the projector example, remember ABSTRACTION was 例如,你不必知道
+[09:18] (10쪽) you didn't need to know exactly how the projector worked in order to use it.
+[09:21] (10쪽) 用來使用的方法是如何
+[09:21] (10쪽) And it's going to be the same idea in programming.
+[09:24] (10쪽) 同樣的想法
+[09:24] (10쪽) So once you write a piece of code that does a little task, 一個小項目,你寫一個小項目
+[09:28] (10쪽) you don't need to rewrite that piece of code many times.
+[09:30] (10쪽) 很多次寫一個小項目,不用重新寫
+[09:30] (10쪽) You've written it once, and you write this thing called 一個一回寫
+[09:33] (10쪽) and you write this thing called a function specification for it or a doc string.
+[09:36] (10쪽) 文字名称叫做Doc String.
+[09:36] (10쪽) And this is a piece of text that tells anyone else who'd want to use it in the future, 文字名称是一個文字的文字,
+[09:41] (10쪽) you know other people, maybe yourself, it tells them how do you use this function, 未來的人,可能自己,你自己也會想用它。
+[09:46] (10쪽) What inputs does it take?
+[09:47] (10쪽) What's the type of the inputs?
+[09:49] (10쪽) 入口的入口는多少?
+[09:49] (10쪽) What is the function supposed to do?
+[09:51] (10쪽) 入口的入口는怎樣?
+[09:51] (6쪽) And what is the output that you're going to get out of it?
+[09:54] (6쪽) 出口的出口는?
+[09:54] (6쪽) So they don't need to know exactly how you implemented the function.
+[09:57] (6쪽) 入口는 어떻게 진행?
+[09:57] (6쪽) They just need to know inputs, what it does, what's the output.
+[09:59] (6쪽) 入口은 어떻게 진행?
+[10:00] (6쪽) 3가지를 제공합니다.
+[10:04] (6쪽) OK.
+[10:05] (6쪽) 이 FUNCTIONS은
+[10:06] (6쪽) 코드의 사용 가능한 구조입니다.
+[10:08] (6쪽) 오늘 수업에서 몇 가지 예를 볼 수 있습니다.
+[10:10] (6쪽) 어떻게 적는 것과
+[10:12] (6쪽) 어떻게 불러주는 것,
+[10:14] (6쪽) 그리고 오늘의 코드를 통해
+[10:16] (6쪽) 생각해보시기 바랍니다.
+[10:18] (6쪽) 두 가지의 핏을 입은
+[10:20] (6쪽) FUNCTIONS에 대해 생각해보시기 바랍니다.
+[10:22] (6쪽) 첫 번째 핏은
+[10:24] (6쪽) 수업을 적는 사람의 핏입니다.
+[10:26] (6쪽) 그래서 프로젝터 예를 들면
+[10:28] (6쪽) FUNCTIONS
+[10:58] (6쪽) FUNCTIONS name parameters inputs zero inputs DOC STRING
+[11:39] (6쪽) function definition is up here.
+[11:45] (6쪽) 功能定義はこちら。
+[11:46] (12쪽) this is the function definition up here and this is the function call down here.
+[11:49] (12쪽) 這個功能定義在這裡,
+[11:50] (12쪽) so remember someone has to write the function you know that that does something to begin with.
+[11:55] (12쪽) 記住有人需要先開始寫一項功能
+[11:56] (12쪽) with so this is how you write the function the first is whoops the first is going to be this def keyword and def 開始用來寫功能這個Def鍵
+[12:06] (12쪽) DEF stands for it tells Python I'm going to define a FUNCTION.
+[12:09] (12쪽) DEF stands for it tells Python I'm going to define a FUNCTION.
+[12:12] (12쪽) Next is the name of the function.
+[12:17] (13쪽) In this case I'm calling the function is underscore even.
+[12:24] (13쪽) The function name should really be something descriptive, whereas someone who is just using this function or looking at it can pretty much tell what it is supposed to do without going a lot further than that, than just looking at thion definition
+[12:54] (13쪽) part of the function is going to be indented.
+[12:57] (13쪽) 地方是揉成的。
+[12:57] (13쪽) the next part is going to be the doc string or the specification.
+[13:01] (13쪽) 第二部分就是 丘制或定式。
+[13:01] (13쪽) this is how we achieve abstraction using functions.
+[13:05] (13쪽) 這種方式是用功術達成的。
+[13:06] (4쪽) specification of the doc string starts with triple quotes 定式和丘制的定式
+[13:10] (4쪽) and ends with triple quotes 結束後,
+[13:12] (4쪽) and you can sort of think about this as a multi-line comment.
+[13:14] (4쪽) 你就可以想像這像多個線的留言。
+[13:14] (4쪽) it's just going to be text, it's going to be visible to whoever uses the function 整語形式只會顯示到誰使用功能。
+[13:19] (4쪽) and it should tell them the following things.
+[13:22] (4쪽) 它們應該告訴它們,
+[13:22] (4쪽) FUNCTIONS input function, function generally, function give back function body, function definition
+[14:09] (4쪽) FUNCTIONS parameters as the function is EXPECTING.
+[14:12] (5쪽) 限定的FUNCTIONs.
+[14:12] (4쪽) in this case only one parameter.
+[14:13] (14쪽) 只限定了一種FUNCTION.
+[14:22] (13쪽) so what's inside the function body?
+[14:24] (13쪽) 功能內容是什麼?
+[14:24] (13쪽) you can put anything inside the function body.
+[14:26] (13쪽) 功能內容可以放任何東西。
+[14:26] (13쪽) you remember think of a function as a small procedure 功能內容是小手段
+[14:28] (13쪽) or a little mini program that does something.
+[14:30] (13쪽) 做一些小手段。
+[14:30] (13쪽) so you can do anything inside the function 功能內容內容
+[14:33] (13쪽) that you can do in a regular program.
+[14:35] (13쪽) 通常的方式.
+[14:35] (13쪽) print things, do mathematical operations and so on.
+[14:38] (13쪽) 印刷,研究,等等。
+[14:39] (13쪽) The last line is the most important part of the function, though.
+[14:42] (13쪽) 最後線是功能的重要部分。
+[14:44] (20쪽) And it's this return statement.
+[14:46] (20쪽) 這是回復的指定。
+[14:46] (20쪽) That's what we call it.
+[14:47] (20쪽) 這是我們稱之為的。
+[14:47] (20쪽) So it's a line of code that starts with return, 這是回復的指定。
+[14:50] (4쪽) which is a keyword.
+[14:51] (4쪽) 這是一個關鍵詞。
+[14:52] (20쪽) And then it's going to be some value.
+[14:54] (20쪽) 之後會有一個價值。
+[14:55] (20쪽) Okay?
+[14:56] (20쪽) 看,
+[14:56] (4쪽) Notice this is an expression here.
+[14:57] (4쪽) 這是一個表現。
+[14:57] (4쪽) i%2 is equal equal 0.
+[14:59] (4쪽) i%2是0等級。

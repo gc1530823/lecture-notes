@@ -1,0 +1,5 @@
+받아쓰기 정확도 (공식 자막과 비교, 앞 15분)
+- 자막 단어 2041개 · 우리 받아쓰기 단어 1935개
+- 단어 오류율(WER) 53.8% → 정확도 약 46.2%
+- 슬라이드 용어 중 자막에 나온 90개 가운데 74개를 맞게 받아씀 (82%)
+  놓친 용어: break, characteristics, chunks, computer, docstring, harder, introduce, materials, necessarily, opencourseware, optional, organized, produce, recommended, track
