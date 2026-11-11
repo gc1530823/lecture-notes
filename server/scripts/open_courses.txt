@@ -1,0 +1,15 @@
+# 매일 돌려 가며 쓰는 공개 강의 (슬라이드/노트 PDF + 영상 mp4 + 공식 자막이 함께 공개된 것)
+# 전부 MIT OpenCourseWare, CC BY-NC-SA 4.0 (비영리). 유튜브에서 내려받지 않는다 (OCW는 archive.org 사본을 공개).
+# 줄을 더하면 다음 날부터 섞여 들어간다. 확인: python scripts/fetch_open_lecture.py --discover scripts/open_courses.txt
+https://ocw.mit.edu/courses/6-0001-introduction-to-computer-science-and-programming-in-python-fall-2016   # 프로그래밍 입문
+https://ocw.mit.edu/courses/6-0002-introduction-to-computational-thinking-and-data-science-fall-2016      # 데이터 과학
+https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020                                 # 알고리즘
+https://ocw.mit.edu/courses/14-01-principles-of-microeconomics-fall-2018                                # 미시경제
+https://ocw.mit.edu/courses/6-172-performance-engineering-of-software-systems-fall-2018                 # 시스템
+https://ocw.mit.edu/courses/9-13-the-human-brain-spring-2019                                            # 뇌과학
+https://ocw.mit.edu/courses/15-401-finance-theory-i-fall-2008                                           # 재무
+https://ocw.mit.edu/courses/7-016-introductory-biology-fall-2018                                        # 생물
+https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-spring-2015                          # 이산수학
+https://ocw.mit.edu/courses/6-s191-introduction-to-deep-learning-january-iap-2020                       # 딥러닝
+https://ocw.mit.edu/courses/18-650-statistics-for-applications-fall-2016                                # 통계
+https://ocw.mit.edu/courses/5-111sc-principles-of-chemical-science-fall-2014                            # 화학
