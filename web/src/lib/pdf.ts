@@ -32,10 +32,16 @@ function loadLib(): Promise<PdfJs> {
 const docs = new Map<string, Promise<PdfDoc>>();
 export function loadPdf(docId: string): Promise<PdfDoc> {
   if (!docs.has(docId)) {
-    const p = loadLib().then((pdfjs) => pdfjs.getDocument({
-      url: `${import.meta.env.VITE_API_URL ?? ""}/documents/${docId}/pdf`,
-      cMapUrl: BASE + "cmaps/", cMapPacked: true, standardFontDataUrl: BASE + "standard_fonts/",
-    }).promise);
+    const url = `${import.meta.env.VITE_API_URL ?? ""}/documents/${docId}/pdf`;
+    const p = loadLib().then(async (pdfjs) => {
+      const common = { cMapUrl: BASE + "cmaps/", cMapPacked: true, standardFontDataUrl: BASE + "standard_fonts/" };
+      // 데모 빌드는 서버가 없어 미리 받아 둔 파일을 직접 읽어 넘긴다
+      if (import.meta.env.VITE_DEMO === "1") {
+        const data = new Uint8Array(await (await fetch(url)).arrayBuffer());
+        return pdfjs.getDocument({ data, ...common }).promise;
+      }
+      return pdfjs.getDocument({ url, ...common }).promise;
+    });
     p.catch(() => docs.delete(docId));
     docs.set(docId, p);
   }

@@ -187,3 +187,27 @@ def test_hindsight_context_adds_what_came_next_and_the_summary(tmp_path):
     assert "학습률이 크면 발산해요." not in extra.split("<after_speech>")[1].split("</after_speech>")[0]
     assert "경사하강법과 역전파" in extra
     assert relabel.context_for({**record, "session_id": "없는 강의"}, db) is None
+
+
+def test_slide_truth_matches_video_frames_to_pages_and_scores_tracking():
+    import numpy as np
+
+    st = load_script("slide_truth")
+    rng = np.random.default_rng(0)
+    base = np.full((st.H, st.W), 250.0)
+    base[:6] = 60  # 모든 쪽에 같은 제목 띠 (공통 바탕은 빼고 비교해야 한다)
+    pages = []
+    for i in range(5):
+        page = base.copy()
+        page[10 + i * 6: 14 + i * 6, 8: 8 + 10 * (i + 1)] = 30  # 쪽마다 다른 글 덩어리
+        pages.append(page)
+    pages = np.stack(pages)
+    camera = rng.uniform(40, 200, (st.H, st.W))
+    # 화면비가 달라 위아래에 검은 띠가 생긴 영상: 쪽 전체를 줄여 가운데에 넣는다
+    letterbox = lambda img: np.vstack([np.full((6, st.W), 16.0), img[np.linspace(0, st.H - 1, st.H - 12).astype(int)], np.full((6, st.W), 16.0)])
+    frames = np.stack([pages[0], pages[0], letterbox(pages[2]), pages[2] + rng.normal(0, 8, pages[2].shape), camera, pages[1]])
+    truth = st.match(frames, pages)
+    assert truth[:4] == [1, 1, 3, 3] and truth[4] is None and truth[5] == 2
+    transcript = "[00:00] (1쪽) 가\n[00:06] (3쪽) 나\n[00:10] (4쪽) 다 (틀린 쪽)\n"
+    s = st.score(truth, transcript)
+    assert s["sentences"] == 3 and abs(s["exact"] - 2 / 3) < 1e-6

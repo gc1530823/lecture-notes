@@ -45,8 +45,9 @@
   color-scheme: light dark;
 }
 
+/* 다크: 기기 설정을 따르되, 화면에서 직접 고른 테마(data-theme)가 이긴다 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg-paper: #141416;
     --bg-card: #26262b;
     --text-primary: #f2f0ec;
@@ -56,8 +57,22 @@
     --accent-record: #ff5a5f;
     --border-line: #34343a;
     --shadow-card: 0 4px 14px rgb(0 0 0 / 0.35);
+    color-scheme: dark;
   }
 }
+:root[data-theme="dark"] {
+    --bg-paper: #141416;
+    --bg-card: #26262b;
+    --text-primary: #f2f0ec;
+    --text-secondary: #a9a59e;
+    --text-tertiary: #6f6c67;
+    --accent-primary: #7a73ff;
+    --accent-record: #ff5a5f;
+    --border-line: #34343a;
+    --shadow-card: 0 4px 14px rgb(0 0 0 / 0.35);
+    color-scheme: dark;
+}
+
 
 /* 글자 스타일 (Figma Text styles) */
 .t-title-l { font: 900 28px/36px var(--font-sans); }
