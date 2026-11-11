@@ -33,6 +33,11 @@ jobs:
       KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v5
+      - name: Free disk space
+        # 모델 파일(2.5GB)·Ollama 사본·나눈 조각이 한꺼번에 들어가야 해서, 빌드 서버에 미리 깔린 안 쓰는 도구를 지운다
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost || true
+          df -h / | tail -1
       - name: Check Kaggle key
         run: |
           if [ -z "$KAGGLE_USERNAME" ] || { [ -z "$KAGGLE_KEY" ] && [ -z "$KAGGLE_API_TOKEN" ]; }; then
@@ -112,9 +117,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # 채점에 쓴 Ollama 사본은 지워 자리를 만든다
+          (ollama rm lecture-notes > /dev/null 2>&1 || true); rm -rf ~/.ollama/models 2>/dev/null || true
           cd /tmp/out
           # GitHub 릴리스 파일은 2GB까지라 1.9GB씩 나눠 올린다 (받아서 이어 붙이면 원래 파일)
-          split -b 1900m -d lecture-notes.gguf lecture-notes.gguf.part
+          split -b 1900m -d lecture-notes.gguf lecture-notes.gguf.part && rm lecture-notes.gguf
+          df -h /tmp | tail -1
           sed -i 's|^FROM .*|FROM ./lecture-notes.gguf|' Modelfile
           N=$(wc -l < /tmp/ds/train.jsonl)
           NOTES="우리 AI (학습 데이터 ${N}개, 바탕 ${{ inputs.base || 'unsloth/Qwen3-4B-Instruct-2507' }}). 받는 법: training/README.md
