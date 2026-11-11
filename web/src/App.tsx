@@ -5,6 +5,7 @@ import { JokboScreen, PrivacyScreen, ReviewScreen } from "./screens/ExamPrep";
 import Home from "./screens/Home";
 import Lecture from "./screens/Lecture";
 import Semester from "./screens/Semester";
+import Search from "./screens/Search";
 import Session from "./screens/Session";
 import { href, useRoute } from "./router";
 
@@ -23,6 +24,7 @@ function screen(route: ReturnType<typeof useRoute>) {
     case "review": return <ReviewScreen />;
     case "privacy": return <PrivacyScreen />;
     case "semester": return <Semester tab={route.tab} />;
+    case "search": return <Search />;
     case "lecture": return <Lecture key={route.docId + (route.sessionId ?? "")} docId={route.docId} sessionId={route.sessionId} />;
     case "session": return <Session docId={route.docId} sessionId={route.sessionId} tab={route.tab} />;
   }

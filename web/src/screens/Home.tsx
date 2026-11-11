@@ -1,10 +1,12 @@
 // 1 자료 목록 (Figma "03 디자인 / 1 자료 목록")
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DocumentBrief } from "../api/types";
-import { postJSON, useApi } from "../api/useApi";
+import { getJSON, postJSON, useApi } from "../api/useApi";
+import { android } from "../lib/live";
 import { Button, Chip, Empty, Icon, ListItem } from "../components/ui";
 import { ReviewBanner } from "./ExamPrep";
 import { ExamBanner } from "./Semester";
+import { Onboarding } from "./Onboarding";
 import { go } from "../router";
 
 
@@ -22,8 +24,30 @@ export function relativeDay(seconds: number): string {
   return new Date(seconds * 1000).toLocaleDateString("ko-KR", { month: "long", day: "numeric" });
 }
 
+/** 안드로이드 앱: 매일 저녁 8시 복습·시험 알림 글을 최신 숫자로 맞춰 둔다 */
+function useReminder() {
+  useEffect(() => {
+    const app = android();
+    if (!app?.setReminder) return;
+    Promise.all([
+      getJSON<{ cards: unknown[]; total: number }>("/review/today").catch(() => null),
+      getJSON<{ title: string; exam_date: string }[]>("/exams").catch(() => []),
+    ]).then(([review, exams]) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const exam = (exams ?? []).find((e) => e.exam_date >= today);
+      const days = exam ? Math.round((new Date(exam.exam_date + "T00:00:00").getTime() - new Date(today + "T00:00:00").getTime()) / 86400000) : null;
+      const count = review?.cards.length ?? 0;
+      if (!review?.total && !exam) return;
+      const title = count ? `오늘 복습 ${count}장이 기다려요` : "오늘 강의 복습할 시간이에요";
+      const text = [exam ? `${exam.title} ${days === 0 ? "D-DAY" : `D-${days}`}` : "", "눌러서 바로 복습하기"].filter(Boolean).join(" · ");
+      app.setReminder!(title, text, 20, 0);
+    });
+  }, []);
+}
+
 export default function Home() {
   const { data: docs, error, loading, reload } = useApi<DocumentBrief[]>("/documents");
+  useReminder();
   // 과목 폴더: "all" = 전체, "" = 과목 없음, 그 밖에는 과목 이름 (기기에 기억)
   const [filter, setFilter] = useState<string>(() => { try { return localStorage.getItem("ln.course") ?? "all"; } catch { return "all"; } });
   const pick = (c: string) => { setFilter(c); try { localStorage.setItem("ln.course", c); } catch { /* 괜찮다 */ } };
@@ -77,6 +101,7 @@ export default function Home() {
       <header className="home-head">
         <div className="row">
           <span className="t-caption muted grow">{today}</span>
+          <button className="top-bar-back" onClick={() => go({ name: "search" })} aria-label="모든 강의에서 찾기"><Icon name="book-open-text" /></button>
           <button className="top-bar-back" onClick={() => go({ name: "privacy" })} aria-label="개인정보와 녹음"><Icon name="shield-check" /></button>
         </div>
         <h1 className="t-title-l">내 강의</h1>
@@ -115,6 +140,7 @@ export default function Home() {
           </section>
         ))}
       </div>
+      <Onboarding />
       <div className="home-actions">
         <Button variant="secondary" icon="note-pencil" onClick={() => newNotebook()} disabled={!!busy}>노트 수업</Button>
         <Button icon="tray-arrow-down" onClick={() => file.current?.click()} disabled={!!busy}>{busy ?? "강의자료 올리기"}</Button>

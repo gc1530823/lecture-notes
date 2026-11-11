@@ -103,6 +103,10 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           setNotes(a);
           setTasks(t);
           setTerms(g);
+          // 검색에서 왔으면 그 쪽부터
+          let jump: number | null = null;
+          try { jump = Number(sessionStorage.getItem("ln.jump")) || null; sessionStorage.removeItem("ln.jump"); } catch { /* 괜찮다 */ }
+          if (jump) { setPage(jump); return; }
           // 다시 볼 때 1쪽에 필기가 없으면 필기가 있는 첫 쪽부터 연다
           const first = a.filter((n) => !n.pending).map((n) => n.page_no).sort((x, y) => x - y)[0];
           if (first && !a.some((n) => n.page_no === pageRef.current && !n.pending)) setPage(first);
@@ -407,6 +411,19 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     setPhotoBusy(false);
   };
 
+  // 확인 필요 필기가 맞다고 확인 (틀렸으면 길게 눌러 고치거나 지운다) → 우리 AI 학습에 확인된 정답으로
+  const confirmNote = async (n: Note) => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/annotations/${n.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: true }),
+      });
+      if (!res.ok) throw new Error("확인하지 못했어요");
+      const updated = await res.json();
+      setNotes((all) => all.map((x) => (x.id === n.id ? updated : x)));
+      toast("확인했어요 · 우리 AI가 배워요");
+    } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
+  };
+
   // ⭐ 여기 중요: 방금 설명한 문장을 강조 필기로 (시험 예상 지도·족보에 들어간다)
   const starHere = async () => {
     if (!sessionId) return;
@@ -552,11 +569,15 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
             ) : (
               <div className="postit-grid">
                 {visible.map((n, i) => (
-                  <div key={n.id} className={`postit-slot${n.id === selected ? " sel" : ""}${n.id === fresh ? " fresh" : ""}${n.preview ? " preview" : ""}`}
+                  <div key={n.id} className={`postit-slot${!n.preview && !n.edited_by_user && (n.confidence ?? 1) < 0.6 ? " unsure" : ""}${n.id === selected ? " sel" : ""}${n.id === fresh ? " fresh" : ""}${n.preview ? " preview" : ""}`}
                     onClick={() => setSelected(selected === n.id ? null : n.id)}
                     onContextMenu={(e) => { e.preventDefault(); void editNote(n); }}>
                     <PostIt type={n.type} number={i + 1} photo={n.photo_id ? `${import.meta.env.VITE_API_URL ?? ""}/photos/${n.photo_id}` : null}
                       tag={n.preview ? "AI가 정리 중…" : beyond.has(n.id) ? "슬라이드에 없는 설명" : n.edited_by_user ? "직접 씀·고침" : undefined}>{n.text}</PostIt>
+                    {!n.preview && !n.edited_by_user && (n.confidence ?? 1) < 0.6 && (
+                      <button className="confirm-chip" onClick={(e) => { e.stopPropagation(); void confirmNote(n); }}
+                        aria-label="AI가 쪽을 확신하지 못한 필기예요. 맞으면 눌러 주세요">확인 필요 · 맞아요</button>
+                    )}
                     {n.id === selected && !n.preview && (
                       <button className="source-chip" onClick={(e) => { e.stopPropagation(); setSheet({ source: n.id }); }}>
                         <Icon name="chat-teardrop-text" size={14} /> 근거 보기

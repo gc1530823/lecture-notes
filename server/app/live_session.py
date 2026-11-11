@@ -308,6 +308,11 @@ class LiveSession:
                 batch.start_ms,
                 pending=pending,
             )
+            # 쪽 추정이 흔들렸던 필기는 확신을 낮게 남겨 화면에 "확인 필요"로 보인다 (후보 여럿 중 AI가 고른 경우)
+            confidence = batch.estimate.confidence if len(candidates) > 1 else max(batch.estimate.confidence, 0.8)
+            if confidence < 1:
+                self.db.set_confidence(annotation["id"], confidence)
+                annotation = self.db.get_annotation(annotation["id"])
             await self.send({"type": "annotation_added", "annotation": annotation})
 
         for item in results.get("terms", [])[:3]:

@@ -6,7 +6,7 @@ import type { NoteType } from "../api/types";
 /** Phosphor 아이콘 (MIT, public/icons.svg 스프라이트) */
 export function Icon({ name, size = 22 }: { name: string; size?: number }) {
   return (
-    <svg className="icon" width={size} height={size} aria-hidden="true">
+    <svg className="icon" width={size} height={size} style={{ width: size, height: size }} aria-hidden="true">
       <use href={`${import.meta.env.BASE_URL}icons.svg#${name}`} />
     </svg>
   );

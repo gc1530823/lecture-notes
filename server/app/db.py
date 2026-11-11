@@ -206,6 +206,11 @@ class Database:
         if "course" not in columns:
             self._conn.execute("ALTER TABLE documents ADD COLUMN course TEXT NOT NULL DEFAULT ''")
             self._conn.commit()
+        # confidence: AI가 그 쪽이 맞다고 본 확신 (0~1, 사람이 쓰거나 확인하면 1). 낮으면 화면에 "확인 필요"
+        columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(annotations)")}
+        if "confidence" not in columns:
+            self._conn.execute("ALTER TABLE annotations ADD COLUMN confidence REAL NOT NULL DEFAULT 1")
+            self._conn.commit()
         # loud: 목소리를 높여 말한 문장 (실시간 녹음에서 소리 크기로 잰다)
         columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(transcript_segments)")}
         if "loud" not in columns:
@@ -260,7 +265,44 @@ class Database:
                                    [(page_id, b["x"], b["y"], b["w"], b["h"], b["text"]) for b in blocks])
 
     def mark_user_annotation(self, ann_id: int) -> None:
-        self._write("UPDATE annotations SET edited_by_user = 1 WHERE id = ?", (ann_id,))
+        self._write("UPDATE annotations SET edited_by_user = 1, confidence = 1 WHERE id = ?", (ann_id,))
+
+    def set_confidence(self, ann_id: int, confidence: float) -> None:
+        self._write("UPDATE annotations SET confidence = ? WHERE id = ?", (round(confidence, 3), ann_id))
+
+    def confirm_annotation(self, ann_id: int) -> dict | None:
+        """사용자가 "맞아요"를 눌렀다: 확신 1로, 학습 데이터에는 '확인됨'으로 남긴다."""
+        before = self.get_annotation(ann_id)
+        if before is None:
+            return None
+        self._write("""INSERT INTO feedback (session_id, annotation_id, action, original_text, original_type, new_text, new_page_no, created_at)
+                       VALUES (?, ?, 'confirm', ?, ?, NULL, ?, ?)""",
+                    (before["session_id"], ann_id, before["text"], before["type"], before["page_no"], time.time()))
+        self.set_confidence(ann_id, 1.0)
+        return self.get_annotation(ann_id)
+
+    def search(self, query: str, limit: int = 60) -> list[dict]:
+        """모든 강의에서 찾기: 필기·교수님 말·용어·슬라이드 글. 최근 강의부터."""
+        like = f"%{query}%"
+        out = []
+        out += [{**r, "kind": "note"} for r in self._query(
+            """SELECT a.text, a.type AS note_type, a.start_ms, p.page_no, s.id AS session_id, d.id AS doc_id, d.title, d.course, s.started_at
+               FROM annotations a JOIN pages p ON p.id = a.page_id JOIN sessions s ON s.id = a.session_id JOIN documents d ON d.id = s.document_id
+               WHERE a.text LIKE ? ORDER BY s.started_at DESC LIMIT ?""", (like, limit))]
+        out += [{**r, "kind": "term"} for r in self._query(
+            """SELECT g.term || ' — ' || g.definition AS text, g.start_ms, g.page_no, s.id AS session_id, d.id AS doc_id, d.title, d.course, s.started_at
+               FROM glossary g JOIN sessions s ON s.id = g.session_id JOIN documents d ON d.id = s.document_id
+               WHERE g.term LIKE ? OR g.definition LIKE ? ORDER BY s.started_at DESC LIMIT ?""", (like, like, limit))]
+        out += [{**r, "kind": "speech"} for r in self._query(
+            """SELECT t.text, t.start_ms, p.page_no, s.id AS session_id, d.id AS doc_id, d.title, d.course, s.started_at
+               FROM transcript_segments t LEFT JOIN pages p ON p.id = t.page_id JOIN sessions s ON s.id = t.session_id
+               JOIN documents d ON d.id = s.document_id
+               WHERE t.text LIKE ? ORDER BY s.started_at DESC, t.start_ms LIMIT ?""", (like, limit))]
+        out += [{**r, "kind": "slide"} for r in self._query(
+            """SELECT p.text, p.page_no, d.id AS doc_id, d.title, d.course, d.created_at AS started_at
+               FROM pages p JOIN documents d ON d.id = p.document_id WHERE p.text LIKE ? ORDER BY d.created_at DESC LIMIT ?""",
+            (like, limit))]
+        return out
 
     def set_page_text(self, page_id: int, text: str) -> None:
         self._write("UPDATE pages SET text = ? WHERE id = ?", (text, page_id))
@@ -385,7 +427,7 @@ class Database:
 
     def get_annotation(self, ann_id: int) -> dict | None:
         rows = self._query(
-            """SELECT a.id, a.session_id, p.page_no, a.block_id, a.type, a.text, a.start_ms, a.edited_by_user, a.pending
+            """SELECT a.id, a.session_id, p.page_no, a.block_id, a.type, a.text, a.start_ms, a.edited_by_user, a.pending, a.confidence
                FROM annotations a JOIN pages p ON p.id = a.page_id WHERE a.id = ?""",
             (ann_id,),
         )
@@ -394,7 +436,7 @@ class Database:
         return _annotation(rows[0])
 
     def list_annotations(self, session_id: str, page_id: int | None = None) -> list[dict]:
-        sql = """SELECT a.id, a.session_id, p.page_no, a.block_id, a.type, a.text, a.start_ms, a.edited_by_user, a.pending
+        sql = """SELECT a.id, a.session_id, p.page_no, a.block_id, a.type, a.text, a.start_ms, a.edited_by_user, a.pending, a.confidence
                  FROM annotations a JOIN pages p ON p.id = a.page_id WHERE a.session_id = ?"""
         params: tuple = (session_id,)
         if page_id is not None:

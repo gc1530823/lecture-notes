@@ -85,6 +85,8 @@ class AnnotationUpdate(BaseModel):
     text: str | None = None
     # 보류함의 필기를 붙일 페이지 (또는 다른 페이지로 옮길 때)
     page_no: int | None = None
+    # "맞아요": 확인 필요 필기가 맞다고 확인 (우리 AI 학습에 '확인된 정답'으로 들어간다)
+    confirm: bool = False
 
 
 @app.get("/health")
@@ -864,7 +866,22 @@ def update_annotation(ann_id: int, body: AnnotationUpdate):
         annotation = db().move_annotation(ann_id, page["id"])
     if body.text is not None and body.text.strip():
         annotation = db().update_annotation(ann_id, body.text.strip())
+        db().set_confidence(ann_id, 1.0)
+        annotation = db().get_annotation(ann_id)
+    if body.confirm:
+        annotation = db().confirm_annotation(ann_id)
     return annotation
+
+
+# 전체 검색: 모든 강의의 필기·교수님 말·용어·슬라이드
+
+
+@app.get("/search")
+def search(q: str):
+    q = q.strip()
+    if len(q) < 2:
+        return {"query": q, "results": []}
+    return {"query": q, "results": db().search(q[:60])}
 
 
 @app.delete("/annotations/{ann_id}", status_code=204)

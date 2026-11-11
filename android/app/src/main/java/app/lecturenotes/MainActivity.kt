@@ -99,7 +99,8 @@ class MainActivity : AppCompatActivity() {
         LiveService.onEvent = { text -> web.evaluateJavascript("window.__androidLiveEvent && window.__androidLiveEvent(${JSONObject.quote(text)})", null) }
 
         val saved = server()
-        if (saved == null) askServer() else web.loadUrl(appUrl(saved))
+        val start = if (intent?.getStringExtra("open") == "review") "#/review" else ""
+        if (saved == null) askServer() else web.loadUrl(appUrl(saved) + start)
     }
 
     override fun onDestroy() {
@@ -212,5 +213,16 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun changeServer() = runOnUiThread { askServer() }
 
         @JavascriptInterface fun keepScreenOn(on: Boolean) = runOnUiThread { web.keepScreenOn = on }
+
+        /** 매일 hour:minute에 띄울 복습·시험 알림 글 (앱을 열 때마다 웹 화면이 최신 숫자로 바꾼다) */
+        @JavascriptInterface fun setReminder(title: String, text: String, hour: Int, minute: Int) = runOnUiThread {
+            if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                askPermissions.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
+            }
+            ReminderReceiver.save(this@MainActivity, title, text, hour, minute)
+        }
+
+        @JavascriptInterface fun cancelReminder() = runOnUiThread { ReminderReceiver.cancel(this@MainActivity) }
     }
 }

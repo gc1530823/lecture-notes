@@ -27,6 +27,8 @@ interface AndroidBridge {
   print(title: string): void;
   changeServer(): void;
   keepScreenOn(on: boolean): void;
+  setReminder?(title: string, text: string, hour: number, minute: number): void;
+  cancelReminder?(): void;
 }
 
 export function android(): AndroidBridge | null {

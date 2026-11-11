@@ -32,6 +32,7 @@ export interface Annotation {
   pending: boolean;
   edited_by_user: boolean;
   photo_id?: number | null; // 칠판 사진으로 만든 필기
+  confidence?: number; // AI가 그 쪽이 맞다고 본 확신 (0~1). 낮으면 "확인 필요"
 }
 
 export interface Segment { start_ms: number; end_ms: number; text: string; page_no: number | null }

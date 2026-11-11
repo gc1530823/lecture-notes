@@ -752,3 +752,21 @@ def test_pptx_is_converted_or_explained(client):
         assert res.status_code == 200 and res.json()["page_count"] >= 1  # LibreOffice가 PDF로 바꿔 받는다
     else:
         assert res.status_code == 400 and "PDF로 저장" in res.json()["detail"]
+
+
+def test_search_everywhere_and_confirm_low_confidence_note(client):
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "Gradient Descent에서 학습률이 너무 크면 발산해요.", "start_ms": 0, "end_ms": 3000})
+        note = receive_annotation(ws)
+    assert 0 <= note["confidence"] <= 1
+    found = client.get("/search", params={"q": "발산"}).json()["results"]
+    kinds = {r["kind"] for r in found}
+    mine = {r["kind"] for r in found if r["doc_id"] == doc["id"]}
+    assert {"note", "speech"} <= kinds and {"note", "speech"} <= mine
+    assert "slide" in {r["kind"] for r in client.get("/search", params={"q": "Backpropagation"}).json()["results"]}
+    assert client.get("/search", params={"q": "a"}).json()["results"] == []
+    confirmed = client.patch(f"/annotations/{note['id']}", json={"confirm": True}).json()
+    assert confirmed["confidence"] == 1

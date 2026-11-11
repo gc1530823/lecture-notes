@@ -320,3 +320,25 @@ input[type="date"].input { padding: 0 var(--space-lg); }
 /* 아래 조작부: 동그라미 버튼이 많아져 조금 작게 */
 .bottom-bar .round-soft { width: 42px; height: 42px; }
 .bottom-bar .row { gap: 8px; }
+
+/* 찾기 · 확인 필요 · 처음 안내 */
+.search-box { display: flex; align-items: center; gap: var(--space-sm); color: var(--accent-primary); }
+.search-box .input { flex: 1; }
+.search-hit { align-items: flex-start; }
+.search-hit mark, .bubble mark { background: var(--note-explanation-paper); color: var(--text-note); border-radius: 3px; padding: 0 2px; }
+.postit-slot.unsure .postit { outline: 2px dashed var(--note-emphasis-ink); outline-offset: 2px; opacity: .88; }
+.confirm-chip { position: absolute; left: 6px; top: -10px; padding: 3px 8px; border-radius: var(--radius-full); background: var(--note-emphasis-ink);
+  color: var(--text-on-accent); font: 700 11px/1 var(--font-sans); box-shadow: var(--shadow-card); animation: chip-pop .3s var(--ease-spring); }
+.onboarding { align-items: center; text-align: center; gap: var(--space-md); }
+.onboarding .row { width: 100%; }
+.ob-art { width: 112px; height: 112px; border-radius: 36px; display: grid; place-items: center; color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-card)); animation: node-pop .5s var(--ease-spring) both; }
+.ob-dots { display: flex; gap: 6px; }
+.ob-dots span { width: 8px; height: 8px; border-radius: 4px; background: var(--border-line); transition: width .25s var(--ease-out), background .25s; }
+.ob-dots span.on { width: 22px; background: var(--accent-primary); }
+/* 아래 조작부 두 줄: 위는 쪽·상태, 아래는 버튼들 (버튼이 늘어 한 줄이면 쪽 넘기기를 가렸다) */
+.bottom-bar > .row { flex-wrap: wrap; justify-content: flex-end; row-gap: var(--space-sm); }
+.bottom-bar > .row > .grow { flex: 1 1 100%; display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+.lecture .lecture-body { padding-bottom: 230px; }
+.term-stack { bottom: 200px; }
+.toast { bottom: 210px; }
