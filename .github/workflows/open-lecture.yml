@@ -111,6 +111,7 @@ jobs:
           mkdir -p /tmp/result && cd /tmp/result
           cp /tmp/server.log server.log 2>/dev/null || true
           cp /tmp/inbox/slides.pdf 강의자료.pdf 2>/dev/null || true
+          cp /tmp/inbox/captions.* . 2>/dev/null || true
           printf '출처: MIT OpenCourseWare 6.0001 (%s)\n라이선스: CC BY-NC-SA 4.0 (비영리 테스트용)\n' "$NAME" > 출처.txt
           git init -q -b result
           git add .

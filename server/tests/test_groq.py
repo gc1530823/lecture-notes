@@ -123,3 +123,27 @@ def test_study_tools_work_with_groq_page_material(tmp_path, monkeypatch):
     cards = asyncio.run(llm.study_page("flashcards", {**page, "text": page["slide"]}, page["speech"], page["notes"]))
     assert cards[0]["front"] == "경사하강법이란?" and "경사하강법 슬라이드" in seen[0]
     assert "경사하강법 슬라이드" in _organize_prompt({**page, "text": page["slide"]}, "", [])
+
+
+def test_english_lecture_is_transcribed_as_english_and_prompt_echo_is_dropped():
+    from app.stt import guess_language, is_hallucination
+
+    hint = "BISECTION string start abcdefgh loop iterates expressions values objects algorithms"
+    assert guess_language(hint) == "en"
+    assert guess_language("경사하강법 학습률 역전파 손실 함수 기울기 소실 과적합 정규화") == "ko"
+    seen = []
+
+    def handler(request):
+        seen.append(request.content)
+        return httpx.Response(200, json={"segments": [
+            {"start": 0, "end": 20, "text": "BISECTION string start abcdefgh loop", "no_speech_prob": 0.1, "compression_ratio": 1.2},
+            {"start": 20, "end": 21, "text": "you", "no_speech_prob": 0.2},
+            {"start": 21, "end": 30, "text": "♪ music ♪", "no_speech_prob": 0.9},
+            {"start": 30, "end": 35, "text": "Let's dive right in.", "no_speech_prob": 0.01, "compression_ratio": 1.1},
+        ]})
+
+    t = GroqTranscriber(transport=httpx.MockTransport(handler))
+    segments = t._request("a.wav", b"RIFF", hint, "whisper-large-v3")
+    assert [s.text for s in segments] == ["Let's dive right in."]
+    assert b'name="language"\r\n\r\nen' in seen[0] and b"Okay, let's get started" in seen[0]
+    assert not is_hallucination("자 오늘은 경사하강법부터 볼게요", "경사하강법 학습률")

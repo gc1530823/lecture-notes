@@ -22,6 +22,30 @@ class Segment:
     text: str
 
 
+def guess_language(hint: str) -> str:
+    """강의자료 용어(hint)가 대부분 영어면 영어 강의로 본다. Whisper에 언어를 틀리게 주면 정확도가 크게 떨어진다."""
+    letters = [c for c in hint if c.isalpha()]
+    if len(letters) < 20:
+        return "ko"
+    latin = sum(1 for c in letters if c.isascii())
+    return "en" if latin / len(letters) >= 0.7 else "ko"
+
+
+PROMPT_LEAD = {"ko": "네, 오늘 수업을 시작하겠습니다. ", "en": "Okay, let's get started today. "}
+
+
+def is_hallucination(text: str, hint: str, no_speech: float = 0.0, compression: float = 1.0) -> bool:
+    """Whisper가 말이 없는 곳(도입 음악·침묵)에서 지어낸 말:
+    말소리가 없을 확률이 높거나, 같은 말이 되풀이되거나(압축률이 높음), 우리가 건넨 용어 힌트를 그대로 읊은 것."""
+    if no_speech >= 0.6 or compression >= 2.4:
+        return True
+    words = re.findall(r"[A-Za-z가-힣]{2,}", text.lower())
+    hint_words = set(re.findall(r"[A-Za-z가-힣]{2,}", hint.lower()))
+    if len(words) >= 4 and hint_words and sum(w in hint_words for w in words) / len(words) >= 0.8:
+        return True
+    return text.strip().lower() in {"you", "thank you.", "thanks for watching!", "시청해 주셔서 감사합니다."}
+
+
 def split_sentences(segments: list["Segment"]) -> list["Segment"]:
     """Whisper는 여러 문장을 한 덩어리로 묶곤 한다. "…나와요. 다음 장, 역전파입니다."처럼 페이지가 바뀌는 말이
     한 덩어리에 섞이면 페이지 추적이 틀리므로, 문장으로 나누고 시각은 글자 수 비율로 나눠 준다."""
@@ -58,12 +82,12 @@ class WhisperTranscriber:
         오래 걸리는 작업이라 스레드에서 부른다. hint에는 강의자료 용어와 직전 문장을 넣어 인식을 돕는다."""
         model = self._load()
         segments, info = model.transcribe(
-            audio, language="ko", vad_filter=True, beam_size=1, initial_prompt=hint or None,
+            audio, language=guess_language(hint), vad_filter=True, beam_size=1, initial_prompt=hint or None,
         )
         result = []
         for seg in segments:
             text = seg.text.strip()
-            if text:
+            if text and not is_hallucination(text, hint, seg.no_speech_prob, seg.compression_ratio):
                 result.append(Segment(int(seg.start * 1000), int(seg.end * 1000), text))
             if on_progress and info.duration:
                 on_progress(min(seg.end / info.duration, 1.0))

@@ -13,18 +13,25 @@ import sys
 
 
 def caption_text(path: str, minutes: float) -> str:
+    """자막 파일 → 앞 N분의 글. 유튜브식 자막은 앞 줄을 남긴 채 새 줄을 더해서 같은 줄이 두 번씩 나오므로 겹친 줄은 뺀다.
+    화자 이름("ANA BELL:")과 [MUSIC] 같은 표시도 뺀다."""
     text = open(path, encoding="utf-8", errors="replace").read()
     limit = minutes * 60 if minutes > 0 else float("inf")
-    out = []
+    out: list[str] = []
     for block in re.split(r"\n\s*\n", text):
-        times = re.search(r"(\d+):(\d+):(\d+)[,.](\d+)\s*-->", block)
+        times = re.search(r"(?:(\d+):)?(\d+):(\d+)[,.](\d+)\s*-->", block)
         if not times:
             continue
-        h, m, s, _ = (int(x) for x in times.groups())
-        if h * 3600 + m * 60 + s > limit:
+        h, m, s_ = int(times.group(1) or 0), int(times.group(2)), int(times.group(3))
+        if h * 3600 + m * 60 + s_ > limit:
             break
-        lines = [ln for ln in block.splitlines() if "-->" not in ln and not ln.strip().isdigit() and ln.strip()]
-        out.append(re.sub(r"<[^>]+>", "", " ".join(lines)))
+        for line in block.splitlines():
+            if "-->" in line or line.strip().isdigit() or not line.strip():
+                continue
+            line = re.sub(r"<[^>]+>|\[[^\]]*\]|\([A-Z ]+\)", " ", line)
+            line = re.sub(r"^\s*[A-Z][A-Z .'-]{1,30}:\s*", "", line).strip()
+            if line and (not out or line != out[-1]):
+                out.append(line)
     return " ".join(out)
 
 
@@ -49,8 +56,6 @@ def main(captions: str, result: str, minutes: float, slides: str | None) -> None
     ours = open(os.path.join(result, "받아쓰기.txt"), encoding="utf-8").read()
     ours = re.sub(r"^\[[^\]]*\]\s*(\([^)]*\)\s*)?", "", ours, flags=re.M)  # "[01:23] (3쪽)" 머리 지우기
     ref, hyp = words(ref_text), words(ours)
-    # 자막은 뒤가 조금 더 길거나 짧을 수 있으니 우리 받아쓰기 길이에 맞춰 자른다
-    ref = ref[: int(len(hyp) * 1.05) + 10]
     error = wer(ref, hyp)
     lines = [f"받아쓰기 정확도 (공식 자막과 비교, 앞 {minutes:g}분)",
              f"- 자막 단어 {len(ref)}개 · 우리 받아쓰기 단어 {len(hyp)}개",
@@ -66,6 +71,8 @@ def main(captions: str, result: str, minutes: float, slides: str | None) -> None
             missed = sorted(set(said) - set(hit))[:15]
             if missed:
                 lines.append(f"  놓친 용어: {', '.join(missed)}")
+    lines.append(f"- 자막 앞부분: {' '.join(ref[:25])}")
+    lines.append(f"- 받아쓰기 앞부분: {' '.join(hyp[:25])}")
     report = "\n".join(lines)
     print(report)
     with open(os.path.join(result, "정확도.txt"), "w", encoding="utf-8") as f:

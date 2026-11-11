@@ -23,7 +23,7 @@ from . import training_log
 from .config import settings
 from .llm import BOARD_SYSTEM, FIX_SPEECH_SCHEMA, FIX_SPEECH_SYSTEM, LLMError, _fix_speech_prompt
 from .ollama_llm import OllamaLLM
-from .stt import Segment, split_sentences
+from .stt import PROMPT_LEAD, Segment, guess_language, is_hallucination, split_sentences
 
 log = logging.getLogger(__name__)
 
@@ -143,11 +143,12 @@ class GroqTranscriber:
         self.client = httpx.Client(base_url=BASE_URL, timeout=httpx.Timeout(300, connect=10), transport=transport)
 
     def _request(self, filename: str, data: bytes, hint: str, model: str) -> list[Segment]:
-        form = {"model": model, "language": "ko", "response_format": "verbose_json",
+        language = guess_language(hint)
+        form = {"model": model, "language": language, "response_format": "verbose_json",
                 "temperature": "0"}
         # Whisper는 프롬프트의 말투를 따라 쓰므로, 마침표가 있는 문장을 앞에 두어 문장 끝에 마침표를 찍게 한다.
         # 프롬프트는 짧아야 해서 용어·직전 문장은 뒤쪽만 남긴다
-        form["prompt"] = "네, 오늘 수업을 시작하겠습니다. " + hint[-160:]
+        form["prompt"] = PROMPT_LEAD[language] + hint[-160:]
         for attempt in range(MAX_RETRIES):
             try:
                 response = self.client.post("/audio/transcriptions", data=form, files={"file": (filename, data)},
@@ -164,7 +165,8 @@ class GroqTranscriber:
         body = response.json()
         segments = body.get("segments") or [{"start": 0, "end": body.get("duration", 0), "text": body.get("text", "")}]
         return [Segment(int(s["start"] * 1000), int(s["end"] * 1000), s["text"].strip())
-                for s in segments if s.get("text", "").strip()]
+                for s in segments if s.get("text", "").strip()
+                and not is_hallucination(s["text"], hint, s.get("no_speech_prob", 0.0), s.get("compression_ratio", 1.0))]
 
     def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
         """audio: 파일 경로, 또는 16kHz 모노 float32 배열(실시간 조각). WhisperTranscriber와 같은 꼴로 돌려준다."""
