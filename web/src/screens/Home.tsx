@@ -7,7 +7,6 @@ import { ReviewBanner } from "./ExamPrep";
 import { ExamBanner } from "./Semester";
 import { go } from "../router";
 
-type Filter = "all" | "pdf" | "notebook";
 
 export function subtitleOf(doc: DocumentBrief): string {
   const lectures = doc.sessions.length ? `강의 ${doc.sessions.length}번` : "아직 강의 없음";
@@ -25,7 +24,9 @@ export function relativeDay(seconds: number): string {
 
 export default function Home() {
   const { data: docs, error, loading, reload } = useApi<DocumentBrief[]>("/documents");
-  const [filter, setFilter] = useState<Filter>("all");
+  // 과목 폴더: "all" = 전체, "" = 과목 없음, 그 밖에는 과목 이름 (기기에 기억)
+  const [filter, setFilter] = useState<string>(() => { try { return localStorage.getItem("ln.course") ?? "all"; } catch { return "all"; } });
+  const pick = (c: string) => { setFilter(c); try { localStorage.setItem("ln.course", c); } catch { /* 괜찮다 */ } };
   const [busy, setBusy] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
 
@@ -34,6 +35,7 @@ export default function Home() {
     try {
       const form = new FormData();
       form.append("file", f);
+      if (filter !== "all" && filter) form.append("course", filter); // 지금 보는 과목 폴더에 넣는다
       const res = await fetch((import.meta.env.VITE_API_URL ?? "") + "/documents", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.detail ?? "올리지 못했어요");
@@ -51,7 +53,7 @@ export default function Home() {
     if (title === null) return;
     setBusy("노트를 만드는 중…");
     try {
-      const doc = await postJSON<{ id: string }>("/documents/notebook", { title, kind });
+      const doc = await postJSON<{ id: string }>("/documents/notebook", { title, kind, course: filter !== "all" ? filter : "" });
       go({ name: "doc", docId: doc.id });
     } catch (e) {
       alert(e instanceof Error ? e.message : String(e));
@@ -60,7 +62,14 @@ export default function Home() {
     }
   };
 
-  const shown = (docs ?? []).filter((d) => filter === "all" || (filter === "notebook" ? d.kind !== "slides" : d.kind === "slides"));
+  const courses = [...new Set((docs ?? []).map((d) => d.course ?? "").filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko"));
+  const hasLoose = (docs ?? []).some((d) => !d.course);
+  const shown = (docs ?? []).filter((d) => filter === "all" || (d.course ?? "") === filter);
+  // 전체 보기에서는 과목별로 묶어 보여 준다
+  const groups: [string, DocumentBrief[]][] = filter === "all"
+    ? [...courses.map((c) => [c, shown.filter((d) => d.course === c)] as [string, DocumentBrief[]]), ["", shown.filter((d) => !d.course)] as [string, DocumentBrief[]]]
+        .filter(([, list]) => list.length > 0)
+    : [[filter, shown]];
   const today = new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" });
 
   return (
@@ -73,10 +82,10 @@ export default function Home() {
         <h1 className="t-title-l">내 강의</h1>
       </header>
       <div className="screen-body">
-        <div className="scroll-x" role="group" aria-label="자료 종류">
-          {([["all", "전체"], ["pdf", "강의자료"], ["notebook", "노트"]] as const).map(([key, label]) => (
-            <Chip key={key} variant={filter === key ? "selected" : "default"} onClick={() => setFilter(key)}>{label}</Chip>
-          ))}
+        <div className="scroll-x" role="group" aria-label="과목">
+          <Chip variant={filter === "all" ? "selected" : "default"} onClick={() => pick("all")}>전체</Chip>
+          {courses.map((c) => <Chip key={c} variant={filter === c ? "selected" : "default"} onClick={() => pick(c)}>{c}</Chip>)}
+          {hasLoose && courses.length > 0 && <Chip variant={filter === "" ? "selected" : "default"} onClick={() => pick("")}>과목 없음</Chip>}
         </div>
         <ExamBanner />
         <ReviewBanner />
@@ -94,15 +103,22 @@ export default function Home() {
             강의자료 PDF를 올리거나, 자료 없는 수업은 노트로 시작하세요.
           </Empty>
         )}
-        {shown.map((doc) => (
-          <ListItem key={doc.id} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
-            subtitle={subtitleOf(doc)} onClick={() => go({ name: "doc", docId: doc.id })} />
+        {groups.map(([course, list]) => (
+          <section key={course || "-"} className="course-group">
+            {(filter === "all" && courses.length > 0) && (
+              <h2 className="t-caption course-title">{course || "과목 없음"} <span className="faint">{list.length}</span></h2>
+            )}
+            {list.map((doc) => (
+              <ListItem key={doc.id} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
+                subtitle={subtitleOf(doc)} onClick={() => go({ name: "doc", docId: doc.id })} />
+            ))}
+          </section>
         ))}
       </div>
       <div className="home-actions">
         <Button variant="secondary" icon="note-pencil" onClick={() => newNotebook()} disabled={!!busy}>노트 수업</Button>
         <Button icon="tray-arrow-down" onClick={() => file.current?.click()} disabled={!!busy}>{busy ?? "강의자료 올리기"}</Button>
-        <input ref={file} type="file" accept="application/pdf" hidden
+        <input ref={file} type="file" accept="application/pdf,.pdf,.ppt,.pptx,.key,.odp,.doc,.docx,.hwp,.hwpx" hidden
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
       </div>
     </div>

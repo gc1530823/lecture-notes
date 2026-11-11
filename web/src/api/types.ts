@@ -13,7 +13,8 @@ export interface DocumentBrief {
   title: string;
   page_count: number;
   created_at: number;
-  kind: "pdf" | "notebook" | string;
+  kind: "slides" | "notebook" | "meeting" | string;
+  course?: string; // 과목 (폴더). 비면 "과목 없음"
   sessions: SessionBrief[];
 }
 

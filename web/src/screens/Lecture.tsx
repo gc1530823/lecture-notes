@@ -23,7 +23,7 @@ const prefs = {
 };
 
 type Note = Annotation & { preview?: boolean };
-type Sheet = null | "ask" | "glossary" | "pending" | "tasks" | "pdf" | { catchUp: number } | { task: number };
+type Sheet = null | "ask" | "glossary" | "pending" | "tasks" | "pdf" | "add" | { catchUp: number } | { task: number } | { source: number };
 
 
 export default function Lecture({ docId, sessionId: initialSession }: { docId: string; sessionId?: string }) {
@@ -407,6 +407,29 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     setPhotoBusy(false);
   };
 
+  // ⭐ 여기 중요: 방금 설명한 문장을 강조 필기로 (시험 예상 지도·족보에 들어간다)
+  const starHere = async () => {
+    if (!sessionId) return;
+    try {
+      const note = await postJSON<Annotation>(`/sessions/${sessionId}/star`, { page_no: page });
+      setNotes((n) => [...n, note]);
+      flash(note.id);
+      navigator.vibrate?.(15);
+      toast("중요 표시했어요 ⭐");
+    } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
+  };
+
+  // 내 필기: 지금 쪽에 직접 쓴다
+  const addMyNote = async (text: string, type: string) => {
+    if (!sessionId || !text.trim()) return;
+    try {
+      const note = await postJSON<Annotation>(`/sessions/${sessionId}/annotations`, { page_no: page, text, type });
+      setNotes((n) => [...n, note]);
+      setSheet(null);
+      flash(note.id);
+    } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
+  };
+
   // 녹음 전 한 번: 교수님 허락 · 데이터가 어디로 가는지 확인 (이 기기에 기억)
   const startWithConsent = () => {
     let agreed = false;
@@ -533,7 +556,12 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
                     onClick={() => setSelected(selected === n.id ? null : n.id)}
                     onContextMenu={(e) => { e.preventDefault(); void editNote(n); }}>
                     <PostIt type={n.type} number={i + 1} photo={n.photo_id ? `${import.meta.env.VITE_API_URL ?? ""}/photos/${n.photo_id}` : null}
-                      tag={n.preview ? "AI가 정리 중…" : beyond.has(n.id) ? "슬라이드에 없는 설명" : n.edited_by_user ? "직접 수정함" : undefined}>{n.text}</PostIt>
+                      tag={n.preview ? "AI가 정리 중…" : beyond.has(n.id) ? "슬라이드에 없는 설명" : n.edited_by_user ? "직접 씀·고침" : undefined}>{n.text}</PostIt>
+                    {n.id === selected && !n.preview && (
+                      <button className="source-chip" onClick={(e) => { e.stopPropagation(); setSheet({ source: n.id }); }}>
+                        <Icon name="chat-teardrop-text" size={14} /> 근거 보기
+                      </button>
+                    )}
                     {player.hasAudio && !n.preview && (
                       <button className="play-chip" onClick={(e) => { e.stopPropagation(); player.playFrom(n.start_ms); }} aria-label="이 필기 때 녹음 듣기">
                         <Icon name="play" size={14} /> {clock(n.start_ms)}
@@ -601,10 +629,15 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
             </span>
           </div>
           {sessionId && phase !== "idle" && (
-            <button className="round round-soft" onClick={() => photoInput.current?.click()} disabled={photoBusy} aria-label="칠판 사진 찍기">
-              {photoBusy ? <span className="spin" /> : <Icon name="camera" />}
-              <input ref={photoInput} type="file" accept="image/*" capture="environment" hidden
-                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void sendPhoto(f); }} />
+            <button className="round round-soft" onClick={() => setSheet("add")} disabled={photoBusy} aria-label="내 필기 쓰기 · 칠판 사진">
+              {photoBusy ? <span className="spin" /> : <Icon name="note-pencil" />}
+            </button>
+          )}
+          <input ref={photoInput} type="file" accept="image/*" capture="environment" hidden
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void sendPhoto(f); }} />
+          {sessionId && phase !== "idle" && (
+            <button className="round round-soft star-btn" onClick={starHere} aria-label="여기 중요 ⭐">
+              <Icon name="star" />
             </button>
           )}
           {recording && (
@@ -639,6 +672,14 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           <div className="sheet-bg" onClick={() => setSheet(null)} />
           <div className="sheet" role="dialog" aria-modal="true">
             {sheet === "tasks" && <TaskList tasks={tasks} onOpen={(id) => setSheet({ task: id })} />}
+            {sheet === "add" && (
+              <AddSheet page={page} onSave={addMyNote} onPhoto={() => { setSheet(null); photoInput.current?.click(); }} />
+            )}
+            {typeof sheet === "object" && "source" in sheet && sessionId && (() => {
+              const n = notes.find((x) => x.id === sheet.source);
+              return n ? <SourceSheet sessionId={sessionId} note={n} canPlay={player.hasAudio}
+                onPlay={() => { setSheet(null); player.playFrom(n.start_ms); }} /> : null;
+            })()}
             {typeof sheet === "object" && "task" in sheet && (() => {
               const t = tasks.find((x) => x.id === sheet.task);
               return t ? <TaskDetail task={t} toast={toast} onChange={(u) => setTasks((all) => all.map((x) => (x.id === u.id ? u : x)))} /> : null;
@@ -855,5 +896,53 @@ function NotebookSheet({ doc, notes, page, recording, fresh, selected, onSelect,
         })}
       </div>
     </div>
+  );
+}
+
+/** ＋: 지금 쪽에 내 필기 쓰기, 또는 칠판 사진 */
+function AddSheet({ page, onSave, onPhoto }: { page: number; onSave: (text: string, type: string) => void; onPhoto: () => void }) {
+  const [text, setText] = useState("");
+  const [type, setType] = useState("explanation");
+  const kinds = [["explanation", "메모"], ["emphasis", "중요"], ["exam", "시험"], ["example", "예시"], ["qa", "질문"]] as const;
+  return (
+    <>
+      <h3 className="t-title-m">{page}쪽에 내 필기</h3>
+      <div className="scroll-x" role="radiogroup" aria-label="필기 종류">
+        {kinds.map(([k, label]) => <Chip key={k} variant={type === k ? "selected" : "default"} onClick={() => setType(k)}>{label}</Chip>)}
+      </div>
+      <textarea className="input draft" style={{ minHeight: 120 }} value={text} onChange={(e) => setText(e.target.value)}
+        placeholder="여기에 직접 적어요. AI 필기와 같은 자리에 붙어요" aria-label="내 필기" autoFocus />
+      <Button block onClick={() => onSave(text, type)} disabled={!text.trim()}>붙이기</Button>
+      <Button block variant="secondary" icon="camera" onClick={onPhoto}>칠판 사진 찍어 붙이기</Button>
+    </>
+  );
+}
+
+/** 근거 보기: 이 필기를 쓸 무렵 교수님이 실제로 한 말 (AI가 지어냈는지 바로 확인) */
+function SourceSheet({ sessionId, note, canPlay, onPlay }: { sessionId: string; note: Note; canPlay: boolean; onPlay: () => void }) {
+  const [segments, setSegments] = useState<{ start_ms: number; end_ms: number; text: string; page_no: number | null }[] | null>(null);
+  useEffect(() => {
+    getJSON<NonNullable<typeof segments>>(`/sessions/${sessionId}/transcript`).then(setSegments).catch(() => setSegments([]));
+  }, [sessionId]);
+  // 필기는 설명이 끝날 무렵 붙으므로 그 앞 40초 ~ 뒤 5초의 말을 보여 준다
+  const near = (segments ?? []).filter((s) => s.end_ms >= note.start_ms - 40_000 && s.start_ms <= note.start_ms + 5_000);
+  const words = new Set(note.text.replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w.length >= 2));
+  return (
+    <>
+      <h3 className="t-title-m">근거 보기</h3>
+      <PostIt type={note.type}>{note.text}</PostIt>
+      <span className="t-caption muted">이 필기 무렵 교수님이 한 말 {note.edited_by_user ? "· 직접 쓰거나 고친 필기예요" : ""}</span>
+      {!segments && <p className="muted">불러오는 중…</p>}
+      {segments && near.length === 0 && <p className="muted">이 무렵 받아쓴 말이 없어요.</p>}
+      <div className="source-list">
+        {near.map((s, i) => (
+          <p key={i} className="t-body">
+            <span className="t-caption faint">{clock(s.start_ms)} </span>
+            {s.text.split(/(\s+)/).map((w, j) => words.has(w.replace(/[^\p{L}\p{N}]/gu, "")) ? <mark key={j}>{w}</mark> : w)}
+          </p>
+        ))}
+      </div>
+      {canPlay && <Button block variant="secondary" icon="play" onClick={onPlay}>이 부분 녹음 듣기</Button>}
+    </>
   );
 }

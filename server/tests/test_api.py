@@ -709,3 +709,46 @@ def test_shared_jokbo_merges_friends_and_counts_people(client):
     assert "Backpropagation" in [t["term"] for t in sheet["terms"]]
     [entry] = client.get(f"/documents/{doc['id']}/shared").json()
     assert client.delete(f"/shared/{entry['id']}").status_code == 204
+
+
+def test_courses_my_notes_and_star(client):
+    doc = client.post("/documents", files={"file": ("ml.pdf", make_pdf(), "application/pdf")}, data={"course": "인공지능개론"}).json()
+    listed = next(d for d in client.get("/documents").json() if d["id"] == doc["id"])
+    assert listed["course"] == "인공지능개론"
+    moved = client.patch(f"/documents/{doc['id']}", json={"course": "머신러닝", "title": "3주차"}).json()
+    assert moved["course"] == "머신러닝" and moved["title"] == "3주차"
+
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "학습률은 걸음 크기예요. 꼭 기억하세요.", "start_ms": 0, "end_ms": 3000})
+        receive_annotation(ws)
+    mine = client.post(f"/sessions/{sid}/annotations", json={"page_no": 2, "text": "내가 쓴 필기", "type": "example"}).json()
+    assert mine["page_no"] == 2 and mine["edited_by_user"] is True and mine["type"] == "example"
+    assert client.post(f"/sessions/{sid}/annotations", json={"page_no": 2, "text": " "}).status_code == 400
+    starred = client.post(f"/sessions/{sid}/star", json={"page_no": 1}).json()
+    assert starred["type"] == "emphasis" and starred["text"].startswith("⭐ 중요 표시") and "학습률" in starred["text"]
+    page = client.get(f"/documents/{doc['id']}/exam-map").json()["pages"][0]
+    assert "강조 1번" in page["reasons"]
+
+
+def test_scanned_pdf_pages_are_read_so_tracking_works(client):
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.draw_rect(pymupdf.Rect(50, 50, 400, 300), color=(0, 0, 0), fill=(0.9, 0.9, 0.9))  # 글자 없는 그림 쪽 (스캔본)
+    res = client.post("/documents", files={"file": ("scan.pdf", doc.tobytes(), "application/pdf")})
+    assert res.status_code == 200
+    did = res.json()["id"]
+    assert client.get(f"/documents/{did}/ocr").json()["status"] == "done"
+    read = client.get(f"/documents/{did}").json()["pages"][0]
+    assert "f(x) = wx + b" in read["text"] and read["blocks"]
+
+
+def test_pptx_is_converted_or_explained(client):
+    import shutil
+
+    res = client.post("/documents", files={"file": ("slides.pptx", b"PPT slide text", "application/vnd.ms-powerpoint")})
+    if shutil.which("soffice") or shutil.which("libreoffice"):
+        assert res.status_code == 200 and res.json()["page_count"] >= 1  # LibreOffice가 PDF로 바꿔 받는다
+    else:
+        assert res.status_code == 400 and "PDF로 저장" in res.json()["detail"]

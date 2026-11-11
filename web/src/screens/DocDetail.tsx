@@ -2,7 +2,9 @@
 import { useRef, useState } from "react";
 import type { DocumentBrief } from "../api/types";
 import { useApi } from "../api/useApi";
-import { Button, Empty, Icon, ListItem, TopBar } from "../components/ui";
+import { Button, Chip, Empty, Icon, ListItem, TopBar } from "../components/ui";
+import { getJSON } from "../api/useApi";
+import { useEffect } from "react";
 import { go } from "../router";
 import { subtitleOf } from "./Home";
 
@@ -11,7 +13,7 @@ const API = import.meta.env.VITE_API_URL ?? "";
 
 export default function DocDetail({ docId }: { docId: string }) {
   // 목록 API에 강의 목록이 같이 오므로 그것을 쓴다
-  const { data: docs, error } = useApi<DocumentBrief[]>("/documents");
+  const { data: docs, error, reload: reloadDocs } = useApi<DocumentBrief[]>("/documents");
   const doc = docs?.find((d) => d.id === docId);
   const [upload, setUpload] = useState<string | null>(null);
   const audioInput = useRef<HTMLInputElement>(null);
@@ -49,7 +51,16 @@ export default function DocDetail({ docId }: { docId: string }) {
         {docs && !doc && <Empty icon="warning">자료를 찾을 수 없어요</Empty>}
         {doc && (
           <>
-            <p className="t-caption muted">{subtitleOf(doc)}</p>
+            <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
+              <span className="t-caption muted grow">{subtitleOf(doc)}</span>
+              <Chip variant="accent" onClick={async () => {
+                const course = prompt("과목 이름 (비우면 과목 없음)", doc.course ?? "");
+                if (course === null) return;
+                await fetch(`${API}/documents/${docId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ course }) });
+                reloadDocs();
+              }}>{doc.course ? `과목 · ${doc.course}` : "과목 정하기"}</Chip>
+            </div>
+            <OcrProgress docId={docId} />
             <Button block variant="record" icon="microphone" onClick={() => go({ name: "lecture", docId })}>
               {doc.kind === "meeting" ? "회의 기록 시작" : "수업 시작"}
             </Button>
@@ -81,4 +92,22 @@ export default function DocDetail({ docId }: { docId: string }) {
       </div>
     </div>
   );
+}
+
+/** 스캔본·그림 슬라이드: 서버가 쪽마다 글자를 읽는 동안 진행을 보여 준다 */
+function OcrProgress({ docId }: { docId: string }) {
+  const [state, setState] = useState<{ status: string; done: number; total: number } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    let timer: number | undefined;
+    const poll = () => getJSON<typeof state>(`/documents/${docId}/ocr`).then((s) => {
+      if (!alive || !s) return;
+      setState(s);
+      if (s.status === "reading") timer = window.setTimeout(poll, 2000);
+    }).catch(() => {});
+    void poll();
+    return () => { alive = false; window.clearTimeout(timer); };
+  }, [docId]);
+  if (!state || state.status !== "reading") return null;
+  return <p className="t-caption" style={{ color: "var(--accent-primary)" }}><span className="spin" /> 그림으로 된 쪽의 글자를 읽는 중 {state.done}/{state.total}쪽 · 다 읽으면 쪽 추적이 잘 돼요</p>;
 }

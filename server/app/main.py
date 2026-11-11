@@ -45,6 +45,7 @@ TICK_SECONDS = 2.0
 async def lifespan(app: FastAPI):
     app.state.db = Database(settings.db_path)
     app.state.llm = make_llm()
+    app.state.ocr_jobs = {}
     app.state.transcriber = make_transcriber()
     app.state.progress = {}  # 세션 id → 녹음 파일 받아쓰기 진행률 (0~1)
     app.state.notes_pdf = {}  # 세션 id → 정리 PDF 만들기 상태
@@ -96,22 +97,110 @@ def health():
 # 강의자료
 
 
+SLIDE_EXTENSIONS = (".ppt", ".pptx", ".key", ".odp", ".doc", ".docx", ".hwp", ".hwpx")
+
+
+def _to_pdf(data: bytes, filename: str) -> bytes:
+    """PPT·워드·한글 파일은 LibreOffice로 PDF로 바꾼다 (서버에 LibreOffice가 있을 때)."""
+    import shutil
+    import subprocess
+    import tempfile
+
+    soffice = shutil.which("soffice") or shutil.which("libreoffice")
+    if not soffice:
+        raise HTTPException(400, "이 서버에서는 PPT를 바로 바꿀 수 없어요. PowerPoint에서 'PDF로 저장'한 파일을 올려 주세요.")
+    with tempfile.TemporaryDirectory() as tmp:
+        src = os.path.join(tmp, "slides" + os.path.splitext(filename)[1].lower())
+        with open(src, "wb") as f:
+            f.write(data)
+        try:
+            subprocess.run([soffice, "--headless", "--convert-to", "pdf", "--outdir", tmp, src],
+                           check=True, capture_output=True, timeout=180)
+        except (subprocess.SubprocessError, OSError) as exc:
+            raise HTTPException(400, "PPT를 PDF로 바꾸지 못했어요. 'PDF로 저장'한 파일을 올려 주세요.") from exc
+        out = os.path.join(tmp, "slides.pdf")
+        if not os.path.exists(out):
+            raise HTTPException(400, "PPT를 PDF로 바꾸지 못했어요. 'PDF로 저장'한 파일을 올려 주세요.")
+        return open(out, "rb").read()
+
+
+SCANNED_CHARS = 15  # 쪽 글이 이보다 짧으면 그림(스캔)으로 된 쪽으로 본다
+
+
+async def _read_scanned_pages(doc_id: str) -> None:
+    """스캔본·그림 슬라이드: 글자가 없는 쪽을 그림으로 만들어 사진 읽는 AI로 글자를 읽고, 쪽 추적이 되게 쪽 글을 채운다."""
+    import pymupdf
+
+    path = _pdf_path(doc_id)
+    pdf = pymupdf.open(path)
+    pages = db().list_pages(doc_id)
+    app.state.ocr_jobs[doc_id] = {"status": "reading", "done": 0, "total": sum(1 for p in pages if len((p["text"] or "").strip()) < SCANNED_CHARS)}
+    try:
+        for page in pages:
+            if len((page["text"] or "").strip()) >= SCANNED_CHARS:
+                continue
+            image = pdf[page["page_no"] - 1].get_pixmap(dpi=110).tobytes("jpg", jpg_quality=80)
+            try:
+                read = await app.state.llm.read_board(image, "image/jpeg")
+            except Exception:
+                log.exception("%s쪽 글자 읽기 실패", page["page_no"])
+                read = {}
+            text = str(read.get("text", "")).strip()
+            if text:
+                lines = [ln.strip() for ln in text.splitlines() if ln.strip()][:12]
+                # 문단 위치는 모르므로 위에서부터 고르게 나눠 둔다 (형광펜은 대략의 줄에 붙는다)
+                blocks = [{"x": 0.06, "y": 0.08 + i * 0.84 / max(1, len(lines)), "w": 0.88, "h": 0.84 / max(1, len(lines)) * 0.9, "text": ln}
+                          for i, ln in enumerate(lines)]
+                db().replace_blocks(page["id"], "\n".join(lines), blocks)
+            app.state.ocr_jobs[doc_id]["done"] += 1
+    finally:
+        app.state.ocr_jobs[doc_id]["status"] = "done"
+
+
+@app.get("/documents/{doc_id}/ocr")
+def ocr_status(doc_id: str):
+    return app.state.ocr_jobs.get(doc_id, {"status": "none", "done": 0, "total": 0})
+
+
 @app.post("/documents")
-async def upload_document(file: UploadFile = File(...), title: str | None = Form(None)):
+async def upload_document(background: BackgroundTasks, file: UploadFile = File(...), title: str | None = Form(None),
+                          course: str = Form("")):
     data = await file.read()
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, "파일은 50MB 이하만 올릴 수 있습니다.")
+    if (file.filename or "").lower().endswith(SLIDE_EXTENSIONS):
+        data = await asyncio.to_thread(_to_pdf, data, file.filename or "slides.pptx")
     try:
         pages = parse_pdf(data)
     except PDFParseError as exc:
         raise HTTPException(400, str(exc)) from exc
     name = title or os.path.splitext(file.filename or "강의자료")[0]
     doc_id = db().create_document(name, pages, extract_keywords(pages))
+    if course.strip():
+        db().set_course(doc_id, course.strip()[:40])
     # 웹앱은 기기에 PDF를 두지 않으므로 서버에 보관해 두고 다시 내려준다
     os.makedirs(settings.upload_dir, exist_ok=True)
     with open(_pdf_path(doc_id), "wb") as f:
         f.write(data)
+    if any(len((p.get("text") or "").strip()) < SCANNED_CHARS for p in pages):
+        background.add_task(_read_scanned_pages, doc_id)
     return db().get_document(doc_id)
+
+
+class DocumentUpdate(BaseModel):
+    title: str | None = None
+    course: str | None = None
+
+
+@app.patch("/documents/{doc_id}")
+def update_document(doc_id: str, body: DocumentUpdate):
+    if db().get_document(doc_id) is None:
+        raise HTTPException(404, "강의자료가 없습니다.")
+    if body.title is not None and body.title.strip():
+        db().rename_document(doc_id, body.title.strip()[:80])
+    if body.course is not None:
+        db().set_course(doc_id, body.course.strip()[:40])
+    return next(d for d in db().list_documents() if d["id"] == doc_id)
 
 
 def _pdf_path(doc_id: str) -> str:
@@ -127,6 +216,7 @@ def get_document_pdf(doc_id: str):
 
 class NotebookRequest(BaseModel):
     title: str = ""
+    course: str = ""
     kind: str = "notebook"  # notebook = 자료 없는 수업, meeting = 회의
 
 
@@ -135,7 +225,10 @@ def create_notebook(body: NotebookRequest):
     """강의자료 없는 수업(또는 회의): 빈 줄 노트로 시작한다. 주제가 바뀔 때마다 쪽이 늘고, 쪽마다 AI가 제목을 붙인다."""
     kind = "meeting" if body.kind == "meeting" else "notebook"
     title = body.title.strip() or time.strftime("%m월 %d일 회의" if kind == "meeting" else "%m월 %d일 수업")
-    return db().get_document(db().create_notebook(title, kind))
+    doc_id = db().create_notebook(title, kind)
+    if body.course.strip():
+        db().set_course(doc_id, body.course.strip()[:40])
+    return db().get_document(doc_id)
 
 
 @app.get("/documents")
@@ -780,6 +873,31 @@ def delete_annotation(ann_id: int):
         raise HTTPException(404, "필기가 없습니다.")
 
 
+# 내 필기: 학생이 직접 쓴 필기 (AI 필기와 같은 자리에 붙고, "직접 씀"으로 표시된다)
+
+
+class MyNote(BaseModel):
+    page_no: int
+    text: str
+    type: str = "explanation"
+
+
+@app.post("/sessions/{session_id}/annotations")
+def add_my_note(session_id: str, body: MyNote):
+    session = _session_or_404(session_id)
+    doc = db().get_document(session["document_id"])
+    page = next((p for p in doc["pages"] if p["page_no"] == body.page_no), None)
+    if page is None:
+        raise HTTPException(404, "그 페이지가 없습니다.")
+    if not body.text.strip():
+        raise HTTPException(400, "필기 내용이 비어 있어요.")
+    kind = body.type if body.type in ("explanation", "example", "emphasis", "exam", "notice", "qa") else "explanation"
+    at = max((s["end_ms"] for s in db().get_segments(session_id)), default=0)
+    note = db().add_annotation(session_id, page["id"], None, kind, body.text.strip()[:1000], at)
+    db().mark_user_annotation(note["id"])
+    return db().get_annotation(note["id"])
+
+
 # "모르겠다": 수업 중 한 번 누르면 그 순간을 표시만 하고(수업 흐름을 끊지 않게), 설명은 나중에 만든다
 
 CONFUSED_BEFORE_MS, CONFUSED_AFTER_MS = 90_000, 30_000
@@ -797,6 +915,21 @@ def mark_confused(session_id: str, body: ConfusedRequest):
     at = max((s["end_ms"] for s in segments), default=0)
     speech = " ".join(s["text"] for s in segments if s["end_ms"] >= at - 60_000)
     return db().add_mark(session_id, body.page_no, at, speech[-600:])
+
+
+@app.post("/sessions/{session_id}/star")
+def star(session_id: str, body: ConfusedRequest):
+    """⭐ 여기 중요: 방금 설명한 문장을 강조 필기로 붙인다 (시험 예상 지도·족보에도 '강조'로 들어간다)."""
+    session = _session_or_404(session_id)
+    doc = db().get_document(session["document_id"])
+    page = next((p for p in doc["pages"] if p["page_no"] == body.page_no), None) or doc["pages"][0]
+    segments = db().get_segments(session_id)
+    at = max((s["end_ms"] for s in segments), default=0)
+    recent = [s["text"] for s in segments if s["end_ms"] >= at - 20_000][-2:]
+    text = "⭐ 중요 표시" + (f": {' '.join(recent)[:200]}" if recent else "")
+    note = db().add_annotation(session_id, page["id"], None, "emphasis", text, at)
+    db().mark_user_annotation(note["id"])
+    return db().get_annotation(note["id"])
 
 
 @app.get("/sessions/{session_id}/marks")

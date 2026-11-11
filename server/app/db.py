@@ -201,6 +201,11 @@ class Database:
         if "kind" not in columns:
             self._conn.execute("ALTER TABLE documents ADD COLUMN kind TEXT NOT NULL DEFAULT 'slides'")
             self._conn.commit()
+        # course: 과목 이름 (자료를 과목별 폴더로 묶는다, 비면 "과목 없음")
+        columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(documents)")}
+        if "course" not in columns:
+            self._conn.execute("ALTER TABLE documents ADD COLUMN course TEXT NOT NULL DEFAULT ''")
+            self._conn.commit()
         # loud: 목소리를 높여 말한 문장 (실시간 녹음에서 소리 크기로 잰다)
         columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(transcript_segments)")}
         if "loud" not in columns:
@@ -240,6 +245,23 @@ class Database:
             self._conn.execute("UPDATE documents SET page_count = ? WHERE id = ?", (no, doc_id))
         return self._query("SELECT * FROM pages WHERE document_id = ? AND page_no = ?", (doc_id, no))[0]
 
+    def set_course(self, doc_id: str, course: str) -> None:
+        self._write("UPDATE documents SET course = ? WHERE id = ?", (course, doc_id))
+
+    def rename_document(self, doc_id: str, title: str) -> None:
+        self._write("UPDATE documents SET title = ? WHERE id = ?", (title, doc_id))
+
+    def replace_blocks(self, page_id: int, text: str, blocks: list[dict]) -> None:
+        """스캔본 쪽: 글자를 읽어 낸 뒤 쪽 글과 문단을 바꾼다."""
+        with self._lock, self._conn:
+            self._conn.execute("UPDATE pages SET text = ? WHERE id = ?", (text, page_id))
+            self._conn.execute("DELETE FROM blocks WHERE page_id = ?", (page_id,))
+            self._conn.executemany("INSERT INTO blocks (page_id, x, y, w, h, text) VALUES (?, ?, ?, ?, ?, ?)",
+                                   [(page_id, b["x"], b["y"], b["w"], b["h"], b["text"]) for b in blocks])
+
+    def mark_user_annotation(self, ann_id: int) -> None:
+        self._write("UPDATE annotations SET edited_by_user = 1 WHERE id = ?", (ann_id,))
+
     def set_page_text(self, page_id: int, text: str) -> None:
         self._write("UPDATE pages SET text = ? WHERE id = ?", (text, page_id))
 
@@ -263,7 +285,7 @@ class Database:
 
     def list_documents(self) -> list[dict]:
         """강의자료 목록 (최근 것부터)과 각 자료의 강의 목록"""
-        docs = self._query("SELECT id, title, page_count, created_at, kind FROM documents ORDER BY created_at DESC")
+        docs = self._query("SELECT id, title, page_count, created_at, kind, course FROM documents ORDER BY created_at DESC")
         for doc in docs:
             doc["sessions"] = self._query(
                 "SELECT id, status, started_at FROM sessions WHERE document_id = ? ORDER BY started_at DESC",
