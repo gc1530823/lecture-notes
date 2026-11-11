@@ -1,0 +1,134 @@
+[00:00] (20쪽) The following content is provided under a Creative Commons license.
+[00:04] (21쪽) Your support will help MIT OpenCourseWare continue to offer high quality educational resources for free.
+[00:12] (21쪽) To make a donation or view additional materials from hundreds of MIT courses, visit MIT OpenCourseWare at ocw.mit.edu.
+[00:29] (21쪽) All right everyone, let's get started
+[00:32] (21쪽) So all right good afternoon.
+[00:34] (21쪽) So this is the third lecture of 6 triple one and six hundred as
+[00:40] (21쪽) Always, please download slides and code to follow along
+[00:43] (21쪽) So quick recap of what we did last time last time we talked about
+[00:47] (21쪽) about strings as a new object type, as sequences of characters.
+[00:51] (21쪽) And then we introduced two new concepts that allowed us to write slightly more complicated programs.
+[00:57] (2쪽) So we introduced branching with these keywords if, elif, else.
+[01:01] (2쪽) And branching allowed us to write programs that us as programmers could introduce decisions into our programs.
+[01:08] (2쪽) And then we introduced two different kinds of loops, while loops and for loops.
+[01:13] (2쪽) And those also added a little bit of complexity to our programs.
+[01:17] (2쪽) Today we're going to talk a little bit more about strings.
+[01:20] (2쪽) So we're going to see a couple more operations that you can do on strings and string objects.
+[01:25] (2쪽) And then we're going to talk about three different algorithms.
+[01:29] (3쪽) I guess in check algorithm and approximate solution algorithm and a bisection method algorithm.
+[01:35] (3쪽) Okay, so let's dive right in.
+[01:37] (3쪽) We'll talk a little bit about strings first.
+[01:40] (4쪽) So strings, we thought of them as sequences of characters, right?
+[01:45] (4쪽) Case sensitive, as we saw in programs we wrote last lecture.
+[01:51] (4쪽) And strings are objects, and we can do all of these operations on string objects, like test if they're equal, less than, greater than, and so on.
+[01:59] (4쪽) TRINGS over values var BISECTION strings while can numbers you same mit solution increment low high search loops string start a pretty popular function And when applied on a string this function called len will tell you the length of a string So that going to tell you how many characters are in the string And characters are going to be letters digits special characters spaces and so on So it just going to count how many characters are in a string So if I have the string s is equal to abc remember a string
+[02:54] (4쪽) is in quotation marks then if I do this this if I write this expression len s
+[03:01] (5쪽) here since it's an expression it has a value so it evaluates to a certain value
+[03:07] (4쪽) and by definition it's going to tell me what the length of the string is which
+[03:11] (4쪽) is three characters long okay another thing that we can do on strings is since
+[03:22] (4쪽) if there's sequence of characters I might want to get what character is at a certain position.
+[03:27] (4쪽) So we do this using this fancy word called indexing.
+[03:33] (5쪽) But pretty much what indexing into a string means is you're going to tell Python I want
+[03:39] (5쪽) to know the character at this certain position or at this certain index inside my string.
+[03:45] (5쪽) So once again let's use this string s is equal to abc and let's index into it.
+[03:51] (5쪽) So in computer science, we start from zero, counting by convention.
+[03:55] (5쪽) Notice we had a problem set zero in this class.
+[03:58] (5쪽) Python's no different.
+[04:00] (5쪽) So in Python, you start indexing at position zero.
+[04:03] (5쪽) Or you start indexing at zero.
+[04:05] (5쪽) So the first character in your string, we say, is at position zero, or at index zero.
+[04:12] (5쪽) The next character in the string is at index one, and the next character in the string is at index two.
+[04:20] (5쪽) in Python it turns out you can also use negative numbers to index and if you use
+[04:30] (5쪽) if you index into the string with negative one for example that means that
+[04:36] (5쪽) you want the last character in the string so the last character in your
+[04:39] (5쪽) string is always going to be at position negative one second to last character is
+[04:44] (5쪽) at negative two third to last characters at negative three and so on and so on
+[04:48] (5쪽) on So the way you index into a string is with these square brackets here And this is the notation So if I want the character at position zero or at index zero I say s which is the string I want to index into and then inside the square brackets I say what
+[05:05] (5쪽) index I want so s at index 0 is going to be the value a s at index 1 is going to
+[05:12] (5쪽) be the value B and so on and so on and we can also do negative negative
+[05:20] (5쪽) indexing as well.
+[05:21] (5쪽) If you do try, I added this in here, if you do try to index into a string beyond the limits of the string, and we can even try this out just to show you that it's not the end of the world if we do that, if we have S is equal to ABC and we have S at position 20, for example, obviously my string is only length 3, so what's at position 20?
+[05:46] (5쪽) I get an error.
+[05:47] (5쪽) I call this angry text here in Python.
+[05:50] (5쪽) on but really the most relevant thing to note is these last couple of lines here.
+[05:57] (5쪽) This tells you what line is problematic so S at position 20 has an issue and this last line here
+[06:06] (5쪽) tells me what actual error I have so it's an index error which means I'm trying to index too far into
+[06:12] (5쪽) string.
+[06:12] (5쪽) It only has three characters.
+[06:14] (5쪽) Okay.
+[06:15] (5쪽) So, it's nice to be able to get a single character out of my string, but sometimes I might want to get a substring.
+[06:24] (5쪽) So, I want to start at, you know, the first character and go halfway into the string, or I want to take a few characters in between, or I want to skip every other letter, or something like that in my string.
+[06:42] (5쪽) So if I want to do this slightly more complicated interaction with strings, we call that slicing.
+[06:49] (5쪽) Slicing into a string.
+[06:52] (5쪽) And this notation here should seem a little bit familiar because we saw it last lecture when we did it with range.
+[06:59] (6쪽) We had a start, stop, and a step.
+[07:02] (6쪽) The notation was a little bit different because in range we had open close parentheses and commas in between.
+[07:09] (6쪽) But except for that, this sort of works the same.
+[07:12] (6쪽) start abcdefgh loop iterates expressions one and take that index and then the step is every how many letters you wish to take so this is the full notation here but sometimes you can not give it a
+[07:39] (6쪽) third a third sort of number in here so if you only give it two numbers then that
+[07:46] (6쪽) to Python that represents just the start and the stop and by default step is
+[07:50] (6쪽) going to be one.
+[07:51] (6쪽) And there's a lot of other things you can do with strings.
+[07:56] (6쪽) You can omit numbers and just leave colons in Python just by definition the way that whoever wrote slicing had decided.
+[08:06] (6쪽) If you omit numbers, then it's going to be equivalent to these things here.
+[08:12] (6쪽) So we slice using square brackets just like indexing, except now we can give it two numbers.
+[08:20] (6쪽) So with this string s, if we slice into the string s, we start from index 3 and go up until index 6.
+[08:35] (6쪽) So if we have abcdefgh, right, this is position 0, 1, 2, 3, 4, 5, 6, 7.
+[08:50] (6쪽) and you just count.
+[08:51] (6쪽) So S starting from 3 and going till 6 is going to start here, 3, right?
+[08:57] (6쪽) So it's going to come up with, sorry, D, and then we're going to take E, and then we're going to take F.
+[09:06] (6쪽) And since we're going until stop minus 1, we're not going to take G, right?
+[09:12] (6쪽) Because this is position 6 and we're going until 6 minus 1.
+[09:20] (6쪽) The next one here, 362 is going every other one, right?
+[09:24] (6쪽) So we start at 3 and then we skip every other one.
+[09:29] (6쪽) So we go D but not E and then F and then stop.
+[09:33] (6쪽) stop if you do S and then nothing inside except colons, notice that you're going to have S and then
+[09:45] (6쪽) nothing and then colon, nothing, colon, nothing.
+[09:48] (6쪽) So nothing for start, nothing for stop, nothing for step, and that's
+[09:52] (6쪽) just going to evaluate to the string itself.
+[09:56] (6쪽) It's the same as 0 to the length S going every step.
+[10:00] (6쪽) This one might actually be useful.
+[10:02] (6쪽) It reverses the string automatically for you.
+[10:05] (6쪽) So with this one little line here, you can get the inverse of your string.
+[10:10] (6쪽) And that's equivalent to that.
+[10:12] (6쪽) So the minus one represents starting from the end and going back every letter.
+[10:18] (6쪽) And then this one's a little bit more complicated, but also not too bad.
+[10:23] (6쪽) Okay.
+[10:23] (6쪽) Okay.
+[10:24] (6쪽) So as we're doing with the, as we're, as we're doing these string slices, again, if you're unsure what something does, just type it into spider and, you know, you might be surprised, you might not be, but it's a good way to check yourself to make sure you know, you're understanding what's happening.
+[10:43] (7쪽) Okay one thing I want to mention and it good to keep this in the back of your mind We going to come back to this as we start talking about slightly more complicated object types But strings are immutable So just keep this word in the back of your mind as we go through this class And what I mean by this is that an actual string object once it created cannot be modified Okay this might not mean anything right now But let me just draw a little something let say I have this string s is equal to hello remember in the first lecture we drew a diagram sort of like
+[11:20] (7쪽) this this is my memory I have this object hello and this object hello is
+[11:26] (7쪽) bound to this variable s right so now I can access the object hello using this
+[11:33] (7쪽) variable s now you might think well since I could index into a string I
+[11:39] (7쪽) I might be able to just say something like s at position 0 is equal to y.
+[11:45] (7쪽) And that'll just change the little h into a y,
+[11:47] (7쪽) and I'll have a new object.
+[11:49] (7쪽) Well, strings are immutable, which means in Python
+[11:51] (7쪽) you're not actually allowed to do this.
+[11:53] (7쪽) And it gives you an error if you do try to do that.
+[11:57] (7쪽) If you want the variable s to point to the string y e l l o,
+[12:04] (7쪽) you could just say s is equal to y e l l o.
+[12:07] (7쪽) or you could do string operations like this and this takes the Y and it concatenates it
+[12:13] (7쪽) to the string S all of the elements starting from position one which is E L L O so this
+[12:21] (7쪽) makes Y E L L O now internally what happens when I when I write this line is Python says okay I going to break my bond with this original object hello I going to bind my string variable s to the
+[12:37] (7쪽) new object, yellow.
+[12:38] (7쪽) And this other old object still is in memory somewhere.
+[12:41] (7쪽) But it's an
+[12:42] (7쪽) entirely different object that I've created here.
+[12:46] (7쪽) Again, might not mean anything right
+[12:48] (7쪽) now but just keep this in the back of your mind strings are immutable okay
+[12:54] (7쪽) all right so the next thing I want to talk about is a little bit of recap of
+[13:05] (7쪽) on for loops and we're gonna see how we can apply for loops very easily to write
+[13:09] (8쪽) very nice readable code when dealing with strings okay so remember that for
+[13:15] (8쪽) for loops had a loop variable.
+[13:17] (8쪽) My loop variable being this var here in this particular case.
+[13:22] (8쪽) It could be anything you want.
+[13:24] (8쪽) And this variable in this particular case iterates over this
+[13:28] (8쪽) sequence of numbers, 0, 1, 2, 3, 4.
+[13:31] (8쪽) So the very first time through the loop, var has
+[13:34] (8쪽) a value of 0 It does the expressions in the loop As soon as they done var takes the value 1 It does all the expressions in the loop and then var takes the value two and it does that all the way up until zero one two and the last time it goes around is with var is equal to three And remember we said that we can customize our range in order to start from a custom value to end at a different value and to skip certain numbers So so far we only been using four loops over a sequence of numbers but actually four loops
+[14:09] (8쪽) are a lot more powerful than that you can use them to iterate over any sequence
+[14:15] (8쪽) of values not just numbers but also strings okay so here are two pieces of
+[14:23] (8쪽) code this one and this one here okay these two pieces of code both do the
+[14:29] (9쪽) exact same thing okay to me possibly to you this one looks a lot more readable
+[14:37] (9쪽) for a char in a string s if the char is

@@ -1,0 +1,7 @@
+받아쓰기 정확도 (공식 자막과 비교, 앞 15분)
+- 자막 단어 2273개 · 우리 받아쓰기 단어 2189개
+- 단어 오류율(WER) 12.4% → 정확도 약 87.6%
+- 슬라이드 용어 중 자막에 나온 87개 가운데 86개를 맞게 받아씀 (99%)
+  놓친 용어: yello
+- 자막 앞부분: the following content is provided under a creative commons license your support will help mit opencourseware continue to offer high quality educational resources for free
+- 받아쓰기 앞부분: the following content is provided under a creative commons license your support will help mit opencourseware continue to offer high quality educational resources for free

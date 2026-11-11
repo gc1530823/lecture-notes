@@ -1,0 +1,23 @@
+서버: {'ok': True, 'llm_mode': 'groq', 'model': 'openai/gpt-oss-120b', 'stt_mode': 'groq'}
+강의자료: slides (21쪽)
+녹음 파일: 7.4MB
+  [     0초] 정리: transcribing
+  [     9초] 정리: transcribing 50%
+  [    12초] 정리: transcribing
+  [   129초] 정리: processing
+  [   207초] 정리: done
+받아쓰기 134문장 · 필기 11개 (보류함 0개) · 과제 0개 · 요약 done
+[질문 6쪽] Q. 방금 설명한 거 쉽게 다시 설명해 줘
+A. 교수님이 말씀하신 대로 문자열은 바뀔 수 없는(immutable) 객체라서, 기존 문자열을 그대로 두고 새로운 문자열을 만들 때 슬라이스를 사용합니다. 예를 들어 s='abcdefgh'에서 s[3:6]은 인덱스 3부터 5까지의 문자 'def'를 반환하고, s[::-1]은 문자열을 뒤집어 'hgfedcba'를 만들죠. 이렇게 슬라이스를 활용하면 for 루프와 같이 문자열의 각 문자에 쉽게 접근하고 처리할 수 있습니다.
+  [   214초] 정리 PDF: building 0/10쪽
+  [   223초] 정리 PDF: building 1/10쪽
+  [   235초] 정리 PDF: building 2/10쪽
+  [   241초] 정리 PDF: building 3/10쪽
+  [   265초] 정리 PDF: building 4/10쪽
+  [   292초] 정리 PDF: building 5/10쪽
+  [   313초] 정리 PDF: building 6/10쪽
+  [   322초] 정리 PDF: building 7/10쪽
+  [   334초] 정리 PDF: building 8/10쪽
+  [   343초] 정리 PDF: building 9/10쪽
+  [   352초] 정리 PDF: ready
+끝 · 전체 352초 · 정리 PDF ready
