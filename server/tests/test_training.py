@@ -211,3 +211,42 @@ def test_slide_truth_matches_video_frames_to_pages_and_scores_tracking():
     transcript = "[00:00] (1쪽) 가\n[00:06] (3쪽) 나\n[00:10] (4쪽) 다 (틀린 쪽)\n"
     s = st.score(truth, transcript)
     assert s["sentences"] == 3 and abs(s["exact"] - 2 / 3) < 1e-6
+
+
+def test_hybrid_sends_live_work_to_teacher_and_after_lecture_work_to_our_ai():
+    from app.hybrid import HybridLLM
+
+    calls = []
+
+    class Teacher:
+        async def annotate(self, *a, **k):
+            calls.append("teacher.annotate"); return {"annotations": []}
+        async def study_page(self, *a, **k):
+            calls.append("teacher.study_page"); return [{"front": "선생님", "back": "답"}]
+        async def summarize(self, *a, **k):
+            calls.append("teacher.summarize"); return {"overview": "선생님 요약"}
+        async def warm_up(self):
+            pass
+
+    class Student:
+        async def annotate(self, *a, **k):
+            raise AssertionError("수업 중 필기는 우리 AI가 하지 않는다")
+        async def study_page(self, *a, **k):
+            calls.append("student.study_page"); return [{"front": "우리 AI", "back": "답"}]
+        async def summarize(self, *a, **k):
+            calls.append("student.summarize"); raise RuntimeError("Ollama 꺼짐")
+        async def warm_up(self):
+            raise RuntimeError("꺼짐")
+
+    llm = HybridLLM(Teacher(), Student())
+
+    async def run():
+        await llm.warm_up()
+        await llm.annotate([], "", [])
+        cards = await llm.study_page("flashcards", {}, "", [])
+        summary = await llm.summarize([], [], [])
+        return cards, summary
+
+    cards, summary = asyncio.run(run())
+    assert cards[0]["front"] == "우리 AI" and summary["overview"] == "선생님 요약"
+    assert calls == ["teacher.annotate", "student.study_page", "student.summarize", "teacher.summarize"]

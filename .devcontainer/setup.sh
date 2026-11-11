@@ -14,4 +14,6 @@ ollama pull "${OLLAMA_MODEL:-qwen3:4b}"
 
 # 받아쓰기 모델도 미리 받아 둔다 (첫 녹음 파일이 늦지 않게)
 python -c "from faster_whisper import WhisperModel; WhisperModel('${WHISPER_MODEL:-small}', device='cpu', compute_type='int8')"
+# 새 웹앱 빌드 (서버가 / 에서 보여 준다)
+(cd web && npm ci --silent && npm run build --silent) || echo "웹앱 빌드 실패 — 예전 웹앱(/app/)으로 열려요"
 echo "설치 완료"

@@ -802,6 +802,13 @@ def make_llm() -> LLM:
         from .groq import GroqLLM
 
         return GroqLLM()
+    if settings.llm_mode == "hybrid":
+        # 수업 중 일은 Groq, 강의 뒤 일은 우리 AI(OLLAMA_MODEL, 보통 lecture-notes) — app/hybrid.py
+        from .groq import GroqLLM
+        from .hybrid import HybridLLM
+        from .ollama_llm import OllamaLLM
+
+        return HybridLLM(GroqLLM(), OllamaLLM())
     from .ollama_llm import OllamaLLM
 
     return OllamaLLM()

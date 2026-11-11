@@ -63,7 +63,10 @@ python scripts/export_training.py --tasks annotate        # 실시간 필기만
    (새 방식 토큰 하나만 받았으면 `KAGGLE_API_TOKEN` + `KAGGLE_USERNAME`). 키는 채팅·저장소에 올리지 않는다.
 4. Actions → **Train on Kaggle** → Run workflow. 매주 월요일 새벽에도 학습 데이터가 200개 이상이면 알아서 돈다.
 
-받아서 쓰기: 릴리스의 `lecture-notes.gguf.part00`, `part01`… 과 `Modelfile` 을 한 폴더에 받고
+**Codespaces에서 한 줄로 쓰기**: 터미널에 `bash training/install_model.sh` → Codespace를 다시 열면(또는 `bash .devcontainer/start.sh`)
+수업 중 필기는 Groq, 강의 뒤 정리(요약·플래시카드·마인드맵·예상 문제 등)는 우리 AI가 맡는다 (`LLM_MODE=hybrid`, 실패하면 Groq로 다시).
+
+직접 받아서 쓰기: 릴리스의 `lecture-notes.gguf.part00`, `part01`… 과 `Modelfile` 을 한 폴더에 받고
 
 ```bash
 cat lecture-notes.gguf.part* > lecture-notes.gguf     # Windows: copy /b lecture-notes.gguf.part00+lecture-notes.gguf.part01 lecture-notes.gguf

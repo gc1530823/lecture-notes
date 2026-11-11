@@ -92,7 +92,7 @@ class AnnotationUpdate(BaseModel):
 @app.get("/health")
 def health():
     model = {"ollama": settings.ollama_model, "claude": settings.annotation_model,
-             "groq": settings.groq_model}.get(settings.llm_mode)
+             "groq": settings.groq_model, "hybrid": f"{settings.groq_model} + {settings.ollama_model}"}.get(settings.llm_mode)
     return {"ok": True, "llm_mode": settings.llm_mode, "model": model, "stt_mode": settings.stt_mode}
 
 
@@ -1330,7 +1330,8 @@ def delete_shared(shared_id: int):
 
 @app.get("/privacy")
 def privacy():
-    where = {"groq": "Groq (미국 클라우드, 무료 사용량)", "ollama": "이 서버 컴퓨터 안 (Ollama, 밖으로 안 나감)",
+    where = {"hybrid": "수업 중은 Groq (미국 클라우드), 강의 뒤 정리는 이 서버 안의 우리 AI (밖으로 안 나감)",
+             "groq": "Groq (미국 클라우드, 무료 사용량)", "ollama": "이 서버 컴퓨터 안 (Ollama, 밖으로 안 나감)",
              "claude": "Anthropic Claude API (미국 클라우드)", "fake": "테스트용 가짜 응답 (밖으로 안 나감)"}
     stt = {"groq": "Groq Whisper (미국 클라우드)", "whisper": "이 서버 컴퓨터 안 (Whisper, 밖으로 안 나감)", "fake": "테스트용"}
     return {"ai": where.get(settings.llm_mode, settings.llm_mode), "speech": stt.get(settings.stt_mode, settings.stt_mode),
