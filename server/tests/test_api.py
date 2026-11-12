@@ -843,3 +843,78 @@ def test_story_flow_and_streak_are_built_from_notes_without_ai(client):
     s = build_streak([now, now - day, now - 2 * day, now - 5 * day], 540, now)
     assert (s["streak"], s["best"], s["today"]) == (3, 3, True) and [d["done"] for d in s["week"]][-3:] == [True] * 3
     assert build_streak([now - day], 540, now)["streak"] == 1 and build_streak([now - 3 * day], 540, now)["streak"] == 0
+
+
+def test_notes_are_checked_again_after_class_and_user_notes_are_left_alone(client):
+    """필기 두 번 쓰기: 끝난 뒤 AI가 틀린 필기를 고치고·옮기고·지우고, 놓친 시험 언급을 더한다. 내가 고친 필기는 그대로."""
+    from app.main import app as fastapi_app
+
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1, "initial": True})
+        for i, text in enumerate(["학습률이 너무 크면 발산해요. 이거 시험에 꼭 나와요.", "예를 들어 학습률 0.1로 시작해 보세요. 정말 중요합니다.",
+                                  "역전파는 연쇄 법칙으로 기울기를 구해요. 이것도 중요해요.", "다음 주까지 과제를 제출하세요. 공지입니다."]):
+            ws.send_json({"type": "transcript_final", "text": text, "start_ms": 10_000 + i * 20_000, "end_ms": 15_000 + i * 20_000})
+            ws.send_json({"type": "flush"})
+            receive_annotation(ws)
+    notes = client.get(f"/sessions/{session['id']}/annotations").json()
+    assert len(notes) >= 4
+    mine, wrong, misplaced, dup = notes[0], notes[1], notes[2], notes[3]
+    client.patch(f"/annotations/{mine['id']}", json={"text": "내가 고친 필기"})
+    seen = []
+
+    class Reviewer:
+        def __getattr__(self, name):
+            return getattr(fastapi_app.state.llm_real, name)
+
+        async def review_notes(self, prompt):
+            seen.append(prompt)
+            return {"notes": [
+                {"id": mine["id"], "action": "delete", "text": "", "page_no": 1},        # 내 필기: 보여 주지도 않았으니 무시된다
+                {"id": wrong["id"], "action": "fix", "text": "학습률은 0.1로 시작", "page_no": 1},
+                {"id": misplaced["id"], "action": "move", "text": "", "page_no": 2},
+                {"id": dup["id"], "action": "delete", "text": "", "page_no": 1},
+            ], "missed": [{"type": "exam", "text": "발산 조건은 시험에 나옴", "page_no": 1, "at": "0:12"},
+                          {"type": "exam", "text": "없는 쪽", "page_no": 99, "at": "0:12"}]}
+
+    fastapi_app.state.llm_real = fastapi_app.state.llm
+    fastapi_app.state.llm = Reviewer()
+    try:
+        client.post(f"/sessions/{session['id']}/end")
+        for _ in range(50):
+            state = client.get(f"/sessions/{session['id']}/summary").json()
+            if state["status"] == "done":
+                break
+            time.sleep(0.1)
+    finally:
+        fastapi_app.state.llm = fastapi_app.state.llm_real
+    assert f'id="{mine["id"]}"' not in seen[0] and f'id="{wrong["id"]}"' in seen[0] and "<speech>" in seen[0]
+    after = {n["id"]: n for n in client.get(f"/sessions/{session['id']}/annotations").json()}
+    assert after[mine["id"]]["text"] == "내가 고친 필기"
+    assert after[wrong["id"]]["text"] == "학습률은 0.1로 시작" and not after[wrong["id"]]["edited_by_user"]
+    assert after[misplaced["id"]]["page_no"] == 2
+    assert dup["id"] not in after
+    added = [n for n in after.values() if n["text"] == "발산 조건은 시험에 나옴"]
+    assert added and added[0]["type"] == "exam" and added[0]["start_ms"] == 12_000
+    assert not any(n["text"] == "없는 쪽" for n in after.values())
+    assert state["review"]["fixed"] == 1 and state["review"]["moved"] == 1 and state["review"]["deleted"] == 1 and state["review"]["added"] == 1
+
+
+def test_note_review_ignores_mass_deletes():
+    from app.note_review import apply
+
+    class Db:
+        deleted = []
+
+        def review_annotation(self, ann_id, **kw):
+            if kw.get("delete"):
+                self.deleted.append(ann_id)
+
+        def set_confidence(self, *a):
+            pass
+
+    notes = [{"id": i, "page_no": 1, "text": f"필기 {i}", "start_ms": i * 1000, "confidence": 0.5} for i in range(4)]
+    result = {"notes": [{"id": i, "action": "delete", "text": "", "page_no": 1} for i in range(3)], "missed": []}
+    done = apply(Db(), "s", notes, result, {1}, [{"page_no": 1, "id": 1}])
+    assert done["deleted"] == 0 and Db.deleted == []

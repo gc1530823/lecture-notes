@@ -54,6 +54,7 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
   const pageSummary = new Map((summary?.summary?.pages ?? []).map((p) => [p.page_no, p.summary]));
   const pages = doc.pages.filter((p) => notes.some((n) => n.page_no === p.page_no && !n.pending));
   const overview = summary?.summary?.overview;
+  const review = (summary as { review?: { checked: number; fixed: number; moved: number; deleted: number; added: number } | null } | undefined)?.review;
 
   if (doc.kind === "meeting") return <Minutes sessionId={sessionId} />;
 
@@ -76,6 +77,10 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
   return (
     <>
       {overview && <Overview text={overview} />}
+      {review && review.checked > 0 && (
+        <p className="t-caption review-note"><Icon name="check-circle" size={16} /> 수업 뒤 AI가 필기 {review.checked}개를 다시 확인했어요
+          {[review.fixed ? `${review.fixed}개 고침` : "", review.moved ? `${review.moved}개 쪽 옮김` : "", review.deleted ? `${review.deleted}개 지움` : "", review.added ? `${review.added}개 더함` : ""].filter(Boolean).map((t) => ` · ${t}`).join("")}</p>
+      )}
       {beyond?.ratio ? (
         <p className="t-caption muted">교수님 설명의 {Math.round(beyond.ratio * 100)}%는 슬라이드에 없던 내용이에요</p>
       ) : null}

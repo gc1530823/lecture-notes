@@ -76,6 +76,49 @@ def _grams(text: str) -> Counter[str]:
     return grams
 
 
+# ── 한글로 받아쓴 영어 용어 ("러닝 레이트")를 영어 슬라이드("learning rate")와 맞추기 ──
+# 한국 대학 강의는 슬라이드는 영어, 말은 한국어인 경우가 많다. 받아쓰기는 영어 용어를 한글로 적으므로 글자가 하나도 안 겹친다.
+# 두 쪽 모두 자음 뼈대(소리 갈래)로 바꿔서 같으면 같은 말로 본다: learning → L N N, 러닝 → L N N.
+_CHO = "KKNTTLMPPSS_SSSKTPH"          # 첫소리 19개 (ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ), ㅇ은 소리 없음
+_JONG = "_KKKNNNTLLLLLLLLMPPTTNTTKTPH"  # 끝소리 28개 (없음 포함), ㅇ 받침은 N (ng)
+_LATIN = {"b": "P", "p": "P", "f": "P", "v": "P", "c": "K", "k": "K", "g": "K", "q": "K", "d": "T", "t": "T", "l": "L", "r": "L",
+          "m": "M", "n": "N", "s": "S", "z": "S", "j": "S", "x": "KS", "h": "H", "w": "", "y": ""}
+_VOWELS = "aeiou"
+
+
+def hangul_skeleton(word: str) -> str:
+    out = []
+    for ch in word:
+        code = ord(ch) - 0xAC00
+        if not 0 <= code < 11172:
+            return ""
+        out.append(_CHO[code // 588])
+        out.append(_JONG[code % 28])
+    return _squash("".join(out))
+
+
+def latin_skeleton(word: str) -> str:
+    w = word.lower()
+    w = re.sub(r"tion|sion|cian", "SN", w)          # ~션
+    w = re.sub(r"ch|sh|th", "S", w).replace("ph", "P").replace("ck", "K").replace("ng", "N")
+    w = re.sub(r"c(?=[eiy])", "S", w)               # descent → 디센트
+    w = re.sub(r"g(?=[ei])", "S", w)                # gradient는 ㄱ이지만 algorithm·generation은 ㅈ: 둘 다 해 보기는 과해서 ㅈ 쪽만
+    w = re.sub(r"(?<=[aeiou])r(?![aeiou])", "", w)  # 모음 뒤 r은 한글로 적을 때 사라진다 (learning → 러닝)
+    w = re.sub(r"e$", "", w)
+    out = []
+    for ch in w:
+        if ch in "SNPKTLMH":
+            out.append(ch)
+        elif ch not in _VOWELS:
+            out.append(_LATIN.get(ch, ""))
+    return _squash("".join(out))
+
+
+def _squash(skeleton: str) -> str:
+    skeleton = skeleton.replace("_", "")
+    return re.sub(r"(.)\1+", r"\1", skeleton)
+
+
 class PageIndex:
     """페이지 텍스트를 TF-IDF 벡터로 만들어 두고 받아쓰기와 유사도를 잰다."""
 
@@ -87,6 +130,33 @@ class PageIndex:
             df.update(c.keys())
         self.idf = {g: math.log((1 + self.size) / (1 + n)) + 1 for g, n in df.items()}
         self.vectors = [self._weigh(c) for c in counts]
+        # 슬라이드의 영어 낱말(5자 이상) → 자음 뼈대. 뼈대가 3 이상이고 한 낱말만 가리킬 때만 쓴다 (헛맞춤을 줄이려고)
+        by_skeleton: dict[str, set[str]] = {}
+        for word in df:
+            if re.fullmatch(r"[a-z]{5,}", word):
+                for skeleton in {latin_skeleton(word), latin_skeleton(word.replace("g", "k"))}:
+                    if len(skeleton) >= 3:
+                        by_skeleton.setdefault(skeleton, set()).add(word)
+        self.sounds = {k: next(iter(v)) for k, v in by_skeleton.items() if len(v) == 1}
+        self.korean = {w for t in page_texts for w in re.findall(r"[가-힣]{3,}", t)}
+
+    def _spoken_english(self, text: str) -> Counter[str]:
+        """말에 한글로 적힌 영어 용어 → 슬라이드의 영어 낱말"""
+        found: Counter[str] = Counter()
+        if not self.sounds:
+            return found
+        for word in re.findall(r"[가-힣]{3,}", text):
+            if word in self.korean:
+                continue
+            for cut in (0, 1, 2):  # 조사("레이트가", "디센트에서")를 떼어 가며
+                stem = word[: len(word) - cut] if cut else word
+                if len(stem) < 3:
+                    break
+                hit = self.sounds.get(hangul_skeleton(stem))
+                if hit:
+                    found[hit] += 1
+                    break
+        return found
 
     def _weigh(self, counts: Counter[str]) -> dict[str, float]:
         vec = {g: (1 + math.log(n)) * self.idf.get(g, 0.0) for g, n in counts.items() if g in self.idf}
@@ -94,7 +164,9 @@ class PageIndex:
         return {g: v / norm for g, v in vec.items()}
 
     def similarities(self, text: str) -> list[float]:
-        query = self._weigh(_grams(text))
+        grams = _grams(text)
+        grams.update(self._spoken_english(text))
+        query = self._weigh(grams)
         return [sum(w * page.get(g, 0.0) for g, w in query.items()) for page in self.vectors]
 
 

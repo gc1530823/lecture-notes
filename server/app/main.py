@@ -30,6 +30,7 @@ from .review import GRADES, NEW_PER_DAY, build_jokbo, card_key, schedule
 from .semester import anki_text, concept_map, exam_plan, semester_context, session_markdown
 from .notes_pdf import build_notes_pdf
 from .quick_notes import EXAM_TALK
+from .note_review import review_session
 from .story import build_story, build_streak
 from .recording import audio_file, recorded_ms, wav_parts
 from .pdf_parser import PDFParseError, extract_keywords, parse_pdf
@@ -49,6 +50,7 @@ async def lifespan(app: FastAPI):
     app.state.ocr_jobs = {}
     app.state.transcriber = make_transcriber()
     app.state.progress = {}  # 세션 id → 녹음 파일 받아쓰기 진행률 (0~1)
+    app.state.reviews = {}   # 세션 id → 강의 뒤 필기 다시 확인 결과 (몇 개 고쳤는지)
     app.state.notes_pdf = {}  # 세션 id → 정리 PDF 만들기 상태
     app.state.exam_jobs = {}  # 강의자료 id → 예상 문제 만들기 상태
     app.state.study_jobs = {}  # (세션 id, 종류) → 공부 도구 만들기 상태
@@ -449,8 +451,29 @@ async def _refine_transcript(session_id: str, document_id: str) -> None:
         app.state.progress.pop(session_id, None)
 
 
+async def _review_notes(session_id: str, document_id: str) -> None:
+    """필기 두 번 쓰기: 강의 전체를 본 AI가 실시간 필기를 다시 확인해 바로잡는다 (app/note_review.py). 실패해도 필기는 그대로."""
+    if not settings.review_notes:
+        return
+    try:
+        doc = db().get_document(document_id)
+        if doc.get("kind", "slides") != "slides":
+            return  # 노트·회의는 쪽이 주제 단위라 옮길 곳이 다르다
+        progress = app.state.progress
+        done = await review_session(db(), app.state.llm, session_id, doc["pages"], set(db().photo_by_annotation(session_id)),
+                                    lambda p: progress.__setitem__(session_id, p))
+        if done["checked"]:
+            log.info("필기 다시 확인: %s", done)
+            app.state.reviews[session_id] = done
+    except Exception:
+        log.exception("필기 다시 확인 실패 (실시간 필기를 그대로 씀)")
+    finally:
+        app.state.progress.pop(session_id, None)
+
+
 async def _summarize(session_id: str, document_id: str) -> None:
     await _refine_transcript(session_id, document_id)
+    await _review_notes(session_id, document_id)
     pages = db().list_pages(document_id)
     try:
         body = await app.state.llm.summarize(pages, db().get_segments(session_id), db().list_annotations(session_id))
@@ -474,7 +497,7 @@ async def _summarize(session_id: str, document_id: str) -> None:
 def get_summary(session_id: str):
     session = _session_or_404(session_id)
     return {"status": session["status"], "summary": db().get_summary(session_id),
-            "progress": app.state.progress.get(session_id)}
+            "progress": app.state.progress.get(session_id), "review": app.state.reviews.get(session_id)}
 
 
 # "방금 뭐라고?": 수업 중 질문. 최근 2분 설명과 지금 슬라이드를 근거로 답하고, 관련 문단 옆에 질문 포스트잇으로 붙인다

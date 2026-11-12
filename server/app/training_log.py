@@ -26,7 +26,7 @@ _lock = threading.Lock()
 
 def task_name(system: str) -> str:
     """시스템 프롬프트 → 작업 이름. 프롬프트를 바꿔도 이름이 유지되도록 상수와 견준다."""
-    from . import llm, ollama_llm
+    from . import llm, note_review, ollama_llm
 
     known = [
         ("annotate", llm.ANNOTATION_SYSTEM), ("summarize", llm.SUMMARY_SYSTEM), ("summarize_page", ollama_llm.PAGE_SUMMARY_SYSTEM),
@@ -34,7 +34,7 @@ def task_name(system: str) -> str:
         ("organize", llm.ORGANIZE_SYSTEM), ("ask", llm.ASK_SYSTEM), ("flashcards", llm.FLASHCARD_SYSTEM),
         ("concepts", llm.CONCEPT_SYSTEM), ("mindmap", llm.MINDMAP_SYSTEM), ("tutor", llm.TUTOR_SYSTEM),
         ("title", llm.TITLE_SYSTEM), ("catch_up", llm.CATCHUP_SYSTEM), ("predict", llm.PREDICT_SYSTEM),
-        ("fix_speech", llm.FIX_SPEECH_SYSTEM),
+        ("fix_speech", llm.FIX_SPEECH_SYSTEM), ("review_notes", note_review.REVIEW_SYSTEM),
     ]
     for name, prompt in known:
         # 노트 모드 필기처럼 기본 프롬프트 뒤에 규칙을 덧붙인 경우도 같은 작업으로 본다

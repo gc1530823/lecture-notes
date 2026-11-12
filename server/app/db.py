@@ -279,6 +279,17 @@ class Database:
     def set_confidence(self, ann_id: int, confidence: float) -> None:
         self._write("UPDATE annotations SET confidence = ? WHERE id = ?", (round(confidence, 3), ann_id))
 
+    def review_annotation(self, ann_id: int, text: str | None = None, page_id: int | None = None, block_id: int | None = None,
+                          delete: bool = False) -> None:
+        """강의 뒤 AI가 다시 확인해 바로잡은 것 (사용자가 고친 것이 아니므로 feedback·edited_by_user는 건드리지 않는다)."""
+        if delete:
+            self._write("DELETE FROM annotations WHERE id = ? AND edited_by_user = 0", (ann_id,))
+        elif text is not None:
+            self._write("UPDATE annotations SET text = ?, confidence = 0.9 WHERE id = ? AND edited_by_user = 0", (text, ann_id))
+        elif page_id is not None:
+            self._write("UPDATE annotations SET page_id = ?, block_id = ?, confidence = 0.9 WHERE id = ? AND edited_by_user = 0",
+                        (page_id, block_id, ann_id))
+
     def confirm_annotation(self, ann_id: int) -> dict | None:
         """사용자가 "맞아요"를 눌렀다: 확신 1로, 학습 데이터에는 '확인됨'으로 남긴다."""
         before = self.get_annotation(ann_id)

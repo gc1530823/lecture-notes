@@ -80,3 +80,23 @@ def test_full_lecture_scenario_tracks_every_sentence():
     t.user_viewed(1, now=0.0, manual=False)
     got = [t.observe(text, i * 1500, now=1.0 + i).page_no for i, (_, text) in enumerate(SPEECH)]
     assert got == [page for page, _ in SPEECH]
+
+
+def test_english_terms_spoken_in_korean_match_english_slides():
+    """슬라이드는 영어, 말은 한국어: "그래디언트 디센트"를 "Gradient Descent" 쪽으로 따라간다."""
+    from app.alignment import PageIndex, PageTracker, hangul_skeleton, latin_skeleton
+
+    assert hangul_skeleton("백프로파게이션") == latin_skeleton("backpropagation")
+    assert hangul_skeleton("드롭아웃") == latin_skeleton("dropout")
+    index = PageIndex(["Gradient Descent\nlearning rate controls step size", "Backpropagation\nchain rule",
+                       "Overfitting and Regularization\ndropout"])
+    for text, page in [("그래디언트 디센트에서는 스텝 크기가 중요해요", 0), ("백프로파게이션은 미분을 뒤로 전달합니다", 1),
+                       ("오버피팅을 막으려면 드롭아웃을 써요", 2)]:
+        sims = index.similarities(text)
+        assert sims.index(max(sims)) == page and max(sims) > 0.3
+    # 보통 한국어 문장은 영어 낱말로 잘못 바뀌지 않는다
+    for text in ["그러니까 여러분 이거는 정말 중요합니다", "다음 시간에는 중간고사 범위를 알려 드릴게요", "자 그러면 질문 있는 사람 손 들어 보세요"]:
+        assert not index._spoken_english(text), text
+    tracker = PageTracker(index)
+    tracker.observe("그래디언트 디센트부터 볼게요", 0, now=0)
+    assert tracker.observe("자 이제 백프로파게이션은 체인 룰을 씁니다", 20_000, now=20).page_no == 2

@@ -519,3 +519,5 @@ input[type="date"].input { padding: 0 var(--space-lg); }
 .postit-grid .postit:nth-child(2) { animation-delay: 60ms; } .postit-grid .postit:nth-child(3) { animation-delay: 120ms; }
 .postit-grid .postit:nth-child(4) { animation-delay: 180ms; } .postit-grid .postit:nth-child(n+5) { animation-delay: 240ms; }
 .postit:active { transform: rotate(0) scale(1.03) translateY(-2px); box-shadow: 0 14px 22px rgb(0 0 0 / .18); }
+
+.review-note { display: flex; align-items: center; gap: 6px; color: var(--note-example-ink); font-weight: 500; }

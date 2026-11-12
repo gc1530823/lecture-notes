@@ -6,6 +6,7 @@ API는 OpenAI와 같은 형식이고, 프롬프트·스키마와 페이지별로
 """
 
 import asyncio
+import contextvars
 import io
 import json
 import logging
@@ -31,6 +32,9 @@ BASE_URL = "https://api.groq.com/openai/v1"
 # 무료 등급은 파일 하나에 25MB까지라, 16kHz 모노 32kbps mp3(1시간 약 14MB)로 바꾼 뒤 10분씩 나눠 보낸다
 CHUNK_SECONDS = 600
 MAX_RETRIES = int(os.getenv("GROQ_MAX_RETRIES", "6"))  # 데이터 만들기처럼 몰아서 쓸 때는 늘린다
+
+
+_EFFORT: contextvars.ContextVar[str] = contextvars.ContextVar("groq_effort", default="low")
 
 
 class GroqLimit(LLMError):
@@ -60,6 +64,13 @@ class GroqLLM(OllamaLLM):
         self.client = httpx.AsyncClient(base_url=BASE_URL, timeout=httpx.Timeout(120, connect=10),
                                         transport=transport)
 
+    async def review_notes(self, prompt: str) -> dict:
+        token = _EFFORT.set("medium")  # 급하지 않으니 더 깊이 생각하게
+        try:
+            return await super().review_notes(prompt)
+        finally:
+            _EFFORT.reset(token)
+
     async def _chat(self, system: str, prompt: str, schema: dict, context_tokens: int,
                     temperature: float = 0.2) -> dict:
         payload = {
@@ -69,8 +80,8 @@ class GroqLLM(OllamaLLM):
             "temperature": temperature,
         }
         if "gpt-oss" in settings.groq_model:
-            # 생각을 짧게 해서 실시간 필기를 빠르게 한다
-            payload["reasoning_effort"] = "low"
+            # 생각을 짧게 해서 실시간 필기를 빠르게 한다 (강의 뒤 필기 다시 확인은 더 깊이 생각하게)
+            payload["reasoning_effort"] = _EFFORT.get()
         for attempt in range(MAX_RETRIES):
             try:
                 response = await self.client.post("/chat/completions", json=payload, headers=_auth())

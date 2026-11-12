@@ -170,6 +170,12 @@ class OllamaLLM:
                                 ANNOTATION_SCHEMA, context_tokens=4096)
         return {"annotations": data.get("annotations", []), "tasks": data.get("tasks", []), "terms": data.get("terms", [])}
 
+    async def review_notes(self, prompt: str) -> dict:
+        """강의 뒤 필기 다시 확인 (app/note_review.py)"""
+        from .note_review import REVIEW_SCHEMA, REVIEW_SYSTEM
+
+        return await self._chat(REVIEW_SYSTEM, prompt, REVIEW_SCHEMA, context_tokens=8192, temperature=0.1)
+
     async def draft_task(self, task: dict, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict:
         data = await self._chat_checked(TASK_DRAFT_SYSTEM, _task_prompt(task, pages, segments, annotations),
                                         TASK_SCHEMA, 32768, _task_draft_ok)
