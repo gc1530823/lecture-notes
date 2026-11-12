@@ -376,18 +376,6 @@ input[type="date"].input { padding: 0 var(--space-lg); }
 @keyframes vt-in-back { from { opacity: 0; transform: translateX(-28px) scale(.98); } }
 @keyframes vt-fade-out { to { opacity: 0; } }
 
-/* 홈 머리: 천천히 흐르는 오로라 + 인사 */
-.home-head { position: relative; isolation: isolate; overflow: hidden; }
-.aurora { position: absolute; inset: -40% -20% -10%; z-index: -1; filter: blur(46px); opacity: .55; pointer-events: none; animation: none !important;
-  mask-image: linear-gradient(to bottom, #000 40%, transparent); -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent); }
-.aurora i { position: absolute; width: 55%; aspect-ratio: 1; border-radius: 50%; animation: drift 14s ease-in-out infinite alternate; }
-.aurora i:nth-child(1) { left: -8%; top: 8%; background: color-mix(in srgb, var(--accent-primary) 70%, transparent); }
-.aurora i:nth-child(2) { right: -6%; top: -6%; background: color-mix(in srgb, var(--note-exam-ink) 45%, transparent); animation-duration: 18s; animation-direction: alternate-reverse; }
-.aurora i:nth-child(3) { left: 30%; top: 30%; background: color-mix(in srgb, var(--note-tip-ink) 50%, transparent); animation-duration: 22s; }
-@keyframes drift { from { transform: translate(-6%, -4%) scale(.9); } to { transform: translate(10%, 8%) scale(1.15); } }
-.hero-title { background: linear-gradient(100deg, var(--text-primary) 30%, var(--accent-primary) 60%, var(--text-primary) 90%); background-size: 220% 100%;
-  -webkit-background-clip: text; background-clip: text; color: transparent; animation: rise .5s var(--ease-out) both, sheen 6s ease-in-out 1s infinite; }
-@keyframes sheen { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0 0; } }
 
 /* 목록: 차례로 올라온다 */
 .list-item.stagger { animation: rise .5s var(--ease-out) both; }
@@ -521,3 +509,80 @@ input[type="date"].input { padding: 0 var(--space-lg); }
 .postit:active { transform: rotate(0) scale(1.03) translateY(-2px); box-shadow: 0 14px 22px rgb(0 0 0 / .18); }
 
 .review-note { display: flex; align-items: center; gap: 6px; color: var(--note-example-ink); font-weight: 500; }
+
+@keyframes drift { from { transform: translate(-6%, -4%) scale(.9); } to { transform: translate(10%, 8%) scale(1.15); } }
+
+/* ═════════ 컨셉: 다이어리 꾸미기 책상 ═════════
+   화면 전체가 공부하는 책상 위의 문구: 모눈 종이 바탕, 형광펜으로 그은 제목, 파일철 색인 탭(과목), 마스킹테이프 라벨,
+   출석 도장판, 시험 도장이 찍힌 포스트잇. 손글씨체는 제목·도장·테이프에만 쓴다. */
+body { background-color: var(--bg-paper); background-image: radial-gradient(var(--paper-dot) 1.1px, transparent 1.2px); background-size: 18px 18px; }
+.top-bar, .home-actions { background-image: none; }
+
+/* 인사: 손글씨 + 형광펜이 왼쪽에서 그어진다 */
+.hero-title { font: 700 34px/46px var(--font-hand); letter-spacing: -.01em; margin-top: 2px; padding-bottom: 6px; }
+.hero-title .hl { background: linear-gradient(transparent 58%, color-mix(in srgb, var(--note-explanation-paper) 85%, transparent) 58%, color-mix(in srgb, var(--note-explanation-paper) 85%, transparent) 92%, transparent 92%) no-repeat left / 100% 100%;
+  padding: 0 6px 0 2px; margin-left: -2px; border-radius: 2px; animation: highlight .9s var(--ease-out) .35s both; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+@keyframes highlight { from { background-size: 0 100%; } }
+
+/* 과목 = 색인 탭: 파일철 위로 삐죽 나온 탭, 고른 탭은 앞으로 나온다 */
+.index-tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 6px 2px 0; border-bottom: 2px solid var(--border-line); align-items: flex-end; }
+.index-tab { --tab: var(--border-line); --tab-ink: var(--text-secondary); flex: none; padding: 7px 14px 6px; border-radius: 10px 10px 0 0; background: var(--tab); color: var(--tab-ink);
+  font: 700 13px/18px var(--font-sans); transform: translateY(4px); transition: transform .22s var(--ease-spring), padding .22s var(--ease-out), box-shadow .2s; white-space: nowrap; }
+.index-tab.on { transform: translateY(0); padding-bottom: 10px; box-shadow: 0 -3px 10px rgb(0 0 0 / .08); background: var(--bg-card); color: var(--text-primary); }
+.index-tab.tone-explanation { --tab: var(--note-explanation-paper); } .index-tab.tone-example { --tab: var(--note-example-paper); } .index-tab.tone-exam { --tab: var(--note-exam-paper); }
+.index-tab.tone-tip { --tab: var(--note-tip-paper); } .index-tab.tone-notice { --tab: var(--note-notice-paper); } .index-tab.tone-emphasis { --tab: var(--note-emphasis-paper); } .index-tab.tone-qa { --tab: var(--note-qa-paper); }
+.index-tab[class*="tone-"] { --tab-ink: var(--text-note); }
+.index-tab[class*="tone-"].on { background: var(--tab); color: var(--text-note); }
+.index-tab:active { transform: translateY(1px); }
+
+/* 과목 제목: 손글씨 + 그 과목 탭 색 형광펜 */
+.course-title { font: 700 22px/28px var(--font-hand); color: var(--text-primary); margin-top: var(--space-sm); display: flex; align-items: baseline; gap: 6px; letter-spacing: 0; }
+.course-title span { --hl: var(--border-line); background: linear-gradient(transparent 55%, var(--hl) 55%) no-repeat left / 100% 100%; padding: 0 4px; animation: highlight .7s var(--ease-out) .2s both; }
+.course-title small { font: 500 12px/1 var(--font-sans); color: var(--text-tertiary); }
+.course-title.tone-explanation span { --hl: var(--note-explanation-paper); } .course-title.tone-example span { --hl: var(--note-example-paper); } .course-title.tone-exam span { --hl: var(--note-exam-paper); }
+.course-title.tone-tip span { --hl: var(--note-tip-paper); } .course-title.tone-notice span { --hl: var(--note-notice-paper); } .course-title.tone-emphasis span { --hl: var(--note-emphasis-paper); } .course-title.tone-qa span { --hl: var(--note-qa-paper); }
+:root[data-theme="dark"] .course-title span, :root[data-theme="dark"] .hero-title .hl { color: var(--text-note); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .course-title span, :root:not([data-theme="light"]) .hero-title .hl { color: var(--text-note); } }
+
+/* 강의자료 카드: 오른쪽 위 귀퉁이가 접힌 종이 */
+.course-group .list-item { position: relative; border-radius: 6px 0 6px 6px; }
+.course-group .list-item::after { content: ""; position: absolute; top: 0; right: 0; width: 22px; height: 22px;
+  background: linear-gradient(225deg, var(--bg-paper) 50%, color-mix(in srgb, var(--text-tertiary) 35%, var(--bg-card)) 50%); border-bottom-left-radius: 6px; box-shadow: -2px 2px 4px rgb(0 0 0 / .06); }
+
+/* 마스킹테이프 라벨 */
+.tape { position: absolute; top: -11px; left: 18px; padding: 2px 14px; background: color-mix(in srgb, var(--tape) 82%, transparent); color: var(--text-note); font: 700 15px/20px var(--font-hand);
+  transform: rotate(-2.5deg); box-shadow: 0 1px 2px rgb(0 0 0 / .12); z-index: 1;
+  clip-path: polygon(0 12%, 3% 0, 6% 14%, 9% 0, 12% 12%, 100% 0, 100% 100%, 97% 88%, 94% 100%, 91% 86%, 88% 100%, 0 100%); animation: tape-on .5s var(--ease-spring) .25s both; }
+@keyframes tape-on { from { opacity: 0; transform: rotate(-9deg) translateY(-10px) scale(1.15); } }
+.class-now { position: relative; margin-top: 10px; overflow: visible; }
+.class-now.live { outline: none; background: var(--bg-card); box-shadow: var(--shadow-card), inset 0 0 0 2px color-mix(in srgb, var(--accent-primary) 55%, transparent); }
+
+/* 출석 도장판 */
+.stamp-board { position: relative; margin-top: 10px; padding: var(--space-lg) var(--space-lg) var(--space-md); background: var(--bg-card); border-radius: 6px; box-shadow: var(--shadow-card);
+  display: flex; flex-direction: column; gap: var(--space-sm);
+  background-image: repeating-linear-gradient(transparent 0 27px, color-mix(in srgb, var(--note-tip-ink) 16%, transparent) 27px 28px); }
+.stamp-count { display: block; font: 700 30px/34px var(--font-hand); }
+.stamp-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.stamp-slot { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.stamp-slot i { width: 100%; max-width: 44px; aspect-ratio: 1; border-radius: 50%; border: 1.5px dashed var(--border-line); display: grid; place-items: center; font-style: normal; }
+.stamp-slot.done i { border: 2px solid var(--stamp-ink); color: var(--stamp-ink); font: 700 11px/11px var(--font-hand); white-space: pre; text-align: center; transform: rotate(var(--tilt));
+  box-shadow: inset 0 0 0 2px var(--bg-card), inset 0 0 0 3px color-mix(in srgb, var(--stamp-ink) 55%, transparent); opacity: .88;
+  animation: stamp .45s cubic-bezier(.2, 1.6, .4, 1) both; mix-blend-mode: multiply; }
+:root[data-theme="dark"] .stamp-slot.done i { mix-blend-mode: normal; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .stamp-slot.done i { mix-blend-mode: normal; } }
+.stamp-slot.today.done i { animation-name: stamp-thump; animation-duration: .6s; }
+.stamp-slot small { font: 500 10px/1 var(--font-sans); color: var(--text-tertiary); }
+.stamp-slot.today small { color: var(--text-primary); font-weight: 700; }
+@keyframes stamp { from { opacity: 0; transform: rotate(var(--tilt)) scale(1.6); } }
+@keyframes stamp-thump { 0% { opacity: 0; transform: rotate(calc(var(--tilt) - 14deg)) scale(2.6); } 55% { opacity: 1; transform: rotate(var(--tilt)) scale(.9); } 75% { transform: rotate(var(--tilt)) scale(1.06); } 100% { transform: rotate(var(--tilt)) scale(1); } }
+
+/* 시험 포스트잇: 빨간 도장 */
+.exam-stamp { position: absolute; right: 8px; bottom: 8px; padding: 1px 8px; border: 2px solid var(--stamp-ink); border-radius: 4px; color: var(--stamp-ink); font: 700 15px/20px var(--font-hand);
+  transform: rotate(-12deg); opacity: .8; pointer-events: none; animation: stamp-thump .55s cubic-bezier(.2, 1.6, .4, 1) .45s both; --tilt: -12deg; }
+.postit-exam { padding-bottom: calc(var(--space-md) + 18px); }
+
+/* 포스트잇 위쪽: 살짝 접착면 느낌 */
+.postit::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 9px; background: linear-gradient(rgb(0 0 0 / .06), transparent); pointer-events: none; }
+
+/* 모눈 종이 위 카드들은 살짝 덜 둥글게 (종이 느낌) */
+.banner, .flow, .skeleton, .timetable-edit { border-radius: 6px; }

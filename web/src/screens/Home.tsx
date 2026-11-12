@@ -48,6 +48,8 @@ function useReminder() {
   }, []);
 }
 
+const TONES = ["explanation", "example", "exam", "tip", "notice", "emphasis", "qa"] as const;
+
 /** 시간대에 맞는 인사 */
 function greeting(now = new Date()): string {
   const h = now.getHours();
@@ -118,14 +120,16 @@ export default function Home() {
           <button className="top-bar-back" onClick={() => go({ name: "search" })} aria-label="모든 강의에서 찾기"><Icon name="book-open-text" /></button>
           <button className="top-bar-back" onClick={() => go({ name: "privacy" })} aria-label="개인정보와 녹음"><Icon name="shield-check" /></button>
         </div>
-        <h1 className="t-title-l hero-title">{greeting()}</h1>
-        <div className="aurora" aria-hidden="true"><i /><i /><i /></div>
+        <h1 className="hero-title"><span className="hl">{greeting()}</span></h1>
       </header>
       <div className="screen-body">
-        <div className="scroll-x" role="group" aria-label="과목">
-          <Chip variant={filter === "all" ? "selected" : "default"} onClick={() => pick("all")}>전체</Chip>
-          {courses.map((c) => <Chip key={c} variant={filter === c ? "selected" : "default"} onClick={() => pick(c)}>{c}</Chip>)}
-          {hasLoose && courses.length > 0 && <Chip variant={filter === "" ? "selected" : "default"} onClick={() => pick("")}>과목 없음</Chip>}
+        {/* 과목 = 파일철의 색인 탭 */}
+        <div className="index-tabs" role="group" aria-label="과목">
+          <button className={`index-tab${filter === "all" ? " on" : ""}`} aria-pressed={filter === "all"} onClick={() => pick("all")}>전체</button>
+          {courses.map((c, i) => (
+            <button key={c} className={`index-tab tone-${TONES[i % TONES.length]}${filter === c ? " on" : ""}`} aria-pressed={filter === c} onClick={() => pick(c)}>{c}</button>
+          ))}
+          {hasLoose && courses.length > 0 && <button className={`index-tab${filter === "" ? " on" : ""}`} aria-pressed={filter === ""} onClick={() => pick("")}>과목 없음</button>}
         </div>
         <StreakCard />
         <Timetable courses={courses} onPick={pick} />
@@ -148,7 +152,7 @@ export default function Home() {
         {groups.map(([course, list]) => (
           <section key={course || "-"} className="course-group">
             {(filter === "all" && courses.length > 0) && (
-              <h2 className="t-caption course-title">{course || "과목 없음"} <span className="faint">{list.length}</span></h2>
+              <h2 className={`course-title tone-${course ? TONES[courses.indexOf(course) % TONES.length] : "none"}`}><span>{course || "과목 없음"}</span> <small>{list.length}</small></h2>
             )}
             {list.map((doc, i) => (
               <ListItem key={doc.id} index={i} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}

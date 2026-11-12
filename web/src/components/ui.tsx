@@ -79,7 +79,8 @@ export function PostIt({ type, number, children, tag, photo, meeting }: {
 }) {
   const style = { "--paper": `var(--note-${type}-paper)`, "--ink": `var(--note-${type}-ink)` } as CSSProperties;
   return (
-    <article className="postit" style={style}>
+    <article className={`postit postit-${type}`} style={style}>
+      {type === "exam" && !meeting && <span className="exam-stamp" aria-hidden="true">시험</span>}
       <div className="postit-head">
         <span>{(meeting && MEETING_LABEL[type]) || NOTE_LABEL[type] || type}</span>
         {number !== undefined && <span className="postit-badge">{number}</span>}

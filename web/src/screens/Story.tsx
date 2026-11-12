@@ -173,28 +173,32 @@ export function FlowStrip({ flow, onJump }: { flow: StoryData["flow"]; onJump: (
 
 interface Streak { streak: number; best: number; today: boolean; week: { date: string; done: boolean }[]; days: number }
 
-/** 연속 공부: 강의를 듣거나 복습한 날이 며칠째 이어지는지 */
+/** 출석 도장판: 강의를 듣거나 복습한 날마다 도장이 찍힌다 (며칠째 이어 가는지) */
 export function StreakCard() {
   const [data, setData] = useState<Streak | null>(null);
   useEffect(() => { getJSON<Streak>(`/streak?tz=${-new Date().getTimezoneOffset()}`).then(setData).catch(() => setData(null)); }, []);
   if (!data || data.days === 0) return null;
   const names = ["일", "월", "화", "수", "목", "금", "토"];
   return (
-    <div className={`streak${data.today ? " lit" : ""}`}>
-      <span className="streak-flame"><Icon name="fire" size={26} /></span>
-      <span className="grow">
-        <span className="t-title-s" style={{ display: "block" }}>
-          {data.streak > 0 ? <><Count to={data.streak} />일째 이어 가는 중</> : "오늘 다시 시작해 봐요"}
+    <div className="stamp-board">
+      <span className="tape" aria-hidden="true">출석 도장</span>
+      <div className="row">
+        <span className="grow">
+          <span className="stamp-count">{data.streak > 0 ? <><Count to={data.streak} />일째</> : "다시 시작"}</span>
+          <span className="list-item-sub">{data.today ? "오늘 도장 찍었어요" : data.streak > 0 ? "오늘도 찍으면 이어져요" : `최고 기록 ${data.best}일`}{data.best > data.streak && data.streak > 0 ? ` · 최고 ${data.best}일` : ""}</span>
         </span>
-        <span className="list-item-sub">{data.today ? "오늘 공부 완료" : data.streak > 0 ? "오늘도 하면 이어져요" : `최고 기록 ${data.best}일`}{data.best > data.streak && data.streak > 0 ? ` · 최고 ${data.best}일` : ""}</span>
-      </span>
-      <span className="streak-week" aria-label="이번 주">
-        {data.week.map((d, i) => (
-          <span key={d.date} className={d.done ? "done" : ""} style={{ animationDelay: `${200 + i * 60}ms` }}>
-            <i />{names[new Date(d.date + "T00:00:00").getDay()]}
-          </span>
-        ))}
-      </span>
+      </div>
+      <div className="stamp-week" aria-label="이번 주 출석">
+        {data.week.map((d, i) => {
+          const today = i === data.week.length - 1;
+          return (
+            <span key={d.date} className={`stamp-slot${d.done ? " done" : ""}${today ? " today" : ""}`}>
+              <i style={{ "--tilt": `${((i * 37) % 24) - 12}deg`, animationDelay: today ? "500ms" : `${120 + i * 50}ms` } as React.CSSProperties}>{d.done ? "참 잘\n했어요" : ""}</i>
+              <small>{names[new Date(d.date + "T00:00:00").getDay()]}</small>
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }

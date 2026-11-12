@@ -42,6 +42,11 @@
   --shadow-note: 0 6px 10px rgb(0 0 0 / 0.12);
 
   --font-sans: "Noto Sans KR", system-ui, -apple-system, sans-serif;
+  /* 손글씨: 다이어리 꾸미기 컨셉의 제목·도장·테이프 글씨에만 아껴 쓴다 */
+  --font-hand: "Gaegu", "Nanum Pen Script", "Noto Sans KR", cursive;
+  --paper-dot: #e3ded5;
+  --stamp-ink: #d6334c;
+  --tape: #ffd98a;
   color-scheme: light dark;
 }
 
@@ -57,6 +62,9 @@
     --accent-record: #ff5a5f;
     --border-line: #34343a;
     --shadow-card: 0 4px 14px rgb(0 0 0 / 0.35);
+    --paper-dot: #2a2a30;
+    --stamp-ink: #ff6b81;
+    --tape: #8a6a2a;
     color-scheme: dark;
   }
 }
@@ -70,6 +78,9 @@
     --accent-record: #ff5a5f;
     --border-line: #34343a;
     --shadow-card: 0 4px 14px rgb(0 0 0 / 0.35);
+    --paper-dot: #2a2a30;
+    --stamp-ink: #ff6b81;
+    --tape: #8a6a2a;
     color-scheme: dark;
 }
 
