@@ -55,7 +55,7 @@ export function Timetable({ courses, onPick }: { courses: string[]; onPick: (cou
     <section className="timetable" aria-label="시간표">
       {now ? (
         <button className={`list-item class-now${now.live ? " live" : ""}`} onClick={() => onPick(now.row.course)}>
-          <span className="tape" aria-hidden="true">{now.live ? "지금 수업" : "다음 수업"}</span>
+          <span className="magnet" aria-hidden="true">{now.live ? "지금 수업" : "다음 수업"}</span>
           <span className="list-item-icon"><Icon name="chalkboard-teacher" /></span>
           <span className="grow">
             <span className="t-title-s" style={{ display: "block" }}>{now.row.course}</span>

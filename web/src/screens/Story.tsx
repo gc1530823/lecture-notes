@@ -173,32 +173,36 @@ export function FlowStrip({ flow, onJump }: { flow: StoryData["flow"]; onJump: (
 
 interface Streak { streak: number; best: number; today: boolean; week: { date: string; done: boolean }[]; days: number }
 
-/** 출석 도장판: 강의를 듣거나 복습한 날마다 도장이 찍힌다 (며칠째 이어 가는지) */
+// 바를 정(正): 한 글자 다섯 획. 한국에서 수를 셀 때 쓰는 방법 그대로 출석을 센다
+const JEONG = ["M6 8 H36", "M21 8 V34", "M21 21 H33", "M11 19 V34", "M4 34 H38"];
+
+/** 출석: 강의를 듣거나 복습한 날마다 정(正) 자에 한 획 */
 export function StreakCard() {
   const [data, setData] = useState<Streak | null>(null);
   useEffect(() => { getJSON<Streak>(`/streak?tz=${-new Date().getTimezoneOffset()}`).then(setData).catch(() => setData(null)); }, []);
   if (!data || data.days === 0) return null;
   const names = ["일", "월", "화", "수", "목", "금", "토"];
+  const strokes = Math.min(data.streak, 15);
+  const glyphs = Math.max(1, Math.ceil(strokes / 5));
   return (
-    <div className="stamp-board">
-      <span className="tape" aria-hidden="true">출석 도장</span>
-      <div className="row">
-        <span className="grow">
-          <span className="stamp-count">{data.streak > 0 ? <><Count to={data.streak} />일째</> : "다시 시작"}</span>
-          <span className="list-item-sub">{data.today ? "오늘 도장 찍었어요" : data.streak > 0 ? "오늘도 찍으면 이어져요" : `최고 기록 ${data.best}일`}{data.best > data.streak && data.streak > 0 ? ` · 최고 ${data.best}일` : ""}</span>
+    <div className="tally">
+      <span className="tally-marks" role="img" aria-label={`${data.streak}일 연속`}>
+        {Array.from({ length: glyphs }, (_, g) => (
+          <svg key={g} viewBox="0 0 42 42">
+            {JEONG.slice(0, Math.min(5, strokes - g * 5)).map((d, k) => {
+              const n = g * 5 + k;
+              return <path key={k} d={d} className={data.today && n === strokes - 1 ? "today" : ""} style={{ animationDelay: `${300 + n * 130}ms` }} />;
+            })}
+          </svg>
+        ))}
+      </span>
+      <span className="grow">
+        <span className="tally-count">{data.streak > 0 ? <><Count to={data.streak} />일째 출석</> : "오늘 다시 한 획"}</span>
+        <span className="list-item-sub">{data.today ? "오늘 한 획 그었어요" : data.streak > 0 ? "오늘도 오면 한 획 더" : `최고 기록 ${data.best}일`}{data.best > data.streak && data.streak > 0 ? ` · 최고 ${data.best}일` : ""}</span>
+        <span className="tally-week" aria-label="이번 주">
+          {data.week.map((d) => <span key={d.date} className={d.done ? "done" : ""}>{names[new Date(d.date + "T00:00:00").getDay()]}</span>)}
         </span>
-      </div>
-      <div className="stamp-week" aria-label="이번 주 출석">
-        {data.week.map((d, i) => {
-          const today = i === data.week.length - 1;
-          return (
-            <span key={d.date} className={`stamp-slot${d.done ? " done" : ""}${today ? " today" : ""}`}>
-              <i style={{ "--tilt": `${((i * 37) % 24) - 12}deg`, animationDelay: today ? "500ms" : `${120 + i * 50}ms` } as React.CSSProperties}>{d.done ? "참 잘\n했어요" : ""}</i>
-              <small>{names[new Date(d.date + "T00:00:00").getDay()]}</small>
-            </span>
-          );
-        })}
-      </div>
+      </span>
     </div>
   );
 }
