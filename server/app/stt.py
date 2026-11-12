@@ -34,10 +34,16 @@ def guess_language(hint: str) -> str:
 PROMPT_LEAD = {"ko": "네, 오늘 수업을 시작하겠습니다. ", "en": "Okay, let's get started today. "}
 
 
-def is_hallucination(text: str, hint: str, no_speech: float = 0.0, compression: float = 1.0) -> bool:
+def is_hallucination(text: str, hint: str, no_speech: float = 0.0, compression: float = 1.0,
+                     avg_logprob: float | None = None) -> bool:
     """Whisper가 말이 없는 곳(도입 음악·침묵)에서 지어낸 말:
-    말소리가 없을 확률이 높거나, 같은 말이 되풀이되거나(압축률이 높음), 우리가 건넨 용어 힌트를 그대로 읊은 것."""
-    if no_speech >= 0.6 or compression >= 2.4:
+    말소리가 없을 확률이 높으면서 자신도 없거나, 같은 말이 되풀이되거나(압축률이 높음), 우리가 건넨 용어 힌트를 그대로 읊은 것.
+    말소리 없음 확률만으로는 버리지 않는다: Groq Whisper는 진짜 강의 말에도 이 값을 높게 주곤 해서
+    공개 강의 테스트에서 15분 중 1분 넘게 말이 통째로 빠졌다 (Whisper 원래 규칙도 '없음 확률 > 0.6 그리고 평균 확신 < -1').
+    확신 값이 없는 옛 응답만 없음 확률 하나로 판단한다."""
+    if compression >= 2.4 or "♪" in text:
+        return True
+    if no_speech >= 0.6 and (avg_logprob is None or avg_logprob < -1.0):
         return True
     words = re.findall(r"[A-Za-z가-힣]{2,}", text.lower())
     hint_words = set(re.findall(r"[A-Za-z가-힣]{2,}", hint.lower()))
@@ -87,7 +93,7 @@ class WhisperTranscriber:
         result = []
         for seg in segments:
             text = seg.text.strip()
-            if text and not is_hallucination(text, hint, seg.no_speech_prob, seg.compression_ratio):
+            if text and not is_hallucination(text, hint, seg.no_speech_prob, seg.compression_ratio, seg.avg_logprob):
                 result.append(Segment(int(seg.start * 1000), int(seg.end * 1000), text))
             if on_progress and info.duration:
                 on_progress(min(seg.end / info.duration, 1.0))

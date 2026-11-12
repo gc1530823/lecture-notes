@@ -164,9 +164,17 @@ class GroqTranscriber:
             raise LLMError(f"Groq 받아쓰기 오류 ({response.status_code}): {response.text[:200]}")
         body = response.json()
         segments = body.get("segments") or [{"start": 0, "end": body.get("duration", 0), "text": body.get("text", "")}]
-        return [Segment(int(s["start"] * 1000), int(s["end"] * 1000), s["text"].strip())
-                for s in segments if s.get("text", "").strip()
-                and not is_hallucination(s["text"], hint, s.get("no_speech_prob", 0.0), s.get("compression_ratio", 1.0))]
+        kept = []
+        for s in segments:
+            text = s.get("text", "").strip()
+            if not text:
+                continue
+            if is_hallucination(text, hint, s.get("no_speech_prob", 0.0), s.get("compression_ratio", 1.0), s.get("avg_logprob")):
+                log.info("받아쓰기 버림 (지어낸 말로 봄): %r 없음=%.2f 압축=%.2f 확신=%s", text[:80], s.get("no_speech_prob", 0.0),
+                         s.get("compression_ratio", 1.0), s.get("avg_logprob"))
+                continue
+            kept.append(Segment(int(s["start"] * 1000), int(s["end"] * 1000), text))
+        return kept
 
     def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
         """audio: 파일 경로, 또는 16kHz 모노 float32 배열(실시간 조각). WhisperTranscriber와 같은 꼴로 돌려준다."""

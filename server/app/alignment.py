@@ -28,17 +28,30 @@ P_SKIP = 0.03   # 한 장 건너뛰기
 P_BACK = 0.03
 P_JUMP = 0.02   # 나머지 아무 페이지로
 
-NEXT_PATTERNS = re.compile(r"다음\s*(장|페이지|슬라이드|쪽|거|으로)|넘어가|넘길게|넘겨|그 다음 장")
-BACK_PATTERNS = re.compile(r"앞에서|아까\s*(본|봤|말한|했)|이전\s*(장|페이지|슬라이드)|다시 앞|돌아가")
+# 한국어와 영어 강의 둘 다 (공개 강의 테스트가 영어라서)
+NEXT_PATTERNS = re.compile(r"다음\s*(장|페이지|슬라이드|쪽|거|으로)|넘어가|넘길게|넘겨|그 다음 장"
+                           r"|\bnext (slide|page)\b|\bmove on\b|\bgo on to\b|\bon to the next\b", re.I)
+BACK_PATTERNS = re.compile(r"앞에서|아까\s*(본|봤|말한|했)|이전\s*(장|페이지|슬라이드)|다시 앞|돌아가"
+                           r"|\b(go|going|went) back\b|\bprevious (slide|page)\b|\bearlier (we|i)\b|\bas we saw\b", re.I)
 # 주제가 바뀌는 말: 이전 받아쓰기를 유사도 계산에서 빼기만 한다 (다음 장으로 넘어간다고 단정하지 않음)
-TOPIC_SHIFT = re.compile(r"자\s*이제|이번에는|이제\s*.{0,12}(이야기|얘기|볼게|봅시다|넘어)")
-PAGE_NUMBER = re.compile(r"(\d{1,3})\s*(페이지|쪽|번\s*슬라이드|슬라이드)")
+TOPIC_SHIFT = re.compile(r"자\s*이제|이번에는|이제\s*.{0,12}(이야기|얘기|볼게|봅시다|넘어)"
+                         r"|\b(now )?let'?s (talk|look|move|turn)\b|\bso now\b|\bnext,? (we|i)\b", re.I)
+PAGE_NUMBER = re.compile(r"(\d{1,3})\s*(페이지|쪽|번\s*슬라이드|슬라이드)|\b(?:slide|page)\s+(\d{1,3})\b", re.I)
+# 강의는 앞에서 시작한다: 처음 믿음은 앞쪽 몇 장에 몰아 둔다 (예전에는 고르게 두어서, 첫 문장이 우연히 겹친
+# 맨 뒤 '요약'·저작권 쪽으로 튀고 한참 못 돌아왔다)
+START_SPREAD = 2.0
+# 먼 쪽으로 건너뛸수록 드물다 (예전에는 어느 쪽이든 똑같았다)
+JUMP_SCALE = 6.0
 
 
 # 말끝·조사는 어느 페이지에나 나와서 유사도에 잡음만 준다
 ENDINGS = ("습니다", "입니다", "합니다", "할게요", "갈게요", "볼게요", "에서는", "으로는", "거예요", "이에요", "예요",
            "해요", "어요", "아요", "에요", "게요", "니다", "으로", "에서", "에게", "까지", "부터", "하는", "하고",
            "은", "는", "이", "가", "을", "를", "의", "에", "로", "와", "과", "도", "요")
+EN_STOP = {"the", "and", "of", "to", "in", "is", "it", "that", "this", "we", "you", "for", "on", "are", "be", "as", "so",
+           "with", "can", "have", "if", "or", "an", "at", "by", "do", "not", "they", "there", "what", "which", "one",
+           "will", "here", "just", "going", "get", "all", "about", "some", "also", "then", "these", "our", "your",
+           "okay", "ok", "right", "now", "like", "want", "would", "how", "from", "has", "was", "its", "let", "use"}
 FILLERS = {"그래서", "그러니까", "이제", "그리고", "근데", "그런데", "이거", "저거", "여기", "거기", "우리", "여러분",
            "이렇게", "그렇게", "약간", "진짜", "그냥", "이런", "그런", "있어요", "없어요", "합니다", "해요"}
 
@@ -55,7 +68,7 @@ def _grams(text: str) -> Counter[str]:
     grams: Counter[str] = Counter()
     for word in re.findall(r"[a-z0-9]+|[가-힣]+", text):
         if re.match(r"[a-z0-9]", word):
-            if len(word) >= 2:
+            if len(word) >= 2 and word not in EN_STOP:
                 grams[word] += 1
         elif word not in FILLERS:
             word = _stem(word)
@@ -105,7 +118,7 @@ class PageTracker:
         # 강의는 보통 앞쪽에서 시작한다
         self.belief = [1.0 / n] * n if n else []
         if n:
-            self.belief = _normalize([2.0 if i == 0 else 1.0 for i in range(n)])
+            self.belief = _normalize([math.exp(-i / START_SPREAD) + 0.01 for i in range(n)])
 
     # 신호 A
     def user_viewed(self, page_no: int, now: float | None = None, manual: bool = True) -> None:
@@ -155,7 +168,9 @@ class PageTracker:
             stay, back = 0.55, 0.35
         prior = [0.0] * n
         for j, p in enumerate(self.belief):
-            row = [P_JUMP / max(n - 1, 1)] * n
+            far = [1.0 / (1.0 + abs(i - j) / JUMP_SCALE) if i != j else 0.0 for i in range(n)]
+            total = sum(far) or 1.0
+            row = [P_JUMP * f / total for f in far]
             row[j] = stay
             if j + 1 < n:
                 row[j + 1] = nxt
@@ -167,8 +182,9 @@ class PageTracker:
             for i in range(n):
                 prior[i] += p * row[i]
         number = PAGE_NUMBER.search(text)
-        if number and 1 <= int(number.group(1)) <= n:
-            prior[int(number.group(1)) - 1] += 0.6
+        said = int(number.group(1) or number.group(3)) if number else 0
+        if 1 <= said <= n:
+            prior[said - 1] += 0.6
         return _normalize(prior)
 
 

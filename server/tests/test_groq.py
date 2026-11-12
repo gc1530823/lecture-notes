@@ -140,10 +140,13 @@ def test_english_lecture_is_transcribed_as_english_and_prompt_echo_is_dropped():
             {"start": 20, "end": 21, "text": "you", "no_speech_prob": 0.2},
             {"start": 21, "end": 30, "text": "♪ music ♪", "no_speech_prob": 0.9},
             {"start": 30, "end": 35, "text": "Let's dive right in.", "no_speech_prob": 0.01, "compression_ratio": 1.1},
+            # 진짜 말인데 없음 확률만 높은 경우 (공개 강의에서 1분이 통째로 빠졌던 것): 확신이 높으면 남긴다
+            {"start": 35, "end": 40, "text": "So why do we have multicore processors?", "no_speech_prob": 0.8, "avg_logprob": -0.2},
+            {"start": 40, "end": 45, "text": "Subtitles by the community", "no_speech_prob": 0.8, "avg_logprob": -1.4},
         ]})
 
     t = GroqTranscriber(transport=httpx.MockTransport(handler))
     segments = t._request("a.wav", b"RIFF", hint, "whisper-large-v3")
-    assert [s.text for s in segments] == ["Let's dive right in."]
+    assert [s.text for s in segments] == ["Let's dive right in.", "So why do we have multicore processors?"]
     assert b'name="language"\r\n\r\nen' in seen[0] and b"Okay, let's get started" in seen[0]
     assert not is_hallucination("자 오늘은 경사하강법부터 볼게요", "경사하강법 학습률")
