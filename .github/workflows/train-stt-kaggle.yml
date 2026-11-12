@@ -1,0 +1,77 @@
+name: Train speech AI on Kaggle
+
+# 우리 받아쓰기 AI: 공개 Whisper(whisper-small, MIT)를 한국어(Zeroth-Korean, CC BY 4.0)로 더 가르친다 → Kaggle 무료 GPU
+# → 학습 전·후 글자 오류율을 재고 → 릴리스 "받아쓰기 AI (최신)"(stt-latest)에 올린다. 서버에 까는 법: training/stt/install_stt.sh
+# 필요: 필기 AI와 같은 Kaggle Secrets (KAGGLE_USERNAME + KAGGLE_KEY 또는 KAGGLE_API_TOKEN)
+on:
+  workflow_dispatch:
+    inputs:
+      steps:
+        description: "학습 걸음 수 (2000이면 T4에서 1~2시간)"
+        default: "2000"
+      base:
+        description: "바탕 모델 (openai/whisper-small · 더 작게는 openai/whisper-base)"
+        default: "openai/whisper-small"
+      download_only:
+        description: "다시 학습하지 않고 Kaggle에 남은 마지막 결과만 받아 올리기"
+        type: boolean
+        default: false
+
+concurrency: train-kaggle   # 필기 AI 학습과 Kaggle GPU를 나눠 쓰지 않게 하나씩
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: write
+    env:
+      KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+      KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+      KERNEL: lecture-notes-stt
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -q "kaggle>=1.8.0" six
+      - name: Train on Kaggle GPU
+        if: ${{ !inputs.download_only }}
+        run: |
+          mkdir -p /tmp/kernel
+          python - <<'PY'
+          import json
+          script = open("training/stt/finetune_whisper.py", encoding="utf-8").read()
+          runner = open("training/stt/kaggle_stt.py", encoding="utf-8").read()
+          args = ["--steps", "${{ inputs.steps || '2000' }}", "--base", "${{ inputs.base || 'openai/whisper-small' }}"]
+          open("/tmp/kernel/run.py", "w", encoding="utf-8").write(f"SCRIPT = {script!r}\nARGS = {args!r}\n" + runner)
+          PY
+          cat > /tmp/kernel/kernel-metadata.json <<EOF
+          {"id": "$KAGGLE_USERNAME/$KERNEL", "title": "$KERNEL", "code_file": "run.py",
+           "language": "python", "kernel_type": "script", "is_private": true, "enable_gpu": true, "enable_internet": true}
+          EOF
+          kaggle kernels push -p /tmp/kernel
+          for i in $(seq 1 660); do
+            STATUS=$(kaggle kernels status "$KAGGLE_USERNAME/$KERNEL" 2>&1 || true)
+            echo "$STATUS" | tail -1
+            echo "$STATUS" | grep -qi "complete" && break
+            if echo "$STATUS" | grep -qiE "error|cancel"; then
+              kaggle kernels output "$KAGGLE_USERNAME/$KERNEL" -p /tmp/out || true
+              tail -80 /tmp/out/*.log 2>/dev/null; exit 1
+            fi
+            sleep 30
+          done
+      - name: Download and publish (release stt-latest)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          kaggle kernels output "$KAGGLE_USERNAME/$KERNEL" -p /tmp/out
+          ls -la /tmp/out
+          test -f /tmp/out/whisper-ko-ct2.zip || { echo "::error::모델을 찾지 못했어요"; tail -80 /tmp/out/*.log; exit 1; }
+          cat /tmp/out/score.txt | tee -a "$GITHUB_STEP_SUMMARY"
+          NOTES="우리 받아쓰기 AI (바탕 ${{ inputs.base || 'openai/whisper-small' }}, Zeroth-Korean CC BY 4.0). 까는 법: training/stt/install_stt.sh
+          $(cat /tmp/out/score.txt)"
+          gh release delete stt-latest -y --cleanup-tag --repo "${{ github.repository }}" > /dev/null 2>&1 || true
+          gh release create stt-latest --repo "${{ github.repository }}" /tmp/out/whisper-ko-ct2.zip /tmp/out/whisper-ko-hf.zip /tmp/out/score.txt \
+            --title "받아쓰기 AI (최신)" --notes "$NOTES" --prerelease

@@ -23,6 +23,11 @@ if [ -z "${LLM_MODE:-}" ] && [ -n "${GROQ_API_KEY:-}" ] && ollama list 2>/dev/nu
   export LLM_MODE=hybrid OLLAMA_MODEL=lecture-notes
   echo "우리 AI를 찾았어요: 강의 뒤 정리는 우리 AI가, 수업 중 필기는 Groq가 맡아요"
 fi
+# 우리 받아쓰기 AI가 깔려 있으면 이 서버의 받아쓰기를 그것으로 (training/stt/install_stt.sh)
+if [ -z "${WHISPER_MODEL:-}" ] && [ -f "$HOME/.cache/lecture-notes-stt/whisper-ko-ct2/model.bin" ]; then
+  export WHISPER_MODEL="$HOME/.cache/lecture-notes-stt/whisper-ko-ct2"
+  echo "우리 받아쓰기 AI를 찾았어요"
+fi
 pkill -f "uvicorn app.main:app" 2> /dev/null || true
 OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3:4b}" nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/server.log 2>&1 &
 for i in $(seq 1 20); do curl -s localhost:8000/health > /dev/null && break; sleep 1; done
