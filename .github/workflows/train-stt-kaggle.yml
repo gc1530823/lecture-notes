@@ -45,7 +45,8 @@ jobs:
           script = open("training/stt/finetune_whisper.py", encoding="utf-8").read()
           runner = open("training/stt/kaggle_stt.py", encoding="utf-8").read()
           args = ["--steps", "${{ inputs.steps || '2000' }}", "--base", "${{ inputs.base || 'openai/whisper-small' }}"]
-          open("/tmp/kernel/run.py", "w", encoding="utf-8").write(f"SCRIPT = {script!r}\nARGS = {args!r}\n" + runner)
+          convert = open("training/stt/convert_ct2.py", encoding="utf-8").read()
+          open("/tmp/kernel/run.py", "w", encoding="utf-8").write(f"SCRIPT = {script!r}\nCONVERT = {convert!r}\nARGS = {args!r}\n" + runner)
           PY
           cat > /tmp/kernel/kernel-metadata.json <<EOF
           {"id": "$KAGGLE_USERNAME/$KERNEL", "title": "$KERNEL", "code_file": "run.py",
@@ -68,7 +69,18 @@ jobs:
         run: |
           kaggle kernels output "$KAGGLE_USERNAME/$KERNEL" -p /tmp/out
           ls -la /tmp/out
-          test -f /tmp/out/whisper-ko-ct2.zip || { echo "::error::모델을 찾지 못했어요"; tail -80 /tmp/out/*.log; exit 1; }
+          cd /tmp/out
+          # 지난 실행이 변환에서 멈췄으면(학습은 끝남) 남은 학습 결과를 여기서 서버용으로 바꾼다
+          if [ ! -f whisper-ko-ct2.zip ]; then
+            [ -d whisper-ko-hf ] || { [ -f whisper-ko-hf.zip ] && python -m zipfile -e whisper-ko-hf.zip .; }
+            [ -d whisper-ko-hf ] || { echo "::error::학습 결과를 찾지 못했어요"; tail -80 /tmp/out/*.log; exit 1; }
+            pip install -q "ctranslate2>=4.6" transformers huggingface_hub torch --extra-index-url https://download.pytorch.org/whl/cpu
+            python "$GITHUB_WORKSPACE/training/stt/convert_ct2.py" whisper-ko-hf whisper-ko-ct2 "${{ inputs.base || 'openai/whisper-small' }}"
+            python -c "import shutil; shutil.make_archive('whisper-ko-ct2', 'zip', '.', 'whisper-ko-ct2')"
+            [ -f whisper-ko-hf.zip ] || python -c "import shutil; shutil.make_archive('whisper-ko-hf', 'zip', '.', 'whisper-ko-hf')"
+          fi
+          [ -f score.txt ] || grep -oE '"data":"[^"]*(오류율|바탕)[^"]*' *.log | sed 's/.*"data":"//; s/\\n$//' > score.txt || true
+          cd "$GITHUB_WORKSPACE"
           cat /tmp/out/score.txt | tee -a "$GITHUB_STEP_SUMMARY"
           NOTES="우리 받아쓰기 AI (바탕 ${{ inputs.base || 'openai/whisper-small' }}, Zeroth-Korean CC BY 4.0). 까는 법: training/stt/install_stt.sh
           $(cat /tmp/out/score.txt)"

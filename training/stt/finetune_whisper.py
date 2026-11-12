@@ -14,6 +14,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 
@@ -144,8 +145,12 @@ def main() -> None:
     open("score.txt", "w", encoding="utf-8").write("\n".join(report) + "\n")
     print("\n".join(report), flush=True)
 
-    subprocess.run(["ct2-transformers-converter", "--model", "whisper-ko-hf", "--output_dir", "whisper-ko-ct2",
-                    "--quantization", "int8", "--copy_files", "tokenizer.json", "preprocessor_config.json"], check=True)
+    # 서버용으로 바꾸기는 실패해도 학습 결과(whisper-ko-hf · score.txt)는 남는다: 워크플로가 받아서 다시 바꾼다
+    try:
+        processor.feature_extractor.save_pretrained("whisper-ko-hf")
+        subprocess.run([sys.executable, "convert_ct2.py", "whisper-ko-hf", "whisper-ko-ct2", a.base], check=True)
+    except Exception as exc:
+        print(f"서버용 변환 실패 (워크플로에서 다시 시도): {exc}", flush=True)
 
 
 if __name__ == "__main__":
