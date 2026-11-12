@@ -120,7 +120,7 @@ export default function Home() {
           <button className="top-bar-back" onClick={() => go({ name: "search" })} aria-label="모든 강의에서 찾기"><Icon name="book-open-text" /></button>
           <button className="top-bar-back" onClick={() => go({ name: "privacy" })} aria-label="개인정보와 녹음"><Icon name="shield-check" /></button>
         </div>
-        <h1 className="hero-title"><span className="hl">{greeting()}</span></h1>
+        <h1 className="hero-title"><span className="hero-hl">{greeting()}</span></h1>
       </header>
       <div className="screen-body">
         {/* 과목 = 파일철의 색인 탭 */}

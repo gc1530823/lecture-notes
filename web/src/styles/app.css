@@ -520,7 +520,7 @@ body { background-color: var(--bg-paper); background-image: radial-gradient(var(
 
 /* 인사: 손글씨 + 형광펜이 왼쪽에서 그어진다 */
 .hero-title { font: 700 34px/46px var(--font-hand); letter-spacing: -.01em; margin-top: 2px; padding-bottom: 6px; }
-.hero-title .hl { background: linear-gradient(transparent 58%, color-mix(in srgb, var(--note-explanation-paper) 85%, transparent) 58%, color-mix(in srgb, var(--note-explanation-paper) 85%, transparent) 92%, transparent 92%) no-repeat left / 100% 100%;
+.hero-title .hero-hl { background: linear-gradient(transparent 58%, var(--hl-yellow) 58%, var(--hl-yellow) 92%, transparent 92%) no-repeat left / 100% 100%;
   padding: 0 6px 0 2px; margin-left: -2px; border-radius: 2px; animation: highlight .9s var(--ease-out) .35s both; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 @keyframes highlight { from { background-size: 0 100%; } }
 
@@ -537,13 +537,10 @@ body { background-color: var(--bg-paper); background-image: radial-gradient(var(
 
 /* 과목 제목: 손글씨 + 그 과목 탭 색 형광펜 */
 .course-title { font: 700 22px/28px var(--font-hand); color: var(--text-primary); margin-top: var(--space-sm); display: flex; align-items: baseline; gap: 6px; letter-spacing: 0; }
-.course-title span { --hl: var(--border-line); background: linear-gradient(transparent 55%, var(--hl) 55%) no-repeat left / 100% 100%; padding: 0 4px; animation: highlight .7s var(--ease-out) .2s both; }
+.course-title span { --hl: var(--border-line); background: linear-gradient(transparent 55%, color-mix(in srgb, var(--hl) var(--hl-strength), transparent) 55%) no-repeat left / 100% 100%; padding: 0 4px; animation: highlight .7s var(--ease-out) .2s both; }
 .course-title small { font: 500 12px/1 var(--font-sans); color: var(--text-tertiary); }
 .course-title.tone-explanation span { --hl: var(--note-explanation-paper); } .course-title.tone-example span { --hl: var(--note-example-paper); } .course-title.tone-exam span { --hl: var(--note-exam-paper); }
 .course-title.tone-tip span { --hl: var(--note-tip-paper); } .course-title.tone-notice span { --hl: var(--note-notice-paper); } .course-title.tone-emphasis span { --hl: var(--note-emphasis-paper); } .course-title.tone-qa span { --hl: var(--note-qa-paper); }
-:root[data-theme="dark"] .course-title span, :root[data-theme="dark"] .hero-title .hl { color: var(--text-note); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .course-title span, :root:not([data-theme="light"]) .hero-title .hl { color: var(--text-note); } }
-
 /* 강의자료 카드: 오른쪽 위 귀퉁이가 접힌 종이 */
 .course-group .list-item { position: relative; border-radius: 6px 0 6px 6px; }
 .course-group .list-item::after { content: ""; position: absolute; top: 0; right: 0; width: 22px; height: 22px;
@@ -586,3 +583,22 @@ body { background-color: var(--bg-paper); background-image: radial-gradient(var(
 
 /* 모눈 종이 위 카드들은 살짝 덜 둥글게 (종이 느낌) */
 .banner, .flow, .skeleton, .timetable-edit { border-radius: 6px; }
+
+/* ── 컨셉을 모든 화면에: 종이 카드 · 손글씨 제목 · 색인 카드 · 스티커 아이콘 ── */
+.list-item, .banner, .plan-day, .jokbo-section, .flow, .story-entry, .skeleton, .timetable-edit, .note-sheet { border-radius: 6px; }
+.top-bar-title { font: 700 26px/32px var(--font-hand); letter-spacing: 0; }
+.section-title, .jokbo-section h2, .flow h2, .banner > strong { font: 700 21px/26px var(--font-hand); letter-spacing: 0; }
+.section-title { display: inline-block; align-self: flex-start; background: linear-gradient(transparent 55%, color-mix(in srgb, var(--note-tip-paper) var(--hl-strength), transparent) 55%); padding: 0 4px; }
+/* 아이콘 = 동그란 스티커 (살짝 삐뚤게 붙였다) */
+.list-item-icon { border-radius: 50%; box-shadow: 0 0 0 2px var(--bg-card), 0 2px 5px rgb(0 0 0 / .14); transform: rotate(-6deg); transition: transform .25s var(--ease-spring); }
+.list-item:nth-child(even) .list-item-icon { transform: rotate(5deg); }
+.list-item:active .list-item-icon { transform: rotate(0) scale(1.12); }
+/* 플래시카드 = 줄 쳐진 색인 카드 (위에 빨간 줄) */
+.flashcard { border-radius: 8px; position: relative; overflow: hidden;
+  background-image: linear-gradient(transparent 46px, color-mix(in srgb, var(--stamp-ink) 55%, transparent) 46px, color-mix(in srgb, var(--stamp-ink) 55%, transparent) 47.5px, transparent 47.5px),
+    repeating-linear-gradient(transparent 0 29px, color-mix(in srgb, var(--note-tip-ink) 20%, transparent) 29px 30px); background-position: 0 0, 0 18px; }
+.flashcard[data-flipped="true"] { background-color: color-mix(in srgb, var(--note-explanation-paper) 22%, var(--bg-card)); }
+/* 빈 화면 안내도 손글씨 */
+.empty strong { font: 700 22px/28px var(--font-hand); }
+/* 족보: 왼쪽 줄 대신 종이 위 형광펜 제목 (색은 그대로 잉크색) */
+.jokbo-section { border-left-width: 0; border-top: 3px solid; }
