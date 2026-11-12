@@ -12,6 +12,10 @@ on:
       only:
         description: "이 작업만 배우기 (예: annotate). 비우면 전부"
         default: ""
+      wait:
+        description: "학습이 끝날 때까지 기다렸다가 바로 받기 (몇 시간 동안 GitHub 실행 시간을 씀)"
+        type: boolean
+        default: false
       download_only:
         description: "다시 학습하지 않고 Kaggle에 남은 마지막 결과만 받아 채점·올리기"
         type: boolean
@@ -80,6 +84,11 @@ jobs:
            "dataset_sources": ["$KAGGLE_USERNAME/lecture-notes-data"]}
           EOF
           kaggle kernels push -p /tmp/kernel
+          if [ "${{ inputs.wait }}" != "true" ]; then
+            echo "Kaggle에 학습을 맡겼어요. 기다리지 않고 끝냅니다 (GitHub 무료 실행 시간을 아끼려고)." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "몇 시간 뒤 이 워크플로를 download_only 로 다시 돌리면 결과를 받아 릴리스에 올려요." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "SKIP=1" >> "$GITHUB_ENV"; exit 0
+          fi
           # 학습이 끝날 때까지 (최대 약 5시간)
           for i in $(seq 1 600); do
             STATUS=$(kaggle kernels status "$KAGGLE_USERNAME/lecture-notes-finetune" 2>&1 || true)

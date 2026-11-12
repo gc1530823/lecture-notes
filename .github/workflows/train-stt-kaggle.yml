@@ -12,6 +12,10 @@ on:
       base:
         description: "바탕 모델 (openai/whisper-small · 더 작게는 openai/whisper-base)"
         default: "openai/whisper-small"
+      wait:
+        description: "학습이 끝날 때까지 기다렸다가 바로 받기 (몇 시간 동안 GitHub 실행 시간을 씀)"
+        type: boolean
+        default: false
       download_only:
         description: "다시 학습하지 않고 Kaggle에 남은 마지막 결과만 받아 올리기"
         type: boolean
@@ -53,6 +57,11 @@ jobs:
            "language": "python", "kernel_type": "script", "is_private": true, "enable_gpu": true, "enable_internet": true}
           EOF
           kaggle kernels push -p /tmp/kernel
+          if [ "${{ inputs.wait }}" != "true" ]; then
+            echo "Kaggle에 학습을 맡겼어요. 기다리지 않고 끝냅니다 (GitHub 무료 실행 시간을 아끼려고)." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "몇 시간 뒤 이 워크플로를 download_only 로 다시 돌리면 결과를 받아 릴리스에 올려요." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "SKIP=1" >> "$GITHUB_ENV"; exit 0
+          fi
           for i in $(seq 1 660); do
             STATUS=$(kaggle kernels status "$KAGGLE_USERNAME/$KERNEL" 2>&1 || true)
             echo "$STATUS" | tail -1
@@ -64,6 +73,7 @@ jobs:
             sleep 30
           done
       - name: Download and publish (release stt-latest)
+        if: env.SKIP != '1'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
