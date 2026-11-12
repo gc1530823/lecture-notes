@@ -150,3 +150,35 @@ def test_english_lecture_is_transcribed_as_english_and_prompt_echo_is_dropped():
     assert [s.text for s in segments] == ["Let's dive right in.", "So why do we have multicore processors?"]
     assert b'name="language"\r\n\r\nen' in seen[0] and b"Okay, let's get started" in seen[0]
     assert not is_hallucination("자 오늘은 경사하강법부터 볼게요", "경사하강법 학습률")
+
+
+def test_speech_falls_back_to_local_whisper_when_groq_limit_hits_and_comes_back_later(monkeypatch):
+    """한도 없는 받아쓰기: Groq가 429면 기다리지 않고 이 서버의 Whisper로, 한도가 풀리면 다시 Groq로."""
+    import numpy as np
+
+    from app import stt
+    from app.groq import GroqTranscriber
+
+    limited = {"on": True}
+
+    def handler(request):
+        if limited["on"]:
+            return httpx.Response(429, headers={"retry-after": "40"}, json={"error": {"message": "rate limit"}})
+        return httpx.Response(200, json={"segments": [{"start": 0, "end": 2, "text": "그록이 받아쓴 말이에요.", "no_speech_prob": 0.0}]})
+
+    class Local:
+        def transcribe(self, audio, hint="", on_progress=None):
+            return [stt.Segment(0, 2000, "이 서버가 받아쓴 말이에요.")]
+
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(stt.time, "monotonic", lambda: clock["t"])
+    t = stt.FallbackTranscriber(GroqTranscriber(transport=httpx.MockTransport(handler)), Local())
+    pcm = np.zeros(16000, dtype=np.float32)
+    assert t.min_chunk_ms == 9000
+    assert [s.text for s in t.transcribe(pcm, "경사하강법")] == ["이 서버가 받아쓴 말이에요."]
+    limited["on"] = False
+    clock["t"] += 10   # 아직 한도 시간 안: Groq에 묻지도 않는다
+    assert [s.text for s in t.transcribe(pcm, "경사하강법")] == ["이 서버가 받아쓴 말이에요."]
+    clock["t"] += 60   # 한도가 풀린 뒤에는 다시 Groq
+    assert [s.text for s in t.transcribe(pcm, "경사하강법")] == ["그록이 받아쓴 말이에요."]
+    assert t.local_used == 2

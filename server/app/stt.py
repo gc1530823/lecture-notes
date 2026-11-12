@@ -7,6 +7,7 @@ iPhone 웹앱은 화면이 꺼지면 받아쓰기가 멈추므로, 수업은 '�
 import logging
 import re
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -125,9 +126,43 @@ class FakeTranscriber:
         return result
 
 
+class FallbackTranscriber:
+    """한도 없는 받아쓰기 (STT_MODE=hybrid, Groq 키가 있을 때 기본):
+    평소에는 빠르고 정확한 Groq, Groq 무료 한도에 걸리면 기다리지 않고 이 서버의 Whisper(공개 모델, 한도 없음)로 바로 넘어가
+    한도가 풀릴 때까지 그쪽으로 받아쓴다. 그래서 긴 수업도, 하루에 여러 수업도 끊기지 않는다."""
+
+    def __init__(self, primary, local) -> None:
+        self.primary = primary
+        self.local = local
+        self.min_chunk_ms = getattr(primary, "min_chunk_ms", 0)
+        self.max_chunk_ms = getattr(primary, "max_chunk_ms", 10_000)
+        self.local_until = 0.0
+        self.local_used = 0  # 몇 번 넘겼는지 (상태 표시·시험용)
+
+    def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
+        from .llm import LLMError
+
+        if time.monotonic() >= self.local_until:
+            try:
+                return self.primary.transcribe(audio, hint, on_progress, patient=False)
+            except LLMError as exc:
+                wait = getattr(exc, "wait", None)
+                if wait is None and "연결할 수 없" not in str(exc):
+                    raise
+                # 한도는 보통 몇 분~한 시간 뒤 풀린다. 그동안 매 조각 Groq에 물어보지 않는다
+                self.local_until = time.monotonic() + min(max(wait or 60.0, 30.0), 3600.0)
+                log.warning("받아쓰기: %s → 이 서버의 Whisper로 받아씁니다", exc)
+        self.local_used += 1
+        return self.local.transcribe(audio, hint, on_progress)
+
+
 def make_transcriber():
     if settings.stt_mode == "fake":
         return FakeTranscriber()
+    if settings.stt_mode == "hybrid":
+        from .groq import GroqTranscriber
+
+        return FallbackTranscriber(GroqTranscriber(), WhisperTranscriber())
     if settings.stt_mode == "groq":
         from .groq import GroqTranscriber
 

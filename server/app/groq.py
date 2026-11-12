@@ -138,6 +138,12 @@ def _split_audio(path: str, out_dir: str) -> list[str]:
     return sorted(os.path.join(out_dir, n) for n in os.listdir(out_dir) if n.startswith("part"))
 
 
+class SpeechLimit(LLMError):
+    def __init__(self, message: str, wait: float) -> None:
+        super().__init__(message)
+        self.wait = wait
+
+
 class GroqTranscriber:
     # 실시간 조각 길이: Groq 무료는 요청 하나를 짧아도 10초로 세고(시간당 7200초 · 하루 2000번 · 분당 20번),
     # 0.7초 쉼마다 끊으면 75분 수업이 1000번 넘게 나가 한 시간 한도를 넘는다. 9초 넘게 모은 뒤 쉼에서 끊으면
@@ -148,7 +154,8 @@ class GroqTranscriber:
     def __init__(self, transport: httpx.BaseTransport | None = None) -> None:
         self.client = httpx.Client(base_url=BASE_URL, timeout=httpx.Timeout(300, connect=10), transport=transport)
 
-    def _request(self, filename: str, data: bytes, hint: str, model: str) -> list[Segment]:
+    def _request(self, filename: str, data: bytes, hint: str, model: str, patient: bool = True) -> list[Segment]:
+        """patient=False: 한도에 걸리면 기다리지 않고 바로 SpeechLimit을 낸다 (이 서버의 Whisper로 넘기려고)."""
         language = guess_language(hint)
         form = {"model": model, "language": language, "response_format": "verbose_json",
                 "temperature": "0"}
@@ -164,6 +171,8 @@ class GroqTranscriber:
             if response.status_code != 429:
                 break
             wait = _wait_seconds(response, attempt)
+            if not patient:
+                raise SpeechLimit(f"Groq 받아쓰기 한도 ({wait:.0f}초 뒤 풀림)", wait)
             log.warning("Groq 받아쓰기 사용량 한도: %.0f초 기다립니다", wait)
             time.sleep(wait)
         if response.status_code >= 400:
@@ -182,17 +191,19 @@ class GroqTranscriber:
             kept.append(Segment(int(s["start"] * 1000), int(s["end"] * 1000), text))
         return kept
 
-    def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
+    def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None,
+                   patient: bool = True) -> list[Segment]:
         """audio: 파일 경로, 또는 16kHz 모노 float32 배열(실시간 조각). WhisperTranscriber와 같은 꼴로 돌려준다."""
         if not isinstance(audio, str):
-            return split_sentences(self._request("live.wav", _wav_bytes(audio), hint, settings.groq_live_whisper_model))
+            return split_sentences(self._request("live.wav", _wav_bytes(audio), hint, settings.groq_live_whisper_model,
+                                                 patient))
         result: list[Segment] = []
         with tempfile.TemporaryDirectory() as tmp:
             parts = _split_audio(audio, tmp)
             for i, part in enumerate(parts):
                 offset = i * CHUNK_SECONDS * 1000
                 with open(part, "rb") as f:
-                    segments = self._request(os.path.basename(part), f.read(), hint, settings.groq_whisper_model)
+                    segments = self._request(os.path.basename(part), f.read(), hint, settings.groq_whisper_model, patient)
                 result += [Segment(s.start_ms + offset, s.end_ms + offset, s.text) for s in segments]
                 if on_progress:
                     on_progress((i + 1) / len(parts))

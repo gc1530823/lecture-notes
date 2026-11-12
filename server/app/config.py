@@ -42,7 +42,8 @@ class Settings:
     whisper_model: str = os.getenv("WHISPER_MODEL", "small")
     # "groq" = Groq의 Whisper large-v3-turbo (GROQ_API_KEY가 있으면 기본값)
     # "whisper" = 이 서버에서 돌리는 faster-whisper, "fake" = 화면 개발용 가짜 받아쓰기
-    stt_mode: str = os.getenv("STT_MODE", "groq" if os.getenv("GROQ_API_KEY") else "whisper")
+    # "hybrid" = Groq, 한도에 걸리면 이 서버의 Whisper로 (Groq 키가 있을 때 기본 — 한도 없이)
+    stt_mode: str = os.getenv("STT_MODE", "hybrid" if os.getenv("GROQ_API_KEY") else "whisper")
 
     # 자동 페이지 추정 확신이 이 값보다 낮으면 후보 페이지를 AI에게 보여 주고 고르게 한다
     page_confidence: float = float(os.getenv("PAGE_CONFIDENCE", "0.6"))

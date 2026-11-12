@@ -1333,7 +1333,8 @@ def privacy():
     where = {"hybrid": "수업 중은 Groq (미국 클라우드), 강의 뒤 정리는 이 서버 안의 우리 AI (밖으로 안 나감)",
              "groq": "Groq (미국 클라우드, 무료 사용량)", "ollama": "이 서버 컴퓨터 안 (Ollama, 밖으로 안 나감)",
              "claude": "Anthropic Claude API (미국 클라우드)", "fake": "테스트용 가짜 응답 (밖으로 안 나감)"}
-    stt = {"groq": "Groq Whisper (미국 클라우드)", "whisper": "이 서버 컴퓨터 안 (Whisper, 밖으로 안 나감)", "fake": "테스트용"}
+    stt = {"hybrid": "Groq Whisper (미국 클라우드), 한도에 걸리면 이 서버 안의 Whisper (밖으로 안 나감)",
+           "groq": "Groq Whisper (미국 클라우드)", "whisper": "이 서버 컴퓨터 안 (Whisper, 밖으로 안 나감)", "fake": "테스트용"}
     return {"ai": where.get(settings.llm_mode, settings.llm_mode), "speech": stt.get(settings.stt_mode, settings.stt_mode),
             "storage": "녹음·필기·강의자료는 이 서버에만 저장돼요. 자료를 지우면 녹음과 필기도 함께 지워져요.",
             "training": settings.training_log}

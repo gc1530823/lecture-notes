@@ -90,6 +90,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GROQ_MAX_RETRIES: "20"
           TRAINING_LOG: "1"
+          STT_MODE: groq   # 점수를 날마다 비교하려고 받아쓰기는 늘 Groq로 (한도에 걸리면 기다린다)
         run: |
           if [ -z "$GROQ_API_KEY" ]; then echo "::error::GROQ_API_KEY secret이 없습니다"; exit 1; fi
           (ENABLE_WEB_TIPS=0 uvicorn app.main:app --port 8000 --timeout-keep-alive 120 > /tmp/server.log 2>&1 &)
