@@ -10,9 +10,10 @@ import sys
 
 work = "/kaggle/working"
 os.chdir(work)
-# 오디오 읽기가 버전에 따라 바뀌어(datasets 4부터 torchcodec) 검증된 버전으로 고정한다
-subprocess.run([sys.executable, "-m", "pip", "install", "-q", "transformers==4.46.3", "accelerate==1.1.1",
-                "datasets[audio]==3.6.0", "jiwer==3.0.5", "ctranslate2==4.5.0", "soundfile", "librosa"], check=True)
+# 오디오 읽기가 datasets 4부터 torchcodec으로 바뀌어 3.x로 둔다
+# transformers·torch는 Kaggle에 깔린 것을 쓰고(파이썬 3.13), 오디오를 읽는 datasets만 3.x로 고정한다
+subprocess.run([sys.executable, "-m", "pip", "install", "-q", "datasets[audio]>=3.6,<4", "jiwer>=3.0",
+                "ctranslate2>=4.6", "soundfile", "librosa"], check=True)
 open("finetune_whisper.py", "w", encoding="utf-8").write(SCRIPT)  # noqa: F821 (워크플로가 앞에 붙여 넣는다)
 subprocess.run([sys.executable, "finetune_whisper.py", *ARGS], check=True)  # noqa: F821
 shutil.rmtree("whisper-ko-run", ignore_errors=True)
