@@ -5,6 +5,7 @@
 //   #/doc/:docId/exam      시험 예상 지도
 //   #/doc/:docId/lecture[/:sid]  강의 화면 (녹음 / 자료 위에서 다시 보기)
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 
 export type Route =
   | { name: "home" }
@@ -50,10 +51,28 @@ export function href(route: Route): string {
 
 export function go(route: Route) { window.location.hash = href(route); }
 
+/** 화면 깊이: 깊은 화면으로 갈 때는 오른쪽에서 들어오고, 돌아올 때는 왼쪽에서 (styles/app.css 의 화면 전환) */
+function depth(route: Route): number {
+  return route.name === "home" ? 0 : route.name === "doc" || route.name === "review" || route.name === "privacy" || route.name === "search" || route.name === "semester" ? 1 : 2;
+}
+
+type Transition = { finished: Promise<void> };
+const startTransition = (document as unknown as { startViewTransition?: (cb: () => void) => Transition }).startViewTransition?.bind(document);
+
 export function useRoute(): Route {
   const [route, setRoute] = useState(() => parse(window.location.hash));
   useEffect(() => {
-    const on = () => { setRoute(parse(window.location.hash)); window.scrollTo(0, 0); };
+    let current = parse(window.location.hash);
+    const on = () => {
+      const next = parse(window.location.hash);
+      const apply = () => { flushSync(() => setRoute(next)); window.scrollTo(0, 0); };
+      const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      // 같은 화면 안에서 탭만 바뀌는 것은 전환 없이
+      if (!startTransition || still || (next.name === current.name && depth(next) === 2 && next.name !== "lecture")) { apply(); current = next; return; }
+      document.documentElement.dataset.nav = depth(next) < depth(current) ? "back" : depth(next) > depth(current) ? "forward" : "same";
+      current = next;
+      startTransition(apply);
+    };
     window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
   }, []);

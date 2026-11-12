@@ -6,6 +6,8 @@ import { Button, Chip, Empty, Icon, NoteSection, PostIt, TermCard, TopBar } from
 import { go } from "../router";
 import { NotesPdf } from "./LectureExtras";
 import Study from "./Study";
+import { StoryEntry } from "./Story";
+import { Skeleton } from "../lib/motion";
 
 const TABS = [["notes", "필기"], ["study", "공부하기"], ["glossary", "용어 사전"]] as const;
 
@@ -28,6 +30,7 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
           <>
             <Button variant="secondary" icon={doc.kind === "notebook" ? "notebook" : "file-pdf"}
               onClick={() => go({ name: "lecture", docId, sessionId })}>{doc.kind === "meeting" ? "회의 노트로 보기" : doc.kind === "notebook" ? "노트로 보기" : "강의자료 위에서 보기"}</Button>
+            {doc.kind !== "meeting" && <StoryEntry docId={docId} sessionId={sessionId} />}
             <NotesPdf sessionId={sessionId} />
             <ExportRow sessionId={sessionId} />
             <Notes doc={doc} sessionId={sessionId} />
@@ -44,7 +47,7 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
   const { data: notes } = useApi<Annotation[]>(`/sessions/${sessionId}/annotations`);
   const { data: summary } = useApi<SummaryResponse>(`/sessions/${sessionId}/summary`);
   const { data: beyond } = useApi<{ ratio?: number; annotation_ids?: number[] }>(`/sessions/${sessionId}/beyond-slides`);
-  if (!notes) return <p className="muted">불러오는 중…</p>;
+  if (!notes) return <Skeleton lines={5} />;
   if (notes.length === 0) return <Empty icon="note-pencil">이 강의에는 아직 필기가 없어요</Empty>;
 
   const beyondIds = new Set(beyond?.annotation_ids ?? []);
@@ -106,7 +109,7 @@ function Overview({ text, title = "한눈에 보는 강의" }: { text: string; t
 
 function Glossary({ sessionId }: { sessionId: string }) {
   const { data: terms } = useApi<GlossaryTerm[]>(`/sessions/${sessionId}/glossary`);
-  if (!terms) return <p className="muted">불러오는 중…</p>;
+  if (!terms) return <Skeleton />;
   if (terms.length === 0) return <Empty icon="book-open-text">수업 중에 잡힌 전문용어가 없어요</Empty>;
   return (
     <>

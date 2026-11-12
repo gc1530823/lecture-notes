@@ -342,6 +342,15 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
 
   // 강의가 끝나면: 녹음 다시 듣기, 슬라이드에 없던 설명 표시
   const player = usePlayer(sessionId, phase === "ended");
+  // 스토리·수업 흐름에서 "이 순간 듣기"로 왔으면 녹음을 그 시각부터 튼다
+  const playFromRef = useRef(player.playFrom);
+  playFromRef.current = player.playFrom;
+  useEffect(() => {
+    if (!player.hasAudio) return;
+    let ms: number | null = null;
+    try { const raw = sessionStorage.getItem("ln.jumpMs"); sessionStorage.removeItem("ln.jumpMs"); ms = raw === null ? null : Number(raw); } catch { /* 괜찮다 */ }
+    if (ms !== null && !Number.isNaN(ms)) playFromRef.current(ms + 3000);
+  }, [player.hasAudio]);
 
   // 타임라인 다시 보기: 녹음을 틀면 그때 설명하던 쪽으로 넘어가고, 그 무렵 필기를 펼치고, 받아쓰기를 자막으로
   const [segments, setSegments] = useState<{ start_ms: number; end_ms: number; text: string; page_no: number | null }[]>([]);
@@ -627,7 +636,10 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           </button>
         )}
         {recording && !a11y && (
-          <p className="caption-line t-caption" aria-live="polite"><span className="rec-dot" />{loud && <span className="loud-tag">목소리 높임</span>}{caption}</p>
+          <p className="caption-line t-caption" aria-live="polite">
+            <span className={`voice-bars${loud ? " loud" : ""}`} key={caption.length} aria-hidden="true"><i /><i /><i /><i /><i /></span>
+            {loud && <span className="loud-tag">목소리 높임</span>}<span className="caption-text" key={caption.slice(0, 12)}>{caption}</span>
+          </p>
         )}
         {recording && a11y && (
           <div className="caption-big" aria-live="polite">

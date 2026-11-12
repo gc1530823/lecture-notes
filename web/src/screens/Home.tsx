@@ -8,6 +8,8 @@ import { ReviewBanner } from "./ExamPrep";
 import { ExamBanner } from "./Semester";
 import { Onboarding } from "./Onboarding";
 import { Timetable } from "./Timetable";
+import { StreakCard } from "./Story";
+import { Skeleton } from "../lib/motion";
 import { go } from "../router";
 
 
@@ -44,6 +46,17 @@ function useReminder() {
       app.setReminder!(title, text, 20, 0);
     });
   }, []);
+}
+
+/** 시간대에 맞는 인사 */
+function greeting(now = new Date()): string {
+  const h = now.getHours();
+  if (h < 5) return "늦은 밤이에요";
+  if (h < 11) return "좋은 아침이에요";
+  if (h < 14) return "점심은 먹었어요?";
+  if (h < 18) return "오후 수업도 힘내요";
+  if (h < 22) return "오늘 배운 것, 복습할까요?";
+  return "오늘도 수고했어요";
 }
 
 export default function Home() {
@@ -105,7 +118,8 @@ export default function Home() {
           <button className="top-bar-back" onClick={() => go({ name: "search" })} aria-label="모든 강의에서 찾기"><Icon name="book-open-text" /></button>
           <button className="top-bar-back" onClick={() => go({ name: "privacy" })} aria-label="개인정보와 녹음"><Icon name="shield-check" /></button>
         </div>
-        <h1 className="t-title-l">내 강의</h1>
+        <h1 className="t-title-l hero-title">{greeting()}</h1>
+        <div className="aurora" aria-hidden="true"><i /><i /><i /></div>
       </header>
       <div className="screen-body">
         <div className="scroll-x" role="group" aria-label="과목">
@@ -113,6 +127,7 @@ export default function Home() {
           {courses.map((c) => <Chip key={c} variant={filter === c ? "selected" : "default"} onClick={() => pick(c)}>{c}</Chip>)}
           {hasLoose && courses.length > 0 && <Chip variant={filter === "" ? "selected" : "default"} onClick={() => pick("")}>과목 없음</Chip>}
         </div>
+        <StreakCard />
         <Timetable courses={courses} onPick={pick} />
         <ExamBanner />
         <ReviewBanner />
@@ -122,7 +137,7 @@ export default function Home() {
           <Chip variant="accent" onClick={() => go({ name: "semester", tab: "exams" })}>시험 D-day</Chip>
           <Chip variant="accent" onClick={() => void newNotebook("meeting")}>회의 기록</Chip>
         </div>
-        {loading && !docs && <p className="muted">불러오는 중…</p>}
+        {loading && !docs && <Skeleton lines={4} />}
         {error && <Empty icon="warning-circle">서버에 연결할 수 없어요<br /><span className="t-caption">{error}</span></Empty>}
         {docs && shown.length === 0 && (
           <Empty icon="chalkboard-teacher">
@@ -135,8 +150,8 @@ export default function Home() {
             {(filter === "all" && courses.length > 0) && (
               <h2 className="t-caption course-title">{course || "과목 없음"} <span className="faint">{list.length}</span></h2>
             )}
-            {list.map((doc) => (
-              <ListItem key={doc.id} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
+            {list.map((doc, i) => (
+              <ListItem key={doc.id} index={i} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
                 subtitle={subtitleOf(doc)} onClick={() => go({ name: "doc", docId: doc.id })} />
             ))}
           </section>

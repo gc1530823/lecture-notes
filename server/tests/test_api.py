@@ -817,3 +817,29 @@ def test_timetable_add_list_delete_and_rejects_bad_times(client):
     assert [r["course"] for r in rows if r["course"] in ("미시경제", "운영체제")] == ["미시경제", "운영체제"]  # 요일·시간 순
     assert client.delete(f"/timetable/{made['id']}").status_code == 204
     assert client.delete(f"/timetable/{made['id']}").status_code == 404
+
+
+def test_story_flow_and_streak_are_built_from_notes_without_ai(client):
+    from app.story import build_streak
+
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1, "initial": True})
+        ws.send_json({"type": "transcript_final", "text": "학습률이 너무 크면 발산해요. 이거 시험에 꼭 나와요.", "start_ms": 65_000, "end_ms": 70_000})
+        ws.send_json({"type": "flush"})
+        receive_annotation(ws)
+    story = client.get(f"/sessions/{session['id']}/story").json()
+    kinds = [c["kind"] for c in story["cards"]]
+    assert kinds[0] == "cover" and kinds[-1] == "end" and "exam" in kinds
+    exam = next(c for c in story["cards"] if c["kind"] == "exam")
+    assert exam["page_no"] == 1 and exam["at_ms"] == 65_000
+    minutes = story["flow"]["minutes"]
+    assert len(minutes) == 2 and minutes[1]["exam"] == 1 and minutes[1]["weight"] > minutes[0]["weight"]
+    assert client.get("/streak").json()["streak"] >= 1
+
+    day = 86400
+    now = 1_700_000_000.0
+    s = build_streak([now, now - day, now - 2 * day, now - 5 * day], 540, now)
+    assert (s["streak"], s["best"], s["today"]) == (3, 3, True) and [d["done"] for d in s["week"]][-3:] == [True] * 3
+    assert build_streak([now - day], 540, now)["streak"] == 1 and build_streak([now - 3 * day], 540, now)["streak"] == 0

@@ -100,7 +100,7 @@ export function Timetable({ courses, onPick }: { courses: string[]; onPick: (cou
             </div>
             <div className="row">
               <input className="input" placeholder="강의실 (안 적어도 돼요)" value={form.place} onChange={(e) => setForm({ ...form, place: e.target.value })} aria-label="강의실" />
-              <Button icon="plus" onClick={() => void add()} disabled={!form.course.trim()}>넣기</Button>
+              <Button onClick={() => void add()} disabled={!form.course.trim()}>넣기</Button>
             </div>
             {error && <p className="t-caption" style={{ color: "var(--note-exam-ink)" }}>{error}</p>}
           </div>

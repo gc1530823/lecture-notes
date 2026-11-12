@@ -30,6 +30,7 @@ from .review import GRADES, NEW_PER_DAY, build_jokbo, card_key, schedule
 from .semester import anki_text, concept_map, exam_plan, semester_context, session_markdown
 from .notes_pdf import build_notes_pdf
 from .quick_notes import EXAM_TALK
+from .story import build_story, build_streak
 from .recording import audio_file, recorded_ms, wav_parts
 from .pdf_parser import PDFParseError, extract_keywords, parse_pdf
 from .stt import make_transcriber
@@ -1137,6 +1138,25 @@ async def semester_tutor(body: TutorRequest):
 
 
 # 시험 D-day
+
+
+# 강의 스토리·수업 흐름·연속 공부: 규칙만으로 만든다 (AI 호출 없음 → 한도 없음)
+
+
+@app.get("/sessions/{session_id}/story")
+def session_story(session_id: str):
+    session = _session_or_404(session_id)
+    doc = db().get_document(session["document_id"])
+    return build_story(doc["title"], session["started_at"], db().list_annotations(session_id), db().get_segments(session_id),
+                       db().list_marks(session_id), db().list_tasks(session_id), db().list_terms(session_id),
+                       db().get_summary(session_id))
+
+
+@app.get("/streak")
+def streak(tz: int = 540):
+    stamps = [s["started_at"] for d in db().list_documents() for s in d["sessions"]]
+    stamps += [c["last_at"] for d in db().list_documents() for c in db().list_cards(d["id"]) if c["last_at"]]
+    return build_streak(stamps, max(-720, min(840, tz)), time.time())
 
 
 # 시간표: 요일·시간에 맞춰 홈 화면이 "지금 수업"을 보여 주고, 그 과목 폴더로 바로 올리거나 녹음을 시작한다
