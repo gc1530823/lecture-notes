@@ -11,13 +11,43 @@ on:
   workflow_dispatch:
 
 jobs:
+  # 폰 안 받아쓰기 엔진(sherpa-onnx AAR)을 받는다. 남의 파일이라 서명 키 같은 Secrets가 없는 칸에서 받고,
+  # 정해 둔 버전과 지문(android/sherpa-onnx.sha256)이 맞을 때만 빌드에 넘긴다.
+  engine:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - name: Download sherpa-onnx AAR
+        run: |
+          VERSION=$(cat android/sherpa-onnx.version)
+          curl -fsSL -o sherpa-onnx.aar "https://github.com/k2-fsa/sherpa-onnx/releases/download/v$VERSION/sherpa-onnx-$VERSION.aar"
+          ls -la sherpa-onnx.aar
+          SUM=$(sha256sum sherpa-onnx.aar | cut -d' ' -f1)
+          echo "sherpa-onnx $VERSION sha256: $SUM"
+          if [ -s android/sherpa-onnx.sha256 ]; then
+            [ "$SUM" = "$(cat android/sherpa-onnx.sha256)" ] || { echo "::error::sherpa-onnx 파일 지문이 달라요 (바뀐 파일일 수 있어 멈춤)"; exit 1; }
+          else
+            echo "::warning::지문 파일이 없어 이번 지문을 android/sherpa-onnx.sha256 에 적어 두세요: $SUM"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sherpa-onnx-aar
+          path: sherpa-onnx.aar
+
   build:
+    needs: engine
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: sherpa-onnx-aar
+          path: android/app/libs
       - uses: actions/setup-java@v5
         with:
           distribution: temurin

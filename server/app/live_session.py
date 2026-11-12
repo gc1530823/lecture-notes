@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 import anthropic
 
 from . import training_log
+from .live_stt import RecordOnly
 from .alignment import NEXT_PATTERNS, TOPIC_SHIFT, Estimate, PageIndex, PageTracker, best_block
 from .config import settings
 from .db import Database
@@ -77,6 +78,7 @@ class LiveSession:
         self._worker: asyncio.Task | None = None
         self._preview_count = 0
         self.audio: LiveAudio | None = None
+        self.device_stt = False
 
     async def handle(self, message: dict) -> None:
         kind = message.get("type")
@@ -86,6 +88,9 @@ class LiveSession:
             await self._on_transcript(message)
         elif kind == "flush":
             self._schedule_flush()
+        elif kind == "device_stt":
+            # 폰이 스스로 받아쓴다 (android DeviceStt): 서버는 소리를 녹음 파일로만 남기고 받아쓰지 않는다
+            self.device_stt = True
         else:
             await self.send({"type": "error", "message": f"알 수 없는 메시지: {kind}"})
 
@@ -94,6 +99,8 @@ class LiveSession:
         offset_ms: 다시 연결한 경우 앞 녹음 조각들의 길이 (받아쓰기 시각을 이어 매긴다)."""
         if self.audio is None:
             doc = self.db.get_document(self.document_id)
+            if self.device_stt:
+                transcriber = RecordOnly()
             self.audio = LiveAudio(transcriber, " ".join(doc["keywords"][:40]), self._on_heard, wav_path, offset_ms)
         self.audio.feed(data)
 

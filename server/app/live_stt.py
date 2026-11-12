@@ -27,6 +27,15 @@ OnText = Callable[[str, int, int, bool], Awaitable[None]]
 LOUD_RATIO = 1.4  # 최근 조각들의 가운데 크기보다 이만큼 크면 목소리를 높인 것
 
 
+class RecordOnly:
+    """폰이 받아쓸 때: 소리는 녹음 파일로만 남기고 받아쓰지 않는다 (조각도 길게 모아 일을 줄인다)."""
+    min_chunk_ms = 60_000
+    max_chunk_ms = 60_000
+
+    def transcribe(self, audio, hint: str = "", on_progress=None) -> list:
+        return []
+
+
 class LiveAudio:
     def __init__(self, transcriber, hint: str, on_text: OnText, wav_path: str | None = None, start_ms: int = 0):
         self.transcriber = transcriber

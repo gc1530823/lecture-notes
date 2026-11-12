@@ -52,4 +52,6 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.webkit:webkit:1.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // 폰 안 받아쓰기 엔진 (k2-fsa sherpa-onnx, Apache 2.0). 빌드 때 GitHub 릴리스에서 정해진 버전을 받아 libs/에 둔다
+    implementation(files("libs/sherpa-onnx.aar"))
 }

@@ -66,6 +66,11 @@ class LiveService : Service() {
     private val textBacklog = ArrayDeque<String>()
     private var lastPage = 1
 
+    // 폰 안 받아쓰기 (모델이 있으면). 없으면 서버가 받아쓰고, 그동안 모델을 받아 둔다
+    private var device: DeviceStt? = null
+    private var samplesSeen = 0L      // 강의 시작부터 들은 소리 길이 (문장 시각을 매긴다)
+    private var sentenceStart = -1L
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -79,6 +84,12 @@ class LiveService : Service() {
         running = this
         startForegroundNotice()
         acquireWakeLock()
+        val stt = DeviceStt(this)
+        if (stt.start()) {
+            device = stt
+        } else {
+            Thread { stt.download() }.apply { name = "stt-download"; start() }
+        }
         connect()
         startRecording()
         return START_STICKY
@@ -119,6 +130,8 @@ class LiveService : Service() {
                     open = true
                     // 서버는 연결마다 상태를 새로 만들므로 보던 쪽부터 알린다
                     webSocket.send(JSONObject().put("type", "page_view").put("page", lastPage).put("initial", true).toString())
+                    // 폰이 받아쓰면 서버는 녹음 저장만 한다 (받아쓰기 한도를 안 쓴다)
+                    if (device != null) webSocket.send("""{"type":"device_stt"}""")
                     while (textBacklog.isNotEmpty()) webSocket.send(textBacklog.removeFirst())
                     while (audioBacklog.isNotEmpty()) webSocket.send(audioBacklog.removeFirst())
                 }
@@ -177,9 +190,33 @@ class LiveService : Service() {
             val buffer = ByteArray(CHUNK_BYTES)
             while (!stopping) {
                 val n = record.read(buffer, 0, buffer.size)
-                if (n > 0) queueAudio(buffer.copyOf(n).toByteString())
+                if (n > 0) {
+                    queueAudio(buffer.copyOf(n).toByteString())
+                    device?.let { hear(it, buffer, n) }
+                }
             }
         }.apply { name = "recorder"; start() }
+    }
+
+    /** 폰 안 받아쓰기: 들리는 대로 화면에 바로 띄우고, 문장이 끝나면 서버에 보내 필기를 붙이게 한다 */
+    private fun hear(stt: DeviceStt, buffer: ByteArray, n: Int) {
+        val count = n / 2
+        val samples = FloatArray(count) { i ->
+            ((buffer[2 * i].toInt() and 0xff) or (buffer[2 * i + 1].toInt() shl 8)).toShort() / 32768f
+        }
+        val (partial, done) = stt.accept(samples)
+        val nowMs = samplesSeen * 1000 / RATE
+        samplesSeen += count
+        if (partial.isNotEmpty() && sentenceStart < 0) sentenceStart = nowMs
+        if (done != null) {
+            val start = if (sentenceStart >= 0) sentenceStart else nowMs
+            queueText(JSONObject().put("type", "transcript_final").put("text", done)
+                .put("start_ms", start).put("end_ms", nowMs).toString())
+            emit(JSONObject().put("type", "heard").put("text", done).toString())
+            sentenceStart = -1
+        } else if (partial.isNotEmpty()) {
+            emit(JSONObject().put("type", "heard").put("text", partial).toString())
+        }
     }
 
     private fun shutdown() {
@@ -188,6 +225,8 @@ class LiveService : Service() {
         recorder?.release()
         recorder = null
         thread = null
+        device?.stop()
+        device = null
         // 마지막 필기를 받을 시간을 웹앱이 이미 기다렸으므로 바로 닫는다
         socket?.close(1000, "끝")
         socket = null

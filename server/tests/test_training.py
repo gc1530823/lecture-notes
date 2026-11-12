@@ -282,3 +282,10 @@ def test_live_audio_collects_longer_chunks_for_groq_free_limits():
     assert len(asyncio.run(run(None))) == 4          # 이 서버의 Whisper: 쉴 때마다 바로
     groq = asyncio.run(run(GroqLike()))
     assert len(groq) == 1 and groq[0] >= 9           # Groq: 9초 넘게 모아 한 번
+
+
+def test_phone_transcribes_so_server_only_records():
+    """폰이 받아쓰면(device_stt) 서버는 받아쓰기를 부르지 않고 녹음만 남긴다."""
+    from app.live_stt import RecordOnly
+
+    assert RecordOnly().transcribe(None) == [] and RecordOnly.min_chunk_ms >= 60_000
