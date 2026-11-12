@@ -289,3 +289,58 @@ def test_phone_transcribes_so_server_only_records():
     from app.live_stt import RecordOnly
 
     assert RecordOnly().transcribe(None) == [] and RecordOnly.min_chunk_ms >= 60_000
+
+
+def test_hybrid_never_stops_when_groq_limit_hits_our_ai_takes_over_until_it_clears(monkeypatch):
+    """한도 없게: Groq가 하루 한도에 걸리면 수업 중 필기도 우리 AI가 대신 하고, 풀리면 다시 Groq."""
+    from app import hybrid
+    from app.groq import GroqLimit
+
+    calls = []
+    limited = {"on": True}
+
+    class Teacher:
+        max_wait = None
+
+        async def annotate(self, *a, **k):
+            calls.append("teacher")
+            if limited["on"]:
+                raise GroqLimit("한도", 600)
+            return {"annotations": [{"text": "선생님"}]}
+
+        async def read_board(self, *a, **k):
+            raise GroqLimit("한도", 600)
+
+        async def summarize(self, *a, **k):
+            calls.append("teacher.summarize"); return {"overview": "선생님"}
+
+    class Student:
+        async def annotate(self, *a, **k):
+            calls.append("student"); return {"annotations": [{"text": "우리 AI"}]}
+
+        async def summarize(self, *a, **k):
+            calls.append("student.summarize"); return {"overview": "우리 AI"}
+
+    clock = {"t": 100.0}
+    monkeypatch.setattr(hybrid.time, "monotonic", lambda: clock["t"])
+    llm = hybrid.HybridLLM(Teacher(), Student(), local_first=False)
+    assert llm.teacher.max_wait == hybrid.TEACHER_MAX_WAIT
+
+    async def run():
+        first = await llm.annotate()
+        second = await llm.annotate()          # 한도가 안 풀린 동안은 Groq에 묻지도 않는다
+        limited["on"] = False
+        clock["t"] += 700
+        third = await llm.annotate()           # 풀린 뒤에는 다시 Groq
+        summary = await llm.summarize()        # local_first=False: 강의 뒤 일도 Groq가 먼저
+        return first, second, third, summary
+
+    first, second, third, summary = asyncio.run(run())
+    assert [x["annotations"][0]["text"] for x in (first, second, third)] == ["우리 AI", "우리 AI", "선생님"]
+    assert calls == ["teacher", "student", "student", "teacher", "teacher.summarize"]
+    assert summary == {"overview": "선생님"} and llm.student_calls == 2
+
+    import pytest
+
+    with pytest.raises(GroqLimit):             # 우리 AI가 못 하는 일(칠판 사진 읽기)은 한도 오류를 그대로 알린다
+        asyncio.run(llm.read_board())

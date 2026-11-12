@@ -342,3 +342,16 @@ input[type="date"].input { padding: 0 var(--space-lg); }
 .lecture .lecture-body { padding-bottom: 230px; }
 .term-stack { bottom: 200px; }
 .toast { bottom: 210px; }
+
+/* 시간표 */
+.timetable { display: flex; flex-direction: column; gap: var(--space-xs); }
+.class-now { background: var(--bg-card); }
+.class-now.live { background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-card)); outline: 2px solid var(--accent-primary); }
+.timetable-row { align-items: center; gap: var(--space-sm); padding: 0 var(--space-xs); }
+.timetable-edit { background: var(--bg-card); border-radius: var(--radius-lg); padding: var(--space-md); display: flex; flex-direction: column; gap: var(--space-sm); box-shadow: var(--shadow-card); }
+.timetable-day { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.timetable-class { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--accent-primary) 10%, transparent); }
+.timetable-class button { display: grid; place-items: center; width: 24px; height: 24px; border: 0; background: none; color: var(--text-tertiary); border-radius: 50%; }
+.timetable-form { display: flex; flex-direction: column; gap: var(--space-sm); }
+.timetable-form .row { gap: var(--space-sm); }
+.timetable-form .input { min-width: 0; padding: 0 var(--space-md); }

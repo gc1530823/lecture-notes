@@ -7,6 +7,7 @@ import { Button, Chip, Empty, Icon, ListItem } from "../components/ui";
 import { ReviewBanner } from "./ExamPrep";
 import { ExamBanner } from "./Semester";
 import { Onboarding } from "./Onboarding";
+import { Timetable } from "./Timetable";
 import { go } from "../router";
 
 
@@ -112,6 +113,7 @@ export default function Home() {
           {courses.map((c) => <Chip key={c} variant={filter === c ? "selected" : "default"} onClick={() => pick(c)}>{c}</Chip>)}
           {hasLoose && courses.length > 0 && <Chip variant={filter === "" ? "selected" : "default"} onClick={() => pick("")}>과목 없음</Chip>}
         </div>
+        <Timetable courses={courses} onPick={pick} />
         <ExamBanner />
         <ReviewBanner />
         <div className="row home-shortcuts">

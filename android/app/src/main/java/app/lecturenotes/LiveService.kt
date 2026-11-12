@@ -67,7 +67,7 @@ class LiveService : Service() {
     private var lastPage = 1
 
     // 폰 안 받아쓰기 (모델이 있으면). 없으면 서버가 받아쓰고, 그동안 모델을 받아 둔다
-    private var device: DeviceStt? = null
+    @Volatile private var device: DeviceStt? = null
     private var samplesSeen = 0L      // 강의 시작부터 들은 소리 길이 (문장 시각을 매긴다)
     private var sentenceStart = -1L
 
@@ -84,12 +84,22 @@ class LiveService : Service() {
         running = this
         startForegroundNotice()
         acquireWakeLock()
-        val stt = DeviceStt(this)
-        if (stt.start()) {
-            device = stt
-        } else {
-            Thread { stt.download() }.apply { name = "stt-download"; start() }
-        }
+        // 폰 받아쓰기 모델을 읽는 데 1~2초 걸려 화면을 멈추지 않게 따로 돌린다. 준비되는 순간부터 폰이 받아쓴다
+        Thread {
+            val stt = DeviceStt(this)
+            if (!stt.ready()) {
+                emit(notice("폰 받아쓰기 모델(약 150MB)을 받는 중이에요. 다 받으면 기다림 없이 바로 받아써요."))
+                if (!stt.download()) {
+                    emit(notice("받아쓰기 모델을 못 받았어요. 이번에는 서버가 받아써요."))
+                    return@Thread
+                }
+            }
+            if (!stopping && stt.start()) {
+                device = stt
+                queueText("""{"type":"device_stt"}""")
+                emit(notice("폰이 바로 받아써요 (한도·기다림 없음)"))
+            }
+        }.apply { name = "stt-load"; start() }
         connect()
         startRecording()
         return START_STICKY
@@ -153,6 +163,8 @@ class LiveService : Service() {
         synchronized(this) { open = false }
         if (!stopping) main.postDelayed({ connect() }, 1500)
     }
+
+    private fun notice(message: String): String = JSONObject().put("type", "notice").put("message", message).toString()
 
     private fun emit(text: String) {
         val handler = onEvent ?: return
@@ -224,6 +236,8 @@ class LiveService : Service() {
         try { recorder?.stop() } catch (_: Exception) { }
         recorder?.release()
         recorder = null
+        // 녹음 스레드가 받아쓰기 엔진을 쓰는 중일 수 있어, 끝나길 잠깐 기다린 뒤 엔진을 닫는다
+        try { thread?.join(800) } catch (_: InterruptedException) { }
         thread = null
         device?.stop()
         device = null

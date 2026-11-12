@@ -1710,6 +1710,88 @@
         }
       }
     },
+    "/timetable": {
+      "get": {
+        "summary": "List Timetable",
+        "operationId": "list_timetable_timetable_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add Timetable",
+        "operationId": "add_timetable_timetable_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/timetable/{class_id}": {
+      "delete": {
+        "summary": "Delete Timetable",
+        "operationId": "delete_timetable_timetable__class_id__delete",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/exams": {
       "get": {
         "summary": "List Exams",
@@ -2386,6 +2468,41 @@
         },
         "type": "object",
         "title": "CatchUpRequest"
+      },
+      "ClassCreate": {
+        "properties": {
+          "course": {
+            "type": "string",
+            "title": "Course"
+          },
+          "weekday": {
+            "type": "integer",
+            "maximum": 6.0,
+            "minimum": 0.0,
+            "title": "Weekday"
+          },
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          },
+          "place": {
+            "type": "string",
+            "title": "Place",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "course",
+          "weekday",
+          "start",
+          "end"
+        ],
+        "title": "ClassCreate"
       },
       "ConfusedRequest": {
         "properties": {

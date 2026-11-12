@@ -33,6 +33,12 @@ CHUNK_SECONDS = 600
 MAX_RETRIES = int(os.getenv("GROQ_MAX_RETRIES", "6"))  # 데이터 만들기처럼 몰아서 쓸 때는 늘린다
 
 
+class GroqLimit(LLMError):
+    def __init__(self, message: str, wait: float) -> None:
+        super().__init__(message)
+        self.wait = wait
+
+
 def _wait_seconds(response: httpx.Response, attempt: int) -> float:
     """사용량 한도(429)에 걸리면 Groq가 알려 준 만큼(없으면 점점 길게) 기다린다."""
     try:
@@ -48,6 +54,8 @@ def _auth() -> dict:
 
 
 class GroqLLM(OllamaLLM):
+    max_wait: float | None = None  # 이보다 오래 기다려야 하는 한도면 GroqLimit (None = 끝까지 기다림)
+
     def __init__(self, transport: httpx.AsyncBaseTransport | None = None) -> None:
         self.client = httpx.AsyncClient(base_url=BASE_URL, timeout=httpx.Timeout(120, connect=10),
                                         transport=transport)
@@ -70,6 +78,9 @@ class GroqLLM(OllamaLLM):
                 raise LLMError(f"Groq에 연결할 수 없습니다: {exc}") from exc
             if response.status_code == 429:
                 wait = _wait_seconds(response, attempt)
+                if self.max_wait is not None and wait > self.max_wait:
+                    # 역할 나누기(hybrid): 오래 기다려야 하는 한도(하루 한도 등)면 기다리지 않고 우리 AI에게 넘긴다
+                    raise GroqLimit(f"Groq 사용량 한도 ({wait:.0f}초 뒤 풀림)", wait)
                 log.warning("Groq 사용량 한도: %.0f초 기다립니다", wait)
                 await asyncio.sleep(wait)
                 continue

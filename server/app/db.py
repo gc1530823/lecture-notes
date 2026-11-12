@@ -76,6 +76,15 @@ CREATE TABLE IF NOT EXISTS shared (
     body TEXT NOT NULL,
     created_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS classes (
+    -- 시간표: 과목·요일(0=월 … 6=일)·시작·끝("HH:MM")·강의실
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    course TEXT NOT NULL,
+    weekday INTEGER NOT NULL,
+    start TEXT NOT NULL,
+    end TEXT NOT NULL,
+    place TEXT NOT NULL DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS exams (
     -- 시험 D-day: 이름·날짜·범위(강의자료 id 목록)
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -404,6 +413,24 @@ class Database:
             (session_id, page_id, start_ms, end_ms, text, int(loud)),
         )
 
+    def refine_segments(self, session_id: str, segments: list[tuple[int, int, str]]) -> int:
+        """강의 뒤 다시 받아쓴(더 정확한) 문장으로 바꾼다. 쪽·목소리 강조는 시각이 가장 가까운 예전 문장의 것을 물려받는다."""
+        with self._lock, self._conn:
+            old = self._conn.execute(
+                "SELECT start_ms, page_id, loud FROM transcript_segments WHERE session_id = ? ORDER BY start_ms, id",
+                (session_id,)).fetchall()
+            if not old or not segments:
+                return 0
+            self._conn.execute("DELETE FROM transcript_segments WHERE session_id = ?", (session_id,))
+            i = 0
+            for start_ms, end_ms, text in segments:
+                while i + 1 < len(old) and abs(old[i + 1]["start_ms"] - start_ms) <= abs(old[i]["start_ms"] - start_ms):
+                    i += 1
+                self._conn.execute(
+                    "INSERT INTO transcript_segments (session_id, page_id, start_ms, end_ms, text, loud) VALUES (?, ?, ?, ?, ?, ?)",
+                    (session_id, old[i]["page_id"], start_ms, end_ms, text, old[i]["loud"]))
+        return len(segments)
+
     def get_segments(self, session_id: str) -> list[dict]:
         return self._query(
             """SELECT s.start_ms, s.end_ms, s.text, s.loud, p.page_no
@@ -498,6 +525,20 @@ class Database:
         if not rows:
             return None
         return {**rows[0], "doc_ids": json.loads(rows[0]["doc_ids"])}
+
+    # 시간표
+
+    def add_class(self, course: str, weekday: int, start: str, end: str, place: str) -> dict:
+        class_id = self._write("INSERT INTO classes (course, weekday, start, end, place) VALUES (?, ?, ?, ?, ?)",
+                               (course, weekday, start, end, place))
+        return self._query("SELECT * FROM classes WHERE id = ?", (class_id,))[0]
+
+    def list_classes(self) -> list[dict]:
+        return self._query("SELECT * FROM classes ORDER BY weekday, start")
+
+    def delete_class(self, class_id: int) -> bool:
+        with self._lock, self._conn:
+            return self._conn.execute("DELETE FROM classes WHERE id = ?", (class_id,)).rowcount > 0
 
     def list_exams(self) -> list[dict]:
         return [{**r, "doc_ids": json.loads(r["doc_ids"])} for r in self._query("SELECT * FROM exams ORDER BY exam_date")]

@@ -65,6 +65,12 @@ class LiveAudio:
             self.wav.setsampwidth(2)
             self.wav.setframerate(RATE)
 
+    def use(self, transcriber) -> None:
+        """받아쓰는 쪽을 바꾼다 (폰 받아쓰기가 준비되면 서버는 녹음만)."""
+        self.transcriber = transcriber
+        self.min_chunk_ms = getattr(transcriber, "min_chunk_ms", 0)
+        self.max_chunk_ms = getattr(transcriber, "max_chunk_ms", MAX_CHUNK_MS)
+
     def feed(self, data: bytes) -> None:
         samples = np.frombuffer(data[: len(data) // 2 * 2], dtype=np.int16)
         if self.wav:

@@ -770,3 +770,50 @@ def test_search_everywhere_and_confirm_low_confidence_note(client):
     assert client.get("/search", params={"q": "a"}).json()["results"] == []
     confirmed = client.patch(f"/annotations/{note['id']}", json={"confirm": True}).json()
     assert confirmed["confidence"] == 1
+
+
+def test_phone_transcribed_lecture_is_rewritten_from_the_recording_after_class(client):
+    """폰이 받아쓴 강의: 수업 중엔 서버가 받아쓰지 않고(녹음만), 끝나면 녹음을 다시 받아써서 글을 바로잡는다."""
+    import numpy as np
+
+    from app.main import app as fastapi_app
+    from app.stt import Segment
+
+    calls = []
+
+    class Accurate:
+        def transcribe(self, audio, hint="", on_progress=None):
+            calls.append("file" if isinstance(audio, str) else "live")
+            return [Segment(0, 2000, "경사하강법은 learning rate가 중요해요."), Segment(2000, 4000, "다음은 역전파입니다.")]
+
+    fastapi_app.state.transcriber = Accurate()
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    tone = (np.sin(2 * np.pi * 220 * np.arange(16000 * 2) / 16000) * 8000).astype(np.int16)
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1, "initial": True})
+        ws.send_json({"type": "device_stt"})
+        ws.send_bytes(tone.tobytes())
+        ws.send_json({"type": "transcript_final", "text": "경사 하강법은 러닝 레이트가 중요해요", "start_ms": 100, "end_ms": 1900})
+        receive(ws, "spoken")
+    assert calls == [], "수업 중에는 서버가 받아쓰지 않는다"
+    client.post(f"/sessions/{session['id']}/end")
+    for _ in range(50):
+        if client.get(f"/sessions/{session['id']}/summary").json()["status"] == "done":
+            break
+        time.sleep(0.1)
+    assert calls == ["file"]
+    lines = client.get(f"/sessions/{session['id']}/transcript").json()
+    texts = [s["text"] for s in (lines if isinstance(lines, list) else lines["segments"])]
+    assert texts == ["경사하강법은 learning rate가 중요해요.", "다음은 역전파입니다."]
+
+
+def test_timetable_add_list_delete_and_rejects_bad_times(client):
+    assert client.post("/timetable", json={"course": "운영체제", "weekday": 1, "start": "13:00", "end": "12:00"}).status_code == 400
+    assert client.post("/timetable", json={"course": " ", "weekday": 1, "start": "10:30", "end": "11:45"}).status_code == 400
+    made = client.post("/timetable", json={"course": "운영체제", "weekday": 1, "start": "10:30", "end": "11:45", "place": "공학관 301"}).json()
+    client.post("/timetable", json={"course": "미시경제", "weekday": 0, "start": "09:00", "end": "10:15"})
+    rows = client.get("/timetable").json()
+    assert [r["course"] for r in rows if r["course"] in ("미시경제", "운영체제")] == ["미시경제", "운영체제"]  # 요일·시간 순
+    assert client.delete(f"/timetable/{made['id']}").status_code == 204
+    assert client.delete(f"/timetable/{made['id']}").status_code == 404

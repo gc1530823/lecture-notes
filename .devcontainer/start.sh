@@ -23,6 +23,11 @@ if [ -z "${LLM_MODE:-}" ] && [ -n "${GROQ_API_KEY:-}" ] && ollama list 2>/dev/nu
   export LLM_MODE=hybrid OLLAMA_MODEL=lecture-notes
   echo "우리 AI를 찾았어요: 강의 뒤 정리는 우리 AI가, 수업 중 필기는 Groq가 맡아요"
 fi
+# 우리 AI가 아직 없어도: Groq가 한도에 걸리면 이 서버의 바탕 모델(qwen3:4b)이 대신 해서 멈추지 않게 한다
+if [ -z "${LLM_MODE:-}" ] && [ -n "${GROQ_API_KEY:-}" ] && ollama list 2>/dev/null | grep -q "^qwen3:4b"; then
+  export LLM_MODE=hybrid HYBRID_LOCAL_FIRST=0
+  echo "Groq 한도에 걸리면 이 서버의 AI(qwen3:4b)가 대신 해요"
+fi
 # 우리 받아쓰기 AI가 깔려 있으면 이 서버의 받아쓰기를 그것으로 (training/stt/install_stt.sh)
 if [ -z "${WHISPER_MODEL:-}" ] && [ -f "$HOME/.cache/lecture-notes-stt/whisper-ko-ct2/model.bin" ]; then
   export WHISPER_MODEL="$HOME/.cache/lecture-notes-stt/whisper-ko-ct2"

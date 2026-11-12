@@ -15,6 +15,7 @@ export type ServerEvent =
   | { type: "task_added"; task: Task }
   | { type: "heard"; text: string }
   | { type: "spoken"; text: string; page: number; block_id: number | null }
+  | { type: "notice"; message: string }
   | { type: "error"; message: string };
 
 /** 안드로이드 앱 안에서 열렸을 때 앱이 넣어 주는 기능 (android/…/MainActivity.kt 의 Bridge) */

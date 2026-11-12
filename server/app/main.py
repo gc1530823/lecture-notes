@@ -16,7 +16,7 @@ import anthropic
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import training_log
 from .config import settings
@@ -421,7 +421,35 @@ def end_session(session_id: str, background: BackgroundTasks):
     return db().get_session(session_id)
 
 
+async def _refine_transcript(session_id: str, document_id: str) -> None:
+    """폰이 받아쓴 강의(빠르지만 덜 정확)는 강의가 끝난 뒤 녹음을 더 큰 모델로 다시 받아써서 글을 바로잡는다.
+    요약·퀴즈·정리·검색·다시 듣기가 이 정확한 글을 쓴다. 실패하면 폰이 받아쓴 글 그대로 둔다."""
+    marker = os.path.join(settings.upload_dir, f"{session_id}.device")
+    if not os.path.exists(marker):
+        return
+    try:
+        audio = audio_file(session_id)
+        old = db().get_segments(session_id)
+        if not audio or not old:
+            return
+        doc = db().get_document(document_id)
+        progress = app.state.progress
+        segments = await asyncio.to_thread(
+            app.state.transcriber.transcribe, audio[0], " ".join(doc["keywords"][:40]),
+            lambda p: progress.__setitem__(session_id, p))
+        # 다시 받아쓴 글이 너무 짧으면(녹음이 끊겼거나 받아쓰기 실패) 바꾸지 않는다
+        if sum(len(s.text) for s in segments) >= 0.6 * sum(len(s["text"]) for s in old):
+            n = db().refine_segments(session_id, [(s.start_ms, s.end_ms, s.text) for s in segments])
+            log.info("다시 받아쓰기: 문장 %d개 → %d개", len(old), n)
+        os.remove(marker)
+    except Exception:
+        log.exception("다시 받아쓰기 실패 (폰이 받아쓴 글을 그대로 씀)")
+    finally:
+        app.state.progress.pop(session_id, None)
+
+
 async def _summarize(session_id: str, document_id: str) -> None:
+    await _refine_transcript(session_id, document_id)
     pages = db().list_pages(document_id)
     try:
         body = await app.state.llm.summarize(pages, db().get_segments(session_id), db().list_annotations(session_id))
@@ -1109,6 +1137,39 @@ async def semester_tutor(body: TutorRequest):
 
 
 # 시험 D-day
+
+
+# 시간표: 요일·시간에 맞춰 홈 화면이 "지금 수업"을 보여 주고, 그 과목 폴더로 바로 올리거나 녹음을 시작한다
+# (지금이 몇 시인지는 폰이 안다: 서버는 저장만 한다)
+
+
+class ClassCreate(BaseModel):
+    course: str
+    weekday: int = Field(ge=0, le=6)  # 0 = 월요일
+    start: str  # HH:MM
+    end: str
+    place: str = ""
+
+
+@app.get("/timetable")
+def list_timetable():
+    return db().list_classes()
+
+
+@app.post("/timetable")
+def add_timetable(body: ClassCreate):
+    clock = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+    if not body.course.strip():
+        raise HTTPException(400, "과목 이름을 적어 주세요.")
+    if not clock.match(body.start) or not clock.match(body.end) or body.start >= body.end:
+        raise HTTPException(400, "시간은 09:00 처럼 적고, 끝나는 시간이 시작보다 늦어야 해요.")
+    return db().add_class(body.course.strip()[:40], body.weekday, body.start, body.end, body.place.strip()[:40])
+
+
+@app.delete("/timetable/{class_id}", status_code=204)
+def delete_timetable(class_id: int):
+    if not db().delete_class(class_id):
+        raise HTTPException(404, "없는 수업입니다.")
 
 
 class ExamCreate(BaseModel):

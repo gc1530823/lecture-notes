@@ -258,6 +258,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         setLines((l) => [...l, e.text].slice(-3));
         setSpoken({ page: e.page, block_id: e.block_id });
         break;
+      case "notice":
       case "error":
         toast(e.message);
         break;

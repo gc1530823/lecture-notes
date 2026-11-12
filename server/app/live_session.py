@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import os
 import re
 import time
 from collections.abc import Awaitable, Callable
@@ -91,6 +92,10 @@ class LiveSession:
         elif kind == "device_stt":
             # 폰이 스스로 받아쓴다 (android DeviceStt): 서버는 소리를 녹음 파일로만 남기고 받아쓰지 않는다
             self.device_stt = True
+            if self.audio:  # 수업 도중에 폰 받아쓰기가 준비된 경우: 그때부터 서버는 녹음만
+                self.audio.use(RecordOnly())
+            os.makedirs(settings.upload_dir, exist_ok=True)
+            open(os.path.join(settings.upload_dir, f"{self.session_id}.device"), "w").close()  # 강의 뒤 다시 받아쓸 표시
         else:
             await self.send({"type": "error", "message": f"알 수 없는 메시지: {kind}"})
 
