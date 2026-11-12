@@ -30,6 +30,9 @@ LOUD_RATIO = 1.4  # 최근 조각들의 가운데 크기보다 이만큼 크면 
 class LiveAudio:
     def __init__(self, transcriber, hint: str, on_text: OnText, wav_path: str | None = None, start_ms: int = 0):
         self.transcriber = transcriber
+        # 받아쓰기 서비스마다 알맞은 조각 길이 (Groq는 길게 모아서 무료 한도를 아낀다, 이 서버의 Whisper는 짧게 바로)
+        self.min_chunk_ms = getattr(transcriber, "min_chunk_ms", 0)
+        self.max_chunk_ms = getattr(transcriber, "max_chunk_ms", MAX_CHUNK_MS)
         self.hint = hint
         self.on_text = on_text
         self.buffer = np.zeros(0, dtype=np.int16)
@@ -77,7 +80,8 @@ class LiveAudio:
                 drop = len(self.buffer) - PRE_ROLL
                 self.buffer = self.buffer[drop:]
                 self.buffer_start_ms += drop * 1000 // RATE
-            elif (self.speech_ms >= MIN_SPEECH_MS and self.silent_ms >= SILENCE_TO_CUT_MS) or length_ms >= MAX_CHUNK_MS:
+            elif (self.speech_ms >= MIN_SPEECH_MS and self.silent_ms >= SILENCE_TO_CUT_MS and length_ms >= self.min_chunk_ms) \
+                    or length_ms >= self.max_chunk_ms:
                 self._cut()
 
     def _reset(self) -> None:

@@ -139,6 +139,12 @@ def _split_audio(path: str, out_dir: str) -> list[str]:
 
 
 class GroqTranscriber:
+    # 실시간 조각 길이: Groq 무료는 요청 하나를 짧아도 10초로 세고(시간당 7200초 · 하루 2000번 · 분당 20번),
+    # 0.7초 쉼마다 끊으면 75분 수업이 1000번 넘게 나가 한 시간 한도를 넘는다. 9초 넘게 모은 뒤 쉼에서 끊으면
+    # 한 시간 강의가 약 300~400번 · 3600초 안쪽 → 하루 5시간쯤까지. 대신 글이 몇 초 늦게 뜬다.
+    min_chunk_ms = int(os.getenv("GROQ_LIVE_MIN_CHUNK_MS", "9000"))
+    max_chunk_ms = int(os.getenv("GROQ_LIVE_MAX_CHUNK_MS", "20000"))
+
     def __init__(self, transport: httpx.BaseTransport | None = None) -> None:
         self.client = httpx.Client(base_url=BASE_URL, timeout=httpx.Timeout(300, connect=10), transport=transport)
 

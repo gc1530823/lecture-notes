@@ -250,3 +250,35 @@ def test_hybrid_sends_live_work_to_teacher_and_after_lecture_work_to_our_ai():
     cards, summary = asyncio.run(run())
     assert cards[0]["front"] == "우리 AI" and summary["overview"] == "선생님 요약"
     assert calls == ["teacher.annotate", "student.study_page", "student.summarize", "teacher.summarize"]
+
+
+def test_live_audio_collects_longer_chunks_for_groq_free_limits():
+    """Groq는 짧은 요청도 10초로 센다: 0.7초 쉼마다 보내지 않고 9초 넘게 모은 뒤 쉼에서 끊는다."""
+    import numpy as np
+
+    from app.live_stt import LiveAudio
+
+    class GroqLike:
+        min_chunk_ms, max_chunk_ms = 9000, 20000
+
+    def tone(seconds):
+        t = np.arange(int(16000 * seconds)) / 16000
+        return (np.sin(2 * np.pi * 220 * t) * 8000).astype(np.int16).tobytes()
+
+    silence = np.zeros(16000, dtype=np.int16).tobytes()
+
+    async def run(transcriber):
+        audio = LiveAudio(transcriber, "", None)
+        sizes = []
+        audio._cut_orig = audio._cut
+        audio._cut = lambda: (sizes.append(len(audio.buffer) / 16000), audio._reset())
+        for _ in range(4):           # 말 2초 + 쉼 1초, 네 번
+            audio.feed(tone(2))
+            audio.feed(silence)
+        audio._queue.put_nowait(None)
+        await audio._worker
+        return sizes
+
+    assert len(asyncio.run(run(None))) == 4          # 이 서버의 Whisper: 쉴 때마다 바로
+    groq = asyncio.run(run(GroqLike()))
+    assert len(groq) == 1 and groq[0] >= 9           # Groq: 9초 넘게 모아 한 번
