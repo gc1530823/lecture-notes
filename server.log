@@ -1,0 +1,373 @@
+INFO:     Started server process [3172]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:60598 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "POST /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "POST /sessions/from-audio HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/audio/transcriptions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/audio/transcriptions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 4초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 15초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 1초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 16초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 3초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 7초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 16초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 3초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 1초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 3초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 1초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 14초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 20초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 2초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 7초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 14초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 1초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 7초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 17초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 8초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 1초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 5초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 1초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 7초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 7초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 4초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 1초 기다립니다
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 5초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 7초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 3초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 1초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 4초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 3초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 10초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/transcript HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/annotations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/tasks HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 5초 기다립니다
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:60608 - "POST /sessions/aad6369e654543e8b4949d8918a8f1bd/ask HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "POST /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 4초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 3초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 9초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 1초 기다립니다
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 7초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 8초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 4초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 4초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 5초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 5초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 4초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 2초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 2초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 3초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 3초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 4초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 1초 기다립니다
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 6초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 7초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 5초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 4초 기다립니다
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+WARNING:app.groq:Groq 사용량 한도: 1초 기다립니다
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60608 - "GET /sessions/aad6369e654543e8b4949d8918a8f1bd/notes-pdf HTTP/1.1" 200 OK

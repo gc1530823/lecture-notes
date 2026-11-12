@@ -1,0 +1,27 @@
+서버: {'ok': True, 'llm_mode': 'groq', 'model': 'openai/gpt-oss-120b', 'stt_mode': 'groq'}
+강의자료: slides (75쪽)
+녹음 파일: 7.9MB
+  [     0초] 정리: transcribing
+  [     9초] 정리: transcribing 50%
+  [    12초] 정리: transcribing
+  [   211초] 정리: processing
+  [   304초] 정리: done
+받아쓰기 98문장 · 필기 22개 (보류함 0개) · 과제 0개 · 요약 done
+[질문 4쪽] Q. 방금 설명한 거 쉽게 다시 설명해 줘
+A. MSI 프로토콜은 각 캐시 라인에 M(Modified), S(Shared), I(Invalid) 중 하나의 상태를 붙이는 방식이에요. 한 캐시가 데이터를 바꾸면, 다른 캐시들에게 그 라인이 이제 오래됐으니 무효화하라고 알려줘서 일관성을 유지합니다. (교수님 설명 외) 캐시 라인 크기는 보통 64바이트입니다.
+  [   309초] 정리 PDF: building 0/13쪽
+  [   318초] 정리 PDF: building 1/13쪽
+  [   339초] 정리 PDF: building 2/13쪽
+  [   354초] 정리 PDF: building 3/13쪽
+  [   363초] 정리 PDF: building 4/13쪽
+  [   378초] 정리 PDF: building 5/13쪽
+  [   387초] 정리 PDF: building 6/13쪽
+  [   399초] 정리 PDF: building 7/13쪽
+  [   408초] 정리 PDF: building 8/13쪽
+  [   417초] 정리 PDF: building 9/13쪽
+  [   430초] 정리 PDF: building 10/13쪽
+  [   442초] 정리 PDF: building 11/13쪽
+  [   457초] 정리 PDF: building 12/13쪽
+  [   469초] 정리 PDF: building 13/13쪽
+  [   472초] 정리 PDF: ready
+끝 · 전체 472초 · 정리 PDF ready

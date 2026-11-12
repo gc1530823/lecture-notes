@@ -1,0 +1,98 @@
+[00:00] (2쪽) The following content is provided under a Creative Commons license.
+[00:04] (2쪽) Your support will help MIT OpenCourseWare continue to offer high quality educational resources for free.
+[00:12] (75쪽) To make a donation or to view additional materials from hundreds of MIT courses, visit MIT OpenCourseWare at ocw.mit.edu.
+[00:20] (75쪽) Today we're going to talk about multicore programming.
+[00:25] (75쪽) And as I was just informed by Charles, it's 2018.
+[00:30] (75쪽) I had 2017 on the slide.
+[00:32] (75쪽) Okay, so first, congratulations to all of you.
+[00:38] (75쪽) You turned in the first projects beta.
+[00:43] (75쪽) Here's a plot showing the tiers that different groups reach for the beta, and this is in sorted order.
+[00:53] (75쪽) And we set the beta cutoff to be tier 45.
+[00:57] (75쪽) The final cutoff is tier 48, so the final cutoff we did set a little bit aggressively,
+[01:03] (75쪽) but keep in mind that you don't necessarily have to get to the final cutoff in order to get an A on this project.
+[01:13] (75쪽) Okay, so we're going to talk about multi-core processing today.
+[01:17] (74쪽) That's going to be the topic of the next project after you finish the first project.
+[01:22] (74쪽) So in a multi-core processor, we have a whole bunch of cores that are all placed on the same chip, and they have access to shared memory.
+[01:34] (74쪽) They usually also have some sort of private cache and then a shared last-level cache, so L3 in this case.
+[01:41] (74쪽) The
+[02:11] (74쪽) core law which says that we get more transistors every year so the number of transistors that you can fit on a chip doubles approximately every two years And secondly there the end of scaling of clock frequency So for a very long time we could just keep increasing the frequency of the single core on the chip But at around 2004 to 2005 that was no longer the case
+[02:37] (74쪽) We couldn't scale the clock frequency anymore.
+[02:42] (74쪽) So here's a plot showing both the number of transistors you can fit on the chip over time,
+[02:48] (5쪽) as well as the clock frequency of the processors over time.
+[02:52] (74쪽) And notice that the y-axis is in log scale here.
+[02:54] (5쪽) Mors Law
+[03:54] (5쪽) that are around 4 gigahertz nowadays.
+[03:58] (5쪽) So what happened at around 2004 to 2005?
+[04:03] (5쪽) Does anyone know?
+[04:10] (5쪽) Okay, so Moore's law basically says that we can fit more transistors on a chip because the transistors become smaller.
+[04:20] (5쪽) with our platform.
+[04:50] (4쪽) There something called leakage current So there current that leaks and we unable to keep reducing the voltage while still having reliable switching And if you can reduce the voltage anymore then you can increase the frequency the clock frequency if you want to keep the same power density
+[05:13] (4쪽) So here's a plot from Intel back in 2004 when they first started producing multi-core processors.
+[05:21] (4쪽) This is plotting the power density versus time.
+[05:24] (4쪽) And again, the y-axis is in log scale here.
+[05:27] (4쪽) So the green data points are actual data points and the orange ones are projected.
+[05:34] (4쪽) And they projected what the power density would be if we kept increasing the clock frequency at a trend of about 25 to 30% per year,
+[05:46] (4쪽) which is what happened up until around 2004.
+[05:49] (4쪽) And because we couldn't reduce the voltage anymore, the power density will go up.
+[05:55] (4쪽) And you can see that eventually it reaches the power density of a nuclear reactor, which is pretty hot.
+[06:03] (4쪽) And then it reaches the power density of a rocket nozzle, and eventually you get to the power density of the sun's surface.
+[06:11] (4쪽) So if you have a chip that has a power density equal to the sun's surface,
+[06:19] (4쪽) You don't actually really have a chip anymore.
+[06:22] (4쪽) So basically if you get into this orange region, you basically have a fire and you can't really do anything interesting in terms of performance engineering at that point.
+[06:34] (4쪽) So to solve this problem, semiconductor vendors, they didn't increase the clock frequency anymore, but we still had Moore's law giving us more and more transistors every year.
+[06:51] (4쪽) So what they decided to do with these extra transistors was to put them into multiple cores and then put multiple cores on the same chip.
+[07:01] (4쪽) So we can see that starting at around 2004, the number of cores per chip becomes more than one.
+[07:12] (5쪽) And each generation of Moore's Law will potentially double the number of cores that you can fit on a chip because it's doubling the number of transistors.
+[07:21] (5쪽) We seen this trend up until about today and again it going to continue for a couple more years before Moore Law ends So that why we have chips with multiple cores today Morslaw
+[07:54] (5쪽) We have a whole bunch of processors.
+[07:57] (5쪽) They each have a cache, so that's indicated with the dollar sign.
+[08:00] (5쪽) And usually they have a private cache as well as a shared cache.
+[08:05] (8쪽) So a shared last level cache like the L3 cache.
+[08:08] (8쪽) And then they're all connected to the network.
+[08:12] (8쪽) And then through the network they can connect to the main memory.
+[08:16] (7쪽) They can all access the same shared memory.
+[08:19] (6쪽) And then usually there's a separate network for the I.O.
+[08:23] (6쪽) as well,
+[08:23] (6쪽) even though I've drawn them as a single network here so they can access the IO interface and potentially the network will also connect to other
+[08:32] (6쪽) multiprocessors on the same system.
+[08:34] (6쪽) And this abstract multicore architecture is known as a chip multiprocessor or CMP.
+[08:40] (6쪽) So that's the architecture that we'll be looking at today.
+[08:44] (6쪽) So here's an outline of today's lecture.
+[08:48] (6쪽) So first I'm going to go over some hardware challenges with shared memory multicore machines.
+[08:59] (6쪽) So we're going to look at the cache coherence protocol.
+[09:03] (6쪽) And then after looking at hardware, we're going to look at some software solutions
+[09:09] (6쪽) WintAPI Tthreads
+[09:39] (7쪽) library solution to concurrency.
+[09:41] (7쪽) And then there are two linguistic solutions that we'll be looking at, OpenMP and
+[09:46] (7쪽) SOC+.
+[09:47] (7쪽) And SOC+, is actually the concurrency platform that we'll be using for most of this class.
+[10:00] (7쪽) All right, so let's look at how caches work.
+[10:06] (7쪽) So let's say that we have a value in memory at some location, and that value is, let's say that value is x equals 3.
+[10:22] (7쪽) If one processor says we want to load X, what happens is that processor reads this value from a main memory, brings it into its own cache, and then it also reads the value, loads it into one of its registers.
+[10:40] (8쪽) And it keeps this value in cache so that if it wants to access this value again in the near future, it doesn't have to go all the way out to main memory.
+[10:48] (8쪽) It can just look at the value in its cache.
+[10:50] (8쪽) Now what happens if another processor wants to load X?
+[10:56] (8쪽) Well it just does the same thing.
+[10:59] (9쪽) It reads the value from main memory, brings it into its cache, and then also loads it
+[11:03] (9쪽) into one of the registers And then same thing with another processor Turns out that you don actually always have to go out to main memory to get the value If the value resides in one of the other processors caches you can also get the value through the other processors cache
+[11:22] (9쪽) And sometimes that's cheaper than going all the way out to main memory.
+[11:31] (9쪽) Okay, so now, okay, so the second processor now loads X again, and it's in cache, so it doesn't have to go to main memory or anybody else's cache.
+[11:40] (9쪽) So what happens now if we want to store X, if we want to set the value of X to something else?
+[11:48] (9쪽) Okay, so let's say this processor wants to set X equal to 5.
+[11:54] (12쪽) So it's going to write X equals 5 and store that result in its own cache.
+[11:59] (12쪽) So that's all well and good.
+[12:01] (9쪽) Now what happens when the first processor wants to load X?
+[12:09] (9쪽) Well, it sees that the value of X is in its own cache,
+[12:13] (9쪽) so it's just going to read the value of X there, and it gets a value of 3.
+[12:19] (9쪽) So what's the problem there?
+[12:27] (14쪽) Yes The problem is that the value of X in the first processor cache is stale because another processor updated it So now we can this value of X in the first processor cache is invalid
+[12:42] (14쪽) So that's the problem.
+[12:44] (14쪽) And one of the main challenges of multicore hardware is to try to solve this problem of cache coherence, making sure that the values in different processors' caches are consistent across updates.
+[13:01] (14쪽) One basic protocol for solving this problem is known as the MSI protocol.
+[13:07] (15쪽) In this protocol, each cache line is labeled with a state.
+[13:12] (15쪽) There are three possible states, M, S, and I.
+[13:15] (15쪽) This is done on the granularity of cache lines because it turns out that storing this information is relatively expensive, so you don't want to store it for every memory location so they can't be stored.
+[13:31] (15쪽) So we can kind of quickly due on per cache line basis Does anyone know what the size of cache line is on the machines that we using Yeah 64 bytes
+[14:09] (16쪽) msi protocol ms and i
+[14:39] (16쪽) So that's essentially the same as the cache block not being in the cache.
+[14:45] (16쪽) And to solve the problem of cache coherency, when one cache modifies a location, it has to inform all the other caches that their values are now stale because this cache modified.
