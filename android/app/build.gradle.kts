@@ -14,6 +14,8 @@ android {
         // GitHub Actions가 실행 번호로 버전을 올린다 (깔린 앱 위에 새 APK를 덮어 깔 수 있게)
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
         versionName = "0.1.${System.getenv("VERSION_CODE") ?: "0"}"
+        // 폰 받아쓰기 엔진은 칩 종류마다 따로 들어 있다: 실제 폰(ARM)용만 넣어 APK를 줄인다
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
     signingConfigs {
