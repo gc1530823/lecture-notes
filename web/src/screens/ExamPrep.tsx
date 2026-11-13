@@ -202,7 +202,7 @@ export function ReviewScreen() {
             <p className="t-caption muted" style={{ textAlign: "center" }}>
               남은 카드 {today!.cards.length}장 · {card.title}{card.page_no ? ` ${card.page_no}쪽` : ""}
             </p>
-            <button key={`${card.card_key}-${flipped}`} className="flashcard flip-in" data-flipped={flipped} onClick={() => setFlipped(!flipped)} aria-live="polite">
+            <button key={`${card.card_key}-${flipped}`} className={`flashcard ${flipped ? "flip-in" : "card-in"}`} data-flipped={flipped} onClick={() => setFlipped(!flipped)} aria-live="polite">
               <Chip variant="accent">{card.new ? "새 카드 · " : card.lapses ? `${card.lapses}번 틀림 · ` : ""}{SOURCE_LABEL[card.source] ?? card.source}</Chip>
               <span className={flipped ? "t-body" : "t-title-m"} style={{ whiteSpace: "pre-wrap" }}>{flipped ? card.back : card.front}</span>
               <span className="t-caption faint">{flipped ? "얼마나 잘 기억했나요?" : "떠올려 본 뒤 눌러서 답 보기"}</span>

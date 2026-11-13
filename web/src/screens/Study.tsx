@@ -1,3 +1,4 @@
+import { Mascot } from "../components/Mascot";
 // 4 공부하기: 요약 · 퀴즈 · 플래시카드 · 개념 · 마인드맵 · 암기 · AI 튜터
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { ClozeItem, Concept, Flashcard, MindNode, StudyResponse, SummaryResponse, TutorReply } from "../api/types";
@@ -154,10 +155,17 @@ function SummaryPane({ sessionId, quiz }: { sessionId: string; quiz: boolean }) 
             <strong className="t-title-s">{q.question}</strong>
             {q.choices.map((c, ci) => {
               const variant = !answered ? "secondary" : ci === q.answer_index ? "primary" : ci === picked[qi] ? "record" : "secondary";
-              return <Button key={ci} variant={variant} block disabled={answered && variant === "secondary"}
-                onClick={() => !answered && setPicked({ ...picked, [qi]: ci })}>{c}</Button>;
+              const fx = !answered ? "" : ci === q.answer_index ? " fx-right" : ci === picked[qi] ? " fx-wrong" : "";
+              return <Button key={ci} variant={variant} block className={`quiz-choice${fx}`} disabled={answered && variant === "secondary"}
+                style={{ animationDelay: `${ci * 50}ms` }}
+                onClick={() => { if (answered) return; setPicked({ ...picked, [qi]: ci }); navigator.vibrate?.(ci === q.answer_index ? 15 : [30, 40, 30]); }}>{c}</Button>;
             })}
-            {answered && <p className="t-body muted">{picked[qi] === q.answer_index ? "정답! " : "아쉬워요. "}{q.explanation}</p>}
+            {answered && (
+              <div className="quiz-result">
+                <Mascot mood={picked[qi] === q.answer_index ? "happy" : "alert"} size={56} />
+                <p className="t-body says">{picked[qi] === q.answer_index ? "정답이에요! " : "아쉬워요. "}{q.explanation}</p>
+              </div>
+            )}
           </div>
         );
       })}

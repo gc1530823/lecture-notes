@@ -883,3 +883,40 @@ button.chip-selected { border-color: var(--accent-deep); box-shadow: 0 3px 0 var
 .intro-dots i.on { height: 22px; background: rgb(0 0 0 / .6); }
 @media (prefers-reduced-motion: reduce) { .floater, .intro-mascot, .intro-word { transform: none !important; } }
 .intro-mascot .m-bang { font-size: 44px; border-width: 3px; }
+
+/* ── 빠져 있던 모션 채우기 ── */
+/* 강의자료 쪽 넘김: 넘긴 방향에서 미끄러져 들어온다 (이름을 번갈아 써서 넘길 때마다 다시 재생) */
+.slide.turn-next-0 { animation: turn-next-a .32s var(--ease-out); } .slide.turn-next-1 { animation: turn-next-b .32s var(--ease-out); }
+.slide.turn-prev-0 { animation: turn-prev-a .32s var(--ease-out); } .slide.turn-prev-1 { animation: turn-prev-b .32s var(--ease-out); }
+@keyframes turn-next-a { from { opacity: .3; transform: translateX(34px) rotate(1.2deg); } } @keyframes turn-next-b { from { opacity: .3; transform: translateX(34px) rotate(1.2deg); } }
+@keyframes turn-prev-a { from { opacity: .3; transform: translateX(-34px) rotate(-1.2deg); } } @keyframes turn-prev-b { from { opacity: .3; transform: translateX(-34px) rotate(-1.2deg); } }
+/* 퀴즈: 보기가 차례로 올라오고, 맞으면 통통, 틀리면 도리도리. 쫑긋이 말풍선으로 풀이 */
+.quiz-choice { animation: rise .4s var(--ease-out) both; white-space: normal; text-align: left; justify-content: flex-start; height: auto; }
+.quiz-choice.fx-right { animation: right-pop .5s var(--ease-bounce); background: var(--leaf); box-shadow: 0 4px 0 #1f8a50; color: #fff; }
+.quiz-choice.fx-wrong { animation: wrong-shake .4s ease-in-out; }
+@keyframes right-pop { 0% { transform: scale(.94); } 50% { transform: scale(1.05); } }
+@keyframes wrong-shake { 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
+.quiz-result { display: flex; align-items: flex-end; gap: 12px; }
+.quiz-result .says { flex: 1; font: 500 14px/21px var(--font-sans); }
+/* 복습 카드: 새 카드는 오른쪽에서 통 하고 들어온다 */
+.flashcard.card-in { animation: card-in .45s var(--ease-bounce); }
+@keyframes card-in { from { opacity: 0; transform: translateX(60px) rotate(6deg) scale(.92); } }
+.grade-row .btn { animation: rise .35s var(--ease-out) both; } .grade-row .btn:nth-child(2) { animation-delay: 40ms; } .grade-row .btn:nth-child(3) { animation-delay: 80ms; } .grade-row .btn:nth-child(4) { animation-delay: 120ms; }
+/* 찾기 결과 · 족보 구역 · 계획표 · 용어 카드: 차례로 올라온다 */
+.search-hit, .jokbo-section, .plan-day, .term-card, .mind-branch, .timetable-class { animation: rise .45s var(--ease-out) both; }
+.search-hit:nth-child(2), .jokbo-section:nth-of-type(2), .plan-day:nth-child(2), .term-card:nth-child(2) { animation-delay: 50ms; }
+.search-hit:nth-child(3), .jokbo-section:nth-of-type(3), .plan-day:nth-child(3), .term-card:nth-child(3) { animation-delay: 100ms; }
+.search-hit:nth-child(n+4), .jokbo-section:nth-of-type(n+4), .plan-day:nth-child(n+4), .term-card:nth-child(n+4) { animation-delay: 150ms; }
+/* 실시간 필기가 붙는 순간: 위에서 톡 떨어져 붙는다 */
+.postit-slot.fresh .postit, .nb-line.fresh { animation: drop-stick .6s var(--ease-bounce); }
+@keyframes drop-stick { 0% { opacity: 0; transform: translateY(-26px) rotate(-8deg) scale(1.15); } 70% { transform: translateY(2px) rotate(1deg) scale(.98); } }
+/* 배너(시험·공지 알림)와 토스트: 통 튀어 들어온다 */
+.live-banner { animation: drop-in .5s var(--ease-bounce); }
+.toast { animation: toast-in .4s var(--ease-bounce); }
+/* 시트: 아래에서 튀어 올라온다 */
+.sheet { animation: sheet-up .42s var(--ease-bounce); }
+@keyframes sheet-up { from { transform: translateY(60%); opacity: .4; } }
+/* 진행 숫자·D-day: 살짝 커졌다 돌아온다 */
+.dday { animation: boing .5s var(--ease-bounce) .2s both; }
+/* 과목 칩·탭을 바꾸면 목록이 다시 차례로 */
+.course-group .list-item { animation: rise .42s var(--ease-out) both; }

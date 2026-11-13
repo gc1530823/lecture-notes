@@ -825,6 +825,10 @@ function SlideView({ pdf, page, notes, selected, fresh, here, onSelect, onSwipe 
   const canvas = useRef<HTMLCanvasElement>(null);
   const [width, setWidth] = useState(0);
   const touchX = useRef<number | null>(null);
+  // 쪽을 넘긴 방향 (앞으로/뒤로): 그 방향에서 미끄러져 들어오는 모션에 쓴다
+  const lastPage = useRef(page?.page_no ?? 1);
+  const dir = (page?.page_no ?? 1) >= lastPage.current ? "next" : "prev";
+  useEffect(() => { lastPage.current = page?.page_no ?? 1; }, [page?.page_no]);
 
   useLayoutEffect(() => {
     const el = box.current;
@@ -845,7 +849,7 @@ function SlideView({ pdf, page, notes, selected, fresh, here, onSelect, onSwipe 
   let loose = 0;
 
   return (
-    <div className="slide" ref={box} style={{ aspectRatio: `${page.width} / ${page.height}` }}
+    <div className={`slide turn-${dir}-${page.page_no % 2}`} ref={box} style={{ aspectRatio: `${page.width} / ${page.height}` }}
       onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
       onTouchEnd={(e) => {
         if (touchX.current === null) return;
