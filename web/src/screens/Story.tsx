@@ -9,7 +9,7 @@ import { Confetti, Count, Words } from "../lib/motion";
 import { Mascot } from "../components/Mascot";
 import { go } from "../router";
 
-interface Card { kind: string; label: string; text: string; page_no: number | null; at_ms: number | null; quote: string; tone: string }
+interface Card { kind: string; label: string; text: string; page_no: number | null; at_ms: number | null; quote: string; tone: string; session_id?: string | null }
 interface Minute { minute: number; speech: number; notes: number; exam: number; confused: number; loud: number; page: number | null; weight: number }
 interface StoryData {
   title: string; started_at: number; cards: Card[];
@@ -55,7 +55,7 @@ export function StoryEntry({ docId, sessionId }: { docId: string; sessionId: str
   );
 }
 
-function StoryViewer({ data, onClose, onListen, onStudy }: { data: StoryData; onClose: () => void; onListen: (c: Card) => void; onStudy: () => void }) {
+function StoryViewer({ data, onClose, onListen, onStudy, endTitle = "오늘도 한 강의 끝!" }: { data: StoryData; onClose: () => void; onListen: (c: Card) => void; onStudy: () => void; endTitle?: string }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const held = useRef(0);
@@ -114,7 +114,7 @@ function StoryViewer({ data, onClose, onListen, onStudy }: { data: StoryData; on
           <>
             <Confetti />
             <span className="story-mascot"><Mascot mood="happy" size={132} /></span>
-            <h2 className="story-text big"><Words text="오늘도 한 강의 끝!" /></h2>
+            <h2 className="story-text big"><Words text={endTitle} /></h2>
             <div className="story-stats">
               <div><b><Count to={data.stats.minutes} /></b><span>분 수업</span></div>
               <div><b><Count to={data.stats.notes} /></b><span>필기</span></div>
@@ -138,6 +138,29 @@ function StoryViewer({ data, onClose, onListen, onStudy }: { data: StoryData; on
           : card.at_ms != null && <Button variant="secondary" icon="headphones" onClick={() => onListen(card)}>이 순간 듣기</Button>}
       </footer>
     </div>
+  );
+}
+
+/** 시험 전날 스토리: 그 강의자료의 모든 강의에서 시험에 나온다고 한 것 · 강조 · 막혔던 곳만 모아 넘겨 본다 */
+export function ExamStoryEntry({ docId }: { docId: string }) {
+  const [data, setData] = useState<StoryData | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { getJSON<StoryData>(`/documents/${docId}/exam-story`).then(setData).catch(() => setData(null)); }, [docId]);
+  if (!data || data.cards.length <= 2) return null;
+  return (
+    <>
+      <button className="story-entry" onClick={() => setOpen(true)}>
+        <span className="story-ring"><Icon name="play" size={20} /></span>
+        <span className="grow">
+          <span className="t-title-s" style={{ display: "block" }}>시험 전날 스토리</span>
+          <span className="list-item-sub">시험에 나온다고 한 것 {data.stats.exam}개만 모아서 넘겨 보기</span>
+        </span>
+        <span className="story-count t-caption">{data.cards.length}장</span>
+      </button>
+      {open && <StoryViewer data={data} onClose={() => setOpen(false)} endTitle="시험 준비 끝! 잘 볼 거예요"
+        onListen={(c) => c.session_id && jumpToMoment(docId, c.session_id, c.page_no, c.at_ms)}
+        onStudy={() => { setOpen(false); go({ name: "review" }); }} />}
+    </>
   );
 }
 
@@ -173,7 +196,8 @@ export function FlowStrip({ flow, onJump }: { flow: StoryData["flow"]; onJump: (
   );
 }
 
-interface Streak { streak: number; best: number; today: boolean; week: { date: string; done: boolean }[]; days: number }
+interface Streak { streak: number; best: number; today: boolean; week: { date: string; done: boolean }[]; days: number;
+  carrots?: number; level?: number; level_name?: string; level_from?: number; next_at?: number | null }
 
 function Carrot() {
   return (
@@ -192,17 +216,26 @@ export function StreakCard() {
   const names = ["일", "월", "화", "수", "목", "금", "토"];
   return (
     <div className="carrots">
-      <span>
-        <b><Count to={data.streak} /><small>일째</small></b>
-        <span className="list-item-sub">{data.today ? "오늘 당근 받았어요" : data.streak > 0 ? "오늘도 하면 당근 하나" : `최고 ${data.best}일`}</span>
-      </span>
-      <span className="carrot-row" aria-label="이번 주 당근">
-        {data.week.map((d, i) => (
-          <span key={d.date} className={`${d.done ? "done" : ""}${i === data.week.length - 1 ? " today" : ""}`} style={{ "--i": i } as React.CSSProperties}>
-            <Carrot />{names[new Date(d.date + "T00:00:00").getDay()]}
-          </span>
-        ))}
-      </span>
+      <div className="row carrots-top">
+        <span>
+          <b><Count to={data.streak} /><small>일째</small></b>
+          <span className="list-item-sub">{data.today ? "오늘 당근 받았어요" : data.streak > 0 ? "오늘도 하면 당근 하나" : `최고 ${data.best}일`}</span>
+        </span>
+        <span className="carrot-row" aria-label="이번 주 당근">
+          {data.week.map((d, i) => (
+            <span key={d.date} className={`${d.done ? "done" : ""}${i === data.week.length - 1 ? " today" : ""}`}>
+              <Carrot />{names[new Date(d.date + "T00:00:00").getDay()]}
+            </span>
+          ))}
+        </span>
+      </div>
+      {data.level_name && (
+        <div className="level" aria-label={`쫑긋 레벨 ${data.level}`}>
+          <span className="level-name">Lv.{data.level} {data.level_name}</span>
+          <span className="level-bar"><i style={{ width: `${data.next_at ? Math.round(100 * ((data.carrots ?? 0) - (data.level_from ?? 0)) / (data.next_at - (data.level_from ?? 0))) : 100}%` }} /></span>
+          <span className="level-next t-caption">{data.next_at ? `당근 ${data.next_at - (data.carrots ?? 0)}개 더 모으면 레벨 업` : "최고 레벨!"}</span>
+        </div>
+      )}
     </div>
   );
 }

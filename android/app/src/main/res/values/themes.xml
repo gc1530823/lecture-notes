@@ -1,10 +1,10 @@
 <resources>
     <style name="Theme.LectureNotes" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <item name="colorPrimary">#5C54EB</item>
-        <item name="android:statusBarColor">#F6F3EE</item>
+        <item name="colorPrimary">#FF7A1A</item>
+        <item name="android:statusBarColor">#FFFAF2</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowBackground">@color/paper</item>
     </style>
-    <color name="paper">#F6F3EE</color>
-    <color name="accent">#5C54EB</color>
+    <color name="paper">#FFFAF2</color>
+    <color name="accent">#FF7A1A</color>
 </resources>

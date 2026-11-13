@@ -4,6 +4,7 @@ import type { DocumentBrief } from "../api/types";
 import { useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, ListItem, TopBar } from "../components/ui";
 import { courseTone } from "../lib/course";
+import { ExamStoryEntry } from "./Story";
 import { useWaves, Wave } from "../lib/wave";
 import { getJSON } from "../api/useApi";
 import { useEffect } from "react";
@@ -82,6 +83,7 @@ export default function DocDetail({ docId }: { docId: string }) {
               <ListItem icon="target" title="시험 예상 지도" subtitle="여러 강의에서 교수님이 강조한 쪽을 모아 봐요"
                 onClick={() => go({ name: "exam", docId })} />
             )}
+            {doc.kind === "slides" && <ExamStoryEntry docId={docId} />}
             <h2 className="t-title-s section-title">지난 강의</h2>
             {doc.sessions.length === 0 && <p className="muted">아직 녹음한 강의가 없어요.</p>}
             {doc.sessions.map((s, i) => (

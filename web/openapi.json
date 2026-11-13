@@ -1747,6 +1747,60 @@
         }
       }
     },
+    "/documents/{doc_id}/exam-story": {
+      "get": {
+        "summary": "Exam Story",
+        "operationId": "exam_story_documents__doc_id__exam_story_get",
+        "parameters": [
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Doc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks": {
+      "get": {
+        "summary": "All Tasks",
+        "description": "모든 강의에서 받은 과제를 한데 모아 (홈의 할 일). 안 끝낸 것이 먼저, 그다음 최근 강의 순",
+        "operationId": "all_tasks_tasks_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/waves": {
       "get": {
         "summary": "Waves",

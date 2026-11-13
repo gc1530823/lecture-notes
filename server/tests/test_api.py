@@ -1,4 +1,5 @@
 import dataclasses
+import uuid
 import os
 import tempfile
 import time
@@ -48,7 +49,9 @@ def receive_annotation(ws) -> dict:
 
 
 def upload(client) -> dict:
-    res = client.post("/documents", files={"file": ("ml.pdf", make_pdf(), "application/pdf")})
+    # 같은 파일을 다시 올리면 있던 자료가 열리므로, 시험마다 내용이 조금씩 다른 파일을 올린다
+    data = make_pdf() + f"\n% {uuid.uuid4().hex}".encode()
+    res = client.post("/documents", files={"file": ("mlnotes.pdf", data, "application/pdf")})
     assert res.status_code == 200, res.text
     return res.json()
 
@@ -69,7 +72,7 @@ def test_upload_rejects_non_pdf(client):
 
 def test_live_session_annotation_edit_and_summary(client):
     doc = upload(client)
-    assert doc["title"] == "ml"
+    assert doc["title"] == "mlnotes"
     assert len(doc["pages"]) == 2
     block_id = doc["pages"][0]["blocks"][0]["id"]
 
@@ -621,7 +624,7 @@ def test_semester_concepts_tutor_exam_plan_and_exports(client):
     assert client.delete(f"/exams/{exam['id']}").status_code == 204
 
     md = client.get(f"/sessions/{sid}/export.md")
-    assert md.status_code == 200 and md.text.startswith("# ml") and "## 1쪽" in md.text and "**시험**" in md.text
+    assert md.status_code == 200 and md.text.startswith("# mlnotes") and "## 1쪽" in md.text and "**시험**" in md.text
     assert "## 용어 사전" in md.text
     client.post(f"/sessions/{sid}/study/flashcards")
     anki = client.get(f"/documents/{doc['id']}/anki.txt").text.splitlines()
@@ -931,3 +934,41 @@ def test_each_lecture_gets_its_own_wave_shape(client):
     doc = upload(client)
     session = client.post("/sessions", json={"document_id": doc["id"]}).json()
     assert session["id"] in client.get("/waves").json()
+
+
+def test_home_tasks_exam_eve_story_and_carrot_levels(client):
+    from app.story import level
+
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    with client.websocket_connect(f"/sessions/{session['id']}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1, "initial": True})
+        ws.send_json({"type": "transcript_final", "text": "학습률이 너무 크면 발산해요. 이거 시험에 꼭 나와요.", "start_ms": 5_000, "end_ms": 9_000})
+        ws.send_json({"type": "flush"})
+        receive_annotation(ws)
+    story = client.get(f"/documents/{doc['id']}/exam-story").json()
+    kinds = [c["kind"] for c in story["cards"]]
+    assert kinds[0] == "cover" and kinds[-1] == "end" and "exam" in kinds
+    exam = next(c for c in story["cards"] if c["kind"] == "exam")
+    assert exam["session_id"] == session["id"] and exam["label"].startswith("1번째 강의")
+    assert client.get("/documents/nope/exam-story").status_code == 404
+    tasks = client.get("/tasks").json()
+    assert isinstance(tasks, list) and all({"doc_id", "doc_title", "course"} <= set(t) for t in tasks)
+    assert [t["done"] for t in tasks] == sorted(t["done"] for t in tasks)
+    assert level(0)["level_name"] == "아기 쫑긋" and level(7) == {"carrots": 7, "level": 3, "level_name": "모범생 쫑긋", "level_from": 7, "next_at": 14}
+    assert level(500)["next_at"] is None
+    assert client.get("/streak").json()["level"] >= 1
+
+
+def test_same_file_opens_existing_document_and_meaningless_names_use_first_slide_title(client):
+    from app.main import _document_title
+
+    pdf = make_pdf() + b"\n% unique-for-this-test"
+    first = client.post("/documents", files={"file": ("os.pdf", pdf, "application/pdf")}).json()
+    assert first["title"] == "Gradient Descent"            # "os"는 뜻 없는 이름 → 첫 쪽 제목
+    again = client.post("/documents", files={"file": ("다른이름.pdf", pdf, "application/pdf")}, data={"course": "인공지능"}).json()
+    assert again["id"] == first["id"] and again["duplicate"] is True and again["course"] == "인공지능"
+    pages = [{"text": "운영체제 7주차\n교착 상태"}]
+    assert _document_title("운영체제 7주차 강의.pdf", pages) == "운영체제 7주차 강의"
+    assert _document_title("slides (3).pdf", pages) == "운영체제 7주차"
+    assert _document_title("20261113.pdf", pages) == "운영체제 7주차"

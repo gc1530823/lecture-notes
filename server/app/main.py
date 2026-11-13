@@ -31,7 +31,7 @@ from .semester import anki_text, concept_map, exam_plan, semester_context, sessi
 from .notes_pdf import build_notes_pdf
 from .quick_notes import EXAM_TALK
 from .note_review import review_session
-from .story import build_story, build_streak, wave as build_wave
+from .story import build_exam_story, build_story, build_streak, wave as build_wave
 from .recording import audio_file, recorded_ms, wav_parts
 from .pdf_parser import PDFParseError, extract_keywords, parse_pdf
 from .stt import make_transcriber
@@ -167,6 +167,31 @@ def ocr_status(doc_id: str):
     return app.state.ocr_jobs.get(doc_id, {"status": "none", "done": 0, "total": 0})
 
 
+def _same_document(data: bytes) -> dict | None:
+    """이미 올린 강의자료 가운데 내용이 똑같은 파일"""
+    digest = hashlib.sha256(data).digest()
+    for doc in db().list_documents():
+        path = _pdf_path(doc["id"])
+        try:
+            if os.path.getsize(path) != len(data):
+                continue
+            with open(path, "rb") as f:
+                if hashlib.sha256(f.read()).digest() == digest:
+                    return doc
+        except OSError:
+            continue
+    return None
+
+
+def _document_title(filename: str | None, pages: list[dict]) -> str:
+    """자료 이름: 파일 이름. 파일 이름이 뜻 없는 것(너무 짧거나 숫자·기호뿐)이면 첫 쪽의 첫 줄(보통 강의 제목)"""
+    stem = os.path.splitext(filename or "")[0].strip()
+    if len(stem) >= 4 and re.search(r"[A-Za-z가-힣]{2,}", stem) and not re.fullmatch(r"(?i)(slides?|lecture|document|untitled|강의자료|새 문서)[\s\d_()-]*", stem):
+        return stem[:80]
+    first = next((line.strip() for p in pages[:2] for line in (p.get("text") or "").splitlines() if len(line.strip()) >= 3), "")
+    return (first or stem or "강의자료")[:80]
+
+
 @app.post("/documents")
 async def upload_document(background: BackgroundTasks, file: UploadFile = File(...), title: str | None = Form(None),
                           course: str = Form("")):
@@ -179,7 +204,13 @@ async def upload_document(background: BackgroundTasks, file: UploadFile = File(.
         pages = parse_pdf(data)
     except PDFParseError as exc:
         raise HTTPException(400, str(exc)) from exc
-    name = title or os.path.splitext(file.filename or "강의자료")[0]
+    # 같은 파일을 다시 올리면 새로 만들지 않고 있던 자료를 연다 (같은 강의자료가 여러 개 생기지 않게)
+    same = _same_document(data)
+    if same is not None:
+        if course.strip() and not same.get("course"):
+            db().set_course(same["id"], course.strip()[:40])
+        return {**db().get_document(same["id"]), "duplicate": True}
+    name = title or _document_title(file.filename, pages)
     doc_id = db().create_document(name, pages, extract_keywords(pages))
     if course.strip():
         db().set_course(doc_id, course.strip()[:40])
@@ -1173,6 +1204,30 @@ def session_story(session_id: str):
     return build_story(doc["title"], session["started_at"], db().list_annotations(session_id), db().get_segments(session_id),
                        db().list_marks(session_id), db().list_tasks(session_id), db().list_terms(session_id),
                        db().get_summary(session_id))
+
+
+@app.get("/documents/{doc_id}/exam-story")
+def exam_story(doc_id: str):
+    doc = db().get_document(doc_id)
+    if doc is None:
+        raise HTTPException(404, "강의자료가 없습니다.")
+    sessions = []
+    for sid in db().session_ids(doc_id):
+        session = db().get_session(sid)
+        sessions.append({"id": sid, "started_at": session["started_at"], "annotations": db().list_annotations(sid),
+                         "segments": db().get_segments(sid), "marks": db().list_marks(sid)})
+    return build_exam_story(doc["title"], sessions)
+
+
+@app.get("/tasks")
+def all_tasks():
+    """모든 강의에서 받은 과제를 한데 모아 (홈의 할 일). 안 끝낸 것이 먼저, 그다음 최근 강의 순"""
+    out = []
+    for d in db().list_documents():
+        for s in d["sessions"]:
+            for t in db().list_tasks(s["id"]):
+                out.append({**t, "doc_id": d["id"], "doc_title": d["title"], "course": d.get("course") or "", "started_at": s["started_at"]})
+    return sorted(out, key=lambda t: (t["done"], -t["started_at"]))
 
 
 @app.get("/waves")

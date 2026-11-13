@@ -100,7 +100,46 @@ def build_streak(stamps: list[float], tz_minutes: int, now: float) -> dict:
         prev = d
     week = [{"date": (today - datetime.timedelta(days=i)).isoformat(), "done": (today - datetime.timedelta(days=i)) in days}
             for i in range(6, -1, -1)]
-    return {"streak": streak, "best": best, "today": today in days, "week": week, "days": len(days)}
+    return {"streak": streak, "best": best, "today": today in days, "week": week, "days": len(days), **level(len(days))}
+
+
+# 쫑긋 키우기: 공부한 날마다 당근 하나, 당근이 모이면 쫑긋이 자란다
+LEVELS = [(0, "아기 쫑긋"), (3, "새내기 쫑긋"), (7, "모범생 쫑긋"), (14, "우등생 쫑긋"), (30, "장학생 쫑긋"), (60, "수석 쫑긋"), (100, "전설의 쫑긋")]
+
+
+def level(carrots: int) -> dict:
+    index = max(i for i, (need, _) in enumerate(LEVELS) if carrots >= need)
+    nxt = LEVELS[index + 1][0] if index + 1 < len(LEVELS) else None
+    return {"carrots": carrots, "level": index + 1, "level_name": LEVELS[index][1], "level_from": LEVELS[index][0], "next_at": nxt}
+
+
+def build_exam_story(title: str, sessions: list[dict]) -> dict:
+    """시험 전날 스토리: 그 강의자료의 모든 강의에서 시험에 나온다고 한 것 · 강조 · 막혔던 곳만 모아 넘겨 본다.
+    sessions: [{id, started_at, annotations, segments, marks}] (오래된 강의부터)"""
+    cards: list[dict] = []
+
+    def add(kind, label, text, tone, session=None, page_no=None, at_ms=None, quote=""):
+        if text and not any(c["text"] == text for c in cards):
+            cards.append({"kind": kind, "label": label, "text": text[:220], "page_no": page_no, "at_ms": at_ms, "quote": quote if quote != text else "",
+                          "tone": tone, "session_id": session})
+
+    exam = [(i, s, a) for i, s in enumerate(sessions) for a in s["annotations"] if not a["pending"] and a["type"] == "exam"]
+    emphasis = [(i, s, a) for i, s in enumerate(sessions) for a in s["annotations"] if not a["pending"] and a["type"] == "emphasis"]
+    marks = [(i, s, m) for i, s in enumerate(sessions) for m in s["marks"]]
+    add("cover", "시험 전날 총정리", f"교수님이 시험에 나온다고 한 것 {len(exam)}개, 강조한 것 {len(emphasis)}개를 모았어요", "notice")
+    for i, s, a in exam[:12]:
+        add("exam", f"{i + 1}번째 강의 · 시험에 나온대요", a["text"], "exam", s["id"], a["page_no"], a["start_ms"], _quote(s["segments"], a["start_ms"]))
+    for i, s, a in emphasis[:4]:
+        add("emphasis", f"{i + 1}번째 강의 · 강조", a["text"], "emphasis", s["id"], a["page_no"], a["start_ms"], _quote(s["segments"], a["start_ms"]))
+    for i, s, m in marks[:3]:
+        add("confused", "여기서 막혔었어요", m.get("explanation") or m.get("speech") or "다시 볼 곳으로 표시했던 쪽이에요", "tip", s["id"], m["page_no"], m["at_ms"])
+    notes = sum(1 for s in sessions for a in s["annotations"] if not a["pending"])
+    minutes = sum(max([x["end_ms"] for x in s["segments"]] + [0]) for s in sessions) // MINUTE
+    cards.append({"kind": "end", "label": "준비 끝", "text": "", "page_no": None, "at_ms": None, "quote": "", "tone": "notice", "session_id": None})
+    return {"title": title, "started_at": sessions[-1]["started_at"] if sessions else 0, "cards": cards,
+            "stats": {"minutes": minutes, "notes": notes, "exam": len(exam), "terms": len(marks), "confused": len(marks), "pages": 0},
+            "flow": {"duration_ms": 0, "minutes": []}}
+
 
 
 def wave(notes: list[dict], segments: list[dict], marks: list[dict], buckets: int = 28) -> dict:

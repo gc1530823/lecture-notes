@@ -8,6 +8,7 @@ import { ReviewBanner } from "./ExamPrep";
 import { ExamBanner } from "./Semester";
 import { Timetable } from "./Timetable";
 import { StreakCard } from "./Story";
+import { TasksCard } from "./Tasks";
 import { Skeleton } from "../lib/motion";
 import { courseTone } from "../lib/course";
 import { Mascot, Says, type Mood } from "../components/Mascot";
@@ -146,6 +147,7 @@ export default function Home() {
           {hasLoose && courses.length > 0 && <button className={`pick${filter === "" ? " on" : ""}`} aria-pressed={filter === ""} onClick={() => pick("")}>과목 없음</button>}
         </div>
         <StreakCard />
+        <TasksCard />
         <ExamBanner />
         <ReviewBanner />
         <div className="row home-shortcuts">

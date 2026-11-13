@@ -920,3 +920,26 @@ button.chip-selected { border-color: var(--accent-deep); box-shadow: 0 3px 0 var
 .dday { animation: boing .5s var(--ease-bounce) .2s both; }
 /* 과목 칩·탭을 바꾸면 목록이 다시 차례로 */
 .course-group .list-item { animation: rise .42s var(--ease-out) both; }
+
+/* 쫑긋 키우기: 당근이 모이면 레벨 업 */
+.carrots { flex-direction: column; align-items: stretch; gap: 10px; }
+.carrots-top { gap: var(--space-md); }
+.level { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 10px; }
+.level-name { font: 400 15px/20px var(--font-display); color: var(--accent-primary); }
+.level-bar { height: 10px; border-radius: 99px; background: var(--fill-soft); overflow: hidden; border: 2px solid var(--border-line); }
+.level-bar i { display: block; height: 100%; border-radius: 99px; background: var(--accent-primary); animation: level-fill 1s var(--ease-out) .3s both; }
+@keyframes level-fill { from { width: 0; } }
+.level-next { grid-column: 1 / -1; color: var(--text-tertiary); }
+/* 할 일 */
+.tasks-card { gap: 6px; }
+.task-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; animation: rise .4s var(--ease-out) both; }
+.task-check { flex: none; width: 28px; height: 28px; border-radius: 10px; border: 2px solid var(--border-line); background: var(--bg-card); color: transparent; display: grid; place-items: center;
+  box-shadow: 0 2px 0 var(--line-deep); transition: transform .1s, background-color .2s, color .2s; margin-top: 1px; }
+.task-check:active { transform: translateY(2px) scale(.92); background: var(--leaf); color: #fff; border-color: #1f8a50; box-shadow: none; }
+.task-text { text-align: left; }
+/* 그 밖의 화면 모션: 개념 지도 · 시간표 · 개인정보 */
+.week-block { animation: block-in .45s var(--ease-bounce) both; }
+@keyframes block-in { from { opacity: 0; transform: scale(.7); } }
+.timetable-edit { animation: rise .35s var(--ease-out); }
+.privacy-list li, .screen-body > ul > li { animation: rise .4s var(--ease-out) both; }
+.concept-map text { animation: route-in .6s ease-out .3s both; }
