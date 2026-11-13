@@ -6,5 +6,5 @@
         <item name="android:windowBackground">@color/paper</item>
     </style>
     <color name="paper">#FFFAF2</color>
-    <color name="accent">#FFFAF2</color>
+    <color name="accent">#FF7A1A</color>
 </resources>

@@ -2,7 +2,6 @@
 // 이름·속성(variant)도 Figma와 같게 두어 디자인과 코드를 오가기 쉽게 한다.
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import type { NoteType } from "../api/types";
-import { Mascot, type Mood } from "./Mascot";
 
 // 큰 아이콘은 말랑한 3D 사물 그림(public/art/*.webp, AI로 그림)이다. 그림이 없는 이름은 굵은 선 아이콘으로.
 const ART = new Set(["microphone", "headphones", "notebook", "file-pdf", "book-open-text", "star", "target", "cards", "brain", "note-pencil", "graduation-cap",
@@ -132,7 +131,7 @@ export function NoteSection({ number, title, highlight, lines }: { number: numbe
   );
 }
 
-/** 빈 화면: 쫑긋이 대신 말한다. icon은 예전 이름 그대로 받고, 경고는 놀란 쫑긋, 그 밖에는 조는 쫑긋 (mood로 바꿀 수 있다) */
-export function Empty({ icon, children, mood }: { icon: string; children: ReactNode; mood?: Mood }) {
-  return <div className="empty"><Mascot mood={mood ?? (icon.startsWith("warning") ? "alert" : "sleep")} size={120} /><div>{children}</div></div>;
+/** 빈 화면: 그 내용에 맞는 3D 사물 그림 + 안내 글 */
+export function Empty({ icon, children }: { icon: string; children: ReactNode; mood?: string }) {
+  return <div className="empty"><span className="empty-art"><Icon name={icon} art size={96} /></span><div>{children}</div></div>;
 }

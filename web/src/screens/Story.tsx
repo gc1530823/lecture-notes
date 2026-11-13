@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getJSON } from "../api/useApi";
 import { Button, Icon } from "../components/ui";
 import { Confetti, Count, Words } from "../lib/motion";
-import { Mascot } from "../components/Mascot";
 import { go } from "../router";
 
 interface Card { kind: string; label: string; text: string; page_no: number | null; at_ms: number | null; quote: string; tone: string; session_id?: string | null }
@@ -113,7 +112,6 @@ function StoryViewer({ data, onClose, onListen, onStudy, endTitle = "오늘도 �
         {card.kind === "end" ? (
           <>
             <Confetti />
-            <span className="story-mascot"><Mascot mood="happy" size={132} /></span>
             <h2 className="story-text big"><Words text={endTitle} /></h2>
             <div className="story-stats">
               <div><b><Count to={data.stats.minutes} /></b><span>분 수업</span></div>

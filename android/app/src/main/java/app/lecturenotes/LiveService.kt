@@ -111,7 +111,7 @@ class LiveService : Service() {
         manager.createNotificationChannel(NotificationChannel(CHANNEL, "강의 녹음", NotificationManager.IMPORTANCE_LOW))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val notice: Notification = Notification.Builder(this, CHANNEL)
-            .setContentTitle("쫑긋이 듣고 있어요")
+            .setContentTitle("강의 녹음 중")
             .setContentText("화면을 꺼도 계속 듣고 필기해요")
             .setSmallIcon(R.drawable.ic_notify)
             .setContentIntent(open)

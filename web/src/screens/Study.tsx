@@ -1,4 +1,3 @@
-import { Mascot } from "../components/Mascot";
 // 4 공부하기: 요약 · 퀴즈 · 플래시카드 · 개념 · 마인드맵 · 암기 · AI 튜터
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { ClozeItem, Concept, Flashcard, MindNode, StudyResponse, SummaryResponse, TutorReply } from "../api/types";
@@ -161,10 +160,9 @@ function SummaryPane({ sessionId, quiz }: { sessionId: string; quiz: boolean }) 
                 onClick={() => { if (answered) return; setPicked({ ...picked, [qi]: ci }); navigator.vibrate?.(ci === q.answer_index ? 15 : [30, 40, 30]); }}>{c}</Button>;
             })}
             {answered && (
-              <div className="quiz-result">
-                <Mascot mood={picked[qi] === q.answer_index ? "happy" : "alert"} size={56} />
-                <p className="t-body says">{picked[qi] === q.answer_index ? "정답이에요! " : "아쉬워요. "}{q.explanation}</p>
-              </div>
+              <p className={`quiz-result t-body ${picked[qi] === q.answer_index ? "right" : "wrong"}`}>
+                <b>{picked[qi] === q.answer_index ? "정답이에요" : "아쉬워요"}</b> {q.explanation}
+              </p>
             )}
           </div>
         );
