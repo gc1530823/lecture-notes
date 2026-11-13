@@ -8,7 +8,7 @@ import { ExamStoryEntry } from "./Story";
 import { useWaves, Wave } from "../lib/wave";
 import { getJSON } from "../api/useApi";
 import { useEffect } from "react";
-import { go } from "../router";
+import { back, go } from "../router";
 import { subtitleOf } from "./Home";
 
 const STATUS: Record<string, string> = { recording: "녹음 중", transcribing: "받아쓰는 중", processing: "정리 중", done: "정리 끝", failed: "정리 실패" };
@@ -48,7 +48,7 @@ export default function DocDetail({ docId }: { docId: string }) {
 
   return (
     <div className="screen">
-      <TopBar title={doc?.title ?? "강의"} onBack={() => go({ name: "home" })}
+      <TopBar title={doc?.title ?? "강의"} onBack={() => back({ name: "home" })}
         action={doc && <button className="top-bar-back" onClick={remove} aria-label="강의자료 지우기"><Icon name="trash" /></button>} />
       <div className="screen-body">
         {error && <Empty icon="warning-circle">{error}</Empty>}
@@ -76,6 +76,8 @@ export default function DocDetail({ docId }: { docId: string }) {
             {doc.kind !== "meeting" && <>
             <ListItem icon="cards" title="Anki로 내보내기" subtitle="플래시카드·예상 문제·용어를 Anki 앱에서 가져올 수 있는 파일로 (파일 › 가져오기)"
               onClick={() => { window.location.href = `${API}/documents/${docId}/anki.txt`; }} />
+            <ListItem icon="brain" title="AI 퀴즈" subtitle="AI가 이 자료와 지금까지 들은 강의를 공부하고 객관식·OX·빈칸·단답·서술 문제를 내요. 답하면 바로 채점해요"
+              onClick={() => go({ name: "quiz", docId })} />
             <ListItem icon="star" title="족보 노트" subtitle="모든 강의에서 시험에 나온다고 한 것·유력한 쪽·헷갈린 것·예상 문제를 한 장에"
               onClick={() => go({ name: "jokbo", docId })} />
             </>}

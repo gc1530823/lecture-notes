@@ -5,7 +5,7 @@ import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, PostIt, TermCard, TopBar } from "../components/ui";
 import { android } from "../lib/live";
-import { go } from "../router";
+import { back, go } from "../router";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -30,7 +30,7 @@ export function JokboScreen({ docId }: { docId: string }) {
 
   return (
     <div className="screen jokbo">
-      <TopBar title="족보 노트" onBack={() => go({ name: "doc", docId })}
+      <TopBar title="족보 노트" onBack={() => back({ name: "doc", docId })}
         action={<button className="top-bar-back no-print" onClick={() => { const app = android(); if (app) app.print("족보 노트"); else window.print(); }} aria-label="인쇄 · PDF로 저장"><Icon name="file-pdf" /></button>} />
       <div className="screen-body">
         {error && <Empty icon="warning-circle">{error}</Empty>}
@@ -184,7 +184,7 @@ export function ReviewScreen() {
   const card = today?.cards[0];
   return (
     <div className="screen">
-      <TopBar title="오늘의 복습" onBack={() => go({ name: "home" })} />
+      <TopBar title="오늘의 복습" onBack={() => back({ name: "home" })} />
       <div className="screen-body">
         {error && <Empty icon="warning-circle">{error}</Empty>}
         {!today && !error && <p className="muted">카드를 모으는 중…</p>}
@@ -303,7 +303,7 @@ export function PrivacyScreen() {
 
   return (
     <div className="screen">
-      <TopBar title="개인정보와 녹음" onBack={() => go({ name: "home" })} />
+      <TopBar title="개인정보와 녹음" onBack={() => back({ name: "home" })} />
       <div className="screen-body">
         <div className="banner"><p className="t-body"><b>녹음은 교수님 허락을 받고, 본인 공부에만 써 주세요.</b></p></div>
         <PrivacyFacts info={info} />

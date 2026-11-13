@@ -32,6 +32,7 @@ from .notes_pdf import build_notes_pdf
 from .quick_notes import EXAM_TALK
 from .note_review import review_session
 from .ollama_llm import clean_quiz
+from . import quiz as quizlib
 from .story import build_exam_story, build_story, build_streak, wave as build_wave
 from .recording import audio_file, recorded_ms, wav_parts
 from .pdf_parser import PDFParseError, extract_keywords, parse_pdf
@@ -594,6 +595,122 @@ async def remake_quiz(session_id: str, background: BackgroundTasks):
         app.state.quiz_jobs.add(session_id)
         background.add_task(_remake_quiz, session_id)
     return {"quiz_status": "making"}
+
+
+# AI 퀴즈: AI가 강의자료·수업 내용을 먼저 공부하고, 시험처럼 여러 유형(객관식·OX·빈칸·단답·서술)의 문제를 하나씩 낸다.
+# 학생이 답하면 AI가 채점한다 (객관식·OX·글자가 같은 답은 바로, 나머지는 AI가 채점 기준으로)
+
+
+class QuizSetRequest(BaseModel):
+    count: int = 8
+
+
+def _session_material(session_id: str) -> dict:
+    summary = db().get_summary(session_id) or {}
+    by_page: dict[int, list[str]] = {}
+    for p in summary.get("pages", []):
+        by_page.setdefault(p["page_no"], []).append(p["summary"])
+    return {"segments": db().get_segments(session_id), "annotations": db().list_annotations(session_id), "summaries": by_page}
+
+
+def _public_set(set_id: int, body: dict) -> dict:
+    """학생에게 보낼 때: 아직 안 푼 문제는 정답을 빼고"""
+    questions = []
+    for i, q in enumerate(body["questions"]):
+        done = i < len(body["answers"])
+        item = {"index": i, "type": q["type"], "type_label": quizlib.TYPE_LABEL[q["type"]], "page_no": q["page_no"],
+                "topic": q.get("topic", ""), "question": q["question"], "choices": q.get("choices", [])}
+        if done:
+            item |= {"answer": q["answer"], "explanation": q.get("explanation", ""), "result": body["answers"][i]}
+        questions.append(item)
+    graded = body["answers"]
+    return {"id": set_id, "title": body.get("title", ""), "questions": questions,
+            "score": round(sum(a["score"] for a in graded), 1), "answered": len(graded)}
+
+
+async def _make_quiz_set(document_id: str, session_ids: list[str], count: int, title: str) -> dict:
+    make = getattr(app.state.llm, "quiz_set", None)
+    if make is None:
+        raise HTTPException(503, "지금 AI가 퀴즈를 낼 수 없어요.")
+    pages = db().list_pages(document_id)
+    material = quizlib.material(pages, [_session_material(s) for s in session_ids])
+    if len(material) < 40:
+        raise HTTPException(409, "퀴즈를 낼 만큼 강의 내용이 아직 없어요.")
+    count = max(3, min(count, 15))
+    page_nos = {p["page_no"] for p in pages}
+    questions: list[dict] = []
+    try:
+        for _ in range(2):  # 쓸 만한 문제가 모자라면 한 번 더
+            questions += quizlib.clean_set(await make(quizlib.quiz_prompt(material, count, quizlib.TYPES)), page_nos)
+            if len(questions) >= min(count, 4):
+                break
+    except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
+        log.exception("AI 퀴즈 만들기 실패")
+    if not questions:
+        raise HTTPException(502, "AI가 문제를 내지 못했어요. 잠시 뒤 다시 해 주세요.")
+    # 같은 질문 빼고, 유형이 한쪽으로 몰리지 않게 섞는다
+    seen, unique = set(), []
+    for q in questions:
+        key = quizlib._norm(q["question"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(q)
+    order = sorted(range(len(unique)), key=lambda i: (sum(1 for q in unique[:i] if q["type"] == unique[i]["type"]), i))
+    body = {"title": title, "questions": [unique[i] for i in order][:count], "answers": []}
+    set_id = db().add_quiz_set(document_id, session_ids[0] if len(session_ids) == 1 else None, body)
+    return _public_set(set_id, body)
+
+
+@app.post("/sessions/{session_id}/quiz-set")
+async def session_quiz_set(session_id: str, body: QuizSetRequest = QuizSetRequest()):
+    session = _session_or_404(session_id)
+    return await _make_quiz_set(session["document_id"], [session_id], body.count, "이번 강의")
+
+
+@app.post("/documents/{document_id}/quiz-set")
+async def document_quiz_set(document_id: str, body: QuizSetRequest = QuizSetRequest()):
+    doc = db().get_document(document_id)
+    if doc is None:
+        raise HTTPException(404, "강의자료가 없습니다.")
+    sessions = [s["id"] for d in db().list_documents() if d["id"] == document_id for s in d["sessions"]]
+    return await _make_quiz_set(document_id, sessions, body.count, doc.get("title") or "강의자료 전체")
+
+
+@app.get("/quiz-sets/{set_id}")
+def get_quiz_set(set_id: int):
+    row = db().get_quiz_set(set_id)
+    if row is None:
+        raise HTTPException(404, "퀴즈가 없습니다.")
+    return _public_set(set_id, row["body"])
+
+
+class GradeRequest(BaseModel):
+    index: int
+    answer: str
+
+
+@app.post("/quiz-sets/{set_id}/grade")
+async def grade_quiz_answer(set_id: int, body: GradeRequest):
+    row = db().get_quiz_set(set_id)
+    if row is None:
+        raise HTTPException(404, "퀴즈가 없습니다.")
+    data = row["body"]
+    if body.index != len(data["answers"]) or body.index >= len(data["questions"]):
+        raise HTTPException(409, "이 문제는 지금 채점할 수 없어요.")
+    q = data["questions"][body.index]
+    result = quizlib.quick_grade(q, body.answer)
+    if result is None:
+        try:
+            graded = await app.state.llm.grade_answer(quizlib.grade_prompt(q, body.answer))
+            verdict = graded.get("verdict") if graded.get("verdict") in ("correct", "partial", "wrong") else "wrong"
+            score = {"correct": 1.0, "wrong": 0.0}.get(verdict, min(max(float(graded.get("score", 0.5)), 0.1), 0.9))
+            result = {"verdict": verdict, "score": score, "feedback": graded.get("feedback", "")}
+        except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError, AttributeError, TypeError, ValueError):
+            log.exception("AI 채점 실패")
+            raise HTTPException(502, "AI가 채점하지 못했어요. 다시 보내 주세요.")
+    data["answers"].append({**result, "given": body.answer})
+    db().save_quiz_set(set_id, data)
+    return _public_set(set_id, data)["questions"][body.index] | {"done": len(data["answers"]) == len(data["questions"])}
 
 
 # "방금 뭐라고?": 수업 중 질문. 최근 2분 설명과 지금 슬라이드를 근거로 답하고, 관련 문단 옆에 질문 포스트잇으로 붙인다

@@ -10,7 +10,7 @@ import { clock, NotesPdf, PlayerBar, TaskDetail, TaskList, usePlayer, type FullT
 import { ConsentSheet } from "./ExamPrep";
 import { loadPdf, renderPage, type PdfDoc } from "../lib/pdf";
 import { Button, Chip, Icon, NOTE_LABEL, PostIt, TermCard, TopBar } from "../components/ui";
-import { go } from "../router";
+import { back as goBack, go } from "../router";
 
 const FOLLOW_CONFIDENCE = 0.6;
 const MANUAL_PAUSE_MS = 20_000;
@@ -523,8 +523,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   };
 
   // --- 그리기 ---
-  if (error) return <div className="screen"><TopBar title="강의" onBack={() => go({ name: "doc", docId })} /><p className="screen-body muted">{error}</p></div>;
-  if (!doc) return <div className="screen"><TopBar title="불러오는 중…" onBack={() => go({ name: "doc", docId })} /></div>;
+  if (error) return <div className="screen"><TopBar title="강의" onBack={() => goBack({ name: "doc", docId })} /><p className="screen-body muted">{error}</p></div>;
+  if (!doc) return <div className="screen"><TopBar title="불러오는 중…" onBack={() => goBack({ name: "doc", docId })} /></div>;
 
   const recording = phase === "recording";
   const notebook = doc.kind === "notebook" || doc.kind === "meeting";
@@ -536,7 +536,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
 
   const back = () => {
     if (recording && !confirm("녹음을 멈추고 나갈까요?")) return;
-    go(sessionId && phase === "ended" ? { name: "session", docId, sessionId, tab: "notes" } : { name: "doc", docId });
+    if (sessionId && phase === "ended") go({ name: "session", docId, sessionId, tab: "notes" }); else goBack({ name: "doc", docId });
   };
 
   return (

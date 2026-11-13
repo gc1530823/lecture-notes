@@ -76,6 +76,14 @@ CREATE TABLE IF NOT EXISTS shared (
     body TEXT NOT NULL,
     created_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS quiz_sets (
+    -- AI 퀴즈: AI가 강의를 공부하고 낸 문제 묶음과 학생 답·채점 (강의 하나 또는 강의자료 전체)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id TEXT NOT NULL,
+    session_id TEXT,
+    body TEXT NOT NULL,
+    created_at REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS classes (
     -- 시간표: 과목·요일(0=월 … 6=일)·시작·끝("HH:MM")·강의실
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -367,6 +375,7 @@ class Database:
             self._conn.execute("DELETE FROM exam_questions WHERE document_id = ?", (doc_id,))
             self._conn.execute("DELETE FROM reviews WHERE document_id = ?", (doc_id,))
             self._conn.execute("DELETE FROM shared WHERE document_id = ?", (doc_id,))
+            self._conn.execute("DELETE FROM quiz_sets WHERE document_id = ?", (doc_id,))
             for pid in pages:
                 self._conn.execute("DELETE FROM blocks WHERE page_id = ?", (pid,))
             self._conn.execute("DELETE FROM pages WHERE document_id = ?", (doc_id,))
@@ -523,6 +532,19 @@ class Database:
     def delete_shared(self, shared_id: int) -> bool:
         with self._lock, self._conn:
             return self._conn.execute("DELETE FROM shared WHERE id = ?", (shared_id,)).rowcount > 0
+
+    # AI 퀴즈
+
+    def add_quiz_set(self, document_id: str, session_id: str | None, body: dict) -> int:
+        return self._write("INSERT INTO quiz_sets (document_id, session_id, body, created_at) VALUES (?, ?, ?, ?)",
+                           (document_id, session_id, json.dumps(body, ensure_ascii=False), time.time()))
+
+    def get_quiz_set(self, set_id: int) -> dict | None:
+        rows = self._query("SELECT * FROM quiz_sets WHERE id = ?", (set_id,))
+        return {**rows[0], "body": json.loads(rows[0]["body"])} if rows else None
+
+    def save_quiz_set(self, set_id: int, body: dict) -> None:
+        self._write("UPDATE quiz_sets SET body = ? WHERE id = ?", (json.dumps(body, ensure_ascii=False), set_id))
 
     # 시험 D-day
 

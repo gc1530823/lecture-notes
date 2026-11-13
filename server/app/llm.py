@@ -654,6 +654,18 @@ class ClaudeLLM:
                                _ask_prompt(question, page, recent_speech), ASK_SCHEMA, max_tokens=4000)
         return _response_json(await self.client.beta.messages.create(**params))
 
+    async def quiz_set(self, prompt: str) -> list[dict]:
+        from .quiz import QUIZ_SET_SCHEMA, QUIZ_SET_SYSTEM
+
+        params = self._request(settings.summary_model, settings.summary_effort, QUIZ_SET_SYSTEM, prompt, QUIZ_SET_SCHEMA, max_tokens=16000)
+        return _response_json(await self.client.beta.messages.create(**params)).get("questions", [])
+
+    async def grade_answer(self, prompt: str) -> dict:
+        from .quiz import GRADE_SCHEMA, GRADE_SYSTEM
+
+        params = self._request(settings.annotation_model, settings.annotation_effort, GRADE_SYSTEM, prompt, GRADE_SCHEMA, max_tokens=2000)
+        return _response_json(await self.client.beta.messages.create(**params))
+
     async def study_page(self, kind: str, page: dict, speech: str, notes: list[dict]) -> list[dict]:
         system, schema, key = STUDY_KINDS[kind]
         params = self._request(settings.summary_model, "low", system, _organize_prompt(page, speech, notes), schema,
@@ -753,6 +765,26 @@ class FakeLLM:
                 for p in spoken[:5]
             ],
         }
+
+    async def quiz_set(self, prompt: str) -> list[dict]:
+        pages = [int(n) for n in re.findall(r'<page no="(\d+)">', prompt)] or [1]
+        return [
+            {"type": "mcq", "page_no": pages[0], "topic": "핵심 개념", "question": "다음 중 이 개념이 성립하는 조건으로 옳은 것은?",
+             "choices": ["조건이 모두 갖춰져야 한다", "조건 하나만 있어도 된다", "조건과 상관없다", "항상 성립하지 않는다"], "answer_index": 0,
+             "answer": "", "accept": [], "rubric": [], "explanation": "가짜 응답입니다."},
+            {"type": "ox", "page_no": pages[-1], "topic": "핵심 개념", "question": "조건 하나만 깨져도 이 현상은 일어나지 않는다.",
+             "choices": [], "answer_index": 0, "answer": "O", "accept": [], "rubric": [], "explanation": "가짜 응답입니다."},
+            {"type": "short", "page_no": pages[0], "topic": "용어", "question": "상호 배제용 세마포의 초기값은?",
+             "choices": [], "answer_index": 0, "answer": "1", "accept": ["일"], "rubric": ["초기값 1"], "explanation": "한 번에 하나만 들어가게 1로 시작합니다."},
+            {"type": "essay", "page_no": pages[-1], "topic": "적용", "question": "이 개념을 실제 상황에 적용하는 예를 들고 이유를 설명하세요.",
+             "choices": [], "answer_index": 0, "answer": "조건을 확인하고 하나를 깨는 방식으로 예방한다", "accept": [],
+             "rubric": ["예시를 든다", "이유를 조건과 연결한다"], "explanation": "가짜 응답입니다."},
+        ]
+
+    async def grade_answer(self, prompt: str) -> dict:
+        student = re.search(r"<student_answer>(.*)</student_answer>", prompt, re.S)
+        good = student and len(student.group(1).strip()) >= 10
+        return {"verdict": "partial" if good else "wrong", "score": 0.5 if good else 0, "feedback": "가짜 채점입니다."}
 
     async def make_quiz(self, pages: list[dict], segments: list[dict], annotations: list[dict], page_results=None) -> list[dict]:
         return [{"page_no": p["page_no"], "question": f"'{(p.get('text') or '이 개념').splitlines()[0][:20]}'을 실제 상황에 쓴다면 가장 알맞은 것은?",

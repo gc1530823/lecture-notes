@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { getJSON } from "../api/useApi";
 import { Chip, Empty, Icon, NOTE_LABEL, TopBar } from "../components/ui";
 import type { NoteType } from "../api/types";
-import { go } from "../router";
+import { back, go } from "../router";
 
 interface Hit {
   kind: "note" | "term" | "speech" | "slide";
@@ -44,7 +44,7 @@ export default function Search() {
 
   return (
     <div className="screen">
-      <TopBar title="찾기" onBack={() => go({ name: "home" })} />
+      <TopBar title="찾기" onBack={() => back({ name: "home" })} />
       <div className="screen-body">
         <div className="search-box">
           <Icon name="magic-wand" size={18} />

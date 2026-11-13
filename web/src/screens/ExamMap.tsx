@@ -2,14 +2,14 @@
 import type { ExamMap as ExamMapData } from "../api/types";
 import { useApi } from "../api/useApi";
 import { Empty, ListItem, TopBar } from "../components/ui";
-import { go } from "../router";
+import { back } from "../router";
 
 export default function ExamMap({ docId }: { docId: string }) {
   const { data, error } = useApi<ExamMapData>(`/documents/${docId}/exam-map`);
 
   return (
     <div className="screen">
-      <TopBar title="시험 예상 지도" onBack={() => go({ name: "doc", docId })} />
+      <TopBar title="시험 예상 지도" onBack={() => back({ name: "doc", docId })} />
       <div className="screen-body">
         {error && <Empty icon="warning-circle">{error}</Empty>}
         {data && data.lectures === 0 && <Empty icon="target">강의를 한 번 이상 녹음하면 지도가 생겨요</Empty>}

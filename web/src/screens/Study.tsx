@@ -1,12 +1,12 @@
-import { play } from "../lib/sound";
 // 4 공부하기: 요약 · 퀴즈 · 플래시카드 · 개념 · 마인드맵 · 암기 · AI 튜터
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { ClozeItem, Concept, Flashcard, MindNode, StudyResponse, SummaryResponse, TutorReply } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, TermCard } from "../components/ui";
 import { ConfusedPane } from "./ExamPrep";
+import QuizChat from "./QuizChat";
 
-const KINDS = [["summary", "요약"], ["quiz", "퀴즈"], ["flashcards", "플래시카드"], ["concepts", "개념"], ["mindmap", "마인드맵"], ["cloze", "암기"], ["confused", "모르겠다"], ["tutor", "AI 튜터"]] as const;
+const KINDS = [["summary", "요약"], ["quiz", "AI 퀴즈"], ["flashcards", "플래시카드"], ["concepts", "개념"], ["mindmap", "마인드맵"], ["cloze", "암기"], ["confused", "모르겠다"], ["tutor", "AI 튜터"]] as const;
 type Kind = (typeof KINDS)[number][0];
 
 export default function Study({ sessionId }: { sessionId: string }) {
@@ -19,7 +19,8 @@ export default function Study({ sessionId }: { sessionId: string }) {
         {lang?.english && <Chip variant={kind === "bilingual" ? "accent" : "default"} onClick={() => setKind("bilingual")}>영어 이중 노트</Chip>}
         {KINDS.map(([k, label]) => <Chip key={k} variant={kind === k ? "accent" : "default"} onClick={() => setKind(k)}>{label}</Chip>)}
       </div>
-      {(kind === "summary" || kind === "quiz") && <SummaryPane sessionId={sessionId} quiz={kind === "quiz"} />}
+      {kind === "summary" && <SummaryPane sessionId={sessionId} />}
+      {kind === "quiz" && <QuizChat makePath={`/sessions/${sessionId}/quiz-set`} scopeLabel="이번 강의의 자료와 교수님 설명을" />}
       {kind === "flashcards" && <AIStudy<Flashcard[]> sessionId={sessionId} kind="flashcards" render={(b) => <Flashcards cards={b} />} />}
       {kind === "concepts" && <AIStudy<Concept[]> sessionId={sessionId} kind="concepts" render={(b) => (
         <>{b.map((c, i) => <TermCard key={i} term={c.term} page={c.page_no} definition={c.example ? `${c.definition}\n예) ${c.example}` : c.definition} />)}</>
@@ -124,76 +125,30 @@ function MindMap({ root }: { root: MindNode }) {
   );
 }
 
-function SummaryPane({ sessionId, quiz }: { sessionId: string; quiz: boolean }) {
-  const { data, reload } = useApi<SummaryResponse & { quiz_status?: string }>(`/sessions/${sessionId}/summary`);
-  const making = data?.quiz_status === "making";
-  // AI가 퀴즈를 새로 내는 중이면 잠깐씩 다시 물어본다
-  useEffect(() => {
-    if (!making) return;
-    const t = window.setInterval(() => reload(), 2500);
-    return () => window.clearInterval(t);
-  }, [making, reload]);
-  const remake = async () => {
-    try { await postJSON(`/sessions/${sessionId}/quiz`); setPicked({}); reload(); }
-    catch (e) { alert(e instanceof Error ? e.message : String(e)); }
-  };
+function SummaryPane({ sessionId }: { sessionId: string }) {
+  const { data } = useApi<SummaryResponse>(`/sessions/${sessionId}/summary`);
   const { data: terms } = useApi<{ term: string }[]>(`/sessions/${sessionId}/glossary`);
-  const [picked, setPicked] = useState<Record<number, number>>({});
   if (!data) return <p className="muted">불러오는 중…</p>;
   const s = data.summary;
-  if (!s) return <Empty icon="clock">강의가 끝나면 요약과 퀴즈가 만들어져요</Empty>;
-  if (!quiz) {
-    return (
-      <>
-        <section className="summary-block">
-          <h3><Icon name="file-text" art size={22} /> 강의 요약</h3>
-          <p className="t-body">{s.overview}</p>
-        </section>
-        {terms && terms.length > 0 && (
-          <section className="summary-block">
-            <h3><Icon name="clipboard-text" art size={22} /> 핵심 키워드</h3>
-            <div className="keywords">{terms.slice(0, 8).map((t) => <span key={t.term}>{t.term}</span>)}</div>
-          </section>
-        )}
-        {s.pages.map((p) => (
-          <div key={p.page_no} className="banner">
-            <span className="t-caption faint">{p.page_no}쪽</span>
-            <p className="t-body">{p.summary}</p>
-          </div>
-        ))}
-      </>
-    );
-  }
-  const items = s.quiz ?? [];
-  if (making) return <div className="quiz-making"><span className="spin" /><b>AI가 오늘 강의로 문제를 내고 있어요</b><span className="t-caption muted">외운 문장 찾기가 아니라 이해를 묻는 문제로 만들어요</span></div>;
-  if (items.length === 0) return <Empty icon="list-numbers">퀴즈가 없어요</Empty>;
+  if (!s) return <Empty icon="clock">강의가 끝나면 요약이 만들어져요</Empty>;
   return (
     <>
-      <div className="row quiz-head">
-        <span className="t-caption muted grow">AI가 강의 내용을 바탕으로 낸 문제 {items.length}개</span>
-        <button className="chip chip-accent" onClick={() => void remake()}>새 문제 받기</button>
-      </div>
-      {items.map((q, qi) => {
-        const answered = picked[qi] !== undefined;
-        return (
-          <div key={qi} className="banner">
-            <span className="t-caption faint">{qi + 1}번 · {q.page_no}쪽</span>
-            <strong className="t-title-s">{q.question}</strong>
-            {q.choices.map((c, ci) => {
-              const variant = !answered ? "secondary" : ci === q.answer_index ? "primary" : ci === picked[qi] ? "record" : "secondary";
-              const fx = !answered ? "" : ci === q.answer_index ? " fx-right" : ci === picked[qi] ? " fx-wrong" : "";
-              return <Button key={ci} variant={variant} block className={`quiz-choice${fx}`} disabled={answered && variant === "secondary"}
-                style={{ animationDelay: `${ci * 50}ms` }}
-                data-sound onClick={() => { if (answered) return; setPicked({ ...picked, [qi]: ci }); play(ci === q.answer_index ? "success" : "wrong"); navigator.vibrate?.(ci === q.answer_index ? 15 : [30, 40, 30]); }}><span className="choice-letter">{"ABCD"[ci]}</span>{c}</Button>;
-            })}
-            {answered && (
-              <p className={`quiz-result t-body ${picked[qi] === q.answer_index ? "right" : "wrong"}`}>
-                <b>{picked[qi] === q.answer_index ? "정답이에요" : "아쉬워요"}</b> {q.explanation}
-              </p>
-            )}
-          </div>
-        );
-      })}
+      <section className="summary-block">
+        <h3><Icon name="file-text" art size={22} /> 강의 요약</h3>
+        <p className="t-body">{s.overview}</p>
+      </section>
+      {terms && terms.length > 0 && (
+        <section className="summary-block">
+          <h3><Icon name="clipboard-text" art size={22} /> 핵심 키워드</h3>
+          <div className="keywords">{terms.slice(0, 8).map((t) => <span key={t.term}>{t.term}</span>)}</div>
+        </section>
+      )}
+      {s.pages.map((p) => (
+        <div key={p.page_no} className="banner">
+          <span className="t-caption faint">{p.page_no}쪽</span>
+          <p className="t-body">{p.summary}</p>
+        </div>
+      ))}
     </>
   );
 }

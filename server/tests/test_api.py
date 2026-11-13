@@ -1021,3 +1021,28 @@ def test_old_copied_quiz_is_remade_by_ai_and_can_be_asked_again(client):
         time.sleep(0.1)
     assert "다룬 내용" not in state["summary"]["quiz"][0]["question"] and len(state["summary"]["quiz"]) >= 1
     assert client.post(f"/sessions/{session['id']}/quiz").json()["quiz_status"] == "making"
+
+
+def test_ai_quiz_set_asks_and_grades(client):
+    doc = upload(client)
+    made = client.post(f"/documents/{doc['id']}/quiz-set", json={"count": 6})
+    assert made.status_code == 200, made.text
+    qs = made.json()
+    types = [q["type"] for q in qs["questions"]]
+    assert {"mcq", "ox", "short", "essay"} <= set(types)
+    assert all("answer" not in q for q in qs["questions"])  # 정답은 풀기 전에 안 보낸다
+    answers = {"mcq": "A", "ox": "X", "short": "일", "essay": "조건 하나를 깨면 예방할 수 있기 때문입니다"}
+    verdicts = []
+    for q in qs["questions"]:
+        res = client.post(f"/quiz-sets/{qs['id']}/grade", json={"index": q["index"], "answer": answers[q["type"]]})
+        assert res.status_code == 200, res.text
+        verdicts.append(res.json()["result"]["verdict"])
+        assert res.json()["answer"]
+    assert verdicts[types.index("mcq")] == "correct"
+    assert verdicts[types.index("ox")] == "wrong"
+    assert verdicts[types.index("short")] == "correct"
+    assert verdicts[types.index("essay")] == "partial"
+    again = client.post(f"/quiz-sets/{qs['id']}/grade", json={"index": 0, "answer": "A"})
+    assert again.status_code == 409
+    state = client.get(f"/quiz-sets/{qs['id']}").json()
+    assert state["answered"] == len(types) and state["score"] == 2.5

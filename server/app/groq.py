@@ -64,6 +64,13 @@ class GroqLLM(OllamaLLM):
         self.client = httpx.AsyncClient(base_url=BASE_URL, timeout=httpx.Timeout(120, connect=10),
                                         transport=transport)
 
+    async def quiz_set(self, prompt: str) -> list[dict]:
+        token = _EFFORT.set("medium")  # 문제를 내기 전에 자료를 더 깊이 공부하게
+        try:
+            return await super().quiz_set(prompt)
+        finally:
+            _EFFORT.reset(token)
+
     async def review_notes(self, prompt: str) -> dict:
         token = _EFFORT.set("medium")  # 급하지 않으니 더 깊이 생각하게
         try:

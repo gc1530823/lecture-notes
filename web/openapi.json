@@ -713,6 +713,188 @@
         }
       }
     },
+    "/sessions/{session_id}/quiz-set": {
+      "post": {
+        "summary": "Session Quiz Set",
+        "operationId": "session_quiz_set_sessions__session_id__quiz_set_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuizSetRequest",
+                "default": {
+                  "count": 8
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/quiz-set": {
+      "post": {
+        "summary": "Document Quiz Set",
+        "operationId": "document_quiz_set_documents__document_id__quiz_set_post",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuizSetRequest",
+                "default": {
+                  "count": 8
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quiz-sets/{set_id}": {
+      "get": {
+        "summary": "Get Quiz Set",
+        "operationId": "get_quiz_set_quiz_sets__set_id__get",
+        "parameters": [
+          {
+            "name": "set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Set Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quiz-sets/{set_id}/grade": {
+      "post": {
+        "summary": "Grade Quiz Answer",
+        "operationId": "grade_quiz_answer_quiz_sets__set_id__grade_post",
+        "parameters": [
+          {
+            "name": "set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Set Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sessions/{session_id}/ask": {
       "post": {
         "summary": "Ask",
@@ -2844,6 +3026,24 @@
         ],
         "title": "ExamCreate"
       },
+      "GradeRequest": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "answer"
+        ],
+        "title": "GradeRequest"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2900,6 +3100,17 @@
         },
         "type": "object",
         "title": "NotebookRequest"
+      },
+      "QuizSetRequest": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "default": 8
+          }
+        },
+        "type": "object",
+        "title": "QuizSetRequest"
       },
       "ReviewAnswer": {
         "properties": {

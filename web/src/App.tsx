@@ -7,6 +7,7 @@ import Intro from "./screens/Intro";
 import Lecture from "./screens/Lecture";
 import Semester from "./screens/Semester";
 import Search from "./screens/Search";
+import { QuizScreen } from "./screens/QuizChat";
 import Session from "./screens/Session";
 import { href, useRoute } from "./router";
 import TabBar from "./components/TabBar";
@@ -30,6 +31,7 @@ function screen(route: ReturnType<typeof useRoute>) {
     case "doc": return <DocDetail key={route.docId} docId={route.docId} />;
     case "exam": return <ExamMap docId={route.docId} />;
     case "jokbo": return <JokboScreen docId={route.docId} />;
+    case "quiz": return <QuizScreen docId={route.docId} />;
     case "review": return <ReviewScreen />;
     case "privacy": return <PrivacyScreen />;
     case "semester": return <Semester tab={route.tab} />;

@@ -14,6 +14,7 @@ export type Route =
   | { name: "exam"; docId: string }
   | { name: "lecture"; docId: string; sessionId?: string }
   | { name: "jokbo"; docId: string }
+  | { name: "quiz"; docId: string }
   | { name: "review" }
   | { name: "privacy" }
   | { name: "semester"; tab: string }
@@ -28,6 +29,7 @@ export function parse(hash: string): Route {
   if (parts[0] === "privacy") return { name: "privacy" };
   if (parts[0] === "search") return { name: "search" };
   if (parts[0] === "semester") return { name: "semester", tab: parts[1] ?? "map" };
+  if (parts[0] === "doc" && parts[1] && parts[2] === "quiz") return { name: "quiz", docId: parts[1] };
   if (parts[0] === "doc" && parts[1] && parts[2] === "jokbo") return { name: "jokbo", docId: parts[1] };
   if (parts[0] === "doc" && parts[1] && parts[2] === "lecture") return { name: "lecture", docId: parts[1], sessionId: parts[3] };
   if (parts[0] === "doc" && parts[1] && parts[2] === "session" && parts[3])
@@ -43,6 +45,7 @@ export function href(route: Route): string {
     case "doc": return `#/doc/${route.docId}`;
     case "exam": return `#/doc/${route.docId}/exam`;
     case "jokbo": return `#/doc/${route.docId}/jokbo`;
+    case "quiz": return `#/doc/${route.docId}/quiz`;
     case "review": return "#/review";
     case "privacy": return "#/privacy";
     case "search": return "#/search";
@@ -52,7 +55,37 @@ export function href(route: Route): string {
   }
 }
 
-export function go(route: Route) { window.location.hash = href(route); }
+// 뒤로 가기: 들어온 순서를 기억해 두었다가 바로 앞 화면으로 돌아간다.
+// (홈의 "족보 노트"처럼 자료 상세를 거치지 않고 들어온 화면도 뒤로 가면 홈으로)
+// 같은 화면 안에서 탭만 바꾸는 것은 기록을 쌓지 않는다 (뒤로 가기가 탭을 되감지 않게)
+const stack: string[] = [window.location.hash || "#/"];
+let replacing = false;
+window.addEventListener("hashchange", () => {
+  const h = window.location.hash || "#/";
+  if (replacing) { stack[stack.length - 1] = h; replacing = false; return; }
+  if (stack.length > 1 && stack[stack.length - 2] === h) stack.pop();
+  else stack.push(h);
+});
+
+function sameScreen(a: Route, b: Route): boolean {
+  const ids = (r: Route) => [r.name, "docId" in r ? r.docId : "", "sessionId" in r ? r.sessionId ?? "" : ""].join("/");
+  return ids(a) === ids(b);
+}
+
+export function go(route: Route) {
+  const next = href(route);
+  if (next === (window.location.hash || "#/")) return;
+  if (sameScreen(parse(window.location.hash), route) && route.name !== "doc") {
+    replacing = true;
+    window.location.replace(next);
+  } else window.location.hash = next;
+}
+
+/** 화면 위 뒤로 버튼: 앱 안에서 온 화면이 있으면 그리로, 바로 열었으면 fallback으로 */
+export function back(fallback: Route) {
+  if (stack.length > 1) window.history.back();
+  else go(fallback);
+}
 
 /** 화면 깊이: 깊은 화면으로 갈 때는 오른쪽에서 들어오고, 돌아올 때는 왼쪽에서 (styles/app.css 의 화면 전환) */
 function depth(route: Route): number {

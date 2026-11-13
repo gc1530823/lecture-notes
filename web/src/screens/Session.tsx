@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { Annotation, DocumentDetail, GlossaryTerm, SummaryResponse } from "../api/types";
 import { useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, NoteSection, PostIt, TermCard, TopBar } from "../components/ui";
-import { go } from "../router";
+import { back, go } from "../router";
 import { NotesPdf } from "./LectureExtras";
 import Study from "./Study";
 import { StoryEntry } from "./Story";
@@ -17,7 +17,7 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
 
   return (
     <div className="screen">
-      <TopBar title={title} onBack={() => go({ name: "doc", docId })} />
+      <TopBar title={title} onBack={() => back({ name: "doc", docId })} />
       <div className="screen-body">
         <div className="scroll-x" role="tablist">
           {TABS.map(([key, label]) => (

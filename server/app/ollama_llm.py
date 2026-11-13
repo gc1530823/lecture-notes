@@ -294,6 +294,19 @@ class OllamaLLM:
                 return quiz[:8]
         return []
 
+    async def quiz_set(self, prompt: str) -> list[dict]:
+        """AI 퀴즈 문제 묶음 (app/quiz.py)"""
+        from .quiz import QUIZ_SET_SCHEMA, QUIZ_SET_SYSTEM
+
+        data = await self._chat(QUIZ_SET_SYSTEM, prompt, QUIZ_SET_SCHEMA, 32768, 0.6)
+        return data.get("questions", [])
+
+    async def grade_answer(self, prompt: str) -> dict:
+        """AI 퀴즈 채점 (app/quiz.py)"""
+        from .quiz import GRADE_SCHEMA, GRADE_SYSTEM
+
+        return await self._chat(GRADE_SYSTEM, prompt, GRADE_SCHEMA, 4096, 0.1)
+
     async def _chat_checked(self, system: str, prompt: str, schema: dict, context_tokens: int, ok) -> dict | None:
         """답이 틀(빈칸·지시문 베끼기)이면 온도를 올려 한 번 더 받고, 그래도 아니면 None."""
         for temperature in (0.2, 0.6):

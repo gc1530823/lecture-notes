@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, ListItem, TopBar } from "../components/ui";
-import { go } from "../router";
+import { back, go } from "../router";
 
 interface Occurrence { doc_id: string; doc_title: string; session_id: string; page_no: number | null; start_ms: number; started_at: number }
 interface Node { id: string; term: string; definition: string; occurrences: Occurrence[]; docs: string[]; count: number; links: number }
@@ -55,7 +55,7 @@ function layout(nodes: Node[], edges: Edge[], width: number, height: number) {
 export default function Semester({ tab }: { tab: string }) {
   return (
     <div className="screen">
-      <TopBar title="학기 전체" onBack={() => go({ name: "home" })} />
+      <TopBar title="학기 전체" onBack={() => back({ name: "home" })} />
       <div className="screen-body">
         <div className="scroll-x" role="tablist">
           {([["map", "개념 지도"], ["tutor", "학기 튜터"], ["exams", "시험 D-day"]] as const).map(([k, l]) => (
