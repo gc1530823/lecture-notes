@@ -331,6 +331,43 @@
         }
       }
     },
+    "/documents/from-audio": {
+      "post": {
+        "summary": "Document From Audio",
+        "description": "강의자료 없이 녹음 파일만: 노트 수업을 새로 만들고 그 녹음으로 정리한다.\n받아쓰기 → 주제가 바뀔 때마다 쪽을 나눠 주제 제목·필기 → 요약·퀴즈·플래시카드 (강의자료 수업과 같은 결과 화면).",
+        "operationId": "document_from_audio_documents_from_audio_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_document_from_audio_documents_from_audio_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sessions/from-audio": {
       "post": {
         "summary": "Session From Audio",
@@ -2582,6 +2619,30 @@
           "file"
         ],
         "title": "Body_add_photo_sessions__session_id__photo_post"
+      },
+      "Body_document_from_audio_documents_from_audio_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "course": {
+            "type": "string",
+            "title": "Course",
+            "default": ""
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_document_from_audio_documents_from_audio_post"
       },
       "Body_session_from_audio_sessions_from_audio_post": {
         "properties": {

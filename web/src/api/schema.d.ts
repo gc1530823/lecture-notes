@@ -132,6 +132,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/documents/from-audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Document From Audio
+         * @description 강의자료 없이 녹음 파일만: 노트 수업을 새로 만들고 그 녹음으로 정리한다.
+         *     받아쓰기 → 주제가 바뀔 때마다 쪽을 나눠 주제 제목·필기 → 요약·퀴즈·플래시카드 (강의자료 수업과 같은 결과 화면).
+         */
+        post: operations["document_from_audio_documents_from_audio_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sessions/from-audio": {
         parameters: {
             query?: never;
@@ -1075,6 +1096,21 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_document_from_audio_documents_from_audio_post */
+        Body_document_from_audio_documents_from_audio_post: {
+            /** File */
+            file: string;
+            /**
+             * Course
+             * @default
+             */
+            course: string;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+        };
         /** Body_session_from_audio_sessions_from_audio_post */
         Body_session_from_audio_sessions_from_audio_post: {
             /** Document Id */
@@ -1508,6 +1544,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SessionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    document_from_audio_documents_from_audio_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_document_from_audio_documents_from_audio_post"];
             };
         };
         responses: {

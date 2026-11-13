@@ -317,6 +317,22 @@ def _session_or_404(session_id: str) -> dict:
 MAX_AUDIO_BYTES = 500 * 1024 * 1024
 
 
+@app.post("/documents/from-audio")
+async def document_from_audio(background: BackgroundTasks, file: UploadFile = File(...), course: str = Form(""), title: str = Form("")):
+    """강의자료 없이 녹음 파일만: 노트 수업을 새로 만들고 그 녹음으로 정리한다.
+    받아쓰기 → 주제가 바뀔 때마다 쪽을 나눠 주제 제목·필기 → 요약·퀴즈·플래시카드 (강의자료 수업과 같은 결과 화면)."""
+    stem = os.path.splitext(file.filename or "")[0].strip()
+    meaningless = not stem or re.fullmatch(r"(?i)(새로운\s*녹음|새\s*녹음|녹음|recording|new recording|audio|voice|음성\s*메모)?[\s\d_()-]*", stem)
+    if len(stem) < 4:  # "rec" 같은 짧은 이름도 뜻이 없다
+        meaningless = True
+    name = (title.strip() or (None if meaningless else stem) or time.strftime("%m월 %d일 녹음 수업"))[:80]
+    doc_id = db().create_notebook(name, "notebook")
+    if course.strip():
+        db().set_course(doc_id, course.strip()[:40])
+    session = await session_from_audio(background, doc_id, file)
+    return {"document_id": doc_id, "session_id": session["id"], "title": name}
+
+
 @app.post("/sessions/from-audio")
 async def session_from_audio(background: BackgroundTasks, document_id: str = Form(...), file: UploadFile = File(...)):
     """'음성 메모' 등으로 녹음해 둔 파일로 강의를 정리한다: 받아쓰기 → 페이지 추적·필기·과제 → 요약·퀴즈."""

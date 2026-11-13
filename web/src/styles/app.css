@@ -908,3 +908,12 @@ button.chip-selected { border-color: var(--accent-deep); box-shadow: 0 3px 0 var
 .quiz-result b { display: block; font: 400 17px/22px var(--font-display); margin-bottom: 2px; }
 .quiz-result.right b { color: var(--leaf); } .quiz-result.wrong b { color: var(--accent-record); }
 .listen-row .spin { flex: none; }
+
+/* 켜고 끄는 스위치 */
+.switch { flex: none; width: 50px; height: 30px; border-radius: 99px; background: var(--fill-soft); border: 2px solid var(--border-line); position: relative; transition: background-color .2s; }
+.switch i { position: absolute; left: 2px; top: 2px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgb(0 0 0 / .2); transition: transform .3s var(--ease-bounce); }
+.switch.on { background: var(--accent-primary); border-color: var(--accent-deep); }
+.switch.on i { transform: translateX(20px); }
+.home-actions { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 8px; }
+.home-actions .btn { padding-inline: 8px; font-size: 16px; min-width: 0; }
+.home-actions .btn .icon { width: 20px; height: 20px; }

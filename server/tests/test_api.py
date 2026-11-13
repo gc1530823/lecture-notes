@@ -972,3 +972,32 @@ def test_same_file_opens_existing_document_and_meaningless_names_use_first_slide
     assert _document_title("운영체제 7주차 강의.pdf", pages) == "운영체제 7주차 강의"
     assert _document_title("slides (3).pdf", pages) == "운영체제 7주차"
     assert _document_title("20261113.pdf", pages) == "운영체제 7주차"
+
+
+def test_recording_only_upload_becomes_a_notebook_lecture_with_topics_and_summary(client):
+    """강의자료 없이 녹음만 올려도: 노트 수업이 생기고, 받아쓰기·주제별 필기·요약까지 된다."""
+    from app.main import app as fastapi_app
+    from app.stt import Segment
+
+    class Speech:
+        def transcribe(self, audio, hint="", on_progress=None):
+            return [Segment(0, 4000, "오늘은 경사하강법을 볼게요. 학습률이 너무 크면 발산해요. 이거 시험에 꼭 나와요."),
+                    Segment(5000, 9000, "자 이제 역전파 얘기를 해 봅시다. 연쇄 법칙으로 기울기를 구해요.")]
+
+    fastapi_app.state.transcriber = Speech()
+    res = client.post("/documents/from-audio", files={"file": ("새로운 녹음 3.m4a", b"fake audio", "audio/mp4")}, data={"course": "인공지능"})
+    assert res.status_code == 200, res.text
+    made = res.json()
+    assert "녹음 수업" in made["title"]                              # 뜻 없는 파일 이름 → 날짜 이름
+    for _ in range(60):
+        state = client.get(f"/sessions/{made['session_id']}/summary").json()
+        if state["status"] in ("done", "failed"):
+            break
+        time.sleep(0.1)
+    assert state["status"] == "done"
+    doc = client.get(f"/documents/{made['document_id']}").json()
+    assert doc["kind"] == "notebook" and doc["course"] == "인공지능" and len(doc["pages"]) >= 2   # 주제가 바뀌어 쪽이 나뉨
+    notes = client.get(f"/sessions/{made['session_id']}/annotations").json()
+    assert any(n["type"] == "exam" for n in notes)
+    named = client.post("/documents/from-audio", files={"file": ("운영체제 7주차.m4a", b"x", "audio/mp4")}).json()
+    assert named["title"] == "운영체제 7주차"

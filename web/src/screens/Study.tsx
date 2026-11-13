@@ -1,3 +1,4 @@
+import { play } from "../lib/sound";
 // 4 공부하기: 요약 · 퀴즈 · 플래시카드 · 개념 · 마인드맵 · 암기 · AI 튜터
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { ClozeItem, Concept, Flashcard, MindNode, StudyResponse, SummaryResponse, TutorReply } from "../api/types";
@@ -157,7 +158,7 @@ function SummaryPane({ sessionId, quiz }: { sessionId: string; quiz: boolean }) 
               const fx = !answered ? "" : ci === q.answer_index ? " fx-right" : ci === picked[qi] ? " fx-wrong" : "";
               return <Button key={ci} variant={variant} block className={`quiz-choice${fx}`} disabled={answered && variant === "secondary"}
                 style={{ animationDelay: `${ci * 50}ms` }}
-                onClick={() => { if (answered) return; setPicked({ ...picked, [qi]: ci }); navigator.vibrate?.(ci === q.answer_index ? 15 : [30, 40, 30]); }}>{c}</Button>;
+                data-sound onClick={() => { if (answered) return; setPicked({ ...picked, [qi]: ci }); play(ci === q.answer_index ? "success" : "wrong"); navigator.vibrate?.(ci === q.answer_index ? 15 : [30, 40, 30]); }}>{c}</Button>;
             })}
             {answered && (
               <p className={`quiz-result t-body ${picked[qi] === q.answer_index ? "right" : "wrong"}`}>

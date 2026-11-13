@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getJSON } from "../api/useApi";
 import { Button, Icon } from "../components/ui";
 import { Confetti, Count, Words } from "../lib/motion";
+import { play } from "../lib/sound";
 import { go } from "../router";
 
 interface Card { kind: string; label: string; text: string; page_no: number | null; at_ms: number | null; quote: string; tone: string; session_id?: string | null }
@@ -60,6 +61,7 @@ function StoryViewer({ data, onClose, onListen, onStudy, endTitle = "오늘도 �
   const held = useRef(0);
   const card = data.cards[index];
   const last = index === data.cards.length - 1;
+  useEffect(() => { play(last ? "complete" : index ? "flip" : "pop"); }, [index, last]);
 
   const move = useCallback((d: number) => {
     setIndex((i) => {

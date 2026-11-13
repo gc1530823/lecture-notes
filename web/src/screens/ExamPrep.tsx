@@ -1,4 +1,5 @@
 // 시험 공부 화면: 족보 노트 · 오늘의 복습(망각 곡선) · 개인정보와 녹음 동의
+import { play, setSoundOn, soundOn } from "../lib/sound";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
@@ -174,6 +175,8 @@ export function ReviewScreen() {
       setToday({ ...today, cards: grade === "again" ? [...rest, { ...card, new: false }] : rest });
       setDone((n) => n + 1);
       setFlipped(false);
+      play(grade === "again" ? "wrong" : "success");
+      if (rest.length === 0 && grade !== "again") window.setTimeout(() => play("complete"), 250);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     setBusy(false);
   };
@@ -202,7 +205,7 @@ export function ReviewScreen() {
             <p className="t-caption muted" style={{ textAlign: "center" }}>
               남은 카드 {today!.cards.length}장 · {card.title}{card.page_no ? ` ${card.page_no}쪽` : ""}
             </p>
-            <button key={`${card.card_key}-${flipped}`} className={`flashcard ${flipped ? "flip-in" : "card-in"}`} data-flipped={flipped} onClick={() => setFlipped(!flipped)} aria-live="polite">
+            <button key={`${card.card_key}-${flipped}`} className={`flashcard ${flipped ? "flip-in" : "card-in"}`} data-flipped={flipped} onClick={() => { setFlipped(!flipped); play("flip"); }} data-sound aria-live="polite">
               <Chip variant="accent">{card.new ? "새 카드 · " : card.lapses ? `${card.lapses}번 틀림 · ` : ""}{SOURCE_LABEL[card.source] ?? card.source}</Chip>
               <span className={flipped ? "t-body" : "t-title-m"} style={{ whiteSpace: "pre-wrap" }}>{flipped ? card.back : card.front}</span>
               <span className="t-caption faint">{flipped ? "얼마나 잘 기억했나요?" : "떠올려 본 뒤 눌러서 답 보기"}</span>
@@ -304,6 +307,7 @@ export function PrivacyScreen() {
       <div className="screen-body">
         <div className="banner"><p className="t-body"><b>녹음은 교수님 허락을 받고, 본인 공부에만 써 주세요.</b></p></div>
         <PrivacyFacts info={info} />
+        <SoundToggle />
         {android() && <Button block variant="secondary" onClick={() => android()?.changeServer()}>서버 주소 바꾸기</Button>}
         <Button block variant="record" icon="trash" onClick={wipe} disabled={busy || !docs?.length}>
           {busy ? "지우는 중…" : `내 자료 모두 지우기${docs?.length ? ` (${docs.length}개)` : ""}`}
@@ -409,4 +413,19 @@ function groupNotes(notes: { who: string; text: string }[]) {
     groups.set(key, g);
   }
   return [...groups.values()].sort((a, b) => b.who.length - a.who.length);
+}
+
+/** 효과음 켜고 끄기 (기기에 기억). 녹음 중에는 켜 둬도 소리 대신 진동만 */
+function SoundToggle() {
+  const [on, setOn] = useState(soundOn());
+  return (
+    <button className="list-item" onClick={() => { setSoundOn(!on); setOn(!on); }} data-sound aria-pressed={on}>
+      <span className="list-item-icon is-art"><Icon name="megaphone" art size={40} /></span>
+      <span className="grow">
+        <span className="t-title-s" style={{ display: "block" }}>효과음 {on ? "켜짐" : "꺼짐"}</span>
+        <span className="list-item-sub">누를 때·정답·복습 끝에 짧은 소리. 녹음 중에는 소리 대신 진동만 나요</span>
+      </span>
+      <span className={`switch${on ? " on" : ""}`} aria-hidden="true"><i /></span>
+    </button>
+  );
 }

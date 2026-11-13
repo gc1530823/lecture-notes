@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import type { Annotation, DocumentDetail, GlossaryTerm, Page } from "../api/types";
 import { getJSON, postJSON } from "../api/useApi";
 import { LiveWave, refreshWaves } from "../lib/wave";
+import { play, setRecording } from "../lib/sound";
 import { android, browserRecognizer, LiveSocket, NativeLive, startMicrophone, type Live, type Mic, type ServerEvent } from "../lib/live";
 import { clock, NotesPdf, PlayerBar, TaskDetail, TaskList, usePlayer, type FullTask } from "./LectureExtras";
 import { ConsentSheet } from "./ExamPrep";
@@ -196,6 +197,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     if (no < 1 || no > total || no === pageRef.current) return;
     setPage(no);
     setSelected(null);
+    if (manual) play("turn");
     if (manual) {
       lastManual.current = Date.now();
       live.current?.send({ type: "page_view", page: no }); // 직접 넘긴 쪽을 서버에 알린다
@@ -219,10 +221,10 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
       }
       case "annotation_added":
         setNotes((n) => (n.some((x) => x.id === e.annotation.id) ? n : [...n, e.annotation]));
-        navigator.vibrate?.(15);
         flash(e.annotation.id);
+        play(e.annotation.type === "exam" || e.annotation.type === "notice" ? "alert" : "note"); // 녹음 중이면 진동만
         if (e.annotation.type === "exam" || e.annotation.type === "notice") {
-          setPerk(true); window.setTimeout(() => setPerk(false), 2600); // 쫑긋! 귀가 선다
+          setPerk(true); window.setTimeout(() => setPerk(false), 2600); // 시험·공지: 파형이 빨개진다
           setBanner(e.annotation.type === "exam"
             ? { icon: "star", title: "시험에 나온다고 했어요", text: e.annotation.text }
             : { icon: "megaphone", title: "공지", text: e.annotation.text });
@@ -292,6 +294,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     setSessionId(id);
     setStartedAt(began);
     setNow(began);
+    play("start");
+    setRecording(true);
     setPhase("recording");
     window.history.replaceState(null, "", `#/doc/${docId}/lecture/${id}`);
     const socket: Live = app ? new NativeLive(app, id, (e) => handleRef.current(e)) : new LiveSocket(id, (e) => handleRef.current(e), () => pageRef.current);
@@ -319,6 +323,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   };
 
   const stop = async (finish = true) => {
+    setRecording(false);
+    play("stop");
     mic.current?.stop();
     mic.current = null;
     recognizer.current?.stop();
@@ -345,6 +351,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
 
   // 강의가 끝나면: 녹음 다시 듣기, 슬라이드에 없던 설명 표시
   const player = usePlayer(sessionId, phase === "ended");
+  useEffect(() => () => setRecording(false), []); // 강의 화면을 벗어나면 효과음 금지를 푼다
   useEffect(() => { if (phase === "ended") refreshWaves(); }, [phase]); // 새 강의의 소리 무늬를 목록에서 다시 받게
   // 스토리·수업 흐름에서 "이 순간 듣기"로 왔으면 녹음을 그 시각부터 튼다
   const playFromRef = useRef(player.playFrom);

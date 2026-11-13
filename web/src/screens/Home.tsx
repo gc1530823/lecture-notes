@@ -94,6 +94,26 @@ export default function Home() {
     }
   };
 
+  // 강의자료 없이 녹음 파일만: 노트 수업을 만들고 받아쓰기 → 주제별 필기 → 요약까지 서버가 한다
+  const audio = useRef<HTMLInputElement>(null);
+  const uploadAudio = (f: File) => {
+    const form = new FormData();
+    form.append("file", f);
+    if (filter !== "all" && filter) form.append("course", filter);
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", (import.meta.env.VITE_API_URL ?? "") + "/documents/from-audio");
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) setBusy(`녹음 올리는 중 ${Math.round((e.loaded / e.total) * 100)}%`); };
+    xhr.onload = () => {
+      setBusy(null);
+      if (xhr.status >= 300) { alert(`올리지 못했어요 (${xhr.status})`); return; }
+      const made = JSON.parse(xhr.responseText) as { document_id: string; session_id: string };
+      go({ name: "lecture", docId: made.document_id, sessionId: made.session_id });
+    };
+    xhr.onerror = () => { setBusy(null); alert("올리지 못했어요. 인터넷 연결을 확인해 주세요."); };
+    setBusy("녹음 올리는 중…");
+    xhr.send(form);
+  };
+
   const newNotebook = async (kind: "notebook" | "meeting" = "notebook") => {
     const title = prompt(kind === "meeting" ? "회의 이름" : "수업 이름", kind === "meeting" ? "팀 회의" : "새 노트 수업");
     if (title === null) return;
@@ -154,7 +174,7 @@ export default function Home() {
         {docs && shown.length === 0 && (
           <Empty icon="chalkboard-teacher">
             <strong className="t-title-s">아직 강의가 없어요</strong><br />
-            강의자료 PDF를 올리거나, 자료 없는 수업은 노트로 시작하세요.
+            강의자료 PDF를 올리거나, 자료 없는 수업은 노트로 시작하세요.<br />녹음 파일만 있어도 돼요: 아래 "녹음"을 눌러 올리면 주제별로 정리해 드려요.
           </Empty>
         )}
         {groups.map(([course, list]) => (
@@ -171,7 +191,10 @@ export default function Home() {
       </div>
       <div className="home-actions">
         <Button variant="secondary" icon="note-pencil" onClick={() => newNotebook()} disabled={!!busy}>노트 수업</Button>
-        <Button icon="tray-arrow-down" onClick={() => file.current?.click()} disabled={!!busy}>{busy ?? "강의자료 올리기"}</Button>
+        <Button variant="secondary" icon="headphones" onClick={() => audio.current?.click()} disabled={!!busy} aria-label="녹음 파일만 올리기">녹음 파일</Button>
+        <input ref={audio} type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadAudio(f); }} />
+        <Button icon="tray-arrow-down" onClick={() => file.current?.click()} disabled={!!busy}>{busy ?? "강의자료"}</Button>
         <input ref={file} type="file" accept="application/pdf,.pdf,.ppt,.pptx,.key,.odp,.doc,.docx,.hwp,.hwpx" hidden
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
       </div>
