@@ -1,4 +1,5 @@
 // 시험 공부 화면: 족보 노트 · 오늘의 복습(망각 곡선) · 개인정보와 녹음 동의
+import { useSwipe } from "../lib/gesture";
 import { play, setSoundOn, soundOn } from "../lib/sound";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DocumentBrief } from "../api/types";
@@ -183,6 +184,9 @@ export function ReviewScreen() {
   };
 
   const card = today?.cards[0];
+  // 답을 본 뒤에는 카드를 밀어서: 왼쪽 = 몰랐어요, 오른쪽 = 기억났어요
+  const cardRef = useRef<HTMLButtonElement>(null);
+  useSwipe(cardRef, { onLeft: () => void answer("again"), onRight: () => void answer("good"), enabled: flipped && !busy, bind: `${card?.card_key}-${flipped}` });
   return (
     <div className="screen">
       <TopBar title="오늘의 복습" onBack={() => back({ name: "home" })} />
@@ -213,13 +217,15 @@ export function ReviewScreen() {
             <p className="t-caption muted" style={{ textAlign: "center" }}>
               남은 카드 {today!.cards.length}장 · {card.title}{card.page_no ? ` ${card.page_no}쪽` : ""}
             </p>
-            <button key={`${card.card_key}-${flipped}`} className={`flashcard ${flipped ? "flip-in" : "card-in"}`} data-flipped={flipped} onClick={() => { setFlipped(!flipped); play("flip"); }} data-sound aria-live="polite">
+            <button ref={cardRef} key={`${card.card_key}-${flipped}`} className={`flashcard swipe-card ${flipped ? "flip-in" : "card-in"}`} data-flipped={flipped} onClick={() => { setFlipped(!flipped); play("flip"); }} data-sound aria-live="polite">
               <Chip variant="accent">{card.new ? "새 카드 · " : card.lapses ? `${card.lapses}번 틀림 · ` : ""}{SOURCE_LABEL[card.source] ?? card.source}</Chip>
               {flipped && <span className="review-q t-caption">Q. {card.front}</span>}
               <span className={flipped ? "t-body" : "t-title-m"} style={{ whiteSpace: "pre-wrap" }}>{flipped ? card.back : card.front}</span>
               <span className="t-caption faint">{flipped ? "얼마나 기억났는지 아래에서 골라 주세요" : "답을 떠올려 본 뒤 눌러서 확인"}</span>
             </button>
             {flipped ? (
+              <>
+              <div className="swipe-hint" aria-hidden="true"><span>← 몰랐어요</span><span>기억났어요 →</span></div>
               <div className="grade-row">
                 {GRADE_BUTTONS.map(([grade, label, variant]) => (
                   <Button key={grade} variant={variant} onClick={() => answer(grade)} disabled={busy}>
@@ -227,6 +233,7 @@ export function ReviewScreen() {
                   </Button>
                 ))}
               </div>
+              </>
             ) : (
               <Button block variant="secondary" onClick={() => setFlipped(true)}>답 보기</Button>
             )}

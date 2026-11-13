@@ -8,24 +8,19 @@ import { NotesPdf } from "./LectureExtras";
 import Study from "./Study";
 import { StoryEntry } from "./Story";
 import { Skeleton } from "../lib/motion";
+import SlidingTabs from "../components/SlidingTabs";
 
 const TABS = [["notes", "필기"], ["study", "공부하기"], ["glossary", "용어 사전"]] as const;
 
 export default function Session({ docId, sessionId, tab }: { docId: string; sessionId: string; tab: string }) {
   const { data: doc } = useApi<DocumentDetail>(`/documents/${docId}`);
-  const title = { notes: doc?.title ?? "강의", study: "공부하기", glossary: "용어 사전" }[tab] ?? "강의";
+  const title = doc?.title ?? "강의";
 
   return (
     <div className="screen">
       <TopBar title={title} onBack={() => back({ name: "doc", docId })} />
       <div className="screen-body">
-        <div className="scroll-x" role="tablist">
-          {TABS.map(([key, label]) => (
-            <Chip key={key} variant={tab === key ? "selected" : "default"} onClick={() => go({ name: "session", docId, sessionId, tab: key })}>
-              {label}
-            </Chip>
-          ))}
-        </div>
+        <SlidingTabs label="강의 보기" items={TABS} value={tab as (typeof TABS)[number][0]} onChange={(key) => go({ name: "session", docId, sessionId, tab: key })} />
         {tab === "notes" && doc && (
           <>
             <Button variant="secondary" icon={doc.kind === "notebook" ? "notebook" : "file-pdf"}

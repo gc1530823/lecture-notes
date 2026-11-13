@@ -1,10 +1,13 @@
 // 4 공부하기: 요약 · 퀴즈 · 플래시카드 · 개념 · 마인드맵 · 암기 · AI 튜터
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { ClozeItem, Concept, Flashcard, MindNode, StudyResponse, SummaryResponse, TutorReply } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, TermCard } from "../components/ui";
 import { ConfusedPane } from "./ExamPrep";
+import { play } from "../lib/sound";
 import QuizCards from "./QuizCards";
+import SlidingTabs from "../components/SlidingTabs";
+import { useSwipe } from "../lib/gesture";
 
 const KINDS = [["summary", "요약"], ["quiz", "퀴즈 카드"], ["flashcards", "플래시카드"], ["concepts", "개념"], ["mindmap", "마인드맵"], ["cloze", "암기"], ["confused", "모르겠다"], ["tutor", "AI 튜터"]] as const;
 type Kind = (typeof KINDS)[number][0];
@@ -15,10 +18,8 @@ export default function Study({ sessionId }: { sessionId: string }) {
   const { data: lang } = useApi<{ english: boolean }>(`/sessions/${sessionId}/language`);
   return (
     <>
-      <div className="scroll-x" role="tablist" aria-label="공부 도구">
-        {lang?.english && <Chip variant={kind === "bilingual" ? "accent" : "default"} onClick={() => setKind("bilingual")}>영어 이중 노트</Chip>}
-        {KINDS.map(([k, label]) => <Chip key={k} variant={kind === k ? "accent" : "default"} onClick={() => setKind(k)}>{label}</Chip>)}
-      </div>
+      <SlidingTabs scroll label="공부 도구" value={kind} onChange={setKind}
+        items={lang?.english ? [["bilingual", "영어 이중 노트"] as const, ...KINDS] : KINDS} />
       {kind === "summary" && <SummaryPane sessionId={sessionId} />}
       {kind === "quiz" && <QuizCards makePath={`/sessions/${sessionId}/quiz-set`} scopeLabel="이번 강의의 자료와 교수님 설명을" />}
       {kind === "flashcards" && <AIStudy<Flashcard[]> sessionId={sessionId} kind="flashcards" render={(b) => <Flashcards cards={b} />} />}
@@ -78,6 +79,15 @@ function Flashcards({ cards }: { cards: Flashcard[] }) {
   const [i, setI] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [again, setAgain] = useState<number[]>([]);
+  const cardRef = useRef<HTMLButtonElement>(null);
+  const next = useCallback((know: boolean) => {
+    if (!know && i < cards.length) setAgain((a) => [...a, i]);
+    setI((n) => n + 1);
+    setFlipped(false);
+  }, [i, cards.length]);
+  const onLeft = useCallback(() => next(false), [next]);
+  const onRight = useCallback(() => next(true), [next]);
+  useSwipe(cardRef, { onLeft, onRight, bind: `${i}-${flipped}` });
   if (cards.length === 0) return <Empty icon="cards">만들 카드가 없었어요</Empty>;
   const deck = i < cards.length ? cards : again.map((n) => cards[n]);
   const index = i < cards.length ? i : i - cards.length;
@@ -90,15 +100,11 @@ function Flashcards({ cards }: { cards: Flashcard[] }) {
     );
   }
   const card = deck[index];
-  const next = (know: boolean) => {
-    if (!know && i < cards.length) setAgain([...again, i]);
-    setI(i + 1);
-    setFlipped(false);
-  };
   return (
     <>
       <p className="t-caption faint" style={{ textAlign: "center" }}>{index + 1} / {deck.length}{i >= cards.length ? " · 다시 보기" : ""}</p>
-      <button key={`${i}-${flipped}`} className="flashcard flip-in" data-flipped={flipped} onClick={() => setFlipped(!flipped)} aria-live="polite">
+      <div className="swipe-hint" aria-hidden="true"><span>← 다시 볼래요</span><span>알아요 →</span></div>
+      <button ref={cardRef} key={`${i}-${flipped}`} className="flashcard flip-in swipe-card" data-flipped={flipped} onClick={() => { setFlipped(!flipped); play("flip"); }} aria-live="polite">
         <Chip variant="accent">{card.page_no}쪽</Chip>
         <span className={flipped ? "t-body" : "t-title-m"}>{flipped ? card.back : card.front}</span>
         <span className="t-caption faint">{flipped ? "질문으로 돌아가기" : "눌러서 답 보기"}</span>

@@ -89,7 +89,7 @@ export default function DocDetail({ docId }: { docId: string }) {
             <h2 className="t-title-s section-title">지난 강의</h2>
             {doc.sessions.length === 0 && <p className="muted">아직 녹음한 강의가 없어요.</p>}
             {doc.sessions.map((s, i) => (
-              <ListItem key={s.id} icon="headphones" tone={courseTone(doc.course)} art={<Wave data={waves[s.id]} />}
+              <ListItem key={s.id} icon="headphones" tone={courseTone(doc.course)} art={waves[s.id]?.w ? <Wave data={waves[s.id]} /> : undefined}
                 title={new Date(s.started_at * 1000).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit" })}
                 subtitle={`${doc.sessions.length - i}번째 강의 · ${STATUS[s.status] ?? s.status}`}
                 onClick={() => go({ name: "session", docId, sessionId: s.id, tab: "notes" })} />

@@ -2,11 +2,12 @@
 // AI가 강의자료와 수업 내용을 먼저 공부한 뒤 객관식 · OX · 빈칸 · 단답 · 서술 카드를 섞어 낸다 (server/app/quiz.py)
 // 카드 앞면에서 답하면 AI가 채점하고 카드가 뒤집혀 결과 · 모범 답안 · 해설을 보여 준다.
 // 다 풀면 틀린 카드만 모아 보통 플래시카드처럼(눌러서 답 보기) 다시 넘겨 볼 수 있다.
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getJSON, postJSON } from "../api/useApi";
 import { Button, Chip, TopBar } from "../components/ui";
 import { back } from "../router";
 import { play } from "../lib/sound";
+import { useSwipe } from "../lib/gesture";
 
 type Verdict = "correct" | "partial" | "wrong";
 interface Result { verdict: Verdict; score: number; feedback: string; given: string }
@@ -52,6 +53,11 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
   const [at, setAt] = useState(0);            // 지금 보고 있는 카드
   const [review, setReview] = useState<number | null>(null); // 틀린 카드 다시 보기: 몇 번째
   const [shown, setShown] = useState(false);  // 다시 보기 카드 뒤집힘
+  // 채점된 카드는 옆으로 밀어서 다음 카드로
+  const backRef = useRef<HTMLDivElement>(null);
+  const toNext = useCallback(() => setAt((n) => n + 1), []);
+  const graded = !!set?.questions[at]?.result;
+  useSwipe(backRef, { onLeft: toNext, onRight: toNext, enabled: graded, bind: at });
 
   // 풀던 퀴즈가 있으면 이어서
   useEffect(() => {
@@ -74,6 +80,7 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
     if (!set || grading || !answer.trim()) return;
     const q = set.questions[at];
     setGrading(true); setError(null);
+    play("send");
     try {
       const graded = await postJSON<Question & { done: boolean }>(`/quiz-sets/${set.id}/grade`, { index: q.index, answer });
       const questions = set.questions.map((x) => x.index === q.index ? graded : x);
@@ -224,7 +231,7 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
           </div>
         ) : (
           // 뒷면: 채점 결과
-          <div key={`b${at}`} className={`flashcard qz-card qz-back flip-in ${r.verdict}`} data-flipped="true">
+          <div ref={backRef} key={`b${at}`} className={`flashcard qz-card qz-back flip-in swipe-card ${r.verdict}`} data-flipped="true">
             <CardHead q={q} total={total} />
             <b className="qz-verdict"><Mark verdict={r.verdict} />{VERDICT[r.verdict]}</b>
             <p className="qz-given"><span>내 답</span>{q.type === "mcq" ? `${r.given}. ${q.choices[pickedIndex] ?? ""}` : r.given}</p>
@@ -234,7 +241,8 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
           </div>
         )}
       </div>
-      {r && <Button block onClick={() => { setAt(at + 1); play("flip"); }}>{at + 1 < total ? "다음 카드" : "결과 보기"}</Button>}
+      {r && <Button block onClick={() => { setAt(at + 1); play("swish"); }}>{at + 1 < total ? "다음 카드" : "결과 보기"}</Button>}
+      {r && <p className="t-caption faint" style={{ textAlign: "center", margin: 0 }}>카드를 옆으로 밀어도 넘어가요</p>}
       {error && <p className="qz-error">{error}</p>}
     </div>
   );

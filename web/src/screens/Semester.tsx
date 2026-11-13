@@ -1,4 +1,5 @@
 // 학기 전체: 개념 지도(2D) · 학기 튜터 · 시험 D-day
+import SlidingTabs from "../components/SlidingTabs";
 import { useEffect, useMemo, useState } from "react";
 import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
@@ -57,11 +58,8 @@ export default function Semester({ tab }: { tab: string }) {
     <div className="screen">
       <TopBar title="학기 전체" onBack={() => back({ name: "home" })} />
       <div className="screen-body">
-        <div className="scroll-x" role="tablist">
-          {([["map", "개념 지도"], ["tutor", "학기 튜터"], ["exams", "시험 D-day"]] as const).map(([k, l]) => (
-            <Chip key={k} variant={tab === k ? "selected" : "default"} onClick={() => go({ name: "semester", tab: k })}>{l}</Chip>
-          ))}
-        </div>
+        <SlidingTabs label="학기 전체" items={[["map", "개념 지도"], ["tutor", "학기 튜터"], ["exams", "시험 D-day"]] as const}
+          value={tab as "map" | "tutor" | "exams"} onChange={(k) => go({ name: "semester", tab: k })} />
         {tab === "map" && <ConceptMap />}
         {tab === "tutor" && <SemesterTutor />}
         {tab === "exams" && <Exams />}

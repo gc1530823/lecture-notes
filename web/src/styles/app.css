@@ -970,3 +970,70 @@ body:has(.tabbar) .screen { padding-bottom: calc(72px + env(safe-area-inset-bott
 .grade-row .btn { min-height: 58px; }
 .grade-label { display: flex; flex-direction: column; align-items: center; gap: 2px; font: 700 13px/17px var(--font-sans); }
 .grade-label small { font: 500 11px/14px var(--font-sans); opacity: .75; }
+
+/* ── 움직임 더하기: 미끄러지는 탭 · 밀어 넘기는 카드 · 넘어가는 배너 ── */
+.slide-tabs { position: relative; display: flex; gap: 2px; padding: 4px; border-radius: 16px; background: var(--fill-soft); overflow: hidden; }
+.slide-tabs.scroll { overflow-x: auto; scrollbar-width: none; }
+.slide-tabs.scroll::-webkit-scrollbar { display: none; }
+.slide-tabs button { position: relative; z-index: 1; flex: 1 0 auto; padding: 9px 14px; border: 0; border-radius: 12px; background: none; color: var(--text-secondary); font: 600 14px/20px var(--font-sans); white-space: nowrap; cursor: pointer; transition: color .25s; }
+.slide-tabs:not(.scroll) button { flex: 1 1 0; }
+.slide-tabs button.on { color: var(--accent-primary); font-weight: 700; }
+.slide-pill { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; border-radius: 12px; background: var(--bg-card); box-shadow: 0 2px 8px rgb(60 50 140 / .12);
+  transition: transform .42s cubic-bezier(.3,1.35,.5,1), width .42s cubic-bezier(.3,1.35,.5,1); }
+
+.swipe-card { touch-action: pan-y; user-select: none; will-change: transform; }
+.swipe-card[data-swipe="right"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--leaf) 55%, transparent), 0 10px 30px rgb(60 50 140 / .1); }
+.swipe-card[data-swipe="left"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-record) 50%, transparent), 0 10px 30px rgb(60 50 140 / .1); }
+.swipe-hint { display: flex; justify-content: space-between; padding: 0 6px; font: 600 11px/16px var(--font-sans); color: var(--text-tertiary); }
+.swipe-hint span:first-child { color: color-mix(in srgb, var(--accent-record) 70%, var(--text-tertiary)); }
+.swipe-hint span:last-child { color: color-mix(in srgb, var(--leaf) 75%, var(--text-tertiary)); }
+
+.hero-carousel { display: flex; flex-direction: column; gap: 8px; }
+.hero-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 22px; gap: 0; }
+.hero-track::-webkit-scrollbar { display: none; }
+.hero-track .hero-card { flex: 0 0 100%; scroll-snap-align: center; scroll-snap-stop: always; min-height: 112px; }
+.hero-card.tone-rose { background: linear-gradient(120deg, #f2486e 0%, #ff7a93 60%, #ff9eb0 100%); box-shadow: 0 12px 28px rgb(242 72 110 / .28); }
+.hero-card.tone-sky { background: linear-gradient(120deg, #2f7bf6 0%, #5a9bff 60%, #86b6ff 100%); box-shadow: 0 12px 28px rgb(47 123 246 / .28); }
+.hero-card .hero-art { transition: transform .6s cubic-bezier(.3,1.4,.5,1); }
+.hero-card:not(.on) .hero-art { transform: translateY(14px) rotate(-12deg) scale(.85); }
+.hero-card.on b, .hero-card.on span { animation: rise .5s cubic-bezier(.2,.8,.2,1) both; }
+.hero-card.on span { animation-delay: .06s; }
+.hero-dots { display: flex; justify-content: center; gap: 6px; }
+.hero-dots i { width: 6px; height: 6px; border-radius: 99px; background: var(--border-line); transition: width .35s cubic-bezier(.3,1.4,.5,1), background .3s; }
+.hero-dots i.on { width: 20px; background: var(--accent-primary); }
+
+/* 손보기: D-day 글자는 한 줄로, 찾기 칸 테두리는 보라, 아래 탭은 고르면 통 */
+.dday { white-space: nowrap; letter-spacing: -.02em; font-size: 12px; }
+.input:focus, input.input:focus, textarea:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 18%, transparent); }
+.tabbar button.on svg { animation: tab-hop .45s cubic-bezier(.3,1.6,.5,1); }
+@keyframes tab-hop { 40% { transform: translateY(-4px) scale(1.12); } }
+@media (prefers-reduced-motion: reduce) {
+  .slide-pill, .hero-card .hero-art { transition: none; }
+  .hero-card.on b, .hero-card.on span, .tabbar button.on svg { animation: none; }
+}
+
+/* 녹음 파형 (목록 아이콘 · 녹음 중 실시간). 디자인을 바꾸며 빠졌던 것을 되살림 */
+.wave { display: grid; align-items: center; gap: 1.5px; width: 100%; height: 100%; color: var(--accent-primary); }
+.wave i { background: linear-gradient(180deg, color-mix(in srgb, currentColor 55%, #fff), currentColor); border-radius: 99px; min-height: 2px; animation: wave-in .5s cubic-bezier(.3,1.5,.5,1) both; transform-origin: center; }
+.wave i.exam { background: var(--accent-record); }
+.wave.empty i { opacity: .35; }
+.list-item:hover .wave i, .list-item:focus-visible .wave i { animation: wave-dance .9s ease-in-out infinite alternate; }
+.list-item:hover .wave i:nth-child(2n) { animation-delay: -.3s; } .list-item:hover .wave i:nth-child(3n) { animation-delay: -.6s; }
+@keyframes wave-in { from { transform: scaleY(.1); opacity: 0; } }
+@keyframes wave-dance { to { transform: scaleY(.55); } }
+.live-wave { flex: 1; display: grid; grid-template-columns: repeat(44, 1fr); align-items: center; gap: 2px; height: 44px; }
+.live-wave i { height: 100%; border-radius: 99px; transform: scaleY(.04); transition: transform .16s ease-out; }
+.live-wave i:nth-child(-n+8) { opacity: .35; } .live-wave i:nth-child(n+9):nth-child(-n+18) { opacity: .6; }
+@media (prefers-reduced-motion: reduce) { .wave i, .list-item:hover .wave i { animation: none; } }
+
+/* 시간표 편집의 주간 격자 (디자인을 바꾸며 빠졌던 것) */
+.week { display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
+.week-head { display: grid; padding-left: 26px; gap: 3px; }
+.week-head span { text-align: center; font: 700 12px/18px var(--font-sans); color: var(--text-tertiary); border-radius: 9px; }
+.week-head span.today { background: var(--accent-primary); color: #fff; }
+.week-body { position: relative; display: grid; padding-left: 26px; gap: 3px; }
+.week-hour { position: absolute; left: 0; width: 22px; text-align: right; font: 500 10px/1 var(--font-sans); color: var(--text-tertiary); transform: translateY(-50%); }
+.week-col { position: relative; border-radius: 6px; background: repeating-linear-gradient(var(--fill-soft) 0 1px, transparent 1px var(--hour)); }
+.week-now { position: absolute; left: -2px; right: -2px; height: 2px; background: var(--accent-record); border-radius: 1px; z-index: 1; }
+.week-block { position: absolute; left: 0; right: 0; padding: 3px 4px; overflow: hidden; text-align: left; font: 700 10.5px/13px var(--font-sans); }
+.week-block small { display: none; }

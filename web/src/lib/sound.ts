@@ -1,11 +1,12 @@
 // 효과음: 공부하는 자리에 맞게 아주 잔잔하게. 파일 없이 Web Audio로 그 자리에서 만든다.
-// - 소리는 의미 있는 순간에만: 정답·오답, 복습 끝, 녹음 시작·끝, 시험 얘기가 나왔을 때. 버튼마다 나는 소리는 없다
+// - 소리는 의미 있는 순간에만: 정답·오답, 복습 끝, 녹음 시작·끝, 시험 얘기가 나왔을 때,
+//   카드 넘기기(바람)·탭 바꾸기(작은 나무 소리)·답 보내기. 버튼마다 나는 소리는 없다
 // - 음색은 나무 마림바처럼 둥글고 짧게 (사인파 + 금방 사라지는 배음), 살짝 울림을 남긴다
 // - 모든 소리가 같은 음계(C 펜타토닉)라 이어서 나도 어울린다. 크기는 작게
 // - 녹음 중에는 소리를 내지 않고 진동만 (마이크에 섞여 받아쓰기를 망치지 않게)
 // - 설정(더보기)에서 끌 수 있다. 소리는 사용자가 한 번이라도 누른 뒤에만 난다 (브라우저 규칙)
 
-type Name = "tap" | "pop" | "success" | "wrong" | "flip" | "turn" | "alert" | "note" | "start" | "stop" | "levelup" | "complete";
+type Name = "tap" | "pop" | "success" | "wrong" | "flip" | "turn" | "alert" | "note" | "start" | "stop" | "levelup" | "complete" | "tick" | "swish" | "slide" | "send" | "open";
 
 let ctx: AudioContext | null = null;
 let bus: GainNode | null = null;
@@ -64,6 +65,25 @@ function mallet(a: AudioContext, out: AudioNode, freq: number, at: number, vol =
   body.stop(t + length + 0.05); knock.stop(t + 0.1);
 }
 
+/** 바람 스치는 소리: 카드를 옆으로 넘길 때 (걸러 낸 잡음이 높은 곳에서 낮은 곳으로) */
+function air(a: AudioContext, out: AudioNode, dur = 0.22, vol = 0.03) {
+  const len = Math.floor(a.sampleRate * dur);
+  const buf = a.createBuffer(1, len, a.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.sin((Math.PI * i) / len);
+  const src = a.createBufferSource();
+  src.buffer = buf;
+  const filter = a.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.Q.value = 1.2;
+  filter.frequency.setValueAtTime(2600, a.currentTime);
+  filter.frequency.exponentialRampToValueAtTime(700, a.currentTime + dur);
+  const gain = a.createGain();
+  gain.gain.value = vol;
+  src.connect(filter).connect(gain).connect(out);
+  src.start();
+}
+
 /** 종이 넘기는 소리: 아주 작은 걸러 낸 잡음 */
 function paper(a: AudioContext, out: AudioNode, dur = 0.14, vol = 0.025) {
   const len = Math.floor(a.sampleRate * dur);
@@ -96,6 +116,11 @@ export function play(name: Name) {
   if (a.state === "suspended") void a.resume();
   switch (name) {
     case "tap": break;                                   // 버튼마다 소리는 내지 않는다
+    case "tick": mallet(a, out, N.C6, 0, 0.012, 0.12); break;          // 탭 바꾸기: 아주 작은 나무 똑
+    case "swish": air(a, out, 0.22, 0.03); break;                       // 카드 넘기기
+    case "slide": air(a, out, 0.16, 0.015); break;                      // 배너 넘어가기
+    case "send": mallet(a, out, N.G5, 0, 0.025, 0.25); mallet(a, out, N.C6, 0.06, 0.02, 0.3); break; // 답 보내기
+    case "open": mallet(a, out, N.E5, 0, 0.025, 0.35); paper(a, out, 0.1, 0.012); break;          // 화면·시트 열기
     case "pop": mallet(a, out, N.G5, 0, 0.035, 0.35); break;
     case "flip": paper(a, out, 0.12, 0.02); break;
     case "turn": paper(a, out, 0.16, 0.025); break;

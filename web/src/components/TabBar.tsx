@@ -1,6 +1,7 @@
 // 아래 탭 (참고 디자인): 홈 · 복습 · 찾기 · 더보기. 이 네 화면에서만 보인다 (App.tsx)
 import { go } from "../router";
 import { Icon } from "./ui";
+import { play } from "../lib/sound";
 
 /** 아래 탭: 홈 · 복습 · 찾기 · 설정 */
 export default function TabBar({ current }: { current: "home" | "review" | "search" | "more" }) {
@@ -9,7 +10,7 @@ export default function TabBar({ current }: { current: "home" | "review" | "sear
   return (
     <nav className="tabbar" aria-label="아래 탭">
       {tabs.map(([key, icon, label, onClick]) => (
-        <button key={key} className={current === key ? "on" : ""} onClick={onClick} aria-current={current === key ? "page" : undefined}>
+        <button key={key} className={current === key ? "on" : ""} onClick={() => { if (current !== key) { play("tick"); onClick(); } }} aria-current={current === key ? "page" : undefined}>
           <Icon name={icon} size={22} />{label}
         </button>
       ))}

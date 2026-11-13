@@ -12,6 +12,7 @@ import { Skeleton } from "../lib/motion";
 import { courseTone } from "../lib/course";
 import { useWaves, Wave } from "../lib/wave";
 import { go } from "../router";
+import { play } from "../lib/sound";
 
 
 export function subtitleOf(doc: DocumentBrief): string {
@@ -147,7 +148,7 @@ export default function Home() {
         </div>
       </header>
       <div className="screen-body">
-        <HeroCard line={line} />
+        <HeroCarousel line={line} quizDoc={latestSlides} />
         <div className="tiles">
           <Tile icon="calendar" title="오늘의 복습" sub="망각 곡선" onClick={() => go({ name: "review" })} />
           <Tile icon="star" title="족보 노트" sub="시험 핵심 정리" onClick={() => latestSlides ? go({ name: "jokbo", docId: latestSlides.id }) : alert("강의자료를 먼저 올려 주세요")} />
@@ -186,7 +187,7 @@ export default function Home() {
               <h2 className={`course-title ${courseTone(course)}`}><span>{course || "과목 없음"}</span> <small>{list.length}</small></h2>
             )}
             {list.map((doc, i) => (
-              <ListItem key={doc.id} index={i} tone={courseTone(doc.course)} art={doc.sessions[0] ? <Wave data={waves[doc.sessions[0].id]} /> : undefined} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
+              <ListItem key={doc.id} index={i} tone={courseTone(doc.course)} art={doc.sessions[0] && waves[doc.sessions[0].id]?.w ? <Wave data={waves[doc.sessions[0].id]} /> : undefined} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
                 subtitle={subtitleOf(doc)} onClick={() => go({ name: "doc", docId: doc.id })} />
             ))}
           </section>
@@ -206,15 +207,65 @@ export default function Home() {
 }
 
 /** 보라 배너: 인사 + 오늘의 복습 (참고 디자인의 "오늘도 수고했어요!") */
-function HeroCard({ line }: { line: string }) {
+/** 맨 위 배너: 옆으로 밀어 넘기는 카드 (복습 · 시험 D-day · AI 퀴즈). 가만히 두면 6초마다 저절로 넘어간다 */
+function HeroCarousel({ line, quizDoc }: { line: string; quizDoc?: DocumentBrief }) {
   const [count, setCount] = useState<number | null>(null);
-  useEffect(() => { getJSON<{ cards: unknown[] }>("/review/today").then((t) => setCount(t.cards.length)).catch(() => setCount(null)); }, []);
+  const [exam, setExam] = useState<{ title: string; days: number } | null>(null);
+  const [at, setAt] = useState(0);
+  const track = useRef<HTMLDivElement>(null);
+  const touched = useRef(false);
+  useEffect(() => {
+    getJSON<{ cards: unknown[] }>("/review/today").then((t) => setCount(t.cards.length)).catch(() => setCount(null));
+    getJSON<{ title: string; exam_date: string }[]>("/exams").then((list) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const next = list.filter((e) => e.exam_date >= today).sort((a, b) => a.exam_date.localeCompare(b.exam_date))[0];
+      if (next) setExam({ title: next.title, days: Math.round((new Date(next.exam_date + "T00:00:00").getTime() - new Date(today + "T00:00:00").getTime()) / 86400000) });
+    }).catch(() => {});
+  }, []);
+  const slides = [
+    { key: "review", tone: "violet", icon: "graduation-cap", title: line,
+      sub: count ? `오늘의 복습 ${count}장을 시작해 볼까요?` : count === 0 ? "오늘 복습은 다 했어요. 새 강의를 들어 볼까요?" : "강의를 듣고 나면 복습 카드가 쌓여요",
+      go: () => go({ name: "review" }) },
+    ...(exam ? [{ key: "exam", tone: "rose", icon: "target", title: `${exam.title} ${exam.days === 0 ? "D-DAY" : `D-${exam.days}`}`,
+      sub: exam.days === 0 ? "오늘이에요! 족보 노트로 마지막 정리" : "남은 날에 맞춘 오늘의 공부 계획 보기", go: () => go({ name: "semester", tab: "exams" }) }] : []),
+    ...(quizDoc ? [{ key: "quiz", tone: "sky", icon: "brain", title: "AI 퀴즈 카드",
+      sub: `${quizDoc.title}, AI가 낸 문제로 실력 확인`, go: () => go({ name: "quiz", docId: quizDoc.id }) }] : []),
+  ];
+  // 저절로 넘기기 (손대면 멈춘다)
+  useEffect(() => {
+    if (slides.length < 2 || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = window.setInterval(() => {
+      if (touched.current || document.hidden) return;
+      const el = track.current;
+      if (!el) return;
+      const next = (Math.round(el.scrollLeft / el.clientWidth) + 1) % slides.length;
+      el.scrollTo({ left: next * el.clientWidth, behavior: "smooth" });
+    }, 6000);
+    return () => window.clearInterval(t);
+  }, [slides.length]);
+  const onScroll = () => {
+    const el = track.current;
+    if (!el) return;
+    const n = Math.round(el.scrollLeft / el.clientWidth);
+    if (n !== at) { setAt(n); if (touched.current) play("slide"); }
+  };
   return (
-    <button className="hero-card" onClick={() => go({ name: "review" })}>
-      <b>{line}</b>
-      <span>{count ? `오늘의 복습 ${count}장을 시작해 볼까요?` : count === 0 ? "오늘 복습은 다 했어요. 새 강의를 들어 볼까요?" : "강의를 듣고 나면 복습 카드가 쌓여요"}</span>
-      <svg className="hero-art" aria-hidden="true"><use href={`${import.meta.env.BASE_URL}icons.svg#dt-graduation-cap`} /></svg>
-    </button>
+    <div className="hero-carousel">
+      <div ref={track} className="hero-track" onScroll={onScroll} onPointerDown={() => { touched.current = true; }}>
+        {slides.map((s, i) => (
+          <button key={s.key} className={`hero-card tone-${s.tone}${i === at ? " on" : ""}`} onClick={s.go}>
+            <b>{s.title}</b>
+            <span>{s.sub}</span>
+            <svg className="hero-art" aria-hidden="true"><use href={`${import.meta.env.BASE_URL}icons.svg#dt-${s.icon}`} /></svg>
+          </button>
+        ))}
+      </div>
+      {slides.length > 1 && (
+        <div className="hero-dots" aria-hidden="true">
+          {slides.map((s, i) => <i key={s.key} className={i === at ? "on" : ""} />)}
+        </div>
+      )}
+    </div>
   );
 }
 
