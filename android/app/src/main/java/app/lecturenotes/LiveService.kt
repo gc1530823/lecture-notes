@@ -70,6 +70,7 @@ class LiveService : Service() {
     @Volatile private var device: DeviceStt? = null
     private var samplesSeen = 0L      // 강의 시작부터 들은 소리 길이 (문장 시각을 매긴다)
     private var sentenceStart = -1L
+    private var levelTick = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -203,6 +204,17 @@ class LiveService : Service() {
             while (!stopping) {
                 val n = record.read(buffer, 0, buffer.size)
                 if (n > 0) {
+                    // 화면의 실시간 파형용: 0.2초마다 그 조각의 가장 큰 소리 크기(0~1)를 보낸다
+                    if (++levelTick % 2 == 0) {
+                        var peak = 0
+                        var i = 0
+                        while (i + 1 < n) {
+                            val v = kotlin.math.abs(((buffer[i].toInt() and 0xff) or (buffer[i + 1].toInt() shl 8)).toShort().toInt())
+                            if (v > peak) peak = v
+                            i += 2
+                        }
+                        emit("""{"type":"level","v":${peak / 32768f}}""")
+                    }
                     queueAudio(buffer.copyOf(n).toByteString())
                     device?.let { hear(it, buffer, n) }
                 }

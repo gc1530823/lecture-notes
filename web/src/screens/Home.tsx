@@ -11,6 +11,7 @@ import { Timetable } from "./Timetable";
 import { StreakCard } from "./Story";
 import { Skeleton } from "../lib/motion";
 import { courseTone } from "../lib/course";
+import { useWaves, Wave } from "../lib/wave";
 import { go } from "../router";
 
 
@@ -63,6 +64,7 @@ function greeting(now = new Date()): string {
 export default function Home() {
   const { data: docs, error, loading, reload } = useApi<DocumentBrief[]>("/documents");
   useReminder();
+  const waves = useWaves();
   // 과목 폴더: "all" = 전체, "" = 과목 없음, 그 밖에는 과목 이름 (기기에 기억)
   const [filter, setFilter] = useState<string>(() => { try { return localStorage.getItem("ln.course") ?? "all"; } catch { return "all"; } });
   const pick = (c: string) => { setFilter(c); try { localStorage.setItem("ln.course", c); } catch { /* 괜찮다 */ } };
@@ -154,7 +156,7 @@ export default function Home() {
               <h2 className={`course-title ${courseTone(course)}`}><span>{course || "과목 없음"}</span> <small>{list.length}</small></h2>
             )}
             {list.map((doc, i) => (
-              <ListItem key={doc.id} index={i} tone={courseTone(doc.course)} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
+              <ListItem key={doc.id} index={i} tone={courseTone(doc.course)} art={doc.sessions[0] ? <Wave data={waves[doc.sessions[0].id]} /> : undefined} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
                 subtitle={subtitleOf(doc)} onClick={() => go({ name: "doc", docId: doc.id })} />
             ))}
           </section>

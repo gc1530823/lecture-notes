@@ -61,7 +61,12 @@ export class NativeLive implements Live {
     this.bridge = bridge;
     this.sessionId = sessionId;
     (window as unknown as { __androidLiveEvent?: (t: string) => void }).__androidLiveEvent = (text: string) => {
-      try { onEvent(JSON.parse(text)); } catch { /* 모르는 이벤트 */ }
+      try {
+        const event = JSON.parse(text);
+        // 앱이 보내는 마이크 크기는 화면의 실시간 파형으로만 간다
+        if (event.type === "level") window.dispatchEvent(new CustomEvent("ln-level", { detail: Number(event.v) || 0 }));
+        else onEvent(event);
+      } catch { /* 모르는 이벤트 */ }
     };
   }
 
@@ -148,6 +153,7 @@ export async function startMicrophone(onChunk: (pcm: ArrayBuffer, level: number)
       peak = Math.max(peak, Math.abs(v));
       out[i] = v * 0x7fff;
     }
+    window.dispatchEvent(new CustomEvent("ln-level", { detail: peak }));
     onChunk(out.buffer, peak);
   };
   source.connect(proc);

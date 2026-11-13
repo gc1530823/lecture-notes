@@ -185,7 +185,7 @@ export function StreakCard() {
         <b><Count to={data.streak} /><small>일째</small></b>
         <span className="list-item-sub">{data.today ? "오늘 공부 완료" : data.streak > 0 ? "오늘도 하면 이어져요" : `최고 ${data.best}일`}</span>
       </span>
-      <span className="streak-cells" aria-label="이번 주">
+      <span className="streak-cells rhythm" aria-label="이번 주">
         {data.week.map((d, i) => (
           <span key={d.date} className={`${d.done ? "done" : ""}${i === data.week.length - 1 ? " today" : ""}`}>
             <i style={{ animationDelay: `${150 + i * 50}ms` }} />{names[new Date(d.date + "T00:00:00").getDay()]}

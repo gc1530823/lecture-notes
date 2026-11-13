@@ -33,12 +33,12 @@ export function Chip({ variant = "default", children, onClick }: { variant?: Chi
   );
 }
 
-export function ListItem({ icon, title, subtitle, onClick, index, tone }: { icon: string; title: string; subtitle?: string; onClick?: () => void; index?: number; tone?: string }) {
+export function ListItem({ icon, title, subtitle, onClick, index, tone, art }: { icon: string; title: string; subtitle?: string; onClick?: () => void; index?: number; tone?: string; art?: ReactNode }) {
   // index: 목록에서 몇 번째인지 → 차례로 올라오는 모션의 늦춤
   const style = index === undefined ? undefined : { animationDelay: `${Math.min(index, 8) * 45}ms` } as CSSProperties;
   const inner = (
     <>
-      <span className="list-item-icon"><Icon name={icon} /></span>
+      <span className={`list-item-icon${art ? " has-art" : ""}`}>{art ?? <Icon name={icon} />}</span>
       <span className="grow">
         <span className="t-title-s" style={{ display: "block" }}>{title}</span>
         {subtitle && <span className="list-item-sub">{subtitle}</span>}

@@ -101,3 +101,20 @@ def build_streak(stamps: list[float], tz_minutes: int, now: float) -> dict:
     week = [{"date": (today - datetime.timedelta(days=i)).isoformat(), "done": (today - datetime.timedelta(days=i)) in days}
             for i in range(6, -1, -1)]
     return {"streak": streak, "best": best, "today": today in days, "week": week, "days": len(days)}
+
+
+def wave(notes: list[dict], segments: list[dict], marks: list[dict], buckets: int = 28) -> dict:
+    """강의의 소리 무늬: 수업 흐름(1분 단위 중요도)을 같은 수의 막대로 줄인 것. 강의마다 다른 모양이 된다.
+    w: 막대 높이 0~9 를 이어 쓴 글자, x: 시험 언급이 있던 막대 번호"""
+    duration = max([s["end_ms"] for s in segments] + [a["start_ms"] for a in notes] + [0])
+    if duration == 0:
+        return {"w": "", "x": []}
+    minutes = build_flow(notes, segments, marks, duration)["minutes"]
+    heights, exams = [], []
+    for i in range(buckets):
+        part = minutes[i * len(minutes) // buckets: max(i * len(minutes) // buckets + 1, (i + 1) * len(minutes) // buckets)]
+        heights.append(max(m["weight"] for m in part))
+        if any(m["exam"] for m in part):
+            exams.append(i)
+    top = max(heights) or 1
+    return {"w": "".join(str(min(9, round(9 * h / top))) for h in heights), "x": exams}

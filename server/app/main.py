@@ -31,7 +31,7 @@ from .semester import anki_text, concept_map, exam_plan, semester_context, sessi
 from .notes_pdf import build_notes_pdf
 from .quick_notes import EXAM_TALK
 from .note_review import review_session
-from .story import build_story, build_streak
+from .story import build_story, build_streak, wave as build_wave
 from .recording import audio_file, recorded_ms, wav_parts
 from .pdf_parser import PDFParseError, extract_keywords, parse_pdf
 from .stt import make_transcriber
@@ -1173,6 +1173,19 @@ def session_story(session_id: str):
     return build_story(doc["title"], session["started_at"], db().list_annotations(session_id), db().get_segments(session_id),
                        db().list_marks(session_id), db().list_tasks(session_id), db().list_terms(session_id),
                        db().get_summary(session_id))
+
+
+@app.get("/waves")
+def waves(document_id: str | None = None):
+    """강의마다의 소리 무늬 (홈·강의 목록의 그림). 세션 id → {w, x}"""
+    out = {}
+    for d in db().list_documents():
+        if document_id and d["id"] != document_id:
+            continue
+        for s in d["sessions"]:
+            notes = [a for a in db().list_annotations(s["id"]) if not a["pending"]]
+            out[s["id"]] = build_wave(notes, db().get_segments(s["id"]), db().list_marks(s["id"]))
+    return out
 
 
 @app.get("/streak")

@@ -918,3 +918,16 @@ def test_note_review_ignores_mass_deletes():
     result = {"notes": [{"id": i, "action": "delete", "text": "", "page_no": 1} for i in range(3)], "missed": []}
     done = apply(Db(), "s", notes, result, {1}, [{"page_no": 1, "id": 1}])
     assert done["deleted"] == 0 and Db.deleted == []
+
+
+def test_each_lecture_gets_its_own_wave_shape(client):
+    from app.story import wave
+
+    segs = [{"start_ms": i * 60_000, "end_ms": i * 60_000 + 50_000, "text": "말" * (10 + 40 * (i % 3)), "page_no": 1, "loud": 0} for i in range(56)]
+    notes = [{"start_ms": 20 * 60_000, "type": "exam", "page_no": 1}]
+    w = wave(notes, segs, [])
+    assert len(w["w"]) == 28 and w["x"] == [10] and w["w"][10] == "9" and len(set(w["w"])) > 1
+    assert wave([], [], []) == {"w": "", "x": []}
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    assert session["id"] in client.get("/waves").json()

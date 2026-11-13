@@ -65,7 +65,6 @@ export function Timetable({ courses, onPick }: { courses: string[]; onPick: (cou
           <span className="list-item-chev"><Icon name="caret-right" size={18} /></span>
         </button>
       ) : null}
-      {rows.length > 0 && <WeekGrid rows={rows} onPick={onPick} />}
       <div className="row timetable-row">
         <span className="t-caption muted grow">
           {rows.length === 0 ? "시간표를 넣으면 수업 시간에 맞춰 과목을 바로 열어 줘요"
@@ -75,6 +74,7 @@ export function Timetable({ courses, onPick }: { courses: string[]; onPick: (cou
       </div>
       {editing && (
         <div className="timetable-edit">
+          {rows.length > 0 && <WeekGrid rows={rows} onPick={onPick} />}
           {DAYS.map((day, i) => {
             const list = rows.filter((r) => r.weekday === i);
             if (!list.length) return null;

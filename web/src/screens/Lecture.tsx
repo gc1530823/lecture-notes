@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { Annotation, DocumentDetail, GlossaryTerm, Page } from "../api/types";
 import { getJSON, postJSON } from "../api/useApi";
+import { LiveWave, refreshWaves } from "../lib/wave";
 import { android, browserRecognizer, LiveSocket, NativeLive, startMicrophone, type Live, type Mic, type ServerEvent } from "../lib/live";
 import { clock, NotesPdf, PlayerBar, TaskDetail, TaskList, usePlayer, type FullTask } from "./LectureExtras";
 import { ConsentSheet } from "./ExamPrep";
@@ -342,6 +343,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
 
   // 강의가 끝나면: 녹음 다시 듣기, 슬라이드에 없던 설명 표시
   const player = usePlayer(sessionId, phase === "ended");
+  useEffect(() => { if (phase === "ended") refreshWaves(); }, [phase]); // 새 강의의 소리 무늬를 목록에서 다시 받게
   // 스토리·수업 흐름에서 "이 순간 듣기"로 왔으면 녹음을 그 시각부터 튼다
   const playFromRef = useRef(player.playFrom);
   playFromRef.current = player.playFrom;
@@ -635,9 +637,10 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
             <Icon name="play" size={16} /> 처음부터 다시 보기 · 녹음에 맞춰 쪽·필기·자막이 따라와요
           </button>
         )}
+        {recording && <LiveWave loud={loud} />}
         {recording && !a11y && (
           <p className="caption-line t-caption" aria-live="polite">
-            <span className={`voice-bars${loud ? " loud" : ""}`} key={caption.length} aria-hidden="true"><i /><i /><i /><i /><i /></span>
+            <span className="rec-dot" />
             {loud && <span className="loud-tag">목소리 높임</span>}<span className="caption-text" key={caption.slice(0, 12)}>{caption}</span>
           </p>
         )}

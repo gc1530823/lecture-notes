@@ -13,13 +13,13 @@ function json(body: unknown, status = 200) {
 function pathOf(input: RequestInfo | URL): string {
   const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const url = new URL(raw, window.location.href);
-  return url.pathname.replace(/^.*?(\/(documents|sessions|semester|exams|review|privacy|health|timetable|streak|marks|tasks|annotations|shared|photos)(\/|$))/, "$1");
+  return url.pathname.replace(/^.*?(\/(documents|sessions|semester|exams|review|privacy|health|timetable|streak|waves|marks|tasks|annotations|shared|photos)(\/|$))/, "$1");
 }
 
 async function answer(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const path = pathOf(input);
   const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
-  if (!/^\/(documents|sessions|semester|exams|review|privacy|health|timetable|streak|marks|tasks|annotations|shared|photos)/.test(path)) {
+  if (!/^\/(documents|sessions|semester|exams|review|privacy|health|timetable|streak|waves|marks|tasks|annotations|shared|photos)/.test(path)) {
     return realFetch(input, init); // 아이콘·pdf.js 같은 페이지 자체 파일
   }
   if (method === "GET") {

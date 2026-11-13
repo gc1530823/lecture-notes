@@ -1747,6 +1747,51 @@
         }
       }
     },
+    "/waves": {
+      "get": {
+        "summary": "Waves",
+        "description": "강의마다의 소리 무늬 (홈·강의 목록의 그림). 세션 id → {w, x}",
+        "operationId": "waves_waves_get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/streak": {
       "get": {
         "summary": "Streak",
