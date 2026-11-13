@@ -1037,3 +1037,5 @@ body:has(.tabbar) .screen { padding-bottom: calc(72px + env(safe-area-inset-bott
 .week-now { position: absolute; left: -2px; right: -2px; height: 2px; background: var(--accent-record); border-radius: 1px; z-index: 1; }
 .week-block { position: absolute; left: 0; right: 0; padding: 3px 4px; overflow: hidden; text-align: left; font: 700 10.5px/13px var(--font-sans); }
 .week-block small { display: none; }
+.sound-preview { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 18px; background: var(--bg-card); box-shadow: var(--shadow-card); animation: rise .35s both; }
+.sound-preview div { display: flex; flex-wrap: wrap; gap: 6px; }

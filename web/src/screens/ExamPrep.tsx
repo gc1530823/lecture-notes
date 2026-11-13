@@ -1,6 +1,6 @@
 // 시험 공부 화면: 족보 노트 · 오늘의 복습(망각 곡선) · 개인정보와 녹음 동의
 import { useSwipe } from "../lib/gesture";
-import { play, setSoundOn, soundOn } from "../lib/sound";
+import { PREVIEW, play, setSoundOn, soundOn } from "../lib/sound";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
@@ -433,13 +433,21 @@ function groupNotes(notes: { who: string; text: string }[]) {
 function SoundToggle() {
   const [on, setOn] = useState(soundOn());
   return (
+    <>
     <button className="list-item" onClick={() => { setSoundOn(!on); setOn(!on); }} data-sound aria-pressed={on}>
       <span className="list-item-icon is-art"><Icon name="megaphone" art size={40} /></span>
       <span className="grow">
         <span className="t-title-s" style={{ display: "block" }}>효과음 {on ? "켜짐" : "꺼짐"}</span>
-        <span className="list-item-sub">누를 때·정답·복습 끝에 짧은 소리. 녹음 중에는 소리 대신 진동만 나요</span>
+        <span className="list-item-sub">정답·카드 넘기기·복습 끝 같은 순간에만 작게. 녹음 중에는 소리 대신 진동만 나요</span>
       </span>
       <span className={`switch${on ? " on" : ""}`} aria-hidden="true"><i /></span>
     </button>
+    {on && (
+      <div className="sound-preview">
+        <span className="t-caption muted">미리 듣기</span>
+        <div>{PREVIEW.map(([name, label]) => <button key={name} className="chip chip-default" onClick={() => play(name)}>{label}</button>)}</div>
+      </div>
+    )}
+    </>
   );
 }
