@@ -750,3 +750,55 @@ button.class-now:active { box-shadow: 0 0 0 var(--accent-deep); }
 .loud-tag { background: var(--note-emphasis-paper); color: var(--note-emphasis-ink); }
 .skeleton span { height: 14px; }
 .ob-art { color: var(--accent-primary); }
+
+/* ── 아이콘과 버튼을 모두 컨셉에 맞춘다 ──
+   큰 아이콘 = 쫑긋 스타일 그림 (바탕 칸 없이 그림만), 작은 조작 아이콘 = 굵은 선.
+   누를 수 있는 것은 모두 같은 규칙: 둥글고, 굵은 선, 아래 두께, 누르면 쑥 들어간다. */
+.icon.art { object-fit: contain; filter: drop-shadow(0 2px 3px rgb(60 30 0 / .18)); user-select: none; -webkit-user-drag: none; }
+.list-item-icon.is-art { background: transparent; width: 46px; height: 46px; padding: 0; transition: transform .3s var(--ease-bounce); }
+.list-item:active .list-item-icon.is-art { transform: scale(1.18) rotate(-8deg); }
+.class-now .list-item-icon.is-art { background: transparent; }
+.list-item.stagger .icon.art, .list-item .icon.art { animation: art-in .5s var(--ease-bounce) both; }
+@keyframes art-in { from { transform: scale(.4) rotate(-20deg); opacity: 0; } }
+
+/* 윗줄 버튼(뒤로·지우기 등): 작은 둥근 버튼 */
+.top-bar-back { width: 40px; height: 40px; margin-left: 0; border-radius: 14px; background: var(--bg-card); border: 2px solid var(--border-line); box-shadow: 0 3px 0 var(--line-deep);
+  color: var(--text-primary); transition: transform .08s ease-out, box-shadow .08s ease-out; }
+.top-bar-back:active { transform: translateY(3px); box-shadow: none; }
+.top-bar-back.on { background: var(--accent-primary); color: #fff; border-color: var(--accent-deep); box-shadow: 0 3px 0 var(--accent-deep); border-radius: 14px; }
+.top-bar { gap: 10px; }
+.home-head .row .top-bar-back { margin-left: 0; }
+
+/* 쪽 넘기기 */
+.pager button { width: 36px; height: 36px; border-radius: 12px; background: var(--bg-card); border: 2px solid var(--border-line); box-shadow: 0 3px 0 var(--line-deep); color: var(--text-primary);
+  transition: transform .08s ease-out, box-shadow .08s ease-out; }
+.pager button:active { transform: translateY(3px); box-shadow: none; }
+.pager { gap: 8px; }
+
+/* 칩도 버튼이면 아래 두께 */
+button.chip, a.chip { border: 2px solid var(--border-line); box-shadow: 0 3px 0 var(--line-deep); transition: transform .08s ease-out, box-shadow .08s ease-out; margin-bottom: 3px; }
+button.chip:active, a.chip:active { transform: translateY(3px); box-shadow: none; }
+button.chip-default { background: var(--bg-card); color: var(--text-secondary); }
+button.chip-selected { border-color: var(--accent-deep); box-shadow: 0 3px 0 var(--accent-deep); }
+.pick { box-shadow: 0 3px 0 var(--line-deep); margin-bottom: 3px; transition: transform .08s ease-out, box-shadow .08s ease-out, background-color .2s; }
+.pick.on { box-shadow: 0 3px 0 var(--accent-deep); }
+.pick:active { transform: translateY(3px); box-shadow: none; }
+
+/* 동그란 버튼: 그림 아이콘이 들어간다 */
+.round-soft { width: 50px; height: 50px; border-radius: 18px; }
+.bottom-bar .round-soft { width: 50px; height: 50px; }
+.round-record { background: var(--bg-card); border: 3px solid var(--accent-record); box-shadow: 0 5px 0 #b92c22; width: 66px; height: 66px; border-radius: 24px; }
+.round-record.on { background: var(--accent-record); }
+.round-record .stop { border-radius: 6px; }
+.round-record.on::after { border-radius: 24px; }
+
+/* 그 밖의 누르는 것들 */
+.play-chip, .replay-start, .flow-info, .story-foot .btn, .timetable-class button { transition: transform .08s ease-out, box-shadow .08s ease-out; }
+.replay-start { border: 2px solid var(--border-line); border-radius: 14px; box-shadow: 0 3px 0 var(--line-deep); background: var(--bg-card); padding: 8px 12px; }
+.replay-start:active, .flow-info:active { transform: translateY(3px); box-shadow: none; }
+.flow-info { border: 2px solid var(--border-line); box-shadow: 0 3px 0 var(--line-deep); background: var(--bg-card); }
+.flashcard { transition: transform .1s ease-out, box-shadow .1s ease-out; }
+.flashcard:active { transform: translateY(5px); box-shadow: 0 0 0 transparent; }
+.story-label .icon.art { margin: -6px 0 -6px -6px; }
+.btn .icon { width: 22px; height: 22px; }
+.list-item-chev { color: var(--accent-primary); }

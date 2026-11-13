@@ -4,8 +4,22 @@ import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import type { NoteType } from "../api/types";
 import { Mascot, type Mood } from "./Mascot";
 
-/** Phosphor 아이콘 (MIT, public/icons.svg 스프라이트) */
-export function Icon({ name, size = 22 }: { name: string; size?: number }) {
+// 큰 아이콘은 쫑긋과 같은 스타일로 AI가 그린 그림(public/art/*.webp)이다. 그림이 없는 이름은 굵은 선 아이콘으로.
+const ART = new Set(["microphone", "headphones", "notebook", "file-pdf", "book-open-text", "star", "target", "cards", "brain", "note-pencil", "graduation-cap",
+  "megaphone", "carrot", "magnifier", "shield-check", "calendar", "camera", "hand-palm", "hand-waving", "chats-circle", "chat-teardrop-text", "clock", "timer", "trash",
+  "clipboard-text", "check-circle", "warning-circle", "sparkle", "magic-wand", "tree-structure", "users", "chalkboard-teacher"]);
+const ART_ALIAS: Record<string, string> = { fire: "carrot", "file-text": "file-pdf", "list-numbers": "clipboard-text", "check-square": "clipboard-text",
+  "clock-counter-clockwise": "clock", warning: "warning-circle", meeting: "users", "magnifying-glass": "magnifier" };
+
+/** 그림 아이콘이 있는 이름인지 */
+export function hasArt(name: string): boolean { return ART.has(ART_ALIAS[name] ?? name); }
+
+/** 아이콘. art = 쫑긋 스타일 그림으로 (그림이 없는 이름은 굵은 선 아이콘 그대로). 선 아이콘은 Phosphor bold (MIT, public/icons.svg) */
+export function Icon({ name, size = 22, art = false }: { name: string; size?: number; art?: boolean }) {
+  if (art && hasArt(name)) {
+    return <img className="icon art" src={`${import.meta.env.BASE_URL}art/${ART_ALIAS[name] ?? name}.webp`} width={size} height={size}
+      style={{ width: size, height: size }} alt="" aria-hidden="true" draggable={false} loading="lazy" />;
+  }
   return (
     <svg className="icon" width={size} height={size} style={{ width: size, height: size }} aria-hidden="true">
       <use href={`${import.meta.env.BASE_URL}icons.svg#${name}`} />
@@ -39,7 +53,7 @@ export function ListItem({ icon, title, subtitle, onClick, index, tone, art }: {
   const style = index === undefined ? undefined : { animationDelay: `${Math.min(index, 8) * 45}ms` } as CSSProperties;
   const inner = (
     <>
-      <span className={`list-item-icon${art ? " has-art" : ""}`}>{art ?? <Icon name={icon} />}</span>
+      <span className={`list-item-icon${art ? " has-art" : hasArt(icon) ? " is-art" : ""}`}>{art ?? <Icon name={icon} art size={40} />}</span>
       <span className="grow">
         <span className="t-title-s" style={{ display: "block" }}>{title}</span>
         {subtitle && <span className="list-item-sub">{subtitle}</span>}

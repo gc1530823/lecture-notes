@@ -235,7 +235,7 @@ export function ReviewBanner() {
   const count = today.cards.length;
   return (
     <button className="list-item review-banner" onClick={() => go({ name: "review" })}>
-      <span className="list-item-icon"><Icon name="brain" /></span>
+      <span className="list-item-icon is-art"><Icon name="brain" art size={40} /></span>
       <span className="grow">
         <span className="t-title-s" style={{ display: "block" }}>{count ? `오늘 복습 ${count}장` : "오늘 복습 끝!"}</span>
         <span className="list-item-sub">{count ? `다시 볼 때가 된 카드 ${today.due}장 · 새 카드 ${today.new}장` : "잊어버릴 때쯤 다시 알려 드릴게요"}</span>
@@ -384,7 +384,7 @@ function ShareBox({ docId, friends }: { docId: string; friends: string[] }) {
   return (
     <div className="banner no-print">
       <div className="row">
-        <span className="list-item-icon"><Icon name="users" /></span>
+        <span className="list-item-icon is-art"><Icon name="users" art size={40} /></span>
         <span className="grow">
           <strong className="t-title-s" style={{ display: "block" }}>함께 만드는 족보</strong>
           <span className="t-caption muted">{friends.length ? `${friends.join(", ")}의 족보를 합쳤어요` : "같은 수업 친구와 족보 파일을 주고받아 합쳐요 (카톡·메일로 보내면 돼요)"}</span>

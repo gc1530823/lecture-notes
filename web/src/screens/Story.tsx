@@ -109,7 +109,7 @@ function StoryViewer({ data, onClose, onListen, onStudy }: { data: StoryData; on
       <button className="story-tap left" onPointerDown={down} onPointerUp={() => up(-1)} onPointerLeave={() => setPaused(false)} aria-label="이전 카드" />
       <button className="story-tap right" onPointerDown={down} onPointerUp={() => up(1)} onPointerLeave={() => setPaused(false)} aria-label="다음 카드" />
       <div className="story-card" key={index} aria-live="polite">
-        <span className="story-label"><Icon name={ICON[card.kind] ?? "sparkle"} size={18} /> {card.label}</span>
+        <span className="story-label"><Icon name={ICON[card.kind] ?? "sparkle"} art size={26} /> {card.label}</span>
         {card.kind === "end" ? (
           <>
             <Confetti />

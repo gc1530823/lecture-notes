@@ -124,7 +124,7 @@ export function NotesPdf({ sessionId }: { sessionId: string }) {
   return (
     <div className="banner">
       <div className="row">
-        <span className="list-item-icon"><Icon name="file-pdf" /></span>
+        <span className="list-item-icon is-art"><Icon name="file-pdf" art size={40} /></span>
         <span className="grow">
           <strong className="t-title-s" style={{ display: "block" }}>강의 정리 PDF</strong>
           <span className="t-caption muted">슬라이드마다 형광펜·필기·정리 노트·교수님 설명, 끝에 과제와 용어 사전</span>

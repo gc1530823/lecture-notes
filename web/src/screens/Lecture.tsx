@@ -678,27 +678,27 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           </div>
           {sessionId && phase !== "idle" && (
             <button className="round round-soft" onClick={() => setSheet("add")} disabled={photoBusy} aria-label="내 필기 쓰기 · 칠판 사진">
-              {photoBusy ? <span className="spin" /> : <Icon name="note-pencil" />}
+              {photoBusy ? <span className="spin" /> : <Icon name="note-pencil" art size={30} />}
             </button>
           )}
           <input ref={photoInput} type="file" accept="image/*" capture="environment" hidden
             onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void sendPhoto(f); }} />
           {sessionId && phase !== "idle" && (
             <button className="round round-soft star-btn" onClick={starHere} aria-label="여기 중요 ⭐">
-              <Icon name="star" />
+              <Icon name="star" art size={30} />
             </button>
           )}
           {recording && (
             <button className="round round-soft confused-btn" onClick={markConfused} aria-label="모르겠어요 (표시만 하고 끝나고 설명)">
-              <Icon name="hand-palm" />{confused > 0 && <span className="badge">{confused}</span>}
+              <Icon name="hand-palm" art size={30} />{confused > 0 && <span className="badge">{confused}</span>}
             </button>
           )}
           {sessionId && phase !== "idle" && (
             <button className="round round-soft" onClick={() => setSheet("ask")} disabled={asking} aria-label="방금 뭐라고?">
-              {asking ? <span className="spin" /> : <Icon name="hand-waving" />}
+              {asking ? <span className="spin" /> : <Icon name="hand-waving" art size={30} />}
             </button>
           )}
-          {phase === "idle" && <button className="round round-record" onClick={startWithConsent} aria-label="녹음 시작"><Icon name="microphone" size={28} /></button>}
+          {phase === "idle" && <button className="round round-record" onClick={startWithConsent} aria-label="녹음 시작"><Icon name="microphone" art size={46} /></button>}
           {recording && <button className="round round-record on" onClick={() => void stop()} aria-label="강의 끝내기"><span className="stop" /></button>}
           {phase === "ending" && <span className="round round-soft"><span className="spin" /></span>}
           {phase === "ended" && sessionId && (
