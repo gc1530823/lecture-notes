@@ -217,7 +217,7 @@ export function ReviewScreen() {
             <p className="t-caption muted" style={{ textAlign: "center" }}>
               남은 카드 {today!.cards.length}장 · {card.title}{card.page_no ? ` ${card.page_no}쪽` : ""}
             </p>
-            <button ref={cardRef} key={`${card.card_key}-${flipped}`} className={`flashcard swipe-card ${flipped ? "flip-in" : "card-in"}`} data-flipped={flipped} onClick={() => { setFlipped(!flipped); play("flip"); }} data-sound aria-live="polite">
+            <button ref={cardRef} key={`${card.card_key}-${flipped}`} className={`flashcard swipe-card ${flipped ? "flip-in" : "card-in"}`} data-flipped={flipped} onClick={() => setFlipped(!flipped)} aria-live="polite">
               <Chip variant="accent">{card.new ? "새 카드 · " : card.lapses ? `${card.lapses}번 틀림 · ` : ""}{SOURCE_LABEL[card.source] ?? card.source}</Chip>
               {flipped && <span className="review-q t-caption">Q. {card.front}</span>}
               <span className={flipped ? "t-body" : "t-title-m"} style={{ whiteSpace: "pre-wrap" }}>{flipped ? card.back : card.front}</span>

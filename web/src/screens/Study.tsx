@@ -4,7 +4,6 @@ import type { ClozeItem, Concept, Flashcard, MindNode, StudyResponse, SummaryRes
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, TermCard } from "../components/ui";
 import { ConfusedPane } from "./ExamPrep";
-import { play } from "../lib/sound";
 import QuizCards from "./QuizCards";
 import SlidingTabs from "../components/SlidingTabs";
 import { useSwipe } from "../lib/gesture";
@@ -104,7 +103,7 @@ function Flashcards({ cards }: { cards: Flashcard[] }) {
     <>
       <p className="t-caption faint" style={{ textAlign: "center" }}>{index + 1} / {deck.length}{i >= cards.length ? " · 다시 보기" : ""}</p>
       <div className="swipe-hint" aria-hidden="true"><span>← 다시 볼래요</span><span>알아요 →</span></div>
-      <button ref={cardRef} key={`${i}-${flipped}`} className="flashcard flip-in swipe-card" data-flipped={flipped} onClick={() => { setFlipped(!flipped); play("flip"); }} aria-live="polite">
+      <button ref={cardRef} key={`${i}-${flipped}`} className="flashcard flip-in swipe-card" data-flipped={flipped} onClick={() => setFlipped(!flipped)} aria-live="polite">
         <Chip variant="accent">{card.page_no}쪽</Chip>
         <span className={flipped ? "t-body" : "t-title-m"}>{flipped ? card.back : card.front}</span>
         <span className="t-caption faint">{flipped ? "질문으로 돌아가기" : "눌러서 답 보기"}</span>

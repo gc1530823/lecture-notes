@@ -3,12 +3,11 @@
 // 소리 재료 (모두 같은 음계 · E 장조 펜타토닉이라 이어서 나도 어울린다)
 //  - 유리 종 (bell): FM 합성. 맑은 몸통 + 금방 사라지는 비정수 배음(유리·금속 느낌) → 정답·완료·알림
 //  - 펠트 피아노 (felt): 삼각파를 부드럽게 깎아 둥글고 따뜻하게 → 녹음 시작·끝, 오답(낮고 차분하게)
-//  - 클릭 (click): 아주 짧은 고음 + 걸러 낸 잡음 → 탭 바꾸기 (휴대폰 햅틱 같은 또각)
 //  - 바람 (air): 높은 데서 낮은 데로 쓸려 가는 잡음, 왼쪽→오른쪽으로 → 카드 넘기기
 //  - 종이 (paper): 카드 뒤집기
 // 공간: 만든 잔향(합성 임펄스 응답)으로 작은 홀 같은 울림, 소리마다 좌우 위치를 살짝 다르게,
 //       마지막에 리미터(컴프레서)로 크고 작은 소리를 고르게. 전체 크기는 작게.
-// 원칙: 의미 있는 순간에만 (버튼마다 소리는 없다). 녹음 중에는 소리 대신 진동만 (받아쓰기를 망치지 않게).
+// 원칙: 의미 있는 순간에만. 버튼·탭을 누르는 소리는 없다 (정답·오답, 손가락으로 카드 밀기, 녹음 시작·끝, 복습 끝 같은 때만). 녹음 중에는 소리 대신 진동만 (받아쓰기를 망치지 않게).
 //       설정(더보기)에서 끌 수 있다. 소리는 사용자가 한 번이라도 누른 뒤에만 난다 (브라우저 규칙).
 
 export type SoundName = "tap" | "pop" | "success" | "wrong" | "flip" | "turn" | "alert" | "note" | "start" | "stop" | "levelup" | "complete"
@@ -132,22 +131,6 @@ function felt(o: Out, freq: number, at = 0, vol = 0.06, decay = 1.1, pan = 0) {
   }
 }
 
-/** 클릭: 아주 짧은 고음 한 점 + 걸러 낸 잡음 (휴대폰 햅틱 같은 또각) */
-function click(o: Out, at = 0, vol = 0.03, pitch = 2400, pan = 0) {
-  const { a } = o;
-  const t = a.currentTime + at;
-  const out = voice(o, pan, 0.25);
-  const osc = a.createOscillator(); osc.type = "sine";
-  osc.frequency.setValueAtTime(pitch, t);
-  osc.frequency.exponentialRampToValueAtTime(pitch * 0.6, t + 0.03);
-  const env = a.createGain();
-  env.gain.setValueAtTime(vol, t);
-  env.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
-  osc.connect(env).connect(out);
-  osc.start(t); osc.stop(t + 0.05);
-  noise(o, at, 0.012, vol * 0.5, 5000, 2, pan);
-}
-
 /** 걸러 낸 잡음 (종이·바람 재료). from→to 로 주파수가 쓸려 가고, 왼쪽→오른쪽으로 움직일 수 있다 */
 function noise(o: Out, at: number, dur: number, vol: number, from: number, q = 0.8, pan = 0, to = from, panTo = pan, send = 0.4) {
   const { a } = o;
@@ -185,13 +168,13 @@ export function play(name: SoundName) {
   switch (name) {
     case "tap": break;                                                         // 버튼마다 소리는 내지 않는다
     case "note": break;                                                        // 필기는 녹음 중에만 붙는다 (진동은 위에서)
-    case "tick": click(o, 0, 0.09, 2600); break;                              // 탭 바꾸기
+    case "tick": break;                                                        // 버튼·탭 누르기: 소리 없음
     case "pop": bell(o, N.B5, 0, 0.04, 0.8, 0.1); break;                       // 켜기
     case "flip": noise(o, 0, 0.09, 0.12, 2400, 0.7, -0.1, 1500, 0.1, 0.2); break;          // 카드 뒤집기 (종이)
     case "turn": noise(o, 0, 0.14, 0.1, 2000, 0.6, 0.2, 1100, -0.2, 0.25); break;         // 쪽 넘기기
     case "swish": noise(o, 0, 0.26, 0.12, 3200, 1.1, -0.5, 600, 0.6, 0.5); break;         // 카드 넘기기 (바람, 왼→오)
     case "slide": noise(o, 0, 0.2, 0.06, 2600, 1.2, 0.4, 900, -0.4, 0.5); break;           // 배너 넘기기
-    case "send": bell(o, N.Gs5, 0, 0.022, 0.6, -0.1); bell(o, N.Cs6, 0.07, 0.02, 0.7, 0.1); break;   // 답 보내기
+    case "send": break;                                                        // 답 보내기 버튼: 소리 없음 (채점 결과 소리만)
     case "open": bell(o, N.E5, 0, 0.035, 1.0); noise(o, 0, 0.08, 0.04, 2200); break;      // 화면 열기
     case "success": bell(o, N.Gs5, 0, 0.045, 1.4, -0.15); bell(o, N.Cs6, 0.09, 0.04, 1.8, 0.15); break;      // 정답: 맑게 올라가는 두 종
     case "wrong": felt(o, N.Gs4, 0, 0.05, 0.9, -0.1); felt(o, N.E4, 0.13, 0.045, 1.2, 0.1); break;          // 오답: 낮고 차분하게 내려가는 두 음
@@ -208,7 +191,7 @@ export function play(name: SoundName) {
 
 /** 설정 화면의 "효과음 미리 듣기" 목록 */
 export const PREVIEW: [SoundName, string][] = [
-  ["success", "정답"], ["wrong", "오답"], ["swish", "카드 넘기기"], ["tick", "탭 바꾸기"],
+  ["success", "정답"], ["wrong", "오답"], ["swish", "카드 밀어 넘기기"],
   ["alert", "시험 얘기"], ["start", "녹음 시작"], ["stop", "녹음 끝"], ["complete", "복습 끝"],
 ];
 

@@ -197,7 +197,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     if (no < 1 || no > total || no === pageRef.current) return;
     setPage(no);
     setSelected(null);
-    if (manual) play("turn");
+
     if (manual) {
       lastManual.current = Date.now();
       live.current?.send({ type: "page_view", page: no }); // 직접 넘긴 쪽을 서버에 알린다

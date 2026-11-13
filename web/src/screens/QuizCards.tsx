@@ -80,7 +80,6 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
     if (!set || grading || !answer.trim()) return;
     const q = set.questions[at];
     setGrading(true); setError(null);
-    play("send");
     try {
       const graded = await postJSON<Question & { done: boolean }>(`/quiz-sets/${set.id}/grade`, { index: q.index, answer });
       const questions = set.questions.map((x) => x.index === q.index ? graded : x);
@@ -241,7 +240,7 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
           </div>
         )}
       </div>
-      {r && <Button block onClick={() => { setAt(at + 1); play("swish"); }}>{at + 1 < total ? "다음 카드" : "결과 보기"}</Button>}
+      {r && <Button block onClick={() => setAt(at + 1)}>{at + 1 < total ? "다음 카드" : "결과 보기"}</Button>}
       {r && <p className="t-caption faint" style={{ textAlign: "center", margin: 0 }}>카드를 옆으로 밀어도 넘어가요</p>}
       {error && <p className="qz-error">{error}</p>}
     </div>
