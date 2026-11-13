@@ -23,7 +23,13 @@
 ## 빌드
 
 GitHub Actions의 **Android** 워크플로가 `android/` 가 바뀔 때마다 빌드해 `android-latest` 릴리스에 올립니다.
-직접 빌드하려면 Android SDK와 JDK 17을 깔고 `cd android && gradle assembleRelease`.
+직접 빌드하려면 Android SDK와 JDK 17 이상을 깔고 `cd android && gradle assembleRelease`.
+
+**GitHub Actions 없이 (결제 없이) 빌드하기** — Claude 클라우드 세션이나 Codespaces에서:
+
+1. Android SDK: `commandlinetools` 를 받아 `sdkmanager "platforms;android-34" "build-tools;34.0.0"` (dl.google.com 접속 필요)
+2. 폰 안 받아쓰기 엔진: `sherpa-onnx.version` 버전의 AAR을 받아 `sherpa-onnx.sha256` 지문과 맞는지 확인한 뒤 `app/libs/` 에 둔다 (저장소에는 올리지 않음)
+3. `echo "sdk.dir=$ANDROID_HOME" > local.properties && gradle assembleRelease` → `app/build/outputs/apk/release/app-release.apk
 
 ### 서명 키 (선택)
 

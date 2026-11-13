@@ -3,8 +3,8 @@
  "short_name": "쫑긋",
  "start_url": ".",
  "display": "standalone",
- "background_color": "#fffaf2",
- "theme_color": "#ff7a1a",
+ "background_color": "#f6f5fb",
+ "theme_color": "#6b5cf6",
  "icons": [
   {
    "src": "icon-192.png",
