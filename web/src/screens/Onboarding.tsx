@@ -21,7 +21,7 @@ export function Onboarding() {
     <>
       <div className="sheet-bg" onClick={done} />
       <div className="sheet onboarding" role="dialog" aria-modal="true" aria-labelledby="ob-title">
-        <div className="ob-art" key={step}><Mascot mood={s.mood} size={96} /></div>
+        <div className="ob-art" key={step}><Mascot mood={s.mood} size={150} /></div>
         <h3 className="t-title-m" id="ob-title">{s.title}</h3>
         <p className="t-body muted">{s.text}</p>
         <div className="ob-dots" aria-hidden="true">{STEPS.map((_, i) => <span key={i} className={i === step ? "on" : ""} />)}</div>

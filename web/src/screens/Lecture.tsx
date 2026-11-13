@@ -642,12 +642,12 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         )}
         {recording && (
           <div className="listen-row">
-            <Mascot mood={perk ? "alert" : "listen"} size={46} label={perk ? "쫑긋! 시험 얘기가 나왔어요" : "쫑긋이 듣고 있어요"} />
+            <Mascot mood={perk ? "alert" : "listen"} size={58} label={perk ? "쫑긋! 시험 얘기가 나왔어요" : "쫑긋이 듣고 있어요"} />
             <LiveWave loud={loud} />
           </div>
         )}
         {!recording && phase !== "idle" && serverStatus?.status && ["transcribing", "processing"].includes(serverStatus.status) && (
-          <div className="listen-row"><Mascot mood="write" size={46} label="쫑긋이 정리하고 있어요" /><span className="t-caption muted">쫑긋이 필기를 정리하고 있어요…</span></div>
+          <div className="listen-row"><Mascot mood="write" size={58} label="쫑긋이 정리하고 있어요" /><span className="t-caption muted">쫑긋이 필기를 정리하고 있어요…</span></div>
         )}
         {recording && !a11y && (
           <p className="caption-line t-caption" aria-live="polite">

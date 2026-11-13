@@ -127,7 +127,7 @@ export default function Home() {
           <button className="top-bar-back" onClick={() => go({ name: "privacy" })} aria-label="개인정보와 녹음"><Icon name="shield-check" /></button>
         </div>
         <div className="hero">
-          <Mascot mood={poke ? "happy" : mood} size={84} onClick={() => { setPoke(true); window.setTimeout(() => setPoke(false), 1600); }} label="쫑긋 (누르면 좋아해요)" />
+          <Mascot mood={poke ? "happy" : mood} size={104} onClick={() => { setPoke(true); window.setTimeout(() => setPoke(false), 1600); }} label="쫑긋 (누르면 좋아해요)" />
           <Says>{poke ? "헤헤, 간지러워요!" : line}</Says>
         </div>
       </header>

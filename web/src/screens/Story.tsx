@@ -113,7 +113,7 @@ function StoryViewer({ data, onClose, onListen, onStudy }: { data: StoryData; on
         {card.kind === "end" ? (
           <>
             <Confetti />
-            <span className="story-mascot"><Mascot mood="happy" size={92} /></span>
+            <span className="story-mascot"><Mascot mood="happy" size={132} /></span>
             <h2 className="story-text big"><Words text="오늘도 한 강의 끝!" /></h2>
             <div className="story-stats">
               <div><b><Count to={data.stats.minutes} /></b><span>분 수업</span></div>

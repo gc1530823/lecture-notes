@@ -120,5 +120,5 @@ export function NoteSection({ number, title, highlight, lines }: { number: numbe
 
 /** 빈 화면: 쫑긋이 대신 말한다. icon은 예전 이름 그대로 받고, 경고는 놀란 쫑긋, 그 밖에는 조는 쫑긋 (mood로 바꿀 수 있다) */
 export function Empty({ icon, children, mood }: { icon: string; children: ReactNode; mood?: Mood }) {
-  return <div className="empty"><Mascot mood={mood ?? (icon.startsWith("warning") ? "alert" : "sleep")} size={84} /><div>{children}</div></div>;
+  return <div className="empty"><Mascot mood={mood ?? (icon.startsWith("warning") ? "alert" : "sleep")} size={120} /><div>{children}</div></div>;
 }
