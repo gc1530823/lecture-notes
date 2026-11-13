@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getJSON, postJSON } from "../api/useApi";
 import { Button, Chip, Icon } from "../components/ui";
+import { courseTone } from "../lib/course";
 
 export interface ClassRow { id: number; course: string; weekday: number; start: string; end: string; place: string }
 
@@ -54,16 +55,17 @@ export function Timetable({ courses, onPick }: { courses: string[]; onPick: (cou
   return (
     <section className="timetable" aria-label="시간표">
       {now ? (
-        <button className={`list-item class-now${now.live ? " live" : ""}`} onClick={() => onPick(now.row.course)}>
-          <span className="magnet" aria-hidden="true">{now.live ? "지금 수업" : "다음 수업"}</span>
+        <button className={`list-item class-now ${courseTone(now.row.course)}${now.live ? " live" : ""}`} onClick={() => onPick(now.row.course)}>
           <span className="list-item-icon"><Icon name="chalkboard-teacher" /></span>
           <span className="grow">
-            <span className="t-title-s" style={{ display: "block" }}>{now.row.course}</span>
-            <span className="list-item-sub">{now.row.start}~{now.row.end}{now.row.place ? ` · ${now.row.place}` : ""} · 눌러서 이 과목 열기</span>
+            <span className="class-tag">{now.live && <i />}{now.live ? "지금 수업" : "다음 수업"} · <span className="num">{now.row.start}~{now.row.end}</span></span>
+            <span className="t-title-m" style={{ display: "block" }}>{now.row.course}</span>
+            <span className="list-item-sub">{now.row.place ? `${now.row.place} · ` : ""}눌러서 이 과목 열기</span>
           </span>
           <span className="list-item-chev"><Icon name="caret-right" size={18} /></span>
         </button>
       ) : null}
+      {rows.length > 0 && <WeekGrid rows={rows} onPick={onPick} />}
       <div className="row timetable-row">
         <span className="t-caption muted grow">
           {rows.length === 0 ? "시간표를 넣으면 수업 시간에 맞춰 과목을 바로 열어 줘요"
@@ -80,7 +82,7 @@ export function Timetable({ courses, onPick }: { courses: string[]; onPick: (cou
               <div key={day} className="timetable-day">
                 <b className="t-caption">{day}</b>
                 {list.map((r) => (
-                  <span key={r.id} className="timetable-class t-caption">
+                  <span key={r.id} className={`timetable-class t-caption ${courseTone(r.course)}`}>
                     {r.start}~{r.end} {r.course}{r.place ? ` (${r.place})` : ""}
                     <button onClick={() => void remove(r.id)} aria-label={`${r.course} 지우기`}><Icon name="x" size={14} /></button>
                   </span>
@@ -108,5 +110,43 @@ export function Timetable({ courses, onPick }: { courses: string[]; onPick: (cou
         </div>
       )}
     </section>
+  );
+}
+
+
+const minutes = (clock: string) => Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3, 5));
+
+/** 이번 주 시간표: 요일 칸마다 과목 블록. 오늘 칸에는 지금 시각 선 */
+function WeekGrid({ rows, onPick }: { rows: ClassRow[]; onPick: (course: string) => void }) {
+  const days = Math.max(5, ...rows.map((r) => r.weekday + 1));
+  const from = Math.floor(Math.min(...rows.map((r) => minutes(r.start))) / 60);
+  const to = Math.ceil(Math.max(...rows.map((r) => minutes(r.end))) / 60);
+  const hours = Math.max(1, to - from);
+  const hour = Math.max(22, Math.min(40, Math.round(220 / hours))); // 한 시간의 높이(px): 전체가 너무 길어지지 않게
+  const today = todayIndex();
+  const nowMin = minutes(clockOf());
+  const live = currentClass(rows)?.row;
+  const cols = { gridTemplateColumns: `repeat(${days}, 1fr)` };
+  return (
+    <div className="week">
+      <div className="week-head" style={cols}>
+        {DAYS.slice(0, days).map((d, i) => <span key={d} className={i === today ? "today" : ""}>{d}</span>)}
+      </div>
+      <div className="week-body" style={{ ...cols, height: hours * hour, "--hour": `${hour}px` } as React.CSSProperties}>
+        {Array.from({ length: hours + 1 }, (_, i) => <span key={i} className="week-hour" style={{ top: i * hour }}>{from + i}</span>)}
+        {DAYS.slice(0, days).map((d, day) => (
+          <div key={d} className={`week-col${day === today ? " today" : ""}`}>
+            {day === today && nowMin >= from * 60 && nowMin <= to * 60 && <span className="week-now" style={{ top: ((nowMin - from * 60) / 60) * hour }} />}
+            {rows.filter((r) => r.weekday === day).map((r, i) => (
+              <button key={r.id} className={`week-block ${courseTone(r.course)}${live?.id === r.id ? " live" : ""}`} onClick={() => onPick(r.course)}
+                style={{ top: ((minutes(r.start) - from * 60) / 60) * hour, height: Math.max(18, ((minutes(r.end) - minutes(r.start)) / 60) * hour - 2), animationDelay: `${day * 50 + i * 40}ms` }}
+                aria-label={`${d}요일 ${r.start} ${r.course}`}>
+                {r.course}{r.place && <small>{r.place}</small>}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

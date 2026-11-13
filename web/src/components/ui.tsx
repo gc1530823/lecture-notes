@@ -33,7 +33,7 @@ export function Chip({ variant = "default", children, onClick }: { variant?: Chi
   );
 }
 
-export function ListItem({ icon, title, subtitle, onClick, index }: { icon: string; title: string; subtitle?: string; onClick?: () => void; index?: number }) {
+export function ListItem({ icon, title, subtitle, onClick, index, tone }: { icon: string; title: string; subtitle?: string; onClick?: () => void; index?: number; tone?: string }) {
   // index: 목록에서 몇 번째인지 → 차례로 올라오는 모션의 늦춤
   const style = index === undefined ? undefined : { animationDelay: `${Math.min(index, 8) * 45}ms` } as CSSProperties;
   const inner = (
@@ -47,7 +47,7 @@ export function ListItem({ icon, title, subtitle, onClick, index }: { icon: stri
     </>
   );
   // 누를 곳이 없으면 버튼이 아닌 그냥 카드로 (화면 읽기 프로그램이 버튼으로 읽지 않게)
-  const cls = `list-item${index === undefined ? "" : " stagger"}`;
+  const cls = `list-item${index === undefined ? "" : " stagger"}${tone ? ` ${tone}` : ""}`;
   return onClick ? <button className={cls} style={style} onClick={onClick}>{inner}</button> : <div className={cls} style={style}>{inner}</div>;
 }
 

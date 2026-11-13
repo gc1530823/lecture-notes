@@ -10,6 +10,7 @@ import { Onboarding } from "./Onboarding";
 import { Timetable } from "./Timetable";
 import { StreakCard } from "./Story";
 import { Skeleton } from "../lib/motion";
+import { courseTone } from "../lib/course";
 import { go } from "../router";
 
 
@@ -119,19 +120,18 @@ export default function Home() {
           <button className="top-bar-back" onClick={() => go({ name: "privacy" })} aria-label="개인정보와 녹음"><Icon name="shield-check" /></button>
         </div>
         <h1 className="hero-title">{greeting()}</h1>
-        <svg className="hero-line" viewBox="0 0 230 14" aria-hidden="true"><path d="M3 9 C 30 2, 48 13, 76 7 S 122 3, 150 8 S 200 12, 227 5" /></svg>
       </header>
       <div className="screen-body">
-        {/* 과목 = 판에 써 둔 이름. 고른 과목에 동그라미 */}
+        <Timetable courses={courses} onPick={pick} />
+        {/* 과목 고르기: 과목마다 정해진 블록 색 */}
         <div className="picks" role="group" aria-label="과목">
           <button className={`pick${filter === "all" ? " on" : ""}`} aria-pressed={filter === "all"} onClick={() => pick("all")}>전체</button>
-          {courses.map((c, i) => (
-            <button key={c} className={`pick c${i % 4}${filter === c ? " on" : ""}`} aria-pressed={filter === c} onClick={() => pick(c)}><i />{c}</button>
+          {courses.map((c) => (
+            <button key={c} className={`pick ${courseTone(c)}${filter === c ? " on" : ""}`} aria-pressed={filter === c} onClick={() => pick(c)}><i />{c}</button>
           ))}
           {hasLoose && courses.length > 0 && <button className={`pick${filter === "" ? " on" : ""}`} aria-pressed={filter === ""} onClick={() => pick("")}>과목 없음</button>}
         </div>
         <StreakCard />
-        <Timetable courses={courses} onPick={pick} />
         <ExamBanner />
         <ReviewBanner />
         <div className="row home-shortcuts">
@@ -151,10 +151,10 @@ export default function Home() {
         {groups.map(([course, list]) => (
           <section key={course || "-"} className="course-group">
             {(filter === "all" && courses.length > 0) && (
-              <h2 className={`course-title ${course ? `c${courses.indexOf(course) % 4}` : "none"}`}><span>{course || "과목 없음"}</span> <small>{list.length}</small></h2>
+              <h2 className={`course-title ${courseTone(course)}`}><span>{course || "과목 없음"}</span> <small>{list.length}</small></h2>
             )}
             {list.map((doc, i) => (
-              <ListItem key={doc.id} index={i} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
+              <ListItem key={doc.id} index={i} tone={courseTone(doc.course)} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
                 subtitle={subtitleOf(doc)} onClick={() => go({ name: "doc", docId: doc.id })} />
             ))}
           </section>
