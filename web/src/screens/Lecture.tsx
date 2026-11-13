@@ -629,7 +629,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
 
       {message && <div className="toast" role="status">{message}</div>}
 
-      <footer className="bottom-bar">
+      <footer className={`bottom-bar${recording ? " rec" : ""}`}>
         {player.open && (
           <>
             {replayLine && <p className="caption-line t-body" aria-live="polite"><Icon name="closed-captioning" size={16} /> {replayLine}</p>}
@@ -647,9 +647,11 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           </button>
         )}
         {recording && (
-          <div className="listen-row">
+          <>
+            <div className="rec-clock" aria-live="off"><i />{clock(now - startedAt)}</div>
             <LiveWave loud={loud || perk} />
-          </div>
+            <span className="rec-pill"><i />{perk ? "시험·공지 얘기가 나왔어요" : "실시간 받아쓰기 중…"}</span>
+          </>
         )}
         {!recording && phase !== "idle" && serverStatus?.status && ["transcribing", "processing"].includes(serverStatus.status) && (
           <div className="listen-row"><span className="spin" /><span className="t-caption muted">필기를 정리하고 있어요…</span></div>
@@ -677,7 +679,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               </div>
             )}
             <span className="t-caption muted" style={{ display: "block" }}>
-              {recording ? `녹음 중 ${clock(now - startedAt)}` : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}`
+              {recording ? `AI 필기 생성 중 · 현재 ${notebook ? `${page}번 주제` : `${page} / ${doc.pages.length}쪽`}` : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}`
                 : serverStatus?.status === "processing" ? "필기·요약 정리 중…" : serverStatus?.status === "failed" ? "정리하지 못했어요" : "강의가 끝났어요") : "버튼을 누르면 녹음을 시작해요"}
             </span>
           </div>

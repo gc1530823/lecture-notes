@@ -44,7 +44,9 @@ def test_schema_failure_is_retried_like_bad_json():
                httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(
                    {"summary": "경사하강법은 기울기 반대 방향으로 조금씩 이동한다.", "quiz": {}}, ensure_ascii=False)}}]}),
                httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(
-                   {"overview": "경사하강법을 배웠다. 학습률이 중요하다."}, ensure_ascii=False)}}]})]
+                   {"overview": "경사하강법을 배웠다. 학습률이 중요하다."}, ensure_ascii=False)}}]}),
+               httpx.Response(200, json={"choices": [{"message": {"content": json.dumps({"quiz": []})}}]}),
+               httpx.Response(200, json={"choices": [{"message": {"content": json.dumps({"quiz": []})}}]})]
     llm = GroqLLM(transport=httpx.MockTransport(lambda request: replies.pop(0)))
     result = asyncio.run(llm.summarize([{"page_no": 1, "text": "경사하강법"}],
                                        [{"page_no": 1, "text": "학습률이 크면 발산해요."}], []))

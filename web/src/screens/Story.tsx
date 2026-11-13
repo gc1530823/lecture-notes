@@ -200,7 +200,7 @@ interface Streak { streak: number; best: number; today: boolean; week: { date: s
   carrots?: number; level?: number; level_name?: string; level_from?: number; next_at?: number | null }
 
 function Carrot() {
-  return <img className="carrot" src={`${import.meta.env.BASE_URL}art/fire.webp`} alt="" draggable={false} />;
+  return <span className="carrot"><Icon name="fire" art size={24} /></span>;
 }
 
 /** 연속 공부: 강의를 듣거나 복습한 날마다 불꽃 하나 (며칠째 이어 가는지), 불꽃이 모이면 레벨 업 */

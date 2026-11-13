@@ -3,21 +3,38 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import type { NoteType } from "../api/types";
 
-// 큰 아이콘은 말랑한 3D 사물 그림(public/art/*.webp, AI로 그림)이다. 그림이 없는 이름은 굵은 선 아이콘으로.
-const ART = new Set(["microphone", "headphones", "notebook", "file-pdf", "book-open-text", "star", "target", "cards", "brain", "note-pencil", "graduation-cap",
-  "megaphone", "fire", "magnifier", "shield-check", "calendar", "camera", "hand-palm", "hand-waving", "chats-circle", "chat-teardrop-text", "clock", "timer", "trash",
-  "clipboard-text", "check-circle", "warning-circle", "sparkle", "magic-wand", "tree-structure", "users", "chalkboard-teacher"]);
-const ART_ALIAS: Record<string, string> = { carrot: "fire", "file-text": "file-pdf", "list-numbers": "clipboard-text", "check-square": "clipboard-text",
-  "clock-counter-clockwise": "clock", warning: "warning-circle", meeting: "users", "magnifying-glass": "magnifier" };
+// 색 아이콘: 벡터(Phosphor duotone, MIT). 옅은 채움 + 선, 아이콘마다 정해진 색. 작은 조작 아이콘은 굵은 선 아이콘.
+const DUO_ALIAS: Record<string, string> = {
+  "file-pdf": "file-text", magnifier: "magnifying-glass", calendar: "calendar-check", "hand-palm": "question", "hand-waving": "arrow-counter-clockwise",
+  carrot: "fire", "list-numbers": "clipboard-text", "check-square": "clipboard-text", "clock-counter-clockwise": "clock", warning: "warning-circle",
+  meeting: "users", "magnifying-glass": "magnifying-glass", "chat-dots": "chat-circle-dots",
+};
+const DUO = new Set(["microphone", "headphones", "notebook", "file-text", "book-open-text", "star", "target", "cards", "brain", "lightbulb", "note-pencil",
+  "graduation-cap", "megaphone", "fire", "magnifying-glass", "shield-check", "calendar-check", "camera", "question", "chat-circle-dots", "chats-circle",
+  "chat-teardrop-text", "clock", "timer", "trash", "clipboard-text", "check-circle", "warning-circle", "sparkle", "magic-wand", "tree-structure", "users",
+  "chalkboard-teacher", "arrow-counter-clockwise", "waveform", "books", "notepad", "house", "gear"]);
+/** 아이콘마다의 색 (참고 디자인처럼: 일정은 파랑, 별은 노랑, 과녁은 빨강, 생각은 분홍…) */
+const TONE: Record<string, string> = {
+  microphone: "violet", headphones: "violet", waveform: "violet", notebook: "violet", "note-pencil": "violet", notepad: "violet", books: "violet",
+  "file-text": "blue", "book-open-text": "blue", "calendar-check": "blue", question: "blue", "chat-circle-dots": "blue", "chats-circle": "blue",
+  "chat-teardrop-text": "blue", "tree-structure": "blue", "magnifying-glass": "blue", "shield-check": "blue", users: "blue", "arrow-counter-clockwise": "blue",
+  star: "yellow", lightbulb: "yellow", sparkle: "yellow", "magic-wand": "yellow", clock: "orange", timer: "orange", megaphone: "orange", fire: "orange",
+  "warning-circle": "orange", "clipboard-text": "orange", target: "red", trash: "red", brain: "pink", cards: "pink", "graduation-cap": "violet",
+  "check-circle": "green", "chalkboard-teacher": "green", camera: "slate", house: "violet", gear: "slate",
+};
 
-/** 그림 아이콘이 있는 이름인지 */
-export function hasArt(name: string): boolean { return ART.has(ART_ALIAS[name] ?? name); }
+/** 색 벡터 아이콘이 있는 이름인지 */
+export function hasArt(name: string): boolean { return DUO.has(DUO_ALIAS[name] ?? name); }
 
-/** 아이콘. art = 쫑긋 스타일 그림으로 (그림이 없는 이름은 굵은 선 아이콘 그대로). 선 아이콘은 Phosphor bold (MIT, public/icons.svg) */
+/** 아이콘. art = 색 벡터 아이콘(duotone). 없는 이름은 굵은 선 아이콘. 모두 public/icons.svg 스프라이트 */
 export function Icon({ name, size = 22, art = false }: { name: string; size?: number; art?: boolean }) {
   if (art && hasArt(name)) {
-    return <img className="icon art" src={`${import.meta.env.BASE_URL}art/${ART_ALIAS[name] ?? name}.webp`} width={size} height={size}
-      style={{ width: size, height: size }} alt="" aria-hidden="true" draggable={false} loading="lazy" />;
+    const id = DUO_ALIAS[name] ?? name;
+    return (
+      <svg className={`icon art tone-${TONE[id] ?? "violet"}`} width={size} height={size} style={{ width: size, height: size }} aria-hidden="true">
+        <use href={`${import.meta.env.BASE_URL}icons.svg#dt-${id}`} />
+      </svg>
+    );
   }
   return (
     <svg className="icon" width={size} height={size} style={{ width: size, height: size }} aria-hidden="true">

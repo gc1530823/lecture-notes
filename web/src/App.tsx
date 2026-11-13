@@ -9,11 +9,18 @@ import Semester from "./screens/Semester";
 import Search from "./screens/Search";
 import Session from "./screens/Session";
 import { href, useRoute } from "./router";
+import TabBar from "./components/TabBar";
 
 export default function App() {
   const route = useRoute();
   // 화면이 바뀔 때마다 새로 그려 들어오는 모션을 준다 (styles/app.css 의 .route)
-  return <div className="route" key={href(route)}>{screen(route)}</div>;
+  const tab = route.name === "home" ? "home" : route.name === "review" ? "review" : route.name === "search" ? "search" : route.name === "privacy" ? "more" : null;
+  return (
+    <>
+      <div className="route" key={href(route)}>{screen(route)}</div>
+      {tab && <TabBar current={tab} />}
+    </>
+  );
 }
 
 function screen(route: ReturnType<typeof useRoute>) {

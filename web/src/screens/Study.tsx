@@ -3,7 +3,7 @@ import { play } from "../lib/sound";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { ClozeItem, Concept, Flashcard, MindNode, StudyResponse, SummaryResponse, TutorReply } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
-import { Button, Chip, Empty, TermCard } from "../components/ui";
+import { Button, Chip, Empty, Icon, TermCard } from "../components/ui";
 import { ConfusedPane } from "./ExamPrep";
 
 const KINDS = [["summary", "요약"], ["quiz", "퀴즈"], ["flashcards", "플래시카드"], ["concepts", "개념"], ["mindmap", "마인드맵"], ["cloze", "암기"], ["confused", "모르겠다"], ["tutor", "AI 튜터"]] as const;
@@ -126,6 +126,7 @@ function MindMap({ root }: { root: MindNode }) {
 
 function SummaryPane({ sessionId, quiz }: { sessionId: string; quiz: boolean }) {
   const { data } = useApi<SummaryResponse>(`/sessions/${sessionId}/summary`);
+  const { data: terms } = useApi<{ term: string }[]>(`/sessions/${sessionId}/glossary`);
   const [picked, setPicked] = useState<Record<number, number>>({});
   if (!data) return <p className="muted">불러오는 중…</p>;
   const s = data.summary;
@@ -133,7 +134,16 @@ function SummaryPane({ sessionId, quiz }: { sessionId: string; quiz: boolean }) 
   if (!quiz) {
     return (
       <>
-        <div className="banner"><strong className="t-title-s">한눈에</strong><p className="t-body">{s.overview}</p></div>
+        <section className="summary-block">
+          <h3><Icon name="file-text" art size={22} /> 강의 요약</h3>
+          <p className="t-body">{s.overview}</p>
+        </section>
+        {terms && terms.length > 0 && (
+          <section className="summary-block">
+            <h3><Icon name="clipboard-text" art size={22} /> 핵심 키워드</h3>
+            <div className="keywords">{terms.slice(0, 8).map((t) => <span key={t.term}>{t.term}</span>)}</div>
+          </section>
+        )}
         {s.pages.map((p) => (
           <div key={p.page_no} className="banner">
             <span className="t-caption faint">{p.page_no}쪽</span>
@@ -158,7 +168,7 @@ function SummaryPane({ sessionId, quiz }: { sessionId: string; quiz: boolean }) 
               const fx = !answered ? "" : ci === q.answer_index ? " fx-right" : ci === picked[qi] ? " fx-wrong" : "";
               return <Button key={ci} variant={variant} block className={`quiz-choice${fx}`} disabled={answered && variant === "secondary"}
                 style={{ animationDelay: `${ci * 50}ms` }}
-                data-sound onClick={() => { if (answered) return; setPicked({ ...picked, [qi]: ci }); play(ci === q.answer_index ? "success" : "wrong"); navigator.vibrate?.(ci === q.answer_index ? 15 : [30, 40, 30]); }}>{c}</Button>;
+                data-sound onClick={() => { if (answered) return; setPicked({ ...picked, [qi]: ci }); play(ci === q.answer_index ? "success" : "wrong"); navigator.vibrate?.(ci === q.answer_index ? 15 : [30, 40, 30]); }}><span className="choice-letter">{"ABCD"[ci]}</span>{c}</Button>;
             })}
             {answered && (
               <p className={`quiz-result t-body ${picked[qi] === q.answer_index ? "right" : "wrong"}`}>

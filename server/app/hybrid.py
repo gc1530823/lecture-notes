@@ -17,7 +17,7 @@ import time
 
 log = logging.getLogger(__name__)
 
-LOCAL_TASKS = {"summarize", "organize_page", "study_page", "mindmap", "predict_questions", "draft_task", "fix_speech",
+LOCAL_TASKS = {"summarize", "make_quiz", "organize_page", "study_page", "mindmap", "predict_questions", "draft_task", "fix_speech",
                "research_tips"}
 TEACHER_MAX_WAIT = 12.0  # Groq가 이보다 오래 기다리라고 하면 우리 AI에게 넘긴다 (분당 한도의 짧은 기다림은 그냥 기다림)
 

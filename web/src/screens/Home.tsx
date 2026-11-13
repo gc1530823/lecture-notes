@@ -3,8 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { android } from "../lib/live";
-import { Button, Chip, Empty, Icon, ListItem } from "../components/ui";
-import { ReviewBanner } from "./ExamPrep";
+import { Button, Empty, Icon, ListItem } from "../components/ui";
 import { ExamBanner } from "./Semester";
 import { Timetable } from "./Timetable";
 import { StreakCard } from "./Story";
@@ -136,20 +135,27 @@ export default function Home() {
     ? [...courses.map((c) => [c, shown.filter((d) => d.course === c)] as [string, DocumentBrief[]]), ["", shown.filter((d) => !d.course)] as [string, DocumentBrief[]]]
         .filter(([, list]) => list.length > 0)
     : [[filter, shown]];
-  const today = new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" });
+  const latestSlides = (docs ?? []).find((d) => d.kind === "slides");
 
   return (
     <div className="screen">
       <header className="home-head">
         <div className="row">
-          <span className="t-caption muted grow">{today}</span>
-          <button className="top-bar-back" onClick={() => go({ name: "intro" })} aria-label="소개 다시 보기"><Icon name="sparkle" /></button>
-          <button className="top-bar-back" onClick={() => go({ name: "search" })} aria-label="모든 강의에서 찾기"><Icon name="book-open-text" /></button>
-          <button className="top-bar-back" onClick={() => go({ name: "privacy" })} aria-label="개인정보와 녹음"><Icon name="shield-check" /></button>
+          <span className="home-brand grow"><Icon name="book-open-text" art size={28} /> 강의노트</span>
+          <button className="top-bar-back" onClick={() => go({ name: "search" })} aria-label="모든 강의에서 찾기"><Icon name="magnifying-glass" /></button>
+          <button className="top-bar-back" onClick={() => go({ name: "privacy" })} aria-label="설정"><Icon name="gear" /></button>
         </div>
-        <h1 className="hero-title">{line}</h1>
       </header>
       <div className="screen-body">
+        <HeroCard line={line} />
+        <div className="tiles">
+          <Tile icon="calendar" title="오늘의 복습" sub="망각 곡선" onClick={() => go({ name: "review" })} />
+          <Tile icon="star" title="족보 노트" sub="시험 핵심 정리" onClick={() => latestSlides ? go({ name: "jokbo", docId: latestSlides.id }) : alert("강의자료를 먼저 올려 주세요")} />
+          <Tile icon="hand-palm" title="시험 D-day" sub="남은 날과 계획" onClick={() => go({ name: "semester", tab: "exams" })} />
+          <Tile icon="target" title="시험 예상 지도" sub="예상 문제" onClick={() => latestSlides ? go({ name: "exam", docId: latestSlides.id }) : alert("강의자료를 먼저 올려 주세요")} />
+          <Tile icon="chats-circle" title="AI 튜터" sub="질문하기" onClick={() => go({ name: "semester", tab: "tutor" })} />
+          <Tile icon="tree-structure" title="개념 지도" sub="학기 전체" onClick={() => go({ name: "semester", tab: "map" })} />
+        </div>
         <Timetable courses={courses} onPick={pick} />
         {/* 과목 고르기: 과목마다 정해진 블록 색 */}
         <div className="picks" role="group" aria-label="과목">
@@ -159,20 +165,17 @@ export default function Home() {
           ))}
           {hasLoose && courses.length > 0 && <button className={`pick${filter === "" ? " on" : ""}`} aria-pressed={filter === ""} onClick={() => pick("")}>과목 없음</button>}
         </div>
-        <StreakCard />
-        <TasksCard />
         <ExamBanner />
-        <ReviewBanner />
-        <div className="row home-shortcuts">
-          <Chip variant="accent" onClick={() => go({ name: "semester", tab: "map" })}>개념 지도</Chip>
-          <Chip variant="accent" onClick={() => go({ name: "semester", tab: "tutor" })}>학기 튜터</Chip>
-          <Chip variant="accent" onClick={() => go({ name: "semester", tab: "exams" })}>시험 D-day</Chip>
-          <Chip variant="accent" onClick={() => void newNotebook("meeting")}>회의 기록</Chip>
+        <TasksCard />
+        <StreakCard />
+        <div className="row">
+          <h2 className="section-title grow">내 강의</h2>
+          <button className="chip chip-default" onClick={() => void newNotebook("meeting")}>회의 기록</button>
         </div>
         {loading && !docs && <Skeleton lines={4} />}
         {error && <Empty icon="warning-circle">서버에 연결할 수 없어요<br /><span className="t-caption">{error}</span></Empty>}
         {docs && shown.length === 0 && (
-          <Empty icon="chalkboard-teacher">
+          <Empty icon="notebook">
             <strong className="t-title-s">아직 강의가 없어요</strong><br />
             강의자료 PDF를 올리거나, 자료 없는 수업은 노트로 시작하세요.<br />녹음 파일만 있어도 돼요: 아래 "녹음"을 눌러 올리면 주제별로 정리해 드려요.
           </Empty>
@@ -188,16 +191,38 @@ export default function Home() {
             ))}
           </section>
         ))}
-      </div>
-      <div className="home-actions">
-        <Button variant="secondary" icon="note-pencil" onClick={() => newNotebook()} disabled={!!busy}>노트 수업</Button>
-        <Button variant="secondary" icon="headphones" onClick={() => audio.current?.click()} disabled={!!busy} aria-label="녹음 파일만 올리기">녹음 파일</Button>
-        <input ref={audio} type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
-          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadAudio(f); }} />
-        <Button icon="tray-arrow-down" onClick={() => file.current?.click()} disabled={!!busy}>{busy ?? "강의자료"}</Button>
-        <input ref={file} type="file" accept="application/pdf,.pdf,.ppt,.pptx,.key,.odp,.doc,.docx,.hwp,.hwpx" hidden
-          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
+        <div className="home-actions">
+          <Button variant="secondary" icon="note-pencil" onClick={() => newNotebook()} disabled={!!busy}>노트 수업</Button>
+          <Button variant="secondary" icon="headphones" onClick={() => audio.current?.click()} disabled={!!busy} aria-label="녹음 파일만 올리기">녹음 파일</Button>
+          <input ref={audio} type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadAudio(f); }} />
+          <Button icon="tray-arrow-down" onClick={() => file.current?.click()} disabled={!!busy}>{busy ?? "강의자료"}</Button>
+          <input ref={file} type="file" accept="application/pdf,.pdf,.ppt,.pptx,.key,.odp,.doc,.docx,.hwp,.hwpx" hidden
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
+        </div>
       </div>
     </div>
+  );
+}
+
+/** 보라 배너: 인사 + 오늘의 복습 (참고 디자인의 "오늘도 수고했어요!") */
+function HeroCard({ line }: { line: string }) {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => { getJSON<{ cards: unknown[] }>("/review/today").then((t) => setCount(t.cards.length)).catch(() => setCount(null)); }, []);
+  return (
+    <button className="hero-card" onClick={() => go({ name: "review" })}>
+      <b>{line}</b>
+      <span>{count ? `오늘의 복습 ${count}장을 시작해 볼까요?` : count === 0 ? "오늘 복습은 다 했어요. 새 강의를 들어 볼까요?" : "강의를 듣고 나면 복습 카드가 쌓여요"}</span>
+      <svg className="hero-art" aria-hidden="true"><use href={`${import.meta.env.BASE_URL}icons.svg#dt-graduation-cap`} /></svg>
+    </button>
+  );
+}
+
+function Tile({ icon, title, sub, onClick }: { icon: string; title: string; sub: string; onClick: () => void }) {
+  return (
+    <button className="tile" onClick={onClick}>
+      <Icon name={icon} art size={30} />
+      <span><b>{title}</b><small>{sub}</small></span>
+    </button>
   );
 }

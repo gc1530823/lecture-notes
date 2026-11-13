@@ -115,6 +115,57 @@ def _task_draft_ok(data: dict) -> bool:
             and not any(TEMPLATE_TEXT.search(str(item)) for items in lists for item in items))
 
 
+# 퀴즈: 강의를 다 듣고 난 뒤, 강의 내용을 바탕으로 AI가 새로 내는 문제 (슬라이드 문장을 그대로 베끼지 않는다)
+QUIZ_SYSTEM = """당신은 이 과목 교수님 대신 복습 퀴즈를 내는 출제자입니다. 강의의 쪽별 요약, 교수님이 시험에 나온다고 하거나 강조한 것,
+강의 중 필기를 받습니다. 이것을 바탕으로 학생이 정말 이해했는지 확인하는 4지선다 문제를 새로 만듭니다.
+
+좋은 문제:
+- 외운 문장을 그대로 찾는 문제가 아니라 이해를 묻습니다: 개념을 새 상황에 적용하기, 왜 그런지(원인·이유), 두 개념 비교하기,
+  예시가 어느 개념에 해당하는지 고르기, 틀린 설명 고르기, 간단한 계산·추론.
+- 질문과 보기는 직접 새로 씁니다. 슬라이드나 교수님 말의 문장을 그대로 옮기지 않습니다.
+- "몇 쪽에서 다룬 내용은?", "강의에서 말한 것은?" 같은 질문은 내지 않습니다.
+- 오답 보기 3개는 학생이 실제로 헷갈릴 만한 그럴듯한 오개념으로 씁니다. 보기 길이와 말투를 비슷하게 맞춥니다.
+- 정답 위치는 문제마다 골고루 섞습니다.
+- explanation은 왜 그 답이 맞고 다른 보기가 왜 틀린지 1~2문장으로 씁니다.
+- 시험에 나온다고 한 것·강조한 것을 먼저 출제하고, 쉬운 문제와 어려운 문제를 섞습니다.
+- 강의에 없는 사실을 지어내지 않습니다. page_no는 그 문제의 근거가 된 쪽 번호입니다. 한국어로 씁니다."""
+
+QUIZ_SCHEMA = {
+    "type": "object",
+    "properties": {"quiz": {"type": "array", "items": {
+        "type": "object",
+        "properties": {"page_no": {"type": "integer"}, "question": {"type": "string"},
+                       "choices": {"type": "array", "items": {"type": "string"}},
+                       "answer_index": {"type": "integer"}, "explanation": {"type": "string"}},
+        "required": ["page_no", "question", "choices", "answer_index", "explanation"], "additionalProperties": False}}},
+    "required": ["quiz"],
+    "additionalProperties": False,
+}
+
+COPY_QUESTION = re.compile(r"(\d+\s*(쪽|페이지)에서|강의에서)\s*(다룬|말한|나온|설명한)\s*(내용|것)")
+
+
+def _copied(text: str, sources: list[str]) -> bool:
+    """보기·질문이 슬라이드나 받아쓰기 문장을 그대로 베꼈는지 (공백을 빼고 20자 넘게 똑같으면)"""
+    t = re.sub(r"\s+", "", text)
+    if len(t) < 20:
+        return False
+    return any(t[i:i + 20] in src for src in sources for i in range(0, len(t) - 19, 5))
+
+
+def clean_quiz(items: list, sources: list[str], pages: set[int]) -> list[dict]:
+    """AI가 낸 문제 가운데 쓸 만한 것만: 틀이 아닌 진짜 문제, "몇 쪽 내용은?" 꼴이 아닌 것, 문장 베끼기가 아닌 것"""
+    flat = [re.sub(r"\s+", "", s) for s in sources]
+    out = []
+    for q in items or []:
+        if not _quiz_ok(q) or COPY_QUESTION.search(q["question"]):
+            continue
+        if _copied(q["question"], flat) or sum(_copied(c, flat) for c in q["choices"]) >= 2:
+            continue
+        out.append({**q, "page_no": q["page_no"] if q.get("page_no") in pages else min(pages, default=1)})
+    return out
+
+
 def _page_summary_ok(data: dict) -> bool:
     # 요약이 진짜면 받는다 (퀴즈만 틀이면 그 문항만 뺀다)
     return _real_text(data.get("summary"))
@@ -207,12 +258,41 @@ class OllamaLLM:
                                         OVERVIEW_SCHEMA, 8192, lambda d: _real_text(d.get("overview")))
         overview = data["overview"].strip() if data else " ".join(s for _, s, _, _ in page_results[:3])
 
-        # 시험·강조 필기가 붙은 페이지의 문항을 먼저 내고, 최대 10문항
-        ranked = sorted((r for r in page_results if r[2]), key=lambda r: -r[3])[:10]
-        quiz = [{"page_no": no, **q} for no, _, q, _ in sorted(ranked, key=lambda r: r[0])]
+        quiz = await self.make_quiz(pages, segments, annotations, page_results)
+        if len(quiz) < 3:  # 따로 낸 문제가 모자라면 쪽마다 받은 문항으로 채운다 (시험·강조 쪽 먼저)
+            ranked = sorted((r for r in page_results if r[2]), key=lambda r: -r[3])[:10]
+            sources = [p.get("text") or "" for p in pages] + [s["text"] for s in segments]
+            extra = clean_quiz([{"page_no": no, **q} for no, _, q, _ in sorted(ranked, key=lambda r: r[0])], sources,
+                               {p["page_no"] for p in pages})
+            quiz += [q for q in extra if q["question"] not in {x["question"] for x in quiz}][: 8 - len(quiz)]
         return {"overview": overview,
                 "pages": [{"page_no": no, "summary": summary} for no, summary, _, _ in page_results],
                 "quiz": quiz}
+
+    async def make_quiz(self, pages: list[dict], segments: list[dict], annotations: list[dict],
+                        page_results: list[tuple] | None = None) -> list[dict]:
+        """강의 전체를 바탕으로 AI가 이해를 묻는 퀴즈를 새로 낸다 (5~8문항)"""
+        notes = [a for a in annotations if not a.get("pending")]
+        key = [a for a in notes if a["type"] in ("exam", "emphasis")]
+        summaries = "\n".join(f"- {no}쪽: {summary}" for no, summary, _, _ in (page_results or []))
+        if not summaries:
+            summaries = "\n".join(f"- {p['page_no']}쪽: " + " ".join(s["text"] for s in segments if s["page_no"] == p["page_no"])[:400]
+                                  for p in pages)
+        prompt = (f"<page_summaries>\n{summaries}\n</page_summaries>\n\n"
+                  f"<exam_and_emphasis>\n" + "\n".join(f"- {a['page_no']}쪽 ({'시험' if a['type'] == 'exam' else '강조'}): {a['text']}" for a in key[:12]) +
+                  "\n</exam_and_emphasis>\n\n<notes>\n" + "\n".join(f"- {a['page_no']}쪽: {a['text']}" for a in notes[:30]) +
+                  "\n</notes>\n\n문제 6개를 만드세요.")
+        sources = [p.get("text") or "" for p in pages] + [s["text"] for s in segments]
+        page_nos = {p["page_no"] for p in pages}
+        for temperature in (0.5, 0.8):
+            try:
+                data = await self._chat(QUIZ_SYSTEM, prompt, QUIZ_SCHEMA, 16384, temperature)
+            except (json.JSONDecodeError, LLMError):
+                continue
+            quiz = clean_quiz(data.get("quiz", []), sources, page_nos)
+            if len(quiz) >= 3:
+                return quiz[:8]
+        return []
 
     async def _chat_checked(self, system: str, prompt: str, schema: dict, context_tokens: int, ok) -> dict | None:
         """답이 틀(빈칸·지시문 베끼기)이면 온도를 올려 한 번 더 받고, 그래도 아니면 None."""

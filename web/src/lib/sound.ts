@@ -1,4 +1,4 @@
-// 효과음: 파일 없이 Web Audio로 그 자리에서 만든다 (가볍고, 앱 분위기에 맞게 짧고 통통한 소리).
+// 효과음: 파일 없이 Web Audio로 그 자리에서 만든다. 잔잔한 종소리 같은 사인파, 모두 같은 음계(펜타토닉)라 이어져도 어울린다.
 // - 녹음 중에는 소리를 내지 않는다 (마이크에 섞여 받아쓰기를 망친다) → 진동으로 대신
 // - 설정에서 끌 수 있고(기기에 기억), 기기의 "동작 줄이기"와는 따로다
 // - 소리는 사용자가 한 번이라도 누른 뒤에만 난다 (브라우저 규칙)
@@ -22,24 +22,32 @@ function audio(): AudioContext | null {
   return ctx;
 }
 
-/** 짧은 음 하나: 주파수, 시작(초), 길이(초), 크기, 파형, 끝 음(미끄러지기) */
-function tone(a: AudioContext, freq: number, at: number, dur: number, vol = 0.18, type: OscillatorType = "sine", to?: number) {
+/** 잔잔한 음 하나: 부드럽게 올라와 길게 사라지는 사인파 (+ 한 옥타브 위를 아주 작게 섞어 맑게). 실로폰·종 같은 느낌 */
+function tone(a: AudioContext, freq: number, at: number, dur: number, vol = 0.05, to?: number) {
   const t = a.currentTime + at;
-  const osc = a.createOscillator();
-  const gain = a.createGain();
-  osc.type = type;
-  osc.frequency.setValueAtTime(freq, t);
-  if (to) osc.frequency.exponentialRampToValueAtTime(to, t + dur);
-  gain.gain.setValueAtTime(0, t);
-  gain.gain.linearRampToValueAtTime(vol, t + 0.008);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  osc.connect(gain).connect(a.destination);
-  osc.start(t);
-  osc.stop(t + dur + 0.02);
+  const out = a.createGain();
+  out.gain.setValueAtTime(0, t);
+  out.gain.linearRampToValueAtTime(vol, t + 0.018);
+  out.gain.exponentialRampToValueAtTime(0.0001, t + dur * 1.6);
+  const lowpass = a.createBiquadFilter();
+  lowpass.type = "lowpass";
+  lowpass.frequency.value = 3200;
+  out.connect(lowpass).connect(a.destination);
+  for (const [mult, level] of [[1, 1], [2, 0.18]] as const) {
+    const osc = a.createOscillator();
+    const g = a.createGain();
+    g.gain.value = level;
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq * mult, t);
+    if (to) osc.frequency.exponentialRampToValueAtTime(to * mult, t + dur);
+    osc.connect(g).connect(out);
+    osc.start(t);
+    osc.stop(t + dur * 1.6 + 0.05);
+  }
 }
 
 /** 바람 소리 (쪽 넘김): 걸러 낸 잡음 */
-function whoosh(a: AudioContext, dur = 0.16, vol = 0.12) {
+function whoosh(a: AudioContext, dur = 0.16, vol = 0.04) {
   const len = Math.floor(a.sampleRate * dur);
   const buf = a.createBuffer(1, len, a.sampleRate);
   const data = buf.getChannelData(0);
@@ -48,8 +56,9 @@ function whoosh(a: AudioContext, dur = 0.16, vol = 0.12) {
   src.buffer = buf;
   const filter = a.createBiquadFilter();
   filter.type = "bandpass";
-  filter.frequency.setValueAtTime(900, a.currentTime);
-  filter.frequency.exponentialRampToValueAtTime(2600, a.currentTime + dur);
+  filter.frequency.setValueAtTime(600, a.currentTime);
+  filter.frequency.exponentialRampToValueAtTime(1600, a.currentTime + dur);
+  filter.Q.value = 0.7;
   const gain = a.createGain();
   gain.gain.value = vol;
   src.connect(filter).connect(gain).connect(a.destination);
@@ -64,19 +73,21 @@ export function play(name: Name) {
   const a = audio();
   if (!a) return;
   if (a.state === "suspended") void a.resume();
+  // 모두 C장조 펜타토닉(도·레·미·솔·라)으로 맞춰 어떤 소리가 이어져도 어울리게. 크기는 작게
+  const C5 = 523.25, D5 = 587.33, E5 = 659.25, G5 = 783.99, A5 = 880, C6 = 1046.5, E6 = 1318.5, G4 = 392, A4 = 440;
   switch (name) {
-    case "tap": tone(a, 660, 0, 0.06, 0.07, "triangle"); break;
-    case "pop": tone(a, 520, 0, 0.09, 0.14, "sine", 900); break;
-    case "flip": tone(a, 440, 0, 0.08, 0.1, "triangle", 700); tone(a, 880, 0.06, 0.08, 0.08, "triangle"); break;
-    case "turn": whoosh(a); break;
-    case "note": tone(a, 1046, 0, 0.12, 0.08, "sine"); tone(a, 1568, 0.05, 0.14, 0.05, "sine"); break;
-    case "success": tone(a, 784, 0, 0.12, 0.14, "triangle"); tone(a, 1175, 0.09, 0.22, 0.14, "triangle"); break;
-    case "wrong": tone(a, 300, 0, 0.14, 0.12, "square", 220); tone(a, 220, 0.13, 0.18, 0.1, "square", 180); break;
-    case "alert": tone(a, 1318, 0, 0.12, 0.13, "sine"); tone(a, 1318, 0.16, 0.18, 0.13, "sine"); break;
-    case "start": tone(a, 523, 0, 0.1, 0.14, "sine"); tone(a, 784, 0.08, 0.16, 0.14, "sine"); break;
-    case "stop": tone(a, 784, 0, 0.1, 0.14, "sine"); tone(a, 523, 0.08, 0.18, 0.14, "sine"); break;
-    case "levelup": [523, 659, 784, 1046].forEach((f, i) => tone(a, f, i * 0.08, 0.2, 0.13, "triangle")); break;
-    case "complete": [659, 784, 1046, 1318, 1568].forEach((f, i) => tone(a, f, i * 0.07, 0.26, 0.11, "triangle")); break;
+    case "tap": tone(a, E6, 0, 0.05, 0.018); break;
+    case "pop": tone(a, G5, 0, 0.12, 0.04); break;
+    case "flip": tone(a, E5, 0, 0.1, 0.03); tone(a, A5, 0.06, 0.12, 0.025); break;
+    case "turn": whoosh(a, 0.18, 0.04); break;
+    case "note": tone(a, C6, 0, 0.22, 0.03); break;
+    case "success": tone(a, E5, 0, 0.18, 0.045); tone(a, A5, 0.1, 0.32, 0.045); break;
+    case "wrong": tone(a, D5, 0, 0.16, 0.035); tone(a, A4, 0.12, 0.28, 0.035); break;
+    case "alert": tone(a, A5, 0, 0.2, 0.04); tone(a, E6, 0.14, 0.3, 0.035); break;
+    case "start": tone(a, C5, 0, 0.18, 0.045); tone(a, G5, 0.1, 0.3, 0.045); break;
+    case "stop": tone(a, G5, 0, 0.18, 0.045); tone(a, C5, 0.1, 0.32, 0.045); break;
+    case "levelup": [C5, E5, G5, C6].forEach((f, i) => tone(a, f, i * 0.09, 0.3, 0.04)); break;
+    case "complete": [G4, C5, E5, G5, C6].forEach((f, i) => tone(a, f, i * 0.08, 0.36, 0.035)); break;
   }
 }
 
