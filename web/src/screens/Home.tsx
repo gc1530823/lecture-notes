@@ -11,6 +11,7 @@ import { Timetable } from "./Timetable";
 import { StreakCard } from "./Story";
 import { Skeleton } from "../lib/motion";
 import { courseTone } from "../lib/course";
+import { Mascot, Says, type Mood } from "../components/Mascot";
 import { useWaves, Wave } from "../lib/wave";
 import { go } from "../router";
 
@@ -50,21 +51,25 @@ function useReminder() {
   }, []);
 }
 
-/** 시간대에 맞는 인사 */
+/** 쫑긋의 인사 (시간대마다 다르게) */
 function greeting(now = new Date()): string {
   const h = now.getHours();
-  if (h < 5) return "늦은 밤이에요";
-  if (h < 11) return "좋은 아침이에요";
-  if (h < 14) return "점심은 먹었어요?";
-  if (h < 18) return "오후 수업도 힘내요";
-  if (h < 22) return "오늘 배운 것, 복습할까요?";
-  return "오늘도 수고했어요";
+  if (h < 6) return "쿨쿨… 내일 수업도 제가 들어 줄게요";
+  if (h < 11) return "좋은 아침! 오늘 수업도 제가 쫑긋 들을게요";
+  if (h < 14) return "점심은 먹었어요? 오후 수업도 맡겨 줘요";
+  if (h < 18) return "오후 수업, 귀 쫑긋 세우고 있어요";
+  if (h < 23) return "오늘 배운 것, 같이 복습할까요?";
+  return "오늘도 수고했어요. 이제 자요…";
 }
 
 export default function Home() {
   const { data: docs, error, loading, reload } = useApi<DocumentBrief[]>("/documents");
   useReminder();
   const waves = useWaves();
+  const [poke, setPoke] = useState(false);
+  const hour = new Date().getHours();
+  const mood: Mood = hour < 6 || hour >= 23 ? "sleep" : "idle";
+  const line = greeting();
   // 과목 폴더: "all" = 전체, "" = 과목 없음, 그 밖에는 과목 이름 (기기에 기억)
   const [filter, setFilter] = useState<string>(() => { try { return localStorage.getItem("ln.course") ?? "all"; } catch { return "all"; } });
   const pick = (c: string) => { setFilter(c); try { localStorage.setItem("ln.course", c); } catch { /* 괜찮다 */ } };
@@ -121,7 +126,10 @@ export default function Home() {
           <button className="top-bar-back" onClick={() => go({ name: "search" })} aria-label="모든 강의에서 찾기"><Icon name="book-open-text" /></button>
           <button className="top-bar-back" onClick={() => go({ name: "privacy" })} aria-label="개인정보와 녹음"><Icon name="shield-check" /></button>
         </div>
-        <h1 className="hero-title">{greeting()}</h1>
+        <div className="hero">
+          <Mascot mood={poke ? "happy" : mood} size={84} onClick={() => { setPoke(true); window.setTimeout(() => setPoke(false), 1600); }} label="쫑긋 (누르면 좋아해요)" />
+          <Says>{poke ? "헤헤, 간지러워요!" : line}</Says>
+        </div>
       </header>
       <div className="screen-body">
         <Timetable courses={courses} onPick={pick} />

@@ -2,6 +2,7 @@
 // 이름·속성(variant)도 Figma와 같게 두어 디자인과 코드를 오가기 쉽게 한다.
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import type { NoteType } from "../api/types";
+import { Mascot, type Mood } from "./Mascot";
 
 /** Phosphor 아이콘 (MIT, public/icons.svg 스프라이트) */
 export function Icon({ name, size = 22 }: { name: string; size?: number }) {
@@ -117,6 +118,7 @@ export function NoteSection({ number, title, highlight, lines }: { number: numbe
   );
 }
 
-export function Empty({ icon, children }: { icon: string; children: ReactNode }) {
-  return <div className="empty"><Icon name={icon} size={36} /><div>{children}</div></div>;
+/** 빈 화면: 쫑긋이 대신 말한다. icon은 예전 이름 그대로 받고, 경고는 놀란 쫑긋, 그 밖에는 조는 쫑긋 (mood로 바꿀 수 있다) */
+export function Empty({ icon, children, mood }: { icon: string; children: ReactNode; mood?: Mood }) {
+  return <div className="empty"><Mascot mood={mood ?? (icon.startsWith("warning") ? "alert" : "sleep")} size={84} /><div>{children}</div></div>;
 }

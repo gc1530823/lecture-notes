@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import type { Annotation, DocumentDetail, GlossaryTerm, Page } from "../api/types";
 import { getJSON, postJSON } from "../api/useApi";
 import { LiveWave, refreshWaves } from "../lib/wave";
+import { Mascot } from "../components/Mascot";
 import { android, browserRecognizer, LiveSocket, NativeLive, startMicrophone, type Live, type Mic, type ServerEvent } from "../lib/live";
 import { clock, NotesPdf, PlayerBar, TaskDetail, TaskList, usePlayer, type FullTask } from "./LectureExtras";
 import { ConsentSheet } from "./ExamPrep";
@@ -45,6 +46,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const [estimate, setEstimate] = useState<number | null>(null);
   const [autoFollow, setAutoFollow] = useState(true);
   const [caption, setCaption] = useState("듣고 있어요…");
+  const [perk, setPerk] = useState(false);
   const [toastTerms, setToastTerms] = useState<GlossaryTerm[]>([]);
   const [banner, setBanner] = useState<{ icon: string; title: string; text: string; task?: number } | null>(null);
   // 자막 모드: 최근 문장 3줄을 크게, 지금 설명하는 문단 표시, 시험·공지·과제 때 강하게 진동 (청각장애 학생·시끄러운 강의실)
@@ -221,6 +223,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         navigator.vibrate?.(15);
         flash(e.annotation.id);
         if (e.annotation.type === "exam" || e.annotation.type === "notice") {
+          setPerk(true); window.setTimeout(() => setPerk(false), 2600); // 쫑긋! 귀가 선다
           setBanner(e.annotation.type === "exam"
             ? { icon: "star", title: "시험에 나온다고 했어요", text: e.annotation.text }
             : { icon: "megaphone", title: "공지", text: e.annotation.text });
@@ -637,7 +640,15 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
             <Icon name="play" size={16} /> 처음부터 다시 보기 · 녹음에 맞춰 쪽·필기·자막이 따라와요
           </button>
         )}
-        {recording && <LiveWave loud={loud} />}
+        {recording && (
+          <div className="listen-row">
+            <Mascot mood={perk ? "alert" : "listen"} size={46} label={perk ? "쫑긋! 시험 얘기가 나왔어요" : "쫑긋이 듣고 있어요"} />
+            <LiveWave loud={loud} />
+          </div>
+        )}
+        {!recording && phase !== "idle" && serverStatus?.status && ["transcribing", "processing"].includes(serverStatus.status) && (
+          <div className="listen-row"><Mascot mood="write" size={46} label="쫑긋이 정리하고 있어요" /><span className="t-caption muted">쫑긋이 필기를 정리하고 있어요…</span></div>
+        )}
         {recording && !a11y && (
           <p className="caption-line t-caption" aria-live="polite">
             <span className="rec-dot" />

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getJSON } from "../api/useApi";
 import { Button, Icon } from "../components/ui";
 import { Confetti, Count, Words } from "../lib/motion";
+import { Mascot } from "../components/Mascot";
 import { go } from "../router";
 
 interface Card { kind: string; label: string; text: string; page_no: number | null; at_ms: number | null; quote: string; tone: string }
@@ -112,7 +113,8 @@ function StoryViewer({ data, onClose, onListen, onStudy }: { data: StoryData; on
         {card.kind === "end" ? (
           <>
             <Confetti />
-            <h2 className="story-text big"><Words text="오늘도 한 강의 끝냈어요" /></h2>
+            <span className="story-mascot"><Mascot mood="happy" size={92} /></span>
+            <h2 className="story-text big"><Words text="오늘도 한 강의 끝!" /></h2>
             <div className="story-stats">
               <div><b><Count to={data.stats.minutes} /></b><span>분 수업</span></div>
               <div><b><Count to={data.stats.notes} /></b><span>필기</span></div>
@@ -173,22 +175,31 @@ export function FlowStrip({ flow, onJump }: { flow: StoryData["flow"]; onJump: (
 
 interface Streak { streak: number; best: number; today: boolean; week: { date: string; done: boolean }[]; days: number }
 
-/** 연속 공부: 며칠째인지 큰 숫자 + 이번 주 일곱 칸 */
+function Carrot() {
+  return (
+    <svg className="carrot" viewBox="0 0 26 34" aria-hidden="true">
+      <path className="c-leaf" d="M13 11 C9 5 9 2 12 1 C14 3 14 6 13 11 Z M13 11 C17 5 20 4 22 6 C21 9 17 10 13 11 Z M13 11 C8 8 5 8 4 10 C6 12 9 12 13 11 Z" />
+      <path className="c-body" d="M7 12 Q13 8 19 12 Q20 22 13 33 Q6 22 7 12 Z" />
+    </svg>
+  );
+}
+
+/** 당근 모으기: 강의를 듣거나 복습한 날마다 쫑긋에게 당근 하나 (며칠째 이어 가는지) */
 export function StreakCard() {
   const [data, setData] = useState<Streak | null>(null);
   useEffect(() => { getJSON<Streak>(`/streak?tz=${-new Date().getTimezoneOffset()}`).then(setData).catch(() => setData(null)); }, []);
   if (!data || data.days === 0) return null;
   const names = ["일", "월", "화", "수", "목", "금", "토"];
   return (
-    <div className="week-streak">
+    <div className="carrots">
       <span>
         <b><Count to={data.streak} /><small>일째</small></b>
-        <span className="list-item-sub">{data.today ? "오늘 공부 완료" : data.streak > 0 ? "오늘도 하면 이어져요" : `최고 ${data.best}일`}</span>
+        <span className="list-item-sub">{data.today ? "오늘 당근 받았어요" : data.streak > 0 ? "오늘도 하면 당근 하나" : `최고 ${data.best}일`}</span>
       </span>
-      <span className="streak-cells rhythm" aria-label="이번 주">
+      <span className="carrot-row" aria-label="이번 주 당근">
         {data.week.map((d, i) => (
-          <span key={d.date} className={`${d.done ? "done" : ""}${i === data.week.length - 1 ? " today" : ""}`}>
-            <i style={{ animationDelay: `${150 + i * 50}ms` }} />{names[new Date(d.date + "T00:00:00").getDay()]}
+          <span key={d.date} className={`${d.done ? "done" : ""}${i === data.week.length - 1 ? " today" : ""}`} style={{ "--i": i } as React.CSSProperties}>
+            <Carrot />{names[new Date(d.date + "T00:00:00").getDay()]}
           </span>
         ))}
       </span>

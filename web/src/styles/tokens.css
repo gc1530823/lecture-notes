@@ -1,17 +1,17 @@
-/* 디자인 토큰. 컨셉은 "소리 무늬": 말이 필기가 되는 앱이라, 강의마다 실제 수업 흐름으로 만든 파형이 그 강의의 얼굴이다. 글씨는 또렷한 고딕, 강조색은 군청 하나. */
+/* 디자인 토큰. 컨셉은 "쫑긋": 수업을 대신 들어 주는 토끼 쫑긋이 앱의 얼굴이다. 당근 주황, 둥글고 통통한 글씨와 버튼, 귀가 움직이는 모션. */
 :root {
-  /* 밝은 테마: 흰 바탕에 짙은 남색 글씨, 강조는 군청 하나. 과목 색(blk)은 파형과 점에만 쓴다 */
-  --bg-paper: #f5f6fa;
+  /* 밝은 테마: 따뜻한 흰 바탕, 당근 주황 */
+  --bg-paper: #fffaf2;
   --bg-card: #ffffff;
-  --text-primary: #0e1220;
-  --text-secondary: #535b70;
-  --text-tertiary: #8d95a8;
+  --text-primary: #2a211b;
+  --text-secondary: #74675b;
+  --text-tertiary: #a8998a;
   --text-on-accent: #ffffff;
   --text-note: #211f1c;
-  --accent-primary: #2f48f0;
+  --accent-primary: #ff7a1a;
   --accent-record: #f0453a;
-  --border-line: #e3e6ef;
-  --fill-soft: #eaecf4;          /* 보조 버튼·칩의 옅은 채움 */
+  --border-line: #f0e3d2;
+  --fill-soft: #f8ecdc;          /* 보조 버튼·칩의 옅은 채움 */
   /* 과목 블록 8색 (채움 / 그 위 글씨) */
   --blk0: #ffd9c2; --blk0-ink: #8f3a12;
   --blk1: #cfe4ff; --blk1-ink: #1a468c;
@@ -21,6 +21,9 @@
   --blk5: #ffd3e2; --blk5-ink: #942050;
   --blk6: #c6f0e6; --blk6-ink: #0f5f4f;
   --blk7: #d9e2ec; --blk7-ink: #2e4155;
+  --accent-deep: #d95f00;        /* 버튼 아래 두께 */
+  --line-deep: #e2d0b9;          /* 흰 버튼·카드 아래 두께 */
+  --leaf: #2fb36b;               /* 잘했어요 초록 (당근 잎) */
   --shadow-card: none;
   --shadow-note: 0 4px 8px rgb(0 0 0 / 0.10);
 
@@ -53,23 +56,26 @@
 
   --font-sans: "Noto Sans KR", system-ui, -apple-system, sans-serif;
   /* 숫자·영문 제목: 시간표의 큰 숫자처럼 또렷하게 (한글은 Noto Sans KR로 넘어간다) */
-  --font-display: "Space Grotesk", "Noto Sans KR", system-ui, sans-serif;
+  --font-display: "Jua", "Noto Sans KR", system-ui, sans-serif;   /* 둥글고 통통한 제목·버튼 글씨 */
   color-scheme: light dark;
 }
 
 /* 어두운 테마. 기기 설정을 따르되, 화면에서 직접 고른 테마(data-theme)가 이긴다 */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg-paper: #0b0e16;
-    --bg-card: #151925;
-    --text-primary: #f1f3f9;
-    --text-secondary: #a3abbf;
-    --text-tertiary: #666e84;
-    --text-on-accent: #0b0e16;
-    --accent-primary: #8fa0ff;
+    --bg-paper: #1c1713;
+    --bg-card: #29221c;
+    --text-primary: #fff3e6;
+    --text-secondary: #c9b8a6;
+    --text-tertiary: #8c7b6b;
+    --text-on-accent: #1c1713;
+    --accent-primary: #ff8a33;
     --accent-record: #ff6259;
-    --border-line: #252a39;
-    --fill-soft: #1e2331;
+    --border-line: #3d3229;
+    --fill-soft: #342a22;
+    --accent-deep: #c25a0a;
+    --line-deep: #17120f;
+    --leaf: #45c781;
     --blk0: #5a2f1a; --blk0-ink: #ffd9c2;
     --blk1: #1d3a66; --blk1-ink: #cfe4ff;
     --blk2: #264d1c; --blk2-ink: #d6f0c4;
@@ -82,16 +88,19 @@
   }
 }
 :root[data-theme="dark"] {
-    --bg-paper: #0b0e16;
-    --bg-card: #151925;
-    --text-primary: #f1f3f9;
-    --text-secondary: #a3abbf;
-    --text-tertiary: #666e84;
-    --text-on-accent: #0b0e16;
-    --accent-primary: #8fa0ff;
+    --bg-paper: #1c1713;
+    --bg-card: #29221c;
+    --text-primary: #fff3e6;
+    --text-secondary: #c9b8a6;
+    --text-tertiary: #8c7b6b;
+    --text-on-accent: #1c1713;
+    --accent-primary: #ff8a33;
     --accent-record: #ff6259;
-    --border-line: #252a39;
-    --fill-soft: #1e2331;
+    --border-line: #3d3229;
+    --fill-soft: #342a22;
+    --accent-deep: #c25a0a;
+    --line-deep: #17120f;
+    --leaf: #45c781;
     --blk0: #5a2f1a; --blk0-ink: #ffd9c2;
     --blk1: #1d3a66; --blk1-ink: #cfe4ff;
     --blk2: #264d1c; --blk2-ink: #d6f0c4;

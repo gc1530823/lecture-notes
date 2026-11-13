@@ -192,7 +192,7 @@ export function ReviewScreen() {
           </Empty>
         )}
         {today && today.total > 0 && !card && (
-          <Empty icon="check-circle">
+          <Empty icon="check-circle" mood="happy">
             <strong className="t-title-s">오늘 복습 끝! {done ? `${done}장 봤어요` : ""}</strong><br />
             {today.next_due_at ? `다음 복습: ${new Date(today.next_due_at * 1000).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}
           </Empty>
