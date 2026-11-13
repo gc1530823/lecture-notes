@@ -20,6 +20,7 @@ export async function postJSON<T>(path: string, body?: unknown): Promise<T> {
 }
 
 async function errorText(res: Response): Promise<string> {
+  if (res.status === 401) window.dispatchEvent(new Event("ln-login-needed"));
   try {
     const data = await res.json();
     if (typeof data?.detail === "string") return data.detail;

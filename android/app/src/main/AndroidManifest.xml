@@ -29,6 +29,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- 친구가 카톡 등으로 받은 서버 주소(무료 터널 https://….trycloudflare.com/web/)를 누르면 앱으로 열고 주소를 저장한다 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="*.trycloudflare.com" android:pathPrefix="/web" />
+            </intent-filter>
         </activity>
 
         <!-- 화면이 꺼져도 녹음·서버 연결을 이어 가는 서비스 (알림 줄에 "녹음 중"이 보인다) -->

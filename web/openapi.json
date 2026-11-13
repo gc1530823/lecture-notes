@@ -5,6 +5,111 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/auth/me": {
+      "get": {
+        "summary": "Auth Me",
+        "description": "로그인이 필요한 서버인지, 누가 로그인했는지 (웹앱이 처음에 묻는다)",
+        "operationId": "auth_me_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/signup": {
+      "post": {
+        "summary": "Auth Signup",
+        "operationId": "auth_signup_auth_signup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Auth Login",
+        "operationId": "auth_login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "Auth Logout",
+        "operationId": "auth_logout_auth_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -2820,6 +2925,29 @@
           "page_no"
         ],
         "title": "AskRequest"
+      },
+      "AuthRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "invite": {
+            "type": "string",
+            "title": "Invite",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "password"
+        ],
+        "title": "AuthRequest"
       },
       "Body_add_photo_sessions__session_id__photo_post": {
         "properties": {

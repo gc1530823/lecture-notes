@@ -8,17 +8,19 @@ import json
 import logging
 import os
 import re
+import secrets
 import time
+from http.cookies import SimpleCookie
 from urllib.parse import quote
 from contextlib import asynccontextmanager
 
 import anthropic
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import training_log
+from . import auth, training_log
 from .config import settings
 from .db import Database
 from .live_session import LiveSession
@@ -77,6 +79,127 @@ async def remember_session(request, call_next):
 
 def db() -> Database:
     return app.state.db
+
+
+# 로그인과 사람별 공간 (INVITE_CODE 를 정했을 때만, app/auth.py)
+
+class AuthGate:
+    """서버 입구: 로그인한 사람을 CURRENT_USER 에 담고, 남의 자료 주소는 404 로 막는다 (HTTP·WebSocket 모두)"""
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] not in ("http", "websocket") or not auth.enabled() or auth.is_public(scope["path"]):
+            return await self.inner(scope, receive, send)
+        user = None
+        cookies = SimpleCookie()
+        for key, value in scope.get("headers", []):
+            if key == b"cookie":
+                cookies.load(value.decode("latin-1"))
+        token = cookies.get(auth.COOKIE)
+        if token:
+            user = app.state.db.login_user(auth.token_hash(token.value))
+        if user is None:
+            return await self._deny(scope, receive, send, 401, "로그인이 필요해요.")
+        names_thing, owner = app.state.db.owner_of(scope["path"])
+        if names_thing and owner is not None and owner != user["id"]:
+            return await self._deny(scope, receive, send, 404, "없는 자료예요.")
+        reset = auth.CURRENT_USER.set(user["id"])
+        try:
+            return await self.inner(scope, receive, send)
+        finally:
+            auth.CURRENT_USER.reset(reset)
+
+    @staticmethod
+    async def _deny(scope, receive, send, status: int, message: str):
+        if scope["type"] == "websocket":
+            await send({"type": "websocket.close", "code": 4401 if status == 401 else 4404})
+            return
+        await JSONResponse({"detail": message}, status_code=status)(scope, receive, send)
+
+
+app.add_middleware(AuthGate)
+
+
+class AuthRequest(BaseModel):
+    name: str
+    password: str
+    invite: str = ""
+
+
+_login_fails: dict[str, list[float]] = {}
+
+
+def _client(request: Request) -> str:
+    return request.headers.get("cf-connecting-ip") or (request.client.host if request.client else "?")
+
+
+def _too_many(request: Request) -> bool:
+    recent = [t for t in _login_fails.get(_client(request), []) if t > time.time() - 600]
+    _login_fails[_client(request)] = recent
+    return len(recent) >= 10
+
+
+def _start_login(request: Request, user: dict) -> JSONResponse:
+    token = secrets.token_urlsafe(32)
+    db().add_login(auth.token_hash(token), user["id"], time.time() + auth.LOGIN_DAYS * 86400)
+    res = JSONResponse({"auth": True, "user": {"id": user["id"], "name": user["name"]}})
+    secure = request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
+    res.set_cookie(auth.COOKIE, token, max_age=auth.LOGIN_DAYS * 86400, httponly=True, samesite="lax", secure=secure, path="/")
+    return res
+
+
+@app.get("/auth/me")
+def auth_me(request: Request):
+    """로그인이 필요한 서버인지, 누가 로그인했는지 (웹앱이 처음에 묻는다)"""
+    if not auth.enabled():
+        return {"auth": False, "user": None}
+    token = request.cookies.get(auth.COOKIE)
+    user = db().login_user(auth.token_hash(token)) if token else None
+    return {"auth": True, "user": {"id": user["id"], "name": user["name"]} if user else None}
+
+
+@app.post("/auth/signup")
+def auth_signup(body: AuthRequest, request: Request):
+    if not auth.enabled():
+        raise HTTPException(400, "이 서버는 로그인 없이 써요.")
+    if _too_many(request):
+        raise HTTPException(429, "잠시 뒤 다시 해 주세요.")
+    name = body.name.strip()
+    if not auth.invite_ok(body.invite):
+        _login_fails.setdefault(_client(request), []).append(time.time())
+        raise HTTPException(403, "초대 코드가 맞지 않아요.")
+    if not auth.NAME.match(name):
+        raise HTTPException(400, "이름은 1~20자로 적어 주세요.")
+    if len(body.password) < 6:
+        raise HTTPException(400, "비밀번호는 6자 이상으로 해 주세요.")
+    if db().user_by_name(name):
+        raise HTTPException(409, "이미 있는 이름이에요. 다른 이름이나 로그인을 해 주세요.")
+    return _start_login(request, db().add_user(name, auth.hash_password(body.password)))
+
+
+@app.post("/auth/login")
+def auth_login(body: AuthRequest, request: Request):
+    if not auth.enabled():
+        raise HTTPException(400, "이 서버는 로그인 없이 써요.")
+    if _too_many(request):
+        raise HTTPException(429, "여러 번 틀려서 10분 동안 막혔어요.")
+    user = db().user_by_name(body.name.strip())
+    if not user or not auth.check_password(body.password, user["password"]):
+        _login_fails.setdefault(_client(request), []).append(time.time())
+        raise HTTPException(401, "이름이나 비밀번호가 맞지 않아요.")
+    return _start_login(request, user)
+
+
+@app.post("/auth/logout")
+def auth_logout(request: Request):
+    token = request.cookies.get(auth.COOKIE)
+    if token:
+        db().delete_login(auth.token_hash(token))
+    res = JSONResponse({"ok": True})
+    res.delete_cookie(auth.COOKIE, path="/")
+    return res
 
 
 class SessionCreate(BaseModel):

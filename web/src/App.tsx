@@ -11,8 +11,26 @@ import { QuizScreen } from "./screens/QuizCards";
 import Session from "./screens/Session";
 import { href, useRoute } from "./router";
 import TabBar from "./components/TabBar";
+import Login, { type Me } from "./screens/Login";
+import { useEffect, useState } from "react";
+import { getJSON } from "./api/useApi";
 
 export default function App() {
+  // 친구들과 함께 쓰는 서버면 먼저 로그인 (혼자 쓰는 서버·데모는 바로)
+  const [me, setMe] = useState<Me | null>(null);
+  useEffect(() => {
+    const check = () => getJSON<Me>("/auth/me").then(setMe).catch(() => setMe({ auth: false, user: null }));
+    void check();
+    const need = () => setMe((m) => (m?.auth ? { ...m, user: null } : m));
+    window.addEventListener("ln-login-needed", need);
+    return () => window.removeEventListener("ln-login-needed", need);
+  }, []);
+  if (me === null) return <div className="boot" aria-busy="true" />;
+  if (me.auth && !me.user) return <Login onDone={(m) => { setMe(m); window.location.hash = "#/"; }} />;
+  return <Routed />;
+}
+
+function Routed() {
   const route = useRoute();
   // 화면이 바뀔 때마다 새로 그려 들어오는 모션을 준다 (styles/app.css 의 .route)
   const tab = route.name === "home" ? "home" : route.name === "review" ? "review" : route.name === "search" ? "search" : route.name === "privacy" ? "more" : null;

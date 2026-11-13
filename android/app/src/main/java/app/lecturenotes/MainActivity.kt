@@ -21,6 +21,8 @@ import android.webkit.URLUtil
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebResourceError
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
@@ -77,6 +79,16 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(Intent.ACTION_VIEW, request.url))
                 return true
             }
+
+            // 서버에 닿지 않으면(컴퓨터가 꺼졌거나, 무료 터널 주소가 바뀌었을 때) 빈 화면 대신 주소를 다시 묻는다
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (request.isForMainFrame) runOnUiThread { cannotReach() }
+            }
+
+            override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
+                // 530·502·503·504: 터널은 살아 있는데 서버(컴퓨터)가 꺼져 있다
+                if (request.isForMainFrame && response.statusCode in setOf(502, 503, 504, 530)) runOnUiThread { cannotReach() }
+            }
         }
         web.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
@@ -98,9 +110,37 @@ class MainActivity : AppCompatActivity() {
 
         LiveService.onEvent = { text -> web.evaluateJavascript("window.__androidLiveEvent && window.__androidLiveEvent(${JSONObject.quote(text)})", null) }
 
+        if (openLink(intent)) return
         val saved = server()
         val start = if (intent?.getStringExtra("open") == "review") "#/review" else ""
         if (saved == null) askServer() else web.loadUrl(appUrl(saved) + start)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        openLink(intent)
+    }
+
+    /** 친구에게 받은 서버 링크로 열렸으면: 그 서버를 저장하고 연다 */
+    private fun openLink(intent: Intent?): Boolean {
+        val link = intent?.data ?: return false
+        if (intent.action != Intent.ACTION_VIEW || link.scheme != "https" || link.host.isNullOrEmpty()) return false
+        val url = "https://${link.host}"
+        prefs.edit().putString("server", url).apply()
+        web.loadUrl(appUrl(url))
+        return true
+    }
+
+    private var reachDialog: AlertDialog? = null
+
+    private fun cannotReach() {
+        if (reachDialog?.isShowing == true) return
+        reachDialog = AlertDialog.Builder(this)
+            .setTitle("서버에 연결할 수 없어요")
+            .setMessage("서버 컴퓨터가 꺼져 있거나 주소가 바뀌었을 수 있어요. 새 주소를 받았다면 바꿔 주세요.")
+            .setPositiveButton("다시 시도") { _, _ -> web.reload() }
+            .setNeutralButton("주소 바꾸기") { _, _ -> askServer() }
+            .show()
     }
 
     override fun onDestroy() {
@@ -120,13 +160,13 @@ class MainActivity : AppCompatActivity() {
     /** 처음 켤 때(또는 바꿀 때): 강의노트 서버 주소 (예: Codespaces의 8000번 포트 주소) */
     private fun askServer() {
         val input = EditText(this).apply {
-            hint = "https://…-8000.app.github.dev"
+            hint = "https://….trycloudflare.com"
             setText(server() ?: "https://")
             setSingleLine()
         }
         AlertDialog.Builder(this)
             .setTitle("서버 주소")
-            .setMessage("강의노트 서버 주소를 넣어 주세요. Codespaces라면 포트 8000번의 주소예요.")
+            .setMessage("서버를 켠 사람에게 받은 주소를 넣어 주세요. (주소 링크를 카톡에서 누르면 자동으로 들어가요)")
             .setView(input)
             .setCancelable(server() != null)
             .setPositiveButton("열기") { _, _ ->

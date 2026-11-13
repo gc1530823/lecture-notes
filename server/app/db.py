@@ -8,6 +8,23 @@ import time
 import uuid
 from typing import Any
 
+from .auth import CURRENT_USER
+
+
+def _me() -> str:
+    """지금 요청한 사람 (혼자 쓸 때는 '')"""
+    return CURRENT_USER.get() or ""
+
+
+def _mine(owner: str) -> bool:
+    user = CURRENT_USER.get()
+    return user is None or owner == user
+
+
+def _owner_clause(column: str = "owner") -> tuple[str, tuple]:
+    user = CURRENT_USER.get()
+    return (f" WHERE {column} = ?", (user,)) if user is not None else ("", ())
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY,
@@ -83,6 +100,19 @@ CREATE TABLE IF NOT EXISTS quiz_sets (
     session_id TEXT,
     body TEXT NOT NULL,
     created_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS users (
+    -- 친구들과 함께 쓸 때 (INVITE_CODE): 이름 + 비밀번호(scrypt). 혼자 쓸 때는 비어 있다
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    created_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS logins (
+    -- 로그인 표 (쿠키) 의 해시
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    expires_at REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS classes (
     -- 시간표: 과목·요일(0=월 … 6=일)·시작·끝("HH:MM")·강의실
@@ -228,6 +258,12 @@ class Database:
         if "confidence" not in columns:
             self._conn.execute("ALTER TABLE annotations ADD COLUMN confidence REAL NOT NULL DEFAULT 1")
             self._conn.commit()
+        # owner: 누구 자료인지 (친구들과 함께 쓸 때). 혼자 쓸 때·예전 자료는 '' (첫 가입자가 가져간다)
+        for table in ("documents", "classes", "exams"):
+            columns = {r["name"] for r in self._conn.execute(f"PRAGMA table_info({table})")}
+            if "owner" not in columns:
+                self._conn.execute(f"ALTER TABLE {table} ADD COLUMN owner TEXT NOT NULL DEFAULT ''")
+                self._conn.commit()
         # question: "모르겠다" 표시를 복습 카드로 만들 때 AI가 쓴 앞면 질문
         columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(marks)")}
         if "question" not in columns:
@@ -256,8 +292,8 @@ class Database:
         doc_id = uuid.uuid4().hex
         with self._lock, self._conn:
             self._conn.execute(
-                "INSERT INTO documents (id, title, page_count, keywords, created_at, kind) VALUES (?, ?, 1, '[]', ?, ?)",
-                (doc_id, title, time.time(), kind),
+                "INSERT INTO documents (id, title, page_count, keywords, created_at, kind, owner) VALUES (?, ?, 1, '[]', ?, ?, ?)",
+                (doc_id, title, time.time(), kind, _me()),
             )
             self._conn.execute("INSERT INTO pages (document_id, page_no, width, height, text) VALUES (?, 1, ?, ?, '')",
                                (doc_id, *self.NOTEBOOK_PAGE))
@@ -317,24 +353,26 @@ class Database:
     def search(self, query: str, limit: int = 60) -> list[dict]:
         """모든 강의에서 찾기: 필기·교수님 말·용어·슬라이드 글. 최근 강의부터."""
         like = f"%{query}%"
+        user = CURRENT_USER.get()
+        own, mine = (" AND d.owner = ?", (user,)) if user is not None else ("", ())
         out = []
         out += [{**r, "kind": "note"} for r in self._query(
             """SELECT a.text, a.type AS note_type, a.start_ms, p.page_no, s.id AS session_id, d.id AS doc_id, d.title, d.course, s.started_at
                FROM annotations a JOIN pages p ON p.id = a.page_id JOIN sessions s ON s.id = a.session_id JOIN documents d ON d.id = s.document_id
-               WHERE a.text LIKE ? ORDER BY s.started_at DESC LIMIT ?""", (like, limit))]
+               WHERE a.text LIKE ?""" + own + """ ORDER BY s.started_at DESC LIMIT ?""", (like, *mine, limit))]
         out += [{**r, "kind": "term"} for r in self._query(
             """SELECT g.term || ' — ' || g.definition AS text, g.start_ms, g.page_no, s.id AS session_id, d.id AS doc_id, d.title, d.course, s.started_at
                FROM glossary g JOIN sessions s ON s.id = g.session_id JOIN documents d ON d.id = s.document_id
-               WHERE g.term LIKE ? OR g.definition LIKE ? ORDER BY s.started_at DESC LIMIT ?""", (like, like, limit))]
+               WHERE (g.term LIKE ? OR g.definition LIKE ?)""" + own + """ ORDER BY s.started_at DESC LIMIT ?""", (like, like, *mine, limit))]
         out += [{**r, "kind": "speech"} for r in self._query(
             """SELECT t.text, t.start_ms, p.page_no, s.id AS session_id, d.id AS doc_id, d.title, d.course, s.started_at
                FROM transcript_segments t LEFT JOIN pages p ON p.id = t.page_id JOIN sessions s ON s.id = t.session_id
                JOIN documents d ON d.id = s.document_id
-               WHERE t.text LIKE ? ORDER BY s.started_at DESC, t.start_ms LIMIT ?""", (like, limit))]
+               WHERE t.text LIKE ?""" + own + """ ORDER BY s.started_at DESC, t.start_ms LIMIT ?""", (like, *mine, limit))]
         out += [{**r, "kind": "slide"} for r in self._query(
             """SELECT p.text, p.page_no, d.id AS doc_id, d.title, d.course, d.created_at AS started_at
-               FROM pages p JOIN documents d ON d.id = p.document_id WHERE p.text LIKE ? ORDER BY d.created_at DESC LIMIT ?""",
-            (like, limit))]
+               FROM pages p JOIN documents d ON d.id = p.document_id WHERE p.text LIKE ?""" + own + """ ORDER BY d.created_at DESC LIMIT ?""",
+            (like, *mine, limit))]
         return out
 
     def set_page_text(self, page_id: int, text: str) -> None:
@@ -344,8 +382,8 @@ class Database:
         doc_id = uuid.uuid4().hex
         with self._lock, self._conn:
             self._conn.execute(
-                "INSERT INTO documents (id, title, page_count, keywords, created_at) VALUES (?, ?, ?, ?, ?)",
-                (doc_id, title, len(pages), json.dumps(keywords, ensure_ascii=False), time.time()),
+                "INSERT INTO documents (id, title, page_count, keywords, created_at, owner) VALUES (?, ?, ?, ?, ?, ?)",
+                (doc_id, title, len(pages), json.dumps(keywords, ensure_ascii=False), time.time(), _me()),
             )
             for page in pages:
                 page_id = self._conn.execute(
@@ -360,7 +398,10 @@ class Database:
 
     def list_documents(self) -> list[dict]:
         """강의자료 목록 (최근 것부터)과 각 자료의 강의 목록"""
-        docs = self._query("SELECT id, title, page_count, created_at, kind, course FROM documents ORDER BY created_at DESC")
+        user = CURRENT_USER.get()
+        docs = self._query("SELECT id, title, page_count, created_at, kind, course FROM documents"
+                           + (" WHERE owner = ?" if user is not None else "") + " ORDER BY created_at DESC",
+                           (user,) if user is not None else ())
         for doc in docs:
             doc["sessions"] = self._query(
                 "SELECT id, status, started_at FROM sessions WHERE document_id = ? ORDER BY started_at DESC",
@@ -389,7 +430,7 @@ class Database:
 
     def get_document(self, doc_id: str) -> dict | None:
         docs = self._query("SELECT * FROM documents WHERE id = ?", (doc_id,))
-        if not docs:
+        if not docs or not _mine(docs[0]["owner"]):
             return None
         doc = docs[0]
         doc["keywords"] = json.loads(doc["keywords"])
@@ -538,6 +579,38 @@ class Database:
         with self._lock, self._conn:
             return self._conn.execute("DELETE FROM shared WHERE id = ?", (shared_id,)).rowcount > 0
 
+    # 사용자 (친구들과 함께 쓸 때)
+
+    def add_user(self, name: str, password_hash: str) -> dict:
+        user_id = uuid.uuid4().hex
+        with self._lock, self._conn:
+            first = self._conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
+            self._conn.execute("INSERT INTO users (id, name, password, created_at) VALUES (?, ?, ?, ?)", (user_id, name, password_hash, time.time()))
+            if first:  # 처음 가입한 사람(이 서버 주인)이 혼자 쓰던 자료를 가져간다
+                for table in ("documents", "classes", "exams"):
+                    self._conn.execute(f"UPDATE {table} SET owner = ? WHERE owner = ''", (user_id,))
+        return {"id": user_id, "name": name}
+
+    def user_by_name(self, name: str) -> dict | None:
+        rows = self._query("SELECT * FROM users WHERE name = ?", (name,))
+        return rows[0] if rows else None
+
+    def add_login(self, token_hash: str, user_id: str, expires_at: float) -> None:
+        self._write("INSERT INTO logins (token_hash, user_id, expires_at) VALUES (?, ?, ?)", (token_hash, user_id, expires_at))
+
+    def login_user(self, token_hash: str) -> dict | None:
+        rows = self._query("SELECT u.id, u.name FROM logins l JOIN users u ON u.id = l.user_id WHERE l.token_hash = ? AND l.expires_at > ?",
+                           (token_hash, time.time()))
+        return rows[0] if rows else None
+
+    def delete_login(self, token_hash: str) -> None:
+        self._write("DELETE FROM logins WHERE token_hash = ?", (token_hash,))
+
+    def owner_of(self, path: str) -> tuple[bool, str | None]:
+        from .auth import owner_of
+        with self._lock:
+            return owner_of(self._conn, path)
+
     # AI 퀴즈
 
     def add_quiz_set(self, document_id: str, session_id: str | None, body: dict) -> int:
@@ -554,32 +627,34 @@ class Database:
     # 시험 D-day
 
     def add_exam(self, title: str, exam_date: str, doc_ids: list[str]) -> dict:
-        exam_id = self._write("INSERT INTO exams (title, exam_date, doc_ids, created_at) VALUES (?, ?, ?, ?)",
-                              (title, exam_date, json.dumps(doc_ids), time.time()))
+        exam_id = self._write("INSERT INTO exams (title, exam_date, doc_ids, created_at, owner) VALUES (?, ?, ?, ?, ?)",
+                              (title, exam_date, json.dumps(doc_ids), time.time(), _me()))
         return self.get_exam(exam_id)
 
     def get_exam(self, exam_id: int) -> dict | None:
         rows = self._query("SELECT * FROM exams WHERE id = ?", (exam_id,))
-        if not rows:
+        if not rows or not _mine(rows[0]["owner"]):
             return None
         return {**rows[0], "doc_ids": json.loads(rows[0]["doc_ids"])}
 
     # 시간표
 
     def add_class(self, course: str, weekday: int, start: str, end: str, place: str) -> dict:
-        class_id = self._write("INSERT INTO classes (course, weekday, start, end, place) VALUES (?, ?, ?, ?, ?)",
-                               (course, weekday, start, end, place))
+        class_id = self._write("INSERT INTO classes (course, weekday, start, end, place, owner) VALUES (?, ?, ?, ?, ?, ?)",
+                               (course, weekday, start, end, place, _me()))
         return self._query("SELECT * FROM classes WHERE id = ?", (class_id,))[0]
 
     def list_classes(self) -> list[dict]:
-        return self._query("SELECT * FROM classes ORDER BY weekday, start")
+        where, args = _owner_clause()
+        return self._query("SELECT * FROM classes" + where + " ORDER BY weekday, start", args)
 
     def delete_class(self, class_id: int) -> bool:
         with self._lock, self._conn:
             return self._conn.execute("DELETE FROM classes WHERE id = ?", (class_id,)).rowcount > 0
 
     def list_exams(self) -> list[dict]:
-        return [{**r, "doc_ids": json.loads(r["doc_ids"])} for r in self._query("SELECT * FROM exams ORDER BY exam_date")]
+        where, args = _owner_clause()
+        return [{**r, "doc_ids": json.loads(r["doc_ids"])} for r in self._query("SELECT * FROM exams" + where + " ORDER BY exam_date", args)]
 
     def delete_exam(self, exam_id: int) -> bool:
         with self._lock, self._conn:
@@ -625,7 +700,8 @@ class Database:
     def list_cards(self, document_id: str | None = None) -> list[dict]:
         if document_id:
             return self._query("SELECT * FROM reviews WHERE document_id = ?", (document_id,))
-        return self._query("SELECT * FROM reviews")
+        where, args = _owner_clause("d.owner")
+        return self._query("SELECT r.* FROM reviews r JOIN documents d ON d.id = r.document_id" + where, args)
 
     def save_card(self, card: dict) -> None:
         self._write("UPDATE reviews SET ease = ?, interval = ?, reps = ?, lapses = ?, due_at = ?, last_at = ? WHERE card_key = ?",

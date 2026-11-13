@@ -321,6 +321,7 @@ export function PrivacyScreen() {
       <div className="screen-body">
         <div className="banner"><p className="t-body"><b>녹음은 교수님 허락을 받고, 본인 공부에만 써 주세요.</b></p></div>
         <PrivacyFacts info={info} />
+        <Account />
         <SoundToggle />
         {android() && <Button block variant="secondary" onClick={() => android()?.changeServer()}>서버 주소 바꾸기</Button>}
         <Button block variant="record" icon="trash" onClick={wipe} disabled={busy || !docs?.length}>
@@ -430,6 +431,29 @@ function groupNotes(notes: { who: string; text: string }[]) {
 }
 
 /** 효과음 켜고 끄기 (기기에 기억). 녹음 중에는 켜 둬도 소리 대신 진동만 */
+/** 친구들과 함께 쓰는 서버면: 누구로 로그인했는지 + 로그아웃 */
+function Account() {
+  const [me, setMe] = useState<{ auth: boolean; user: { name: string } | null } | null>(null);
+  useEffect(() => { getJSON<typeof me>("/auth/me").then(setMe).catch(() => {}); }, []);
+  if (!me?.auth || !me.user) return null;
+  const logout = async () => {
+    if (!confirm("로그아웃할까요? 자료는 서버에 그대로 있어요.")) return;
+    await postJSON("/auth/logout").catch(() => {});
+    window.location.hash = "#/";
+    window.location.reload();
+  };
+  return (
+    <div className="list-item">
+      <span className="list-item-icon is-art"><Icon name="users" art size={40} /></span>
+      <span className="grow">
+        <span className="t-title-s" style={{ display: "block" }}>{me.user.name}</span>
+        <span className="list-item-sub">내 강의·녹음·필기는 나만 볼 수 있어요</span>
+      </span>
+      <button className="chip chip-default" onClick={() => void logout()}>로그아웃</button>
+    </div>
+  );
+}
+
 function SoundToggle() {
   const [on, setOn] = useState(soundOn());
   return (
