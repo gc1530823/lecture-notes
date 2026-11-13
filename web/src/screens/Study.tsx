@@ -4,9 +4,9 @@ import type { ClozeItem, Concept, Flashcard, MindNode, StudyResponse, SummaryRes
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, TermCard } from "../components/ui";
 import { ConfusedPane } from "./ExamPrep";
-import QuizChat from "./QuizChat";
+import QuizCards from "./QuizCards";
 
-const KINDS = [["summary", "요약"], ["quiz", "AI 퀴즈"], ["flashcards", "플래시카드"], ["concepts", "개념"], ["mindmap", "마인드맵"], ["cloze", "암기"], ["confused", "모르겠다"], ["tutor", "AI 튜터"]] as const;
+const KINDS = [["summary", "요약"], ["quiz", "퀴즈 카드"], ["flashcards", "플래시카드"], ["concepts", "개념"], ["mindmap", "마인드맵"], ["cloze", "암기"], ["confused", "모르겠다"], ["tutor", "AI 튜터"]] as const;
 type Kind = (typeof KINDS)[number][0];
 
 export default function Study({ sessionId }: { sessionId: string }) {
@@ -20,7 +20,7 @@ export default function Study({ sessionId }: { sessionId: string }) {
         {KINDS.map(([k, label]) => <Chip key={k} variant={kind === k ? "accent" : "default"} onClick={() => setKind(k)}>{label}</Chip>)}
       </div>
       {kind === "summary" && <SummaryPane sessionId={sessionId} />}
-      {kind === "quiz" && <QuizChat makePath={`/sessions/${sessionId}/quiz-set`} scopeLabel="이번 강의의 자료와 교수님 설명을" />}
+      {kind === "quiz" && <QuizCards makePath={`/sessions/${sessionId}/quiz-set`} scopeLabel="이번 강의의 자료와 교수님 설명을" />}
       {kind === "flashcards" && <AIStudy<Flashcard[]> sessionId={sessionId} kind="flashcards" render={(b) => <Flashcards cards={b} />} />}
       {kind === "concepts" && <AIStudy<Concept[]> sessionId={sessionId} kind="concepts" render={(b) => (
         <>{b.map((c, i) => <TermCard key={i} term={c.term} page={c.page_no} definition={c.example ? `${c.definition}\n예) ${c.example}` : c.definition} />)}</>

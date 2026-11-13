@@ -7,7 +7,7 @@ import Intro from "./screens/Intro";
 import Lecture from "./screens/Lecture";
 import Semester from "./screens/Semester";
 import Search from "./screens/Search";
-import { QuizScreen } from "./screens/QuizChat";
+import { QuizScreen } from "./screens/QuizCards";
 import Session from "./screens/Session";
 import { href, useRoute } from "./router";
 import TabBar from "./components/TabBar";
