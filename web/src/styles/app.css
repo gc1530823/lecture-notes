@@ -896,3 +896,6 @@ body:has(.tabbar) .screen { padding-bottom: calc(72px + env(safe-area-inset-bott
 .quiz-choice.btn-primary .choice-letter, .quiz-choice.fx-right .choice-letter { background: rgb(255 255 255 / .25); color: #fff; }
 .quiz-choice.btn-record .choice-letter { background: rgb(255 255 255 / .25); color: #fff; }
 .quiz-choice.fx-right { background: var(--leaf); color: #fff; box-shadow: none; border-color: transparent; }
+.quiz-head { align-items: center; }
+.quiz-making { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 16px; text-align: center; background: var(--bg-card); border: 1px solid var(--border-line); border-radius: 18px; box-shadow: var(--shadow-card); }
+.quiz-making b { font: 700 16px/22px var(--font-sans); }

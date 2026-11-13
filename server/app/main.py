@@ -31,6 +31,7 @@ from .semester import anki_text, concept_map, exam_plan, semester_context, sessi
 from .notes_pdf import build_notes_pdf
 from .quick_notes import EXAM_TALK
 from .note_review import review_session
+from .ollama_llm import clean_quiz
 from .story import build_exam_story, build_story, build_streak, wave as build_wave
 from .recording import audio_file, recorded_ms, wav_parts
 from .pdf_parser import PDFParseError, extract_keywords, parse_pdf
@@ -50,7 +51,8 @@ async def lifespan(app: FastAPI):
     app.state.ocr_jobs = {}
     app.state.transcriber = make_transcriber()
     app.state.progress = {}  # 세션 id → 녹음 파일 받아쓰기 진행률 (0~1)
-    app.state.reviews = {}   # 세션 id → 강의 뒤 필기 다시 확인 결과 (몇 개 고쳤는지)
+    app.state.reviews = {}
+    app.state.quiz_jobs = set()  # 퀴즈를 다시 내는 중인 강의   # 세션 id → 강의 뒤 필기 다시 확인 결과 (몇 개 고쳤는지)
     app.state.notes_pdf = {}  # 세션 id → 정리 PDF 만들기 상태
     app.state.exam_jobs = {}  # 강의자료 id → 예상 문제 만들기 상태
     app.state.study_jobs = {}  # (세션 id, 종류) → 공부 도구 만들기 상태
@@ -541,10 +543,57 @@ async def _summarize(session_id: str, document_id: str) -> None:
 
 
 @app.get("/sessions/{session_id}/summary")
-def get_summary(session_id: str):
+def get_summary(session_id: str, background: BackgroundTasks):
     session = _session_or_404(session_id)
-    return {"status": session["status"], "summary": db().get_summary(session_id),
+    summary = db().get_summary(session_id)
+    # 예전 방식으로 만든 퀴즈("몇 쪽에서 다룬 내용은?", 슬라이드 베끼기)는 새 방식으로 다시 낸다 (한 번만, 뒤에서)
+    if summary and session["status"] == "done" and _old_quiz(session_id, summary) and session_id not in app.state.quiz_jobs:
+        app.state.quiz_jobs.add(session_id)
+        background.add_task(_remake_quiz, session_id)
+    return {"status": session["status"], "summary": summary, "quiz_status": "making" if session_id in app.state.quiz_jobs else "ready",
             "progress": app.state.progress.get(session_id), "review": app.state.reviews.get(session_id)}
+
+
+def _quiz_inputs(session_id: str) -> tuple[list[dict], list[dict], list[dict]]:
+    session = db().get_session(session_id)
+    pages = db().list_pages(session["document_id"])
+    return pages, db().get_segments(session_id), db().list_annotations(session_id)
+
+
+def _old_quiz(session_id: str, summary: dict) -> bool:
+    quiz = summary.get("quiz") or []
+    if not quiz:
+        return False
+    pages, segments, _ = _quiz_inputs(session_id)
+    sources = [p.get("text") or "" for p in pages] + [s["text"] for s in segments]
+    return len(clean_quiz(quiz, sources, {p["page_no"] for p in pages})) < len(quiz)
+
+
+async def _remake_quiz(session_id: str) -> None:
+    try:
+        make = getattr(app.state.llm, "make_quiz", None)
+        if make is None:
+            return
+        pages, segments, notes = _quiz_inputs(session_id)
+        summary = db().get_summary(session_id) or {}
+        results = [(p["page_no"], p["summary"], None, 1) for p in summary.get("pages", [])]
+        quiz = await make(pages, segments, notes, results)
+        if quiz:
+            db().save_summary(session_id, {**summary, "quiz": quiz})
+    except Exception:
+        log.exception("퀴즈 다시 내기 실패")
+    finally:
+        app.state.quiz_jobs.discard(session_id)
+
+
+@app.post("/sessions/{session_id}/quiz")
+async def remake_quiz(session_id: str, background: BackgroundTasks):
+    """퀴즈 새로 받기: 같은 강의로 다른 문제를 AI가 다시 낸다"""
+    _session_or_404(session_id)
+    if session_id not in app.state.quiz_jobs:
+        app.state.quiz_jobs.add(session_id)
+        background.add_task(_remake_quiz, session_id)
+    return {"quiz_status": "making"}
 
 
 # "방금 뭐라고?": 수업 중 질문. 최근 2분 설명과 지금 슬라이드를 근거로 답하고, 관련 문단 옆에 질문 포스트잇으로 붙인다

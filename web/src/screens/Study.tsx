@@ -125,7 +125,18 @@ function MindMap({ root }: { root: MindNode }) {
 }
 
 function SummaryPane({ sessionId, quiz }: { sessionId: string; quiz: boolean }) {
-  const { data } = useApi<SummaryResponse>(`/sessions/${sessionId}/summary`);
+  const { data, reload } = useApi<SummaryResponse & { quiz_status?: string }>(`/sessions/${sessionId}/summary`);
+  const making = data?.quiz_status === "making";
+  // AI가 퀴즈를 새로 내는 중이면 잠깐씩 다시 물어본다
+  useEffect(() => {
+    if (!making) return;
+    const t = window.setInterval(() => reload(), 2500);
+    return () => window.clearInterval(t);
+  }, [making, reload]);
+  const remake = async () => {
+    try { await postJSON(`/sessions/${sessionId}/quiz`); setPicked({}); reload(); }
+    catch (e) { alert(e instanceof Error ? e.message : String(e)); }
+  };
   const { data: terms } = useApi<{ term: string }[]>(`/sessions/${sessionId}/glossary`);
   const [picked, setPicked] = useState<Record<number, number>>({});
   if (!data) return <p className="muted">불러오는 중…</p>;
@@ -154,9 +165,14 @@ function SummaryPane({ sessionId, quiz }: { sessionId: string; quiz: boolean }) 
     );
   }
   const items = s.quiz ?? [];
+  if (making) return <div className="quiz-making"><span className="spin" /><b>AI가 오늘 강의로 문제를 내고 있어요</b><span className="t-caption muted">외운 문장 찾기가 아니라 이해를 묻는 문제로 만들어요</span></div>;
   if (items.length === 0) return <Empty icon="list-numbers">퀴즈가 없어요</Empty>;
   return (
     <>
+      <div className="row quiz-head">
+        <span className="t-caption muted grow">AI가 강의 내용을 바탕으로 낸 문제 {items.length}개</span>
+        <button className="chip chip-accent" onClick={() => void remake()}>새 문제 받기</button>
+      </div>
       {items.map((q, qi) => {
         const answered = picked[qi] !== undefined;
         return (

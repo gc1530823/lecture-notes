@@ -1001,3 +1001,23 @@ def test_recording_only_upload_becomes_a_notebook_lecture_with_topics_and_summar
     assert any(n["type"] == "exam" for n in notes)
     named = client.post("/documents/from-audio", files={"file": ("운영체제 7주차.m4a", b"x", "audio/mp4")}).json()
     assert named["title"] == "운영체제 7주차"
+
+
+def test_old_copied_quiz_is_remade_by_ai_and_can_be_asked_again(client):
+    """예전 방식 퀴즈("몇 쪽에서 다룬 내용은?")가 저장된 강의는 열 때 AI가 새로 낸 문제로 바뀐다. 다시 받기도 된다."""
+    from app.main import app as fastapi_app
+
+    doc = upload(client)
+    session = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    fastapi_app.state.db.save_summary(session["id"], {"overview": "요약", "pages": [{"page_no": 1, "summary": "경사하강법"}],
+        "quiz": [{"page_no": 1, "question": "1페이지에서 다룬 내용은?", "choices": ["가", "나", "다", "라"], "answer_index": 0, "explanation": "x"}]})
+    fastapi_app.state.db.set_session_status(session["id"], "done")
+    first = client.get(f"/sessions/{session['id']}/summary").json()
+    assert first["quiz_status"] == "making"
+    for _ in range(30):
+        state = client.get(f"/sessions/{session['id']}/summary").json()
+        if state["quiz_status"] == "ready" and "다룬 내용" not in state["summary"]["quiz"][0]["question"]:
+            break
+        time.sleep(0.1)
+    assert "다룬 내용" not in state["summary"]["quiz"][0]["question"] and len(state["summary"]["quiz"]) >= 1
+    assert client.post(f"/sessions/{session['id']}/quiz").json()["quiz_status"] == "making"

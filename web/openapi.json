@@ -675,6 +675,44 @@
         }
       }
     },
+    "/sessions/{session_id}/quiz": {
+      "post": {
+        "summary": "Remake Quiz",
+        "description": "퀴즈 새로 받기: 같은 강의로 다른 문제를 AI가 다시 낸다",
+        "operationId": "remake_quiz_sessions__session_id__quiz_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sessions/{session_id}/ask": {
       "post": {
         "summary": "Ask",

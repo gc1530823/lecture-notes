@@ -754,6 +754,11 @@ class FakeLLM:
             ],
         }
 
+    async def make_quiz(self, pages: list[dict], segments: list[dict], annotations: list[dict], page_results=None) -> list[dict]:
+        return [{"page_no": p["page_no"], "question": f"'{(p.get('text') or '이 개념').splitlines()[0][:20]}'을 실제 상황에 쓴다면 가장 알맞은 것은?",
+                 "choices": ["핵심 조건을 먼저 확인한다", "조건과 상관없이 항상 쓴다", "쓰지 않는 것이 낫다", "다음 강의까지 미룬다"],
+                 "answer_index": 0, "explanation": "가짜 응답입니다."} for p in pages[:3]]
+
     async def research_tips(self, summary: dict) -> list[dict]:
         return [
             {"page_no": p["page_no"], "title": f"{p['page_no']}쪽 더 알아보기", "text": "가짜 응답입니다.",
