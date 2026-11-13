@@ -1,5 +1,5 @@
 ﻿# 쫑긋 강의노트 서버 (Windows): 필요한 프로그램을 winget 으로 설치하고 run.py 를 실행한다.
-# 설치하는 것: Python 3.12, Node.js LTS, FFmpeg, cloudflared (이미 있으면 건너뜀)
+# 설치하는 것: Python 3.12, Node.js LTS, FFmpeg, cloudflared, Tailscale (이미 있으면 건너뜀)
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
@@ -32,5 +32,11 @@ Ensure "python" "Python.Python.3.12" "Python 3.12"
 Ensure "node" "OpenJS.NodeJS.LTS" "Node.js"
 Ensure "ffmpeg" "Gyan.FFmpeg" "FFmpeg"
 Ensure "cloudflared" "Cloudflare.cloudflared" "cloudflared (무료 터널)"
+# Tailscale: 바뀌지 않는 무료 주소. 설치가 안 돼도 임시 주소(cloudflared)로 켜지므로 멈추지 않는다
+if (-not (Has "tailscale") -and -not (Test-Path "C:\Program Files\Tailscale\tailscale.exe") -and (Get-Command winget -ErrorAction SilentlyContinue)) {
+  Write-Host "Tailscale 설치 중… (바뀌지 않는 무료 주소, 처음 한 번)" -ForegroundColor Cyan
+  winget install -e --id Tailscale.Tailscale --silent --accept-source-agreements --accept-package-agreements | Out-Host
+  Refresh-Path
+}
 
 & python "$PSScriptRoot\run.py" @args

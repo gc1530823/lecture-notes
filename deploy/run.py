@@ -167,6 +167,46 @@ def start_tunnel() -> tuple[subprocess.Popen, str]:
     sys.exit(1)
 
 
+def tailscale_cmd() -> str | None:
+    found = shutil.which("tailscale")
+    for path in ("/Applications/Tailscale.app/Contents/MacOS/Tailscale", r"C:\Program Files\Tailscale\tailscale.exe"):
+        if not found and os.path.exists(path):
+            found = path
+    return found
+
+
+def start_funnel(ts: str) -> str:
+    """Tailscale Funnel: 바뀌지 않는 무료 주소 (https://내컴퓨터.tail1234.ts.net). 앱에 넣어 두면 깔자마자 바로 열린다"""
+    import json
+
+    def status() -> dict:
+        out = subprocess.run([ts, "status", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+        try:
+            return json.loads(out.stdout or "{}")
+        except ValueError:
+            return {}
+
+    if status().get("BackendState") != "Running":
+        say("\nTailscale 에 로그인해 주세요 (처음 한 번). 브라우저가 열리면 구글 계정 등으로 가입·로그인하면 돼요.")
+        subprocess.run([ts, "up"])
+    name = (status().get("Self") or {}).get("DNSName", "").rstrip(".")
+    if not name:
+        say("\n[!] Tailscale 에 로그인되지 않았어요. Tailscale 앱을 열어 로그인한 뒤 다시 켜 주세요.")
+        sys.exit(1)
+    say("\n고정 인터넷 주소를 여는 중… (Tailscale Funnel)")
+    out = subprocess.run([ts, "funnel", "--bg", str(PORT)], capture_output=True, text=True, encoding="utf-8", errors="replace")
+    text = (out.stdout or "") + (out.stderr or "")
+    if out.returncode != 0:
+        link = re.search(r"https://login\.tailscale\.com/\S+", text)
+        say("\n[!] Funnel 을 켜지 못했어요." + (f" 이 주소를 브라우저로 열어 Funnel 을 허용한 뒤 다시 켜 주세요:\n    {link.group(0)}" if link else "\n" + text))
+        sys.exit(1)
+    return f"https://{name}"
+
+
+def stop_funnel(ts: str) -> None:
+    subprocess.run([ts, "funnel", "reset"], capture_output=True)
+
+
 def show_qr(py: Path, text: str) -> None:
     subprocess.run([str(py), "-c", "import qrcode,sys; q=qrcode.QRCode(border=1); q.add_data(sys.argv[1]); q.print_ascii(invert=True)", text])
 
@@ -191,11 +231,15 @@ def main() -> None:
     server = subprocess.Popen([str(py), "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0" if local_only else "127.0.0.1",
                                "--port", str(PORT), "--proxy-headers", "--forwarded-allow-ips", "127.0.0.1"], cwd=SERVER, env=run_env)
     procs = [server]
+    funnel = None
     try:
         wait_health(server)
         if local_only:
             lan = lan_address()
             url = f"http://{lan}:{PORT}" if lan else f"http://localhost:{PORT}"
+        elif env.get("TUNNEL", "auto") != "cloudflare" and (ts := tailscale_cmd()):
+            url = start_funnel(ts)
+            funnel = ts
         else:
             tunnel, url = start_tunnel()
             procs.append(tunnel)
@@ -205,8 +249,10 @@ def main() -> None:
         say(f" 주소 (폰 앱·브라우저):  {url}/web/")
         say(f" 초대 코드 (처음 가입할 때):  {env['INVITE_CODE']}")
         say("\n 친구에게: 위 주소를 카톡으로 보내면, 앱이 깔린 폰에서 눌러 바로 연결돼요.")
-        if not local_only:
-            say(" (무료 터널이라 서버를 다시 켜면 주소가 바뀌어요. 그때 새 주소를 다시 보내 주세요)")
+        if funnel:
+            say(" 이 주소는 바뀌지 않아요. 앱에 넣어 두면 깔자마자 바로 열려요 (deploy/README.md 의 '바로 시작되는 앱').")
+        elif not local_only:
+            say(" (임시 터널이라 서버를 다시 켜면 주소가 바뀌어요. 고정 주소는 Tailscale 을 깔면 돼요)")
         say("=" * 56)
         show_qr(py, f"{url}/web/")
         while all(p.poll() is None for p in procs):
@@ -218,6 +264,8 @@ def main() -> None:
         for p in procs:
             if p.poll() is None:
                 p.terminate()
+        if funnel:
+            stop_funnel(funnel)
 
 
 if __name__ == "__main__":

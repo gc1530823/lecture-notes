@@ -153,7 +153,8 @@ class MainActivity : AppCompatActivity() {
         if (web.canGoBack()) web.goBack() else super.onBackPressed()
     }
 
-    private fun server(): String? = prefs.getString("server", null)
+    /** 서버 주소: 직접 바꾼 주소 → 없으면 앱에 넣어 둔 주소 → 그것도 없으면 처음에 묻는다 */
+    private fun server(): String? = prefs.getString("server", null) ?: BuildConfig.DEFAULT_SERVER.ifEmpty { null }
 
     private fun appUrl(server: String) = server.trimEnd('/') + "/web/"
 

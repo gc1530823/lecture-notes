@@ -16,7 +16,12 @@ android {
         versionName = "0.1.${System.getenv("VERSION_CODE") ?: "0"}"
         // 폰 받아쓰기 엔진은 칩 종류마다 따로 들어 있다: 실제 폰(ARM)용만 넣어 APK를 줄인다
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        // 앱에 넣어 두는 서버 주소 (예: https://내컴퓨터.tail1234.ts.net). 있으면 깔자마자 바로 열리고 주소를 묻지 않는다.
+        // 주소는 비밀이 아니다 (로그인·초대 코드가 지킨다). 빌드할 때 DEFAULT_SERVER 로 넣는다
+        buildConfigField("String", "DEFAULT_SERVER", "\"${(System.getenv("DEFAULT_SERVER") ?: "").trimEnd('/')}\"")
     }
+
+    buildFeatures { buildConfig = true }
 
     signingConfigs {
         // 서명 키가 저장소 Secrets(ANDROID_KEYSTORE_BASE64 등)에 있으면 그 키로 서명한다 → 새 버전을 덮어 깔 수 있다.
