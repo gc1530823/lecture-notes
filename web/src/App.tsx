@@ -3,6 +3,7 @@ import DocDetail from "./screens/DocDetail";
 import ExamMap from "./screens/ExamMap";
 import { JokboScreen, PrivacyScreen, ReviewScreen } from "./screens/ExamPrep";
 import Home from "./screens/Home";
+import Intro from "./screens/Intro";
 import Lecture from "./screens/Lecture";
 import Semester from "./screens/Semester";
 import Search from "./screens/Search";
@@ -18,6 +19,7 @@ export default function App() {
 function screen(route: ReturnType<typeof useRoute>) {
   switch (route.name) {
     case "home": return <Home />;
+    case "intro": return <Intro />;
     case "doc": return <DocDetail key={route.docId} docId={route.docId} />;
     case "exam": return <ExamMap docId={route.docId} />;
     case "jokbo": return <JokboScreen docId={route.docId} />;

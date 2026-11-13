@@ -9,6 +9,7 @@ import { flushSync } from "react-dom";
 
 export type Route =
   | { name: "home" }
+  | { name: "intro" }
   | { name: "doc"; docId: string }
   | { name: "exam"; docId: string }
   | { name: "lecture"; docId: string; sessionId?: string }
@@ -22,6 +23,7 @@ export type Route =
 export function parse(hash: string): Route {
   const parts = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   if (parts[0] === "doc" && parts[1] && parts[2] === "exam") return { name: "exam", docId: parts[1] };
+  if (parts[0] === "intro") return { name: "intro" };
   if (parts[0] === "review") return { name: "review" };
   if (parts[0] === "privacy") return { name: "privacy" };
   if (parts[0] === "search") return { name: "search" };
@@ -37,6 +39,7 @@ export function parse(hash: string): Route {
 export function href(route: Route): string {
   switch (route.name) {
     case "home": return "#/";
+    case "intro": return "#/intro";
     case "doc": return `#/doc/${route.docId}`;
     case "exam": return `#/doc/${route.docId}/exam`;
     case "jokbo": return `#/doc/${route.docId}/jokbo`;
@@ -53,7 +56,7 @@ export function go(route: Route) { window.location.hash = href(route); }
 
 /** 화면 깊이: 깊은 화면으로 갈 때는 오른쪽에서 들어오고, 돌아올 때는 왼쪽에서 (styles/app.css 의 화면 전환) */
 function depth(route: Route): number {
-  return route.name === "home" ? 0 : route.name === "doc" || route.name === "review" || route.name === "privacy" || route.name === "search" || route.name === "semester" ? 1 : 2;
+  return route.name === "home" || route.name === "intro" ? 0 : route.name === "doc" || route.name === "review" || route.name === "privacy" || route.name === "search" || route.name === "semester" ? 1 : 2;
 }
 
 type Transition = { finished: Promise<void> };

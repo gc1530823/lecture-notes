@@ -6,7 +6,6 @@ import { android } from "../lib/live";
 import { Button, Chip, Empty, Icon, ListItem } from "../components/ui";
 import { ReviewBanner } from "./ExamPrep";
 import { ExamBanner } from "./Semester";
-import { Onboarding } from "./Onboarding";
 import { Timetable } from "./Timetable";
 import { StreakCard } from "./Story";
 import { Skeleton } from "../lib/motion";
@@ -66,6 +65,10 @@ export default function Home() {
   const { data: docs, error, loading, reload } = useApi<DocumentBrief[]>("/documents");
   useReminder();
   const waves = useWaves();
+  // 처음 쓰는 사람은 소개 화면부터 (데모가 아닐 때)
+  useEffect(() => {
+    try { if (!localStorage.getItem("ln.onboarded") && !sessionStorage.getItem("ln.introSeen")) { sessionStorage.setItem("ln.introSeen", "1"); go({ name: "intro" }); } } catch { /* 괜찮다 */ }
+  }, []);
   const [poke, setPoke] = useState(false);
   const hour = new Date().getHours();
   const mood: Mood = hour < 6 || hour >= 23 ? "sleep" : "idle";
@@ -123,6 +126,7 @@ export default function Home() {
       <header className="home-head">
         <div className="row">
           <span className="t-caption muted grow">{today}</span>
+          <button className="top-bar-back" onClick={() => go({ name: "intro" })} aria-label="쫑긋 소개 다시 보기"><Icon name="sparkle" /></button>
           <button className="top-bar-back" onClick={() => go({ name: "search" })} aria-label="모든 강의에서 찾기"><Icon name="book-open-text" /></button>
           <button className="top-bar-back" onClick={() => go({ name: "privacy" })} aria-label="개인정보와 녹음"><Icon name="shield-check" /></button>
         </div>
@@ -170,7 +174,6 @@ export default function Home() {
           </section>
         ))}
       </div>
-      <Onboarding />
       <div className="home-actions">
         <Button variant="secondary" icon="note-pencil" onClick={() => newNotebook()} disabled={!!busy}>노트 수업</Button>
         <Button icon="tray-arrow-down" onClick={() => file.current?.click()} disabled={!!busy}>{busy ?? "강의자료 올리기"}</Button>
