@@ -955,7 +955,7 @@ def test_home_tasks_exam_eve_story_and_carrot_levels(client):
     tasks = client.get("/tasks").json()
     assert isinstance(tasks, list) and all({"doc_id", "doc_title", "course"} <= set(t) for t in tasks)
     assert [t["done"] for t in tasks] == sorted(t["done"] for t in tasks)
-    assert level(0)["level_name"] == "아기 쫑긋" and level(7) == {"carrots": 7, "level": 3, "level_name": "모범생 쫑긋", "level_from": 7, "next_at": 14}
+    assert level(0)["level_name"] == "첫걸음" and level(7) == {"carrots": 7, "level": 3, "level_name": "모범생", "level_from": 7, "next_at": 14}
     assert level(500)["next_at"] is None
     assert client.get("/streak").json()["level"] >= 1
 

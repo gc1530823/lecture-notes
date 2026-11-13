@@ -4,11 +4,11 @@ import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import type { NoteType } from "../api/types";
 import { Mascot, type Mood } from "./Mascot";
 
-// 큰 아이콘은 쫑긋과 같은 스타일로 AI가 그린 그림(public/art/*.webp)이다. 그림이 없는 이름은 굵은 선 아이콘으로.
+// 큰 아이콘은 말랑한 3D 사물 그림(public/art/*.webp, AI로 그림)이다. 그림이 없는 이름은 굵은 선 아이콘으로.
 const ART = new Set(["microphone", "headphones", "notebook", "file-pdf", "book-open-text", "star", "target", "cards", "brain", "note-pencil", "graduation-cap",
-  "megaphone", "carrot", "magnifier", "shield-check", "calendar", "camera", "hand-palm", "hand-waving", "chats-circle", "chat-teardrop-text", "clock", "timer", "trash",
+  "megaphone", "fire", "magnifier", "shield-check", "calendar", "camera", "hand-palm", "hand-waving", "chats-circle", "chat-teardrop-text", "clock", "timer", "trash",
   "clipboard-text", "check-circle", "warning-circle", "sparkle", "magic-wand", "tree-structure", "users", "chalkboard-teacher"]);
-const ART_ALIAS: Record<string, string> = { fire: "carrot", "file-text": "file-pdf", "list-numbers": "clipboard-text", "check-square": "clipboard-text",
+const ART_ALIAS: Record<string, string> = { carrot: "fire", "file-text": "file-pdf", "list-numbers": "clipboard-text", "check-square": "clipboard-text",
   "clock-counter-clockwise": "clock", warning: "warning-circle", meeting: "users", "magnifying-glass": "magnifier" };
 
 /** 그림 아이콘이 있는 이름인지 */

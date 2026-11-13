@@ -103,8 +103,8 @@ def build_streak(stamps: list[float], tz_minutes: int, now: float) -> dict:
     return {"streak": streak, "best": best, "today": today in days, "week": week, "days": len(days), **level(len(days))}
 
 
-# 쫑긋 키우기: 공부한 날마다 당근 하나, 당근이 모이면 쫑긋이 자란다
-LEVELS = [(0, "아기 쫑긋"), (3, "새내기 쫑긋"), (7, "모범생 쫑긋"), (14, "우등생 쫑긋"), (30, "장학생 쫑긋"), (60, "수석 쫑긋"), (100, "전설의 쫑긋")]
+# 레벨: 공부한 날마다 불꽃 하나, 불꽃이 모이면 레벨이 오른다
+LEVELS = [(0, "첫걸음"), (3, "새내기"), (7, "모범생"), (14, "우등생"), (30, "장학생"), (60, "수석"), (100, "전설")]
 
 
 def level(carrots: int) -> dict:

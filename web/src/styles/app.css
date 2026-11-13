@@ -517,12 +517,12 @@ input[type="date"].input { padding: 0 var(--space-lg); }
 
 
 /* ═════════ 컨셉: 쫑긋 ═════════
-   수업을 대신 들어 주는 토끼 "쫑긋"이 이 앱의 얼굴이다 (components/Mascot.tsx).
-   - 색: 당근 주황 하나 + 따뜻한 흰 바탕. 잘한 것은 당근 잎 초록
+   소리에 귀를 기울이는 주황 구슬 "쫑긋"이 이 앱의 얼굴이다 (components/Mascot.tsx). 아이콘은 말랑한 3D 사물 그림.
+   - 색: 주황 하나 + 따뜻한 흰 바탕. 잘한 것은 초록
    - 모양: 둥글고 통통하다. 버튼은 아래 두께가 있어 누르면 쑥 들어간다. 카드는 굵은 선
    - 글씨: 제목·버튼은 둥근 Jua, 본문은 고딕 (읽기 쉬운 것이 먼저)
-   - 모션: 쫑긋의 귀. 평소엔 살랑, 녹음 중엔 소리에 맞춰 움직이고, 시험 얘기가 나오면 쫑긋 선다. 다 통통 튄다
-   - 보상: 공부한 날마다 당근 하나 */
+   - 모션: 쫑긋 구슬. 평소엔 숨 쉬듯, 녹음 중엔 소리에 맞춰 부풀고 물결이 퍼지고, 시험 얘기가 나오면 톡 튀어 오른다. 다 통통 튄다
+   - 보상: 공부한 날마다 불꽃 하나 */
 .blk-0 { --blk: var(--blk0); --blk-ink: var(--blk0-ink); } .blk-1 { --blk: var(--blk1); --blk-ink: var(--blk1-ink); }
 .blk-2 { --blk: var(--blk2); --blk-ink: var(--blk2-ink); } .blk-3 { --blk: var(--blk3); --blk-ink: var(--blk3-ink); }
 .blk-4 { --blk: var(--blk4); --blk-ink: var(--blk4-ink); } .blk-5 { --blk: var(--blk5); --blk-ink: var(--blk5-ink); }
@@ -538,51 +538,55 @@ body { background: var(--bg-paper); }
 .section-title { font: 400 20px/26px var(--font-display); }
 .num { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
 
-/* 쫑긋 (AI로 그린 그림을 귀 두 짝 + 몸으로 잘라 따로 움직인다) */
+/* 쫑긋 구슬: 귀를 기울여 듣는 빛나는 주황 구슬 (CSS로만 그린다) */
 .mascot { position: relative; display: inline-block; flex: none; line-height: 0; --lvl: 0; -webkit-tap-highlight-color: transparent; }
-.m-stage { position: absolute; inset: 0; display: block; transform-origin: 50% 96%; animation: m-pop .45s var(--ease-bounce); filter: drop-shadow(0 4px 6px rgb(60 30 0 / .16)); }
-.m-part { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
-.m-torso, .m-whole { transform-origin: 50% 96%; }
-@keyframes m-pop { 0% { transform: scale(.72, .6); opacity: .4; } 60% { transform: scale(1.06, 1.1); opacity: 1; } 100% { transform: scale(1); } }
-/* 평소: 귀가 번갈아 살랑, 가끔 한쪽이 까딱. 몸은 숨 쉬듯 */
-.m-idle .m-ear-l { animation: m-sway-l 3.4s ease-in-out infinite; }
-.m-idle .m-ear-r { animation: m-sway-r 3.4s ease-in-out infinite .25s, m-twitch 6.5s ease-in-out 2s infinite; }
-@keyframes m-sway-l { 50% { transform: rotate(-7deg); } }
-@keyframes m-sway-r { 50% { transform: rotate(7deg); } }
-@keyframes m-twitch { 0%, 88%, 100% { translate: 0 0; rotate: 0deg; } 91% { rotate: 16deg; } 94% { rotate: -4deg; } 97% { rotate: 10deg; } }
-.m-idle .m-torso { animation: m-breathe 3.4s ease-in-out infinite; }
-@keyframes m-breathe { 50% { transform: scale(1.02, .98); } }
-/* 듣는 중: 소리가 클수록 귀가 양옆으로 벌어지고 길어진다. 조용하면 살짝 살랑 */
-.m-listen .m-ear { transition: transform .13s ease-out; }
-.m-listen .m-ear-l { transform: rotate(calc(-3deg - var(--lvl) * 24deg)) scaleY(calc(1 + var(--lvl) * .16)); }
-.m-listen .m-ear-r { transform: rotate(calc(3deg + var(--lvl) * 24deg)) scaleY(calc(1 + var(--lvl) * .16)); }
-.m-listen .m-torso { animation: m-nod 2.2s ease-in-out infinite; }
-@keyframes m-nod { 50% { transform: translateY(1.5%) rotate(-1.2deg); } }
-/* 쫑긋!: 귀가 움츠렸다가 곧게 솟고 파르르, 느낌표 */
-.m-alert .m-ear { animation: m-perk .55s var(--ease-bounce) both, m-quiver .16s linear .55s 6; }
-@keyframes m-perk { 0% { transform: scaleY(.55); } 100% { transform: scaleY(1.2); } }
-@keyframes m-quiver { 0%, 100% { transform: scaleY(1.2) rotate(-2.5deg); } 50% { transform: scaleY(1.2) rotate(2.5deg); } }
-.m-alert .m-torso { animation: m-jolt .5s var(--ease-bounce); }
-@keyframes m-jolt { 0% { transform: scale(1.08, .86); } 55% { transform: scale(.95, 1.08) translateY(-3%); } 100% { transform: scale(1); } }
-.m-bang { position: absolute; right: -8%; top: -4%; width: 34%; aspect-ratio: 1; border-radius: 50%; background: var(--accent-primary); color: #fff; display: grid; place-items: center;
-  font: 400 clamp(12px, 1.1em, 22px)/1 var(--font-display); container-type: size; border: 2px solid var(--accent-deep); animation: m-bang .5s var(--ease-bounce) .1s both; z-index: 1; }
+.orb-stage { position: absolute; inset: 0; display: grid; place-items: center; animation: orb-pop .5s var(--ease-bounce); }
+.orb { position: relative; width: 72%; aspect-ratio: 1; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 34% 28%, #ffd2a6 0 8%, #ffa04d 26%, #ff7a1a 52%, #e35b00 78%, #b84500 100%);
+  box-shadow: inset 0 -6% 14% rgb(120 40 0 / .35), 0 calc(var(--sz) * .06) calc(var(--sz) * .14) rgb(200 80 0 / .35); transform-origin: 50% 90%; }
+.orb-shine { position: absolute; left: 18%; top: 12%; width: 36%; height: 22%; border-radius: 50%; background: rgb(255 255 255 / .7); filter: blur(calc(var(--sz) * .02)); transform: rotate(-24deg); }
+/* 빛이 구슬 표면을 돈다 */
+.orb-face { position: absolute; inset: -20%; background: conic-gradient(from 0deg, transparent 0 60%, rgb(255 230 190 / .35) 72%, transparent 84%); animation: orb-spin 5s linear infinite; mix-blend-mode: screen; }
+.orb-ring { position: absolute; inset: 14%; border-radius: 50%; border: calc(var(--sz) * .02 + 1px) solid var(--accent-primary); opacity: 0; }
+@keyframes orb-pop { 0% { transform: scale(.6); opacity: .3; } 60% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes orb-spin { to { transform: rotate(1turn); } }
+/* 평소: 천천히 숨 쉬듯 */
+.orb-idle .orb { animation: orb-breathe 3.4s ease-in-out infinite; }
+@keyframes orb-breathe { 50% { transform: scale(1.05, .96); } }
+/* 듣는 중: 소리가 클수록 부풀고, 물결이 계속 퍼진다 */
+.orb-listen .orb { transform: scale(calc(1 + var(--lvl) * .18)); transition: transform .12s ease-out; }
+.orb-listen .orb-ring { animation: orb-ripple 1.8s ease-out infinite; }
+.orb-listen .orb-ring.r2 { animation-delay: .9s; }
+@keyframes orb-ripple { 0% { transform: scale(.9); opacity: .55; } 100% { transform: scale(1.5); opacity: 0; } }
+/* 쫑긋!: 찌그러졌다가 톡 튀어 오르고, 느낌표 */
+.orb-alert .orb { animation: orb-jolt .6s var(--ease-bounce), orb-shiver .16s linear .6s 5; background: radial-gradient(circle at 34% 28%, #ffd0d8 0 8%, #ff7d96 26%, #f0453a 56%, #b8202c 100%); }
+@keyframes orb-jolt { 0% { transform: scale(1.2, .7); } 55% { transform: scale(.88, 1.16) translateY(-12%); } 100% { transform: scale(1); } }
+@keyframes orb-shiver { 50% { transform: rotate(4deg); } }
+.orb-bang { position: absolute; right: 0; top: 0; width: 34%; aspect-ratio: 1; border-radius: 50%; background: var(--bg-card); color: var(--accent-record); display: grid; place-items: center;
+  font: 400 calc(var(--sz) * .22)/1 var(--font-display); border: 2px solid var(--accent-record); animation: m-bang .5s var(--ease-bounce) .1s both; }
 @keyframes m-bang { from { transform: scale(0) rotate(-40deg); } }
-/* 신남: 폴짝폴짝 */
-.m-happy .m-whole { animation: m-hop .62s var(--ease-out) infinite alternate; }
-@keyframes m-hop { from { transform: translateY(0) scale(1.06, .92); } to { transform: translateY(-16%) scale(.96, 1.06) rotate(4deg); } }
-/* 졸림: 천천히 숨, Zz */
-.m-sleep .m-whole { animation: m-doze 3.6s ease-in-out infinite; }
-@keyframes m-doze { 50% { transform: scale(1.03, .96); } }
-.m-zz { position: absolute; right: 2%; top: 0; color: var(--text-secondary); font: 400 clamp(11px, .9em, 20px)/1 var(--font-display); }
-.m-zz i { position: absolute; right: 0; top: 0; font-style: normal; animation: m-z 2.6s ease-in-out infinite; }
-.m-zz i:nth-child(2) { animation-delay: 1.3s; font-size: .8em; }
+/* 신남: 폴짝, 반짝이가 튄다 */
+.orb-happy .orb { animation: orb-hop .6s var(--ease-out) infinite alternate; background: radial-gradient(circle at 34% 28%, #fff3b0 0 8%, #ffd65c 26%, #ffa31a 56%, #e36d00 100%); }
+@keyframes orb-hop { from { transform: translateY(6%) scale(1.08, .9); } to { transform: translateY(-14%) scale(.95, 1.06); } }
+.orb-spark { position: absolute; inset: 0; }
+.orb-spark i { position: absolute; width: 12%; aspect-ratio: 1; background: #ffd65c; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); animation: spark 1.2s ease-out infinite; }
+.orb-spark i:nth-child(1) { left: 2%; top: 14%; } .orb-spark i:nth-child(2) { right: 0; top: 6%; animation-delay: .3s; }
+.orb-spark i:nth-child(3) { left: 8%; bottom: 10%; animation-delay: .6s; } .orb-spark i:nth-child(4) { right: 6%; bottom: 16%; animation-delay: .9s; }
+@keyframes spark { 0% { transform: scale(0) rotate(0); opacity: 0; } 40% { opacity: 1; transform: scale(1) rotate(60deg); } 100% { opacity: 0; transform: scale(.4) rotate(120deg); } }
+/* 쉬는 중: 작고 흐려지고, Zz */
+.orb-sleep .orb { animation: orb-doze 3.6s ease-in-out infinite; filter: saturate(.55) brightness(1.05); transform: scale(.88); }
+@keyframes orb-doze { 50% { transform: scale(.92, .84) translateY(4%); } }
+.orb-sleep .orb-face { animation-duration: 14s; }
+.orb-zz { position: absolute; right: 4%; top: 2%; color: var(--text-secondary); font: 400 calc(var(--sz) * .2)/1 var(--font-display); }
+.orb-zz i { position: absolute; right: 0; top: 0; font-style: normal; animation: m-z 2.6s ease-in-out infinite; }
+.orb-zz i:nth-child(2) { animation-delay: 1.3s; font-size: .8em; }
 @keyframes m-z { 0% { opacity: 0; transform: translate(-6px, 10px) scale(.6); } 35% { opacity: 1; } 100% { opacity: 0; transform: translate(10px, -14px) scale(1.2); } }
-/* 정리 중: 귀가 박자 맞춰 까딱, 몸은 끄적끄적 */
-.m-write .m-ear-l { animation: m-tap-l .5s ease-in-out infinite alternate; } .m-write .m-ear-r { animation: m-tap-r .5s ease-in-out infinite alternate .25s; }
-@keyframes m-tap-l { to { transform: rotate(-10deg); } } @keyframes m-tap-r { to { transform: rotate(12deg); } }
-.m-write .m-torso { animation: m-scribble .5s ease-in-out infinite alternate; }
-@keyframes m-scribble { from { transform: rotate(-2deg) translateX(-.6%); } to { transform: rotate(2deg) translateX(.6%); } }
-button.mascot:active .m-stage { transform: scale(1.1, .86); transition: transform .1s; animation: none; }
+/* 정리 중: 고리가 빙글빙글 */
+.orb-write .orb-ring { opacity: 1; inset: 6%; border-color: var(--accent-primary) transparent var(--accent-primary) transparent; animation: orb-spin 1.1s linear infinite; }
+.orb-write .orb-ring.r2 { inset: 0; opacity: .4; animation-direction: reverse; animation-duration: 1.8s; }
+.orb-write .orb { animation: orb-breathe 1.2s ease-in-out infinite; }
+button.mascot:active .orb { transform: scale(1.12, .86); transition: transform .1s; animation: none; }
+@media (prefers-reduced-motion: reduce) { .orb-face { display: none; } }
 
 /* 말풍선 */
 .says { position: relative; display: inline-block; padding: 10px 14px; border-radius: 18px; background: var(--bg-card); border: 2px solid var(--border-line); color: var(--text-primary);
@@ -654,7 +658,7 @@ button.list-item:active { transform: translateY(3px); box-shadow: 0 0 0 var(--li
 .course-title.blk-none::before { background: var(--text-tertiary); }
 .course-title small { font: 600 12px/1 var(--font-sans); color: var(--text-tertiary); }
 
-/* 지금 수업: 당근 주황으로 꽉 찬 카드 */
+/* 지금 수업: 주황으로 꽉 찬 카드 */
 .class-now { background: var(--accent-primary); color: #fff; border-color: var(--accent-deep); box-shadow: 0 4px 0 var(--accent-deep); padding: var(--space-lg); }
 .class-now .list-item-sub { color: inherit; opacity: .88; }
 .class-now .list-item-chev { color: inherit; }
@@ -678,16 +682,14 @@ button.class-now:active { box-shadow: 0 0 0 var(--accent-deep); }
 .week-block small { display: none; }
 .week-now { position: absolute; left: -2px; right: -2px; height: 2px; background: var(--accent-record); border-radius: 1px; z-index: 1; }
 
-/* 당근 모으기: 공부한 날마다 당근 하나 */
+/* 연속 공부: 공부한 날마다 불꽃 하나 */
 .carrots { display: flex; align-items: center; gap: var(--space-md); padding: var(--space-md) var(--space-lg); }
 .carrots b { display: block; font: 400 30px/32px var(--font-display); }
 .carrots b small { font: 400 16px/1 var(--font-display); margin-left: 2px; }
 .carrot-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; flex: 1; }
 .carrot-row span { display: flex; flex-direction: column; align-items: center; gap: 2px; font: 600 10px/1 var(--font-sans); color: var(--text-tertiary); }
 .carrot { width: 26px; height: 34px; }
-.carrot .c-body { fill: var(--fill-soft); stroke: var(--border-line); stroke-width: 2; }
-.carrot .c-leaf { fill: var(--fill-soft); stroke: var(--border-line); stroke-width: 2; }
-.done .carrot .c-body { fill: var(--accent-primary); stroke: var(--accent-deep); } .done .carrot .c-leaf { fill: var(--leaf); stroke: #1f8a50; }
+.carrot { object-fit: contain; filter: grayscale(1) opacity(.28); } .done .carrot { filter: drop-shadow(0 2px 3px rgb(200 70 0 / .3)); }
 .done .carrot { animation: carrot-in .55s var(--ease-bounce) both; transform-origin: 50% 100%; }
 .today.done .carrot { animation: carrot-in .55s var(--ease-bounce) both, wiggle 1.6s ease-in-out .8s infinite; }
 @keyframes carrot-in { from { transform: translateY(14px) scale(.3) rotate(-30deg); opacity: 0; } }
@@ -882,7 +884,6 @@ button.chip-selected { border-color: var(--accent-deep); box-shadow: 0 3px 0 var
 .intro-dots i { width: 6px; height: 6px; border-radius: 3px; background: rgb(0 0 0 / .22); transition: height .3s var(--ease-bounce), background-color .3s; }
 .intro-dots i.on { height: 22px; background: rgb(0 0 0 / .6); }
 @media (prefers-reduced-motion: reduce) { .floater, .intro-mascot, .intro-word { transform: none !important; } }
-.intro-mascot .m-bang { font-size: 44px; border-width: 3px; }
 
 /* ── 빠져 있던 모션 채우기 ── */
 /* 강의자료 쪽 넘김: 넘긴 방향에서 미끄러져 들어온다 (이름을 번갈아 써서 넘길 때마다 다시 재생) */
@@ -921,7 +922,7 @@ button.chip-selected { border-color: var(--accent-deep); box-shadow: 0 3px 0 var
 /* 과목 칩·탭을 바꾸면 목록이 다시 차례로 */
 .course-group .list-item { animation: rise .42s var(--ease-out) both; }
 
-/* 쫑긋 키우기: 당근이 모이면 레벨 업 */
+/* 레벨: 불꽃이 모이면 레벨 업 */
 .carrots { flex-direction: column; align-items: stretch; gap: 10px; }
 .carrots-top { gap: var(--space-md); }
 .level { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 10px; }

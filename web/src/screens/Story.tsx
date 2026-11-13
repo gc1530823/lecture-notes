@@ -200,15 +200,10 @@ interface Streak { streak: number; best: number; today: boolean; week: { date: s
   carrots?: number; level?: number; level_name?: string; level_from?: number; next_at?: number | null }
 
 function Carrot() {
-  return (
-    <svg className="carrot" viewBox="0 0 26 34" aria-hidden="true">
-      <path className="c-leaf" d="M13 11 C9 5 9 2 12 1 C14 3 14 6 13 11 Z M13 11 C17 5 20 4 22 6 C21 9 17 10 13 11 Z M13 11 C8 8 5 8 4 10 C6 12 9 12 13 11 Z" />
-      <path className="c-body" d="M7 12 Q13 8 19 12 Q20 22 13 33 Q6 22 7 12 Z" />
-    </svg>
-  );
+  return <img className="carrot" src={`${import.meta.env.BASE_URL}art/fire.webp`} alt="" draggable={false} />;
 }
 
-/** 당근 모으기: 강의를 듣거나 복습한 날마다 쫑긋에게 당근 하나 (며칠째 이어 가는지) */
+/** 연속 공부: 강의를 듣거나 복습한 날마다 불꽃 하나 (며칠째 이어 가는지), 불꽃이 모이면 레벨 업 */
 export function StreakCard() {
   const [data, setData] = useState<Streak | null>(null);
   useEffect(() => { getJSON<Streak>(`/streak?tz=${-new Date().getTimezoneOffset()}`).then(setData).catch(() => setData(null)); }, []);
@@ -219,9 +214,9 @@ export function StreakCard() {
       <div className="row carrots-top">
         <span>
           <b><Count to={data.streak} /><small>일째</small></b>
-          <span className="list-item-sub">{data.today ? "오늘 당근 받았어요" : data.streak > 0 ? "오늘도 하면 당근 하나" : `최고 ${data.best}일`}</span>
+          <span className="list-item-sub">{data.today ? "오늘 불꽃 켰어요" : data.streak > 0 ? "오늘도 하면 불꽃 하나" : `최고 ${data.best}일`}</span>
         </span>
-        <span className="carrot-row" aria-label="이번 주 당근">
+        <span className="carrot-row" aria-label="이번 주 불꽃">
           {data.week.map((d, i) => (
             <span key={d.date} className={`${d.done ? "done" : ""}${i === data.week.length - 1 ? " today" : ""}`}>
               <Carrot />{names[new Date(d.date + "T00:00:00").getDay()]}
@@ -230,10 +225,10 @@ export function StreakCard() {
         </span>
       </div>
       {data.level_name && (
-        <div className="level" aria-label={`쫑긋 레벨 ${data.level}`}>
+        <div className="level" aria-label={`레벨 ${data.level}`}>
           <span className="level-name">Lv.{data.level} {data.level_name}</span>
           <span className="level-bar"><i style={{ width: `${data.next_at ? Math.round(100 * ((data.carrots ?? 0) - (data.level_from ?? 0)) / (data.next_at - (data.level_from ?? 0))) : 100}%` }} /></span>
-          <span className="level-next t-caption">{data.next_at ? `당근 ${data.next_at - (data.carrots ?? 0)}개 더 모으면 레벨 업` : "최고 레벨!"}</span>
+          <span className="level-next t-caption">{data.next_at ? `불꽃 ${data.next_at - (data.carrots ?? 0)}개 더 모으면 레벨 업` : "최고 레벨!"}</span>
         </div>
       )}
     </div>
