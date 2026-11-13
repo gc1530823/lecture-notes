@@ -660,6 +660,12 @@ class ClaudeLLM:
         params = self._request(settings.summary_model, settings.summary_effort, QUIZ_SET_SYSTEM, prompt, QUIZ_SET_SCHEMA, max_tokens=16000)
         return _response_json(await self.client.beta.messages.create(**params)).get("questions", [])
 
+    async def card_question(self, prompt: str) -> str:
+        from .quiz import CARD_SCHEMA, CARD_SYSTEM
+
+        params = self._request(settings.annotation_model, settings.annotation_effort, CARD_SYSTEM, prompt, CARD_SCHEMA, max_tokens=1000)
+        return str(_response_json(await self.client.beta.messages.create(**params)).get("question", "")).strip()
+
     async def grade_answer(self, prompt: str) -> dict:
         from .quiz import GRADE_SCHEMA, GRADE_SYSTEM
 
@@ -780,6 +786,9 @@ class FakeLLM:
              "choices": [], "answer_index": 0, "answer": "조건을 확인하고 하나를 깨는 방식으로 예방한다", "accept": [],
              "rubric": ["예시를 든다", "이유를 조건과 연결한다"], "explanation": "가짜 응답입니다."},
         ]
+
+    async def card_question(self, prompt: str) -> str:
+        return "이 개념이 왜 그렇게 동작하는지 설명해 보세요"
 
     async def grade_answer(self, prompt: str) -> dict:
         student = re.search(r"<student_answer>(.*)</student_answer>", prompt, re.S)

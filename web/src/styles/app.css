@@ -962,3 +962,11 @@ body:has(.tabbar) .screen { padding-bottom: calc(72px + env(safe-area-inset-bott
 @keyframes qz-stamp { from { transform: scale(0); } }
 @keyframes qz-ring { from { stroke-dasharray: 0 314; } }
 @media (prefers-reduced-motion: reduce) { .qz-mark, .qz-mark path, .qz-ring .fill { animation: none; } }
+
+/* 오늘의 복습: 처음 쓰는 사람도 알 수 있게 (ExamPrep.tsx ReviewScreen) */
+.review-guide { margin: 0; padding: 12px 14px 12px 34px; border-radius: 14px; background: var(--fill-soft); color: var(--text-secondary); font: 500 13px/21px var(--font-sans); }
+.review-guide li::marker { color: var(--accent-primary); font-weight: 700; }
+.review-q { align-self: stretch; padding: 8px 10px; border-radius: 10px; background: var(--bg-card); color: var(--text-secondary); text-align: left; }
+.grade-row .btn { min-height: 58px; }
+.grade-label { display: flex; flex-direction: column; align-items: center; gap: 2px; font: 700 13px/17px var(--font-sans); }
+.grade-label small { font: 500 11px/14px var(--font-sans); opacity: .75; }

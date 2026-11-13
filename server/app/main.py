@@ -1241,7 +1241,30 @@ async def explain_mark(mark_id: int):
     answer = str(result.get("answer", "")).strip()
     if not answer:
         raise HTTPException(502, "설명을 만들지 못했어요.")
-    return db().set_mark_explanation(mark_id, answer)
+    db().set_mark_explanation(mark_id, answer)
+    await _mark_question(db().get_mark(mark_id))
+    return db().get_mark(mark_id)
+
+
+async def _mark_question(mark: dict) -> None:
+    """복습 카드 앞면: 교수님 말을 그대로 쓰지 않고, AI가 설명을 읽고 핵심을 묻는 질문을 만든다"""
+    make = getattr(app.state.llm, "card_question", None)
+    if make is None or not mark.get("explanation"):
+        return
+    session = db().get_session(mark["session_id"])
+    page = next((p for p in db().list_pages(session["document_id"]) if p["page_no"] == mark["page_no"]), {}) if session else {}
+    try:
+        question = await make(quizlib.card_prompt(mark["explanation"], mark["speech"], page.get("text") or ""))
+    except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
+        log.exception("복습 카드 질문 만들기 실패")
+        return
+    if 4 <= len(question) <= 120:
+        db().set_mark_question(mark["id"], question)
+
+
+async def _fill_mark_questions(marks: list[dict]) -> None:
+    for mark in marks[:10]:
+        await _mark_question(mark)
 
 
 @app.delete("/marks/{mark_id}", status_code=204)
@@ -1273,7 +1296,10 @@ def jokbo(doc_id: str):
 # 망각 곡선 복습: 플래시카드·예상 문제·"모르겠다" 설명을 카드로 모아, 틀린 것은 자주 아는 것은 드물게
 
 
-def _sync_cards(doc_id: str) -> None:
+def _sync_cards(doc_id: str) -> list[dict]:
+    """카드를 모으고, AI 질문이 아직 없는 "모르겠다" 표시를 돌려준다 (뒤에서 질문을 만든다)"""
+    missing = []
+    titles = {p["page_no"]: quizlib.page_title(p.get("text") or "") for p in db().list_pages(doc_id)}
     for sid in db().session_ids(doc_id):
         saved = db().get_study(sid, "flashcards")
         for card in (saved[1] if saved else []) or []:
@@ -1282,25 +1308,49 @@ def _sync_cards(doc_id: str) -> None:
                 db().upsert_card(card_key("flashcard", front), doc_id, "flashcard", front, back, card.get("page_no"))
         for mark in db().list_marks(sid):
             if mark["explanation"]:
-                front = "헷갈렸던 부분: " + (mark["speech"][-120:] or f"{mark['page_no']}쪽")
-                db().upsert_card(card_key("confused", str(mark["id"])), doc_id, "confused", front, mark["explanation"], mark["page_no"])
+                # 앞면은 질문 (교수님 말 그대로는 무엇을 묻는지 알 수 없어서), 그때 들은 말은 뒷면 아래에 참고로
+                topic = titles.get(mark["page_no"]) or f"{mark['page_no']}쪽"
+                front = mark.get("question") or f"'{topic}'에서 헷갈렸던 개념, 이제 설명할 수 있나요?"
+                if not mark.get("question"):
+                    missing.append(mark)
+                heard = " ".join(mark["speech"].split())[-90:]
+                back = mark["explanation"] + (f"\n\n수업 중 헷갈렸던 말: “…{heard}”" if heard else "")
+                db().upsert_card(card_key("confused", str(mark["id"])), doc_id, "confused", front, back, mark["page_no"])
     for p in db().get_document(doc_id)["pages"]:
         cached = db().get_exam_questions(doc_id, p["page_no"])
         for q in (cached[1] if cached else []):
             if q.get("question") and q.get("answer"):
                 db().upsert_card(card_key("exam", q["question"]), doc_id, "exam", q["question"], q["answer"], p["page_no"])
+    return missing
 
 
 SOURCE_ORDER = {"confused": 0, "exam": 1, "flashcard": 2}
 
 
+def _after(seconds: float) -> str:
+    days = seconds / 86400
+    if days < 0.5:
+        return "오늘 다시"
+    return f"{round(days)}일 뒤" if days < 30 else f"{round(days / 30)}달 뒤"
+
+
 @app.get("/review/today")
-def review_today(document_id: str | None = None):
+def review_today(background: BackgroundTasks, document_id: str | None = None):
     docs = [document_id] if document_id else [d["id"] for d in db().list_documents()]
     titles = {d["id"]: d["title"] for d in db().list_documents()}
+    missing = []
     for doc_id in docs:
         if doc_id in titles:
-            _sync_cards(doc_id)
+            missing += _sync_cards(doc_id)
+    if missing and not getattr(app.state, "mark_questions_running", False):
+        app.state.mark_questions_running = True
+
+        async def fill():
+            try:
+                await _fill_mark_questions(missing)
+            finally:
+                app.state.mark_questions_running = False
+        background.add_task(fill)
     cards = [c for doc_id in docs for c in db().list_cards(doc_id)]
     now = time.time()
     due = sorted((c for c in cards if c["due_at"] is not None and c["due_at"] <= now), key=lambda c: (-c["lapses"], c["due_at"]))
@@ -1309,7 +1359,10 @@ def review_today(document_id: str | None = None):
     fresh = sorted((c for c in cards if c["due_at"] is None), key=lambda c: (SOURCE_ORDER.get(c["source"], 9), c["created_at"]))
     fresh = fresh[:max(0, NEW_PER_DAY - started_today)]
     upcoming = min((c["due_at"] for c in cards if c["due_at"] and c["due_at"] > now), default=None)
-    return {"cards": [{**c, "title": titles.get(c["document_id"], ""), "new": c["due_at"] is None} for c in due + fresh],
+    def preview(c: dict) -> dict:
+        # 버튼마다 다음 복습이 언제인지 ("1일 뒤")
+        return {g: _after(schedule(c, n, now)["due_at"] - now) for g, n in GRADES.items()}
+    return {"cards": [{**c, "title": titles.get(c["document_id"], ""), "new": c["due_at"] is None, "next": preview(c)} for c in due + fresh],
             "due": len(due), "new": len(fresh), "total": len(cards), "next_due_at": upcoming}
 
 

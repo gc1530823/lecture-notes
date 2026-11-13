@@ -63,6 +63,25 @@ GRADE_SCHEMA = {
 }
 
 
+CARD_SYSTEM = """학생이 수업 중 "모르겠다"를 누른 곳을 복습 카드로 만듭니다.
+<explanation>은 그 부분을 AI가 다시 쉽게 설명한 글, <speech>는 그때 교수님이 한 말, <slide>는 그 쪽 슬라이드입니다.
+카드 앞면에 쓸 질문 한 문장을 만드세요.
+- 설명을 다 읽은 학생만 답할 수 있는, 핵심 개념을 묻는 질문 (예: "경사하강법이 학습률만큼 기울기 반대 방향으로 움직이는 이유는?")
+- 교수님 말을 그대로 옮기거나 "무엇을 설명했나요?" 같은 질문은 금지. 답을 질문에 넣지 마세요.
+- 40자 안팎, 한국어."""
+
+CARD_SCHEMA = {"type": "object", "properties": {"question": {"type": "string"}}, "required": ["question"], "additionalProperties": False}
+
+
+def card_prompt(explanation: str, speech: str, slide: str) -> str:
+    return f"<explanation>{explanation[:1500]}</explanation>\n<speech>{speech[-600:]}</speech>\n<slide>{slide[:500]}</slide>"
+
+
+def page_title(text: str) -> str:
+    first = next((line.strip() for line in (text or "").splitlines() if line.strip()), "")
+    return first[:30]
+
+
 def material(pages: list[dict], sessions: list[dict], limit: int = 14000) -> str:
     """AI가 공부할 자료: 쪽마다 슬라이드 글 + 그 쪽에서 교수님이 한 설명(요약이 있으면 요약) + 필기 + 시험·강조 표시"""
     parts = []

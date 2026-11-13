@@ -579,6 +579,10 @@ def test_confused_mark_jokbo_and_spaced_review(client):
     sources = [c["source"] for c in today["cards"]]
     assert sources[0] == "confused" and "exam" in sources and "flashcard" in sources and today["new"] == len(sources)
     first = today["cards"][0]
+    # 모르겠다 카드의 앞면은 교수님 말 그대로가 아니라 AI가 만든 질문, 그때 들은 말은 뒷면 참고로
+    assert first["front"] == "이 개념이 왜 그렇게 동작하는지 설명해 보세요" and "발산" not in first["front"]
+    assert "수업 중 헷갈렸던 말" in first["back"] and "발산" in first["back"]
+    assert first["next"] == {"again": "오늘 다시", "hard": "1일 뒤", "good": "1일 뒤", "easy": "4일 뒤"}
     after = client.post(f"/review/{first['card_key']}", json={"grade": "good"}).json()
     assert after["reps"] == 1 and after["interval"] == 1.0 and after["due_at"] > time.time() + 80000
     again = client.post(f"/review/{today['cards'][1]['card_key']}", json={"grade": "again"}).json()

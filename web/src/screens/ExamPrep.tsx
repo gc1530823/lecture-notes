@@ -147,11 +147,12 @@ function Line({ page, children }: { page: number; children: ReactNode }) {
 
 interface ReviewCard {
   card_key: string; document_id: string; title: string; source: string; front: string; back: string;
-  page_no: number | null; reps: number; lapses: number; new: boolean;
+  page_no: number | null; reps: number; lapses: number; new: boolean; next?: Record<string, string>;
 }
 interface ReviewToday { cards: ReviewCard[]; due: number; new: number; total: number; next_due_at: number | null }
 
-const SOURCE_LABEL: Record<string, string> = { confused: "헷갈렸던 것", exam: "예상 문제", flashcard: "플래시카드" };
+const SOURCE_LABEL: Record<string, string> = { confused: "수업 중 헷갈렸던 곳", exam: "시험 예상 문제", flashcard: "플래시카드" };
+const GRADE_BUTTONS = [["again", "몰랐어요", "record"], ["hard", "어렵게 기억", "secondary"], ["good", "기억났어요", "secondary"], ["easy", "바로 알았어요", "primary"]] as const;
 
 /** 오늘의 복습: 틀린 것은 10분 뒤 다시, 맞힌 것은 1일 → 3일 → 점점 길게 */
 export function ReviewScreen() {
@@ -202,27 +203,33 @@ export function ReviewScreen() {
         )}
         {card && (
           <>
+            {done === 0 && !flipped && (
+              <ol className="review-guide">
+                <li>질문의 답을 머릿속으로 떠올려 보고</li>
+                <li>카드를 눌러 답을 확인한 뒤</li>
+                <li>얼마나 기억났는지 고르면, 잊어버릴 때쯤 다시 보여 줘요</li>
+              </ol>
+            )}
             <p className="t-caption muted" style={{ textAlign: "center" }}>
               남은 카드 {today!.cards.length}장 · {card.title}{card.page_no ? ` ${card.page_no}쪽` : ""}
             </p>
             <button key={`${card.card_key}-${flipped}`} className={`flashcard ${flipped ? "flip-in" : "card-in"}`} data-flipped={flipped} onClick={() => { setFlipped(!flipped); play("flip"); }} data-sound aria-live="polite">
               <Chip variant="accent">{card.new ? "새 카드 · " : card.lapses ? `${card.lapses}번 틀림 · ` : ""}{SOURCE_LABEL[card.source] ?? card.source}</Chip>
+              {flipped && <span className="review-q t-caption">Q. {card.front}</span>}
               <span className={flipped ? "t-body" : "t-title-m"} style={{ whiteSpace: "pre-wrap" }}>{flipped ? card.back : card.front}</span>
-              <span className="t-caption faint">{flipped ? "얼마나 잘 기억했나요?" : "떠올려 본 뒤 눌러서 답 보기"}</span>
+              <span className="t-caption faint">{flipped ? "얼마나 기억났는지 아래에서 골라 주세요" : "답을 떠올려 본 뒤 눌러서 확인"}</span>
             </button>
             {flipped ? (
               <div className="grade-row">
-                <Button variant="record" onClick={() => answer("again")} disabled={busy}>다시</Button>
-                <Button variant="secondary" onClick={() => answer("hard")} disabled={busy}>어려움</Button>
-                <Button variant="secondary" onClick={() => answer("good")} disabled={busy}>알맞음</Button>
-                <Button onClick={() => answer("easy")} disabled={busy}>쉬움</Button>
+                {GRADE_BUTTONS.map(([grade, label, variant]) => (
+                  <Button key={grade} variant={variant} onClick={() => answer(grade)} disabled={busy}>
+                    <span className="grade-label">{label}<small>{grade === "again" ? "이번에 한 번 더" : card.next?.[grade] ?? ""}</small></span>
+                  </Button>
+                ))}
               </div>
             ) : (
               <Button block variant="secondary" onClick={() => setFlipped(true)}>답 보기</Button>
             )}
-            <p className="t-caption faint" style={{ textAlign: "center" }}>
-              다시 = 이번에 한 번 더 · 어려움/알맞음/쉬움에 따라 다음 복습 날짜가 1일 → 3일 → 점점 길어져요
-            </p>
           </>
         )}
       </div>

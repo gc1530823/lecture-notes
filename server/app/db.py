@@ -228,6 +228,11 @@ class Database:
         if "confidence" not in columns:
             self._conn.execute("ALTER TABLE annotations ADD COLUMN confidence REAL NOT NULL DEFAULT 1")
             self._conn.commit()
+        # question: "모르겠다" 표시를 복습 카드로 만들 때 AI가 쓴 앞면 질문
+        columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(marks)")}
+        if "question" not in columns:
+            self._conn.execute("ALTER TABLE marks ADD COLUMN question TEXT")
+            self._conn.commit()
         # loud: 목소리를 높여 말한 문장 (실시간 녹음에서 소리 크기로 잰다)
         columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(transcript_segments)")}
         if "loud" not in columns:
@@ -597,6 +602,9 @@ class Database:
     def set_mark_explanation(self, mark_id: int, text: str) -> dict | None:
         self._write("UPDATE marks SET explanation = ? WHERE id = ?", (text, mark_id))
         return self.get_mark(mark_id)
+
+    def set_mark_question(self, mark_id: int, text: str) -> None:
+        self._write("UPDATE marks SET question = ? WHERE id = ?", (text, mark_id))
 
     def delete_mark(self, mark_id: int) -> bool:
         with self._lock, self._conn:
