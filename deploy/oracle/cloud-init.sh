@@ -34,6 +34,15 @@ DB_PATH=/var/lib/lune/lune.db
 UPLOAD_DIR=/var/lib/lune/uploads
 HF_HOME=/var/lib/lune/.cache/huggingface
 EOF
+# Small free server (AMD E2.1.Micro, 1GB RAM): add 4GB swap and skip the heavy local Whisper
+MEM_MB=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
+if [ "$MEM_MB" -lt 3000 ]; then
+  if [ ! -f /swapfile ]; then
+    fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+    echo "/swapfile none swap sw 0 0" >> /etc/fstab
+  fi
+  sed -i 's/^STT_MODE=hybrid/STT_MODE=groq/' /etc/lune/env
+fi
 echo -n "$HF_TOKEN" > /etc/lune/hf_token
 chmod 600 /etc/lune/env /etc/lune/hf_token
 
