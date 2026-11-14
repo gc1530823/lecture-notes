@@ -67,7 +67,7 @@ OWNER_SQL = {
     "timetable": "SELECT owner FROM classes WHERE id = ?",
 }
 # 로그인 없이 열리는 곳: 화면 파일, 상태 확인, 로그인 자체
-PUBLIC = ("/health", "/auth/", "/web", "/app", "/favicon", "/icons", "/assets", "/manifest")
+PUBLIC = ("/health", "/auth/", "/migrate/", "/web", "/app", "/favicon", "/icons", "/assets", "/manifest")
 
 
 def is_public(path: str) -> bool:

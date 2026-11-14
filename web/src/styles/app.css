@@ -1404,3 +1404,6 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .home-brand .lune-mark { box-shadow: 0 2px 8px rgb(74 58 217 / .25); border-radius: 7px; }
 .home-me { color: var(--text-secondary); background: color-mix(in srgb, var(--bg-card) 75%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .home-me:active { transform: scale(.94); }
+.migrate-code { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 14px; background: var(--bg-card); border-radius: 0 0 18px 18px; }
+.migrate-code code { font: 700 14px/20px ui-monospace, monospace; padding: 8px 10px; border-radius: 10px; background: var(--fill-soft); word-break: break-all; user-select: all; }
+.migrate-code small { color: var(--text-secondary); font-size: 12px; line-height: 1.5; }

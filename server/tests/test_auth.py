@@ -163,3 +163,28 @@ def test_friend_privacy_settings(invite):
     finally:
         for x in (a, b):
             x.__exit__(None, None, None)
+
+
+def test_owner_can_export_everything_for_a_new_server(invite):
+    import io
+    import tarfile
+
+    owner_id = None
+    from app.main import db as _db
+    owner_id = _db().first_user_id()
+    a, _ = person("이사")
+    try:
+        me = a.get("/auth/me").json()["user"]["id"]
+        if me != owner_id:   # 다른 시험에서 이미 주인이 생겼으면: 주인이 아니면 막힌다
+            assert a.post("/admin/migrate").status_code == 403
+            assert a.get("/admin/migrate").json() == {"owner": False}
+            return
+        code = a.post("/admin/migrate").json()["code"]
+    finally:
+        a.__exit__(None, None, None)
+    with TestClient(app) as anon:
+        assert anon.get("/migrate/export?code=wrong").status_code == 403
+        res = anon.get(f"/migrate/export?code={code}")
+        assert res.status_code == 200
+        names = tarfile.open(fileobj=io.BytesIO(res.content)).getnames()
+        assert any(n.endswith(".db") for n in names)

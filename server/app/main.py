@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import secrets
+import shutil
 import time
 from http.cookies import SimpleCookie
 from urllib.parse import quote
@@ -2222,6 +2223,51 @@ def friend_timetable(other: str):
                                                     for c in db().list_classes()]}
     finally:
         auth.CURRENT_USER.reset(token)
+
+
+# 서버 옮기기: 서버 주인이 '옮기기 코드'를 받아 새 서버의 설치 스크립트에 넣으면, 새 서버가 이 서버의 자료를 통째로 가져간다
+_migrate: dict = {}
+
+
+@app.get("/admin/migrate")
+def migrate_info():
+    me = _me()
+    return {"owner": me == db().first_user_id()}
+
+
+@app.post("/admin/migrate")
+def migrate_code():
+    """옮기기 코드 (2시간 동안 쓸 수 있다). 서버 주인만"""
+    me = _me()
+    if me != db().first_user_id():
+        raise HTTPException(403, "서버 주인(처음 가입한 사람)만 할 수 있어요.")
+    code = secrets.token_urlsafe(18)
+    _migrate.clear()
+    _migrate.update(code=code, until=time.time() + 7200)
+    return {"code": code, "until": _migrate["until"]}
+
+
+@app.get("/migrate/export")
+def migrate_export(code: str, background: BackgroundTasks):
+    """새 서버가 가져가는 자료 묶음: DB(로그인 표 빼고) + 올린 파일들(강의자료·녹음·사진) (tar.gz)"""
+    import tarfile
+    import tempfile
+
+    if not _migrate or time.time() > _migrate["until"] or not secrets.compare_digest(code, _migrate["code"]):
+        raise HTTPException(403, "옮기기 코드가 맞지 않거나 시간이 지났어요.")
+    tmp = tempfile.mkdtemp(prefix="lune-migrate-")
+    db_copy = os.path.join(tmp, "lune.db")
+    db().backup_to(db_copy)
+    import sqlite3 as _sqlite
+    with _sqlite.connect(db_copy) as c:   # 로그인 표는 옮기지 않는다 (새 서버에서 다시 로그인)
+        c.execute("DELETE FROM logins")
+    out = os.path.join(tmp, "lune-data.tar.gz")
+    with tarfile.open(out, "w:gz") as tar:
+        tar.add(db_copy, arcname=os.path.basename(settings.db_path))
+        if os.path.isdir(settings.upload_dir):
+            tar.add(settings.upload_dir, arcname=os.path.basename(settings.upload_dir.rstrip("/")))
+    background.add_task(shutil.rmtree, tmp, True)
+    return FileResponse(out, media_type="application/gzip", filename="lune-data.tar.gz")
 
 
 @app.get("/diag/ai")

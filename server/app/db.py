@@ -673,6 +673,18 @@ class Database:
         rows = self._query("SELECT * FROM users WHERE name = ?", (name,))
         return rows[0] if rows else None
 
+    def first_user_id(self) -> str | None:
+        """서버 주인 = 맨 처음 가입한 사람"""
+        rows = self._query("SELECT id FROM users ORDER BY created_at LIMIT 1")
+        return rows[0]["id"] if rows else None
+
+    def backup_to(self, path: str) -> None:
+        """쓰는 중에도 깨지지 않게 SQLite 백업 기능으로 복사"""
+        target = sqlite3.connect(path)
+        with self._lock:
+            self._conn.backup(target)
+        target.close()
+
     def get_user(self, user_id: str) -> dict | None:
         rows = self._query("SELECT id, name, friend_code, friend_prefs FROM users WHERE id = ?", (user_id,))
         if not rows:

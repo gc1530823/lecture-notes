@@ -1,13 +1,18 @@
 #!/bin/bash
 # LUNE server setup for Oracle Cloud Always Free (Ubuntu 24.04).
 # Paste this whole text into: Advanced options > Management > Paste cloud-init script.
-# Replace ONLY the text inside the quotes on the next 4 lines. Keep the quotes.
+# Replace ONLY the text inside the quotes on the next lines. Keep the quotes.
+# Moving from an old LUNE server: put its address and the move code (Settings > Server) in MIGRATE_FROM / MIGRATE_CODE.
+# Leave them as they are for a brand-new server.
 # (ASCII only: the Oracle console breaks on non-ASCII characters in this box.)
 GROQ_API_KEY="PUT_GROQ_KEY_HERE"
 INVITE_CODE="PUT_INVITE_CODE_HERE"
 TS_AUTHKEY="PUT_TAILSCALE_KEY_HERE"
 HF_TOKEN="PUT_HUGGINGFACE_READ_TOKEN_HERE"
 REPO="kimheejin0823/lune-server"
+MIGRATE_FROM="https://lune.tailc356b8.ts.net"
+MIGRATE_CODE="PUT_MOVE_CODE_HERE_OR_LEAVE"
+TS_HOSTNAME="lune2"
 
 exec > /var/log/lune-setup.log 2>&1
 set -x
@@ -105,11 +110,28 @@ OnUnitActiveSec=1h
 [Install]
 WantedBy=timers.target
 EOF
+# Bring over all data (accounts, lectures, recordings) from the old server before starting
+case "$MIGRATE_CODE" in
+  PUT_*|"") echo "new server: no data to move" ;;
+  *)
+    for i in 1 2 3 4 5; do
+      curl -fsSL -m 3600 "$MIGRATE_FROM/migrate/export?code=$MIGRATE_CODE" -o /var/lib/lune/move.tar.gz && break
+      sleep 30
+    done
+    if [ -s /var/lib/lune/move.tar.gz ]; then
+      tar xzf /var/lib/lune/move.tar.gz -C /var/lib/lune && rm -f /var/lib/lune/move.tar.gz
+      chown -R lune:lune /var/lib/lune
+      echo "data moved from $MIGRATE_FROM"
+    else
+      echo "MOVE FAILED: check the move code (it works for 2 hours)"
+    fi ;;
+esac
+
 systemctl daemon-reload
 systemctl enable --now lune lune-update.timer
 
 curl -fsSL https://tailscale.com/install.sh | sh
-tailscale up --auth-key="$TS_AUTHKEY" --hostname=lune
+tailscale up --auth-key="$TS_AUTHKEY" --hostname="$TS_HOSTNAME"
 tailscale funnel --bg 8000
 tailscale funnel status
 echo "LUNE setup done"
