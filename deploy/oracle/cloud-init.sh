@@ -14,6 +14,12 @@ exec > /var/log/lune-setup.log 2>&1
 set -x
 export DEBIAN_FRONTEND=noninteractive
 
+# 0. 인터넷이 연결될 때까지 기다린다 (공용 IP 를 서버를 만든 뒤에 붙여도 이어서 설치되게, 최대 3시간)
+for i in $(seq 1 1080); do
+  curl -fsS -m 5 -o /dev/null https://huggingface.co && break
+  sleep 10
+done
+
 # 1. 필요한 프로그램
 apt-get update
 apt-get install -y python3-venv python3-pip ffmpeg curl ca-certificates
