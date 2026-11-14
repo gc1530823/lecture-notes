@@ -149,6 +149,7 @@ function ImportFromImage({ hasRows, onSaved }: { hasRows: boolean; onSaved: () =
   const [replace, setReplace] = useState(hasRows);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
+  const [note, setNote] = useState("");
 
   const read = async (file: File) => {
     setError(""); setState("reading");
@@ -159,7 +160,7 @@ function ImportFromImage({ hasRows, onSaved }: { hasRows: boolean; onSaved: () =
       const r = await fetch((import.meta.env.VITE_API_URL ?? "") + "/timetable/from-image", { method: "POST", body });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data.detail ?? "시간표를 읽지 못했어요");
-      setDrafts(data.classes); setState("check");
+      setDrafts(data.classes); setNote(data.note ?? ""); setState("check");
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); setState("idle"); }
   };
   const save = async () => {
@@ -190,9 +191,11 @@ function ImportFromImage({ hasRows, onSaved }: { hasRows: boolean; onSaved: () =
             {preview && <img src={preview} alt="올린 시간표" className="tt-thumb" />}
             <span className="grow"><b>{drafts.length}개 수업을 찾았어요</b><small>틀린 곳은 눌러서 고치고, 아니면 지워 주세요</small></span>
           </div>
+          {note && <p className="tt-note">{note}</p>}
           {drafts.map((d, i) => (
             <div key={i} className={`tt-draft ${courseTone(d.course)}`}>
-              <input className="input" value={d.course} onChange={(e) => edit(i, { course: e.target.value })} aria-label="과목 이름" />
+              <input className={`input${d.course.trim() ? "" : " need"}`} value={d.course} placeholder={`${DAYS[d.weekday]} ${d.start} 수업 이름`}
+                onChange={(e) => edit(i, { course: e.target.value })} aria-label="과목 이름" />
               <div className="row">
                 <select className="input" value={d.weekday} onChange={(e) => edit(i, { weekday: Number(e.target.value) })} aria-label="요일">
                   {DAYS.map((day, j) => <option key={day} value={j}>{day}</option>)}
@@ -208,7 +211,9 @@ function ImportFromImage({ hasRows, onSaved }: { hasRows: boolean; onSaved: () =
           )}
           <div className="row">
             <Button variant="secondary" onClick={() => { setState("idle"); setDrafts([]); setPreview(null); }}>다시 고르기</Button>
-            <Button onClick={() => void save()} disabled={!drafts.length || state === "saving"}>{state === "saving" ? "넣는 중…" : `${drafts.length}개 넣기`}</Button>
+            <Button onClick={() => void save()} disabled={!drafts.length || state === "saving" || drafts.some((d) => !d.course.trim())}>
+              {state === "saving" ? "넣는 중…" : drafts.some((d) => !d.course.trim()) ? "이름을 채워 주세요" : `${drafts.length}개 넣기`}
+            </Button>
           </div>
         </div>
       )}

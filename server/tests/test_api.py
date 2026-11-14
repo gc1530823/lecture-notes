@@ -1156,3 +1156,16 @@ def test_timetable_from_screenshot_then_confirm(client):
     one = client.post("/timetable/bulk", json={"classes": rows[:1], "replace": True}).json()
     assert [c["course"] for c in one] == ["운영체제"]
     assert client.post("/timetable/from-image", files={"file": ("x.png", b"", "image/png")}).status_code == 400
+
+
+def test_timetable_screenshot_times_come_from_the_grid(client):
+    """에타 캡처: 시각은 칸 위치로 정확히 (AI 는 이름만). 가짜 AI 는 이 시간표를 모르므로 이름은 비고 시간만 맞는다"""
+    import os
+
+    for old in client.get("/timetable").json():
+        client.delete(f"/timetable/{old['id']}")
+    shot = open(os.path.join(os.path.dirname(__file__), "everytime-dark.png"), "rb").read()
+    res = client.post("/timetable/from-image", files={"file": ("et.png", shot, "image/png")}).json()
+    times = [(r["weekday"], r["start"], r["end"]) for r in res["classes"]]
+    assert times == [(0, "15:30", "18:30"), (0, "18:30", "19:30"), (1, "11:00", "15:30"),
+                     (2, "09:30", "12:30"), (3, "13:30", "16:30"), (4, "09:30", "12:30")]

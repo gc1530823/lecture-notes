@@ -1282,3 +1282,5 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .pdf-pages { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 12px; color: #ddd; }
 .pdf-pages canvas { width: min(100%, 820px); height: auto; background: #fff; border-radius: 4px; box-shadow: 0 4px 16px rgb(0 0 0 / .35); }
 .pdf-actions { gap: 8px; } .pdf-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.tt-note { margin: 0; padding: 9px 12px; border-radius: 12px; background: color-mix(in srgb, var(--ico-orange) 14%, transparent); color: var(--text-primary); font: 600 13px/19px var(--font-sans); }
+.tt-draft .input.need { border-color: var(--ico-orange); background: color-mix(in srgb, var(--ico-orange) 8%, var(--bg-card)); }

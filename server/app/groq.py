@@ -9,6 +9,7 @@ import asyncio
 import contextvars
 import io
 import json
+import re
 import logging
 import os
 import subprocess
@@ -138,22 +139,55 @@ class GroqLLM(OllamaLLM):
     async def _vision(self, system: str, ask: str, image: bytes, mime: str) -> dict:
         import base64
 
-        payload = {
-            "model": settings.groq_vision_model,
-            "messages": [{"role": "system", "content": system},
-                         {"role": "user", "content": [
-                             {"type": "text", "text": ask},
-                             {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{base64.b64encode(image).decode()}"}}]}],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.1,
-        }
-        try:
-            response = await self.client.post("/chat/completions", json=payload, headers=_auth())
-        except httpx.HTTPError as exc:
-            raise LLMError(f"Groq에 연결할 수 없습니다: {exc}") from exc
-        if response.status_code >= 400:
-            raise LLMError(f"사진을 읽지 못했습니다 ({response.status_code}): {response.text[:150]}")
-        return json.loads(response.json()["choices"][0]["message"].get("content") or "{}")
+        # 사진 읽는 모델은 Groq 에서 자주 바뀌고 없어진다 → 정해 둔 모델이 안 되면 지금 있는 사진 모델을 찾아 차례로 써 본다
+        image_url = f"data:{mime};base64,{base64.b64encode(image).decode()}"
+        problems = []
+        for model in await self._vision_models():
+            for strict in (True, False):  # JSON 모드를 못 쓰는 모델이면 그냥 글로 받아 JSON 만 골라낸다
+                payload = {
+                    "model": model,
+                    "messages": [{"role": "system", "content": system},
+                                 {"role": "user", "content": [{"type": "text", "text": ask + " JSON 으로만 답해 주세요."},
+                                                              {"type": "image_url", "image_url": {"url": image_url}}]}],
+                    "temperature": 0.1,
+                    **({"response_format": {"type": "json_object"}} if strict else {}),
+                }
+                try:
+                    response = await self.client.post("/chat/completions", json=payload, headers=_auth())
+                except httpx.HTTPError as exc:
+                    raise LLMError(f"Groq에 연결할 수 없습니다: {exc}") from exc
+                if response.status_code < 400:
+                    text = response.json()["choices"][0]["message"].get("content") or ""
+                    try:
+                        return json.loads(text[text.find("{"): text.rfind("}") + 1])
+                    except json.JSONDecodeError:
+                        problems.append(f"{model}: 답이 JSON 이 아님")
+                        continue
+                body = response.text[:200]
+                problems.append(f"{model}: {response.status_code} {body}")
+                log.warning("사진 읽기 실패 %s %s %s", model, response.status_code, body)
+                if response.status_code == 429:
+                    raise LLMError("Groq 무료 사용량이 잠깐 다 찼어요. 1분쯤 뒤 다시 해 주세요.")
+                if not (response.status_code == 400 and strict and ("json" in body.lower() or "response_format" in body)):
+                    break  # 이 모델은 안 된다 → 다음 모델
+        raise LLMError("사진 읽는 모델을 쓸 수 없어요: " + " / ".join(problems)[:400])
+
+    _vision_cache: list[str] | None = None
+
+    async def _vision_models(self) -> list[str]:
+        """정해 둔 사진 모델 + Groq 에 지금 있는 사진 모델들 (이름으로 고른다)"""
+        if GroqLLM._vision_cache is None:
+            found: list[str] = []
+            try:
+                response = await self.client.get("/models", headers=_auth())
+                ids = [m.get("id", "") for m in response.json().get("data", [])] if response.status_code < 400 else []
+                found = [i for i in ids if re.search(r"vision|llama-4|scout|maverick|[-_]vl|pixtral|gemma-3", i, re.I)
+                         and not re.search(r"whisper|guard|tts|prompt", i, re.I)]
+                found.sort(key=lambda i: (0 if "scout" in i else 1 if "maverick" in i else 2, i))
+            except (httpx.HTTPError, ValueError):
+                pass
+            GroqLLM._vision_cache = found
+        return list(dict.fromkeys([settings.groq_vision_model, *GroqLLM._vision_cache]))
 
     async def fix_speech(self, page: dict, speech: str) -> str:
         """정리 PDF의 '교수님 설명'에서 잘못 들린 단어만 고친다 (Groq는 빨라서 페이지마다 한 번 더 불러도 된다)."""
