@@ -1,5 +1,6 @@
 // 1 자료 목록 (Figma "03 디자인 / 1 자료 목록")
 import { useEffect, useRef, useState } from "react";
+import { EnglishToggle, lectureLang, setLectureLang } from "../components/EnglishToggle";
 import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { android } from "../lib/live";
@@ -89,6 +90,7 @@ export default function Home() {
   const uploadAudio = (f: File) => {
     const form = new FormData();
     form.append("file", f);
+    form.append("language", lectureLang(null));
     if (filter !== "all" && filter) form.append("course", filter);
     const xhr = new XMLHttpRequest();
     xhr.open("POST", (import.meta.env.VITE_API_URL ?? "") + "/documents/from-audio");
@@ -108,6 +110,7 @@ export default function Home() {
   const uploadToDoc = (docId: string, f: File) => {
     const form = new FormData();
     form.append("document_id", docId);
+    form.append("language", lectureLang(docId));
     form.append("file", f);
     const xhr = new XMLHttpRequest();
     xhr.open("POST", (import.meta.env.VITE_API_URL ?? "") + "/sessions/from-audio");
@@ -127,9 +130,11 @@ export default function Home() {
   const [picker, setPicker] = useState<null | "record" | "upload">(null);
   const target = useRef<string | null>(null);
   const audioToDoc = useRef<HTMLInputElement>(null);
+  const pickEn = useRef(lectureLang(null) === "en");
   const choose = (docId: string | null) => {
     const mode = picker;
     setPicker(null);
+    setLectureLang(docId, pickEn.current);   // 이 시트에서 고른 '영어 강의'를 그 자료에 기억
     if (mode === "record") {
       if (docId) go({ name: "lecture", docId }); else void newNotebook("notebook", true);
     } else if (mode === "upload") {
@@ -236,6 +241,7 @@ export default function Home() {
             <div className="sheet" role="dialog" aria-modal="true" aria-label="강의자료 고르기">
               <h3 className="t-title-m">{picker === "record" ? "어느 강의자료로 녹음할까요?" : "어느 강의자료에 녹음을 붙일까요?"}</h3>
               <p className="t-caption muted">강의자료를 고르면 필기가 그 쪽 옆에 붙어요</p>
+              <EnglishToggle docId={null} onChange={(v) => { pickEn.current = v; }} />
               {(docs ?? []).filter((d) => d.kind !== "meeting").map((d) => (
                 <ListItem key={d.id} icon={d.kind === "notebook" ? "notebook" : "file-pdf"} title={d.title} subtitle={subtitleOf(d)} onClick={() => choose(d.id)} />
               ))}

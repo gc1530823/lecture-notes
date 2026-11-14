@@ -1184,3 +1184,29 @@ def test_timetable_screenshot_times_come_from_the_grid(client):
     assert times == [(0, "15:30", "18:30"), (0, "18:30", "19:30"), (1, "11:00", "15:30"),
                      (2, "09:30", "12:30"), (3, "13:30", "16:30"), (4, "09:30", "12:30")]
 
+
+
+def test_english_lecture_checkbox_fixes_language(client):
+    """처음에 '영어 강의'를 체크하면 받아쓰기를 영어로 고정, 안 하면 목소리로"""
+    from app.main import app as the_app
+    from app.stt import Segment
+
+    seen = []
+
+    class Recorder:
+        def transcribe(self, path, hint, on_progress=None, language=None):
+            seen.append(language)
+            return [Segment(0, 3000, "Today we talk about gradient descent.")]
+
+    the_app.state.transcriber = Recorder()
+    doc = upload(client)
+    assert client.post("/sessions", json={"document_id": doc["id"], "language": "en"}).json()["language"] == "en"
+    assert client.post("/sessions", json={"document_id": doc["id"]}).json()["language"] == ""
+    for lang in ("en", ""):
+        s = client.post("/sessions/from-audio", data={"document_id": doc["id"], "language": lang},
+                        files={"file": ("a.m4a", b"x", "audio/mp4")}).json()
+        for _ in range(100):
+            if client.get(f"/sessions/{s['id']}/summary").json()["status"] in ("done", "failed"):
+                break
+            time.sleep(0.05)
+    assert seen == ["en", None]

@@ -107,7 +107,8 @@ class LiveSession:
             doc = self.db.get_document(self.document_id)
             if self.device_stt:
                 transcriber = RecordOnly()
-            self.audio = LiveAudio(transcriber, " ".join(doc["keywords"][:40]), self._on_heard, wav_path, offset_ms)
+            lang = (self.db.get_session(self.session_id) or {}).get("language") or None
+            self.audio = LiveAudio(transcriber, " ".join(doc["keywords"][:40]), self._on_heard, wav_path, offset_ms, lang)
         self.audio.feed(data)
 
     async def _on_heard(self, text: str, start_ms: int, end_ms: int, loud: bool = False) -> None:

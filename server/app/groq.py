@@ -276,13 +276,14 @@ class GroqTranscriber:
         return kept
 
     def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None,
-                   patient: bool = True) -> list[Segment]:
+                   patient: bool = True, language: str | None = None) -> list[Segment]:
         """audio: 파일 경로, 또는 16kHz 모노 float32 배열(실시간 조각). WhisperTranscriber와 같은 꼴로 돌려준다."""
         if not isinstance(audio, str):
             return split_sentences(self._request("live.wav", _wav_bytes(audio), hint, settings.groq_live_whisper_model,
-                                                 patient))
+                                                 patient, language))
         result: list[Segment] = []
-        language = None   # 첫 조각에서 목소리로 정하고, 다음 조각부터는 그 언어로 고정
+        # 사람이 '영어 강의'라고 정했으면 그 언어로, 아니면 첫 조각에서 목소리로 정하고 다음 조각부터는 고정
+        language = language or None
         with tempfile.TemporaryDirectory() as tmp:
             parts = _split_audio(audio, tmp)
             for i, part in enumerate(parts):

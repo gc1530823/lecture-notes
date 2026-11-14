@@ -1,6 +1,7 @@
 // 2·3 강의 화면 (녹음 중): 강의자료 위에 형광펜·번호 깃발, 아래에 포스트잇 필기. 노트 수업은 모눈 노트에 주제별로 써 내려간다.
 // 녹음 → 서버(받아쓰기·AI 필기) → WebSocket 이벤트로 화면에 붙는다. 기존 웹앱과 같은 규약 (lib/live.ts).
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { EnglishToggle, lectureLang } from "../components/EnglishToggle";
 import type { Annotation, DocumentDetail, GlossaryTerm, NoteType, Page } from "../api/types";
 import { getJSON, postJSON } from "../api/useApi";
 import { LiveWave, refreshWaves } from "../lib/wave";
@@ -285,7 +286,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     micStart.catch(() => {}); // 실패는 아래에서 다룬다
     let id: string;
     try {
-      id = (await postJSON<{ id: string }>("/sessions", { document_id: docId })).id;
+      id = (await postJSON<{ id: string }>("/sessions", { document_id: docId, language: lectureLang(docId) })).id;
     } catch (e) {
       micStart.then((m) => m?.stop()).catch(() => {});
       return toast(e instanceof Error ? e.message : String(e));
@@ -727,6 +728,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               {asking ? <span className="spin" /> : <Icon name="chat-circle-dots" art size={30} />}<span className="tool-label">질문</span>
             </button>
           )}
+          {phase === "idle" && <div className="idle-lang"><EnglishToggle docId={docId} /></div>}
           {phase === "idle" && <button className="round round-record" onClick={startWithConsent} aria-label="녹음 시작"><Icon name="microphone" art size={46} /></button>}
           {recording && <button className="round round-record on" onClick={() => void stop()} aria-label="강의 끝내기"><span className="stop" /></button>}
           {phase === "ending" && <span className="round round-soft"><span className="spin" /></span>}

@@ -84,14 +84,15 @@ class WhisperTranscriber:
                 self._model = WhisperModel(settings.whisper_model, device="cpu", compute_type="int8")
         return self._model
 
-    def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
+    def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None,
+                   language: str | None = None) -> list[Segment]:
         """audio: 파일 경로, 또는 16kHz 모노 float32 배열(실시간 조각).
         오래 걸리는 작업이라 스레드에서 부른다. hint에는 강의자료 용어와 직전 문장을 넣어 인식을 돕는다."""
         model = self._load()
         segments, info = model.transcribe(
             # 서버 CPU 에서는 beam 5 가 2~3배 느리다 → 1 (VAD 로 조용한 곳은 건너뛴다)
             # 언어는 강의자료 글이 아니라 목소리로 정한다 (영어 슬라이드 + 한국어 강의가 흔하다)
-            audio, language=None, vad_filter=True, beam_size=1, initial_prompt=hint or None,
+            audio, language=language or None, vad_filter=True, beam_size=1, initial_prompt=hint or None,
         )
         result = []
         for seg in segments:
@@ -113,7 +114,8 @@ class FakeTranscriber:
         "과제 2번은 역전파를 손으로 계산해 보는 거고 다음 주 금요일까지 제출하세요.",
     ]
 
-    def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
+    def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None,
+                   language: str | None = None) -> list[Segment]:
         import time
 
         if not isinstance(audio, str):  # 실시간 조각: 한 문장씩 차례로
@@ -147,12 +149,13 @@ class FallbackTranscriber:
         """지금 받아쓰는 곳: groq(빠름) | local(이 서버, 느림)"""
         return "local" if time.monotonic() < self.local_until else "groq"
 
-    def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
+    def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None,
+                   language: str | None = None) -> list[Segment]:
         from .llm import LLMError
 
         if time.monotonic() >= self.local_until:
             try:
-                return self.primary.transcribe(audio, hint, on_progress, patient=False)
+                return self.primary.transcribe(audio, hint, on_progress, patient=False, **({"language": language} if language else {}))
             except LLMError as exc:
                 wait = getattr(exc, "wait", None)
                 if wait is not None or "연결할 수 없" in str(exc):
@@ -162,7 +165,7 @@ class FallbackTranscriber:
                 self.last_error = str(exc)[:300]
                 log.warning("받아쓰기: %s → 이 서버의 Whisper로 받아씁니다", exc)
         self.local_used += 1
-        return self.local.transcribe(audio, hint, on_progress)
+        return self.local.transcribe(audio, hint, on_progress, **({"language": language} if language else {}))
 
 
 def make_transcriber():

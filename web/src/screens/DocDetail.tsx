@@ -1,5 +1,6 @@
 // 자료 상세: 강의(녹음) 목록과 수업 시작, 시험 예상 지도로 가는 곳
 import { useRef, useState } from "react";
+import { EnglishToggle, lectureLang } from "../components/EnglishToggle";
 import type { DocumentBrief } from "../api/types";
 import { useApi } from "../api/useApi";
 import { Chip, Empty, Icon, ListItem, TopBar } from "../components/ui";
@@ -25,6 +26,7 @@ export default function DocDetail({ docId }: { docId: string }) {
   const sendAudio = (file: File) => {
     const form = new FormData();
     form.append("document_id", docId);
+    form.append("language", lectureLang(docId));
     form.append("file", file);
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${API}/sessions/from-audio`);
@@ -75,6 +77,7 @@ export default function DocDetail({ docId }: { docId: string }) {
                 <span><b>녹음 파일 올리기</b><small>{upload ?? "녹음한 수업을 정리해요"}</small></span>
               </button>
             </div>
+            <EnglishToggle docId={docId} />
             <input ref={audioInput} type="file" accept="audio/*,.m4a,.mp3,.wav" hidden
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) sendAudio(f); }} />
 

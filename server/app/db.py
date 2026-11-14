@@ -281,6 +281,9 @@ class Database:
             self._conn.commit()
         # error: 정리에 실패한 이유 (화면에 보여 준다)
         columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(sessions)")}
+        if "language" not in columns:   # 강의 언어: 'en' = 영어 강의로 체크, '' = 목소리로 정하기
+            self._conn.execute("ALTER TABLE sessions ADD COLUMN language TEXT NOT NULL DEFAULT ''")
+            self._conn.commit()
         if "error" not in columns:
             self._conn.execute("ALTER TABLE sessions ADD COLUMN error TEXT")
             self._conn.commit()
@@ -531,11 +534,11 @@ class Database:
 
     # 강의 세션
 
-    def create_session(self, doc_id: str) -> str:
+    def create_session(self, doc_id: str, language: str = "") -> str:
         session_id = uuid.uuid4().hex
         self._write(
-            "INSERT INTO sessions (id, document_id, status, started_at) VALUES (?, ?, 'recording', ?)",
-            (session_id, doc_id, time.time()),
+            "INSERT INTO sessions (id, document_id, status, started_at, language) VALUES (?, ?, 'recording', ?, ?)",
+            (session_id, doc_id, time.time(), language if language in ("ko", "en") else ""),
         )
         return session_id
 

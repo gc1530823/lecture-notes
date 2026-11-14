@@ -211,6 +211,7 @@ def auth_logout(request: Request):
 
 class SessionCreate(BaseModel):
     document_id: str
+    language: str = ""   # 'en' = 영어 강의 (처음에 체크), '' = 목소리로 정하기
 
 
 class TaskUpdate(BaseModel):
@@ -456,7 +457,7 @@ def get_document(doc_id: str):
 def create_session(body: SessionCreate):
     if db().get_document(body.document_id) is None:
         raise HTTPException(404, "강의자료가 없습니다.")
-    session_id = db().create_session(body.document_id)
+    session_id = db().create_session(body.document_id, body.language)
     return db().get_session(session_id)
 
 
@@ -471,7 +472,8 @@ MAX_AUDIO_BYTES = 500 * 1024 * 1024
 
 
 @app.post("/documents/from-audio")
-async def document_from_audio(background: BackgroundTasks, file: UploadFile = File(...), course: str = Form(""), title: str = Form("")):
+async def document_from_audio(background: BackgroundTasks, file: UploadFile = File(...), course: str = Form(""), title: str = Form(""),
+                              language: str = Form("")):
     """강의자료 없이 녹음 파일만: 노트 수업을 새로 만들고 그 녹음으로 정리한다.
     받아쓰기 → 주제가 바뀔 때마다 쪽을 나눠 주제 제목·필기 → 요약·퀴즈·플래시카드 (강의자료 수업과 같은 결과 화면)."""
     stem = os.path.splitext(file.filename or "")[0].strip()
@@ -482,16 +484,17 @@ async def document_from_audio(background: BackgroundTasks, file: UploadFile = Fi
     doc_id = db().create_notebook(name, "notebook")
     if course.strip():
         db().set_course(doc_id, course.strip()[:40])
-    session = await session_from_audio(background, doc_id, file)
+    session = await session_from_audio(background, doc_id, file, language)
     return {"document_id": doc_id, "session_id": session["id"], "title": name}
 
 
 @app.post("/sessions/from-audio")
-async def session_from_audio(background: BackgroundTasks, document_id: str = Form(...), file: UploadFile = File(...)):
+async def session_from_audio(background: BackgroundTasks, document_id: str = Form(...), file: UploadFile = File(...),
+                             language: str = Form("")):
     """'음성 메모' 등으로 녹음해 둔 파일로 강의를 정리한다: 받아쓰기 → 페이지 추적·필기·과제 → 요약·퀴즈."""
     if db().get_document(document_id) is None:
         raise HTTPException(404, "강의자료가 없습니다.")
-    session_id = db().create_session(document_id)
+    session_id = db().create_session(document_id, language)
     os.makedirs(settings.upload_dir, exist_ok=True)
     path = os.path.join(settings.upload_dir, f"{session_id}.audio")
     size = 0
@@ -508,6 +511,16 @@ async def session_from_audio(background: BackgroundTasks, document_id: str = For
     return db().get_session(session_id)
 
 
+def _lang(session_id: str) -> str | None:
+    """강의 언어: '영어 강의'로 체크했으면 'en', 아니면 None (목소리로 정한다)"""
+    return (db().get_session(session_id) or {}).get("language") or None
+
+
+def _lang_kw(session_id: str) -> dict:
+    lang = _lang(session_id)
+    return {"language": lang} if lang else {}
+
+
 async def _process_audio(session_id: str, document_id: str, path: str) -> None:
     doc = db().get_document(document_id)
     progress = app.state.progress
@@ -515,7 +528,7 @@ async def _process_audio(session_id: str, document_id: str, path: str) -> None:
     try:
         segments = await asyncio.to_thread(
             app.state.transcriber.transcribe, path, " ".join(doc["keywords"][:40]),
-            lambda p: progress.__setitem__(session_id, p),
+            lambda p: progress.__setitem__(session_id, p), **_lang_kw(session_id),
         )
     except Exception as exc:  # 디코딩 실패, 모델 다운로드 실패 등
         log.exception("녹음 파일 받아쓰기 실패")
@@ -728,7 +741,7 @@ async def _refine_transcript(session_id: str, document_id: str) -> None:
         progress = app.state.progress
         segments = await asyncio.to_thread(
             app.state.transcriber.transcribe, audio[0], " ".join(doc["keywords"][:40]),
-            lambda p: progress.__setitem__(session_id, p))
+            lambda p: progress.__setitem__(session_id, p), **_lang_kw(session_id))
         # 다시 받아쓴 글이 너무 짧으면(녹음이 끊겼거나 받아쓰기 실패) 바꾸지 않는다
         if sum(len(s.text) for s in segments) >= 0.6 * sum(len(s["text"]) for s in old):
             n = db().refine_segments(session_id, [(s.start_ms, s.end_ms, s.text) for s in segments])

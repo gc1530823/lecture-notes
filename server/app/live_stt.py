@@ -37,8 +37,10 @@ class RecordOnly:
 
 
 class LiveAudio:
-    def __init__(self, transcriber, hint: str, on_text: OnText, wav_path: str | None = None, start_ms: int = 0):
+    def __init__(self, transcriber, hint: str, on_text: OnText, wav_path: str | None = None, start_ms: int = 0,
+                 language: str | None = None):
         self.transcriber = transcriber
+        self.language = language or None  # '영어 강의'로 정했으면 'en', 아니면 목소리로
         # 받아쓰기 서비스마다 알맞은 조각 길이 (Groq는 길게 모아서 무료 한도를 아낀다, 이 서버의 Whisper는 짧게 바로)
         self.min_chunk_ms = getattr(transcriber, "min_chunk_ms", 0)
         self.max_chunk_ms = getattr(transcriber, "max_chunk_ms", MAX_CHUNK_MS)
@@ -130,7 +132,8 @@ class LiveAudio:
             audio = pcm.astype(np.float32) / 32768.0
             prompt = f"{self.hint} {self.last_text}".strip()
             try:
-                segments = await asyncio.to_thread(self.transcriber.transcribe, audio, prompt)
+                kw = {"language": self.language} if self.language and not isinstance(self.transcriber, RecordOnly) else {}
+                segments = await asyncio.to_thread(self.transcriber.transcribe, audio, prompt, **kw)
             except Exception:
                 log.exception("실시간 받아쓰기 실패")
                 continue
