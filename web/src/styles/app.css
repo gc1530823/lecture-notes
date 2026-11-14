@@ -1372,3 +1372,20 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .tt-link > svg { color: var(--accent-primary); flex: none; }
 .tt-link .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tt-link-go { flex: none; display: inline-flex; align-items: center; gap: 2px; font-weight: 800; color: var(--accent-deep); }
+
+/* ── 홈 머리: 숨 쉴 여백 · 인사 · 오늘 요약 ── */
+.home-head { position: relative; padding: calc(18px + env(safe-area-inset-top)) 20px 20px; gap: 22px; }
+.home-head::before { content: ""; position: absolute; inset: 0 0 -40px; z-index: -1; pointer-events: none;
+  background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--accent-primary) 16%, transparent), transparent 60%),
+              radial-gradient(80% 70% at 0% 0%, color-mix(in srgb, #ff9fd0 10%, transparent), transparent 70%); }
+.home-top { display: flex; align-items: center; justify-content: space-between; }
+.home-brand { gap: 8px; }
+.home-brand .lune-mark { box-shadow: 0 3px 10px rgb(74 58 217 / .22); border-radius: 8px; }
+.home-me { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font: 800 14px/1 var(--font-sans);
+  color: var(--accent-deep); background: var(--bg-card); box-shadow: 0 2px 8px rgb(30 20 80 / .08); border: 1px solid var(--border-line); }
+.home-hello { display: flex; flex-direction: column; gap: 4px; }
+.home-hello .home-date { font: 700 12.5px/16px var(--font-sans); color: var(--accent-primary); letter-spacing: .01em; }
+.home-hello h1 { margin: 0; font: 800 25px/33px var(--font-sans); letter-spacing: -.035em; color: var(--text-primary); }
+.home-hello h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent-primary), #c86bf0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.home-hello p { margin: 2px 0 0; font: 500 14px/20px var(--font-sans); color: var(--text-secondary); }
+.home-head + .screen-body { padding-top: 4px; }

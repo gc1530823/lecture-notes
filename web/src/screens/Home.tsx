@@ -163,12 +163,7 @@ export default function Home() {
 
   return (
     <div className="screen">
-      <header className="home-head">
-        <div className="row">
-          <span className="home-brand grow"><LuneMark size={30} /><LuneWordmark height={19} /></span>
-          <span className="home-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>
-        </div>
-      </header>
+      <HomeHead />
       <div className="screen-body">
         <Timetable courses={courses} onPick={pick} />
 
@@ -263,5 +258,41 @@ function Tile({ icon, title, sub, onClick }: { icon: string; title: string; sub:
       <Icon name={icon} art size={30} />
       <span><b>{title}</b><small>{sub}</small></span>
     </button>
+  );
+}
+
+/** 홈 머리: 작은 로고 → 날짜 · 인사(이름) → 오늘 한 줄 요약 (수업 · 할 일) */
+function HomeHead() {
+  const [name, setName] = useState("");
+  const [sum, setSum] = useState<{ classes: number; due: number } | null>(null);
+  useEffect(() => {
+    getJSON<{ user: { name: string } | null }>("/auth/me").then((m) => setName(m.user?.name ?? "")).catch(() => {});
+    const today = (new Date().getDay() + 6) % 7;
+    const iso = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    Promise.all([
+      getJSON<{ weekday: number }[]>("/timetable").catch(() => []),
+      getJSON<{ done: boolean; due_date?: string | null }[]>("/tasks").catch(() => []),
+    ]).then(([rows, tasks]) => setSum({
+      classes: rows.filter((r) => r.weekday === today).length,
+      due: tasks.filter((t) => !t.done && t.due_date && t.due_date <= iso).length,
+    }));
+  }, []);
+  const h = new Date().getHours();
+  const hello = h < 5 ? "늦은 밤이에요" : h < 11 ? "좋은 아침이에요" : h < 17 ? "좋은 오후예요" : h < 22 ? "좋은 저녁이에요" : "오늘도 수고했어요";
+  // 오늘 한 줄: 수업·마감이 있으면 그 수, 없으면 가벼운 한마디 (아래 카드와 같은 말을 되풀이하지 않게)
+  const line = sum && ([sum.classes ? `오늘 수업 ${sum.classes}개` : "", sum.due ? `마감 할 일 ${sum.due}개` : ""].filter(Boolean).join(" · ")
+    || (h < 17 ? "오늘 배운 것을 LUNE에 남겨 볼까요?" : "오늘 배운 것, 잊기 전에 한 번 볼까요?"));
+  return (
+    <header className="home-head">
+      <div className="home-top">
+        <span className="home-brand"><LuneMark size={24} /><LuneWordmark height={13} /></span>
+        <button className="home-me" onClick={() => go({ name: "privacy" })} aria-label="설정">{name ? name.slice(0, 1) : <Icon name="gear" size={16} />}</button>
+      </div>
+      <div className="home-hello">
+        <span className="home-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>
+        <h1>{hello}{name ? <>, <em>{name}</em>님</> : ""}</h1>
+        {line && <p>{line}</p>}
+      </div>
+    </header>
   );
 }
