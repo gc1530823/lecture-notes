@@ -282,6 +282,11 @@ def start_funnel(ts: str) -> str:
     if not name:
         say("\n[!] Tailscale 에 로그인되지 않았어요. Tailscale 앱을 열어 로그인한 뒤 다시 켜 주세요.")
         sys.exit(1)
+    # 주소 앞부분을 'lune' 으로 (https://lune.….ts.net). 관리 화면에서 직접 바꾼 이름이 있으면 그대로 둔다
+    if not name.startswith("lune"):
+        subprocess.run([ts, "set", "--hostname=lune"], capture_output=True)
+        time.sleep(3)
+        name = (status().get("Self") or {}).get("DNSName", "").rstrip(".") or name
     say("\n고정 인터넷 주소를 여는 중… (Tailscale Funnel)")
     # 처음에는 "Funnel 을 허용해 주세요" 주소를 띄우고 허용할 때까지 기다린다 → 화면에 그대로 보여 준다 (최대 10분)
     proc = subprocess.Popen([ts, "funnel", "--bg", str(PORT)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -350,6 +355,9 @@ def main() -> None:
             tunnel, url = start_tunnel()
             procs.append(tunnel)
         (ROOT / "deploy" / "last-url.txt").write_text(url + "/web/\n", encoding="utf-8")
+        if WIN:
+            subprocess.run(["clip"], input=(url + "/web/").encode("utf-16-le"), check=False)
+            say("(주소를 복사해 두었어요. 채팅에 붙여 넣기만 하면 돼요)")
         say("\n" + "=" * 56)
         say(" 켜졌어요! 이 창을 닫으면 서버도 꺼져요.\n")
         say(f" 주소 (폰 앱·브라우저):  {url}/web/")
