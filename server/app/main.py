@@ -15,6 +15,7 @@ from urllib.parse import quote
 from contextlib import asynccontextmanager
 
 import anthropic
+import pymupdf
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -23,9 +24,10 @@ from pydantic import BaseModel, Field
 from . import auth, training_log
 from .config import settings
 from .db import Database
+from .dedupe import merge_concepts
 from .due import parse_due
 from .live_session import LiveSession
-from .llm import LLMError, accept_fixed_speech, make_llm
+from .llm import LLMError, accept_fixed_speech, clean_timetable, make_llm
 from .beyond import beyond_slides
 from .study import cloze_items, fallback_mindmap, page_material, terms_of, tutor_context
 from .exam_map import score_pages, top_pages
@@ -219,6 +221,8 @@ class AnnotationUpdate(BaseModel):
     page_no: int | None = None
     # "맞아요": 확인 필요 필기가 맞다고 확인 (우리 AI 학습에 '확인된 정답'으로 들어간다)
     confirm: bool = False
+    # 필기 종류(색)를 사람이 바꿀 때
+    type: str | None = None
 
 
 @app.get("/health")
@@ -606,7 +610,7 @@ async def retry_session(session_id: str, background: BackgroundTasks):
 def get_glossary(session_id: str):
     """실시간 용어 사전: 강의 중에 처음 나온 전문용어와 뜻 (나온 순서대로)."""
     _session_or_404(session_id)
-    return db().list_terms(session_id)
+    return merge_concepts(db().list_terms(session_id))  # 같은 용어가 여러 번 잡히면 하나로
 
 
 @app.get("/sessions/{session_id}/audio")
@@ -1051,6 +1055,8 @@ async def _build_study(session_id: str, kind: str) -> None:
                 except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
                     log.exception("%s쪽 %s 만들기 실패", page["page_no"], kind)
                 job["done"] += 1
+        if kind == "concepts":
+            body = merge_concepts(body)
         db().save_study(session_id, kind, digest, body)
     finally:
         app.state.study_jobs.pop((session_id, kind), None)
@@ -1062,7 +1068,8 @@ def _study_status(session_id: str, kind: str, digest: str) -> dict:
         return {**job, "body": None}
     saved = db().get_study(session_id, kind)
     if saved:
-        return {"status": "ready", "done": 0, "total": 0, "body": saved[1], "stale": saved[0] != digest}
+        body = merge_concepts(saved[1]) if kind == "concepts" and isinstance(saved[1], list) else saved[1]  # 예전에 만든 것도
+        return {"status": "ready", "done": 0, "total": 0, "body": body, "stale": saved[0] != digest}
     return {"status": "none", "done": 0, "total": 0, "body": None}
 
 
@@ -1335,12 +1342,13 @@ def study_pdf_status(session_id: str):
 
 
 @app.get("/sessions/{session_id}/study-pdf")
-def get_study_pdf(session_id: str):
+def get_study_pdf(session_id: str, download: bool = False):
     session = _session_or_404(session_id)
     if not os.path.exists(_study_pdf_path(session_id)):
         raise HTTPException(404, "정리 노트가 아직 없습니다.")
     title = db().get_document(session["document_id"])["title"]
-    return FileResponse(_study_pdf_path(session_id), media_type="application/pdf", filename=f"{title} 정리 노트.pdf")
+    return FileResponse(_study_pdf_path(session_id), media_type="application/pdf", filename=f"{title} 정리 노트.pdf",
+                        content_disposition_type="attachment" if download else "inline")
 
 
 @app.get("/sessions/{session_id}/notes-pdf/status")
@@ -1350,12 +1358,13 @@ def notes_pdf_status(session_id: str):
 
 
 @app.get("/sessions/{session_id}/notes-pdf")
-def get_notes_pdf(session_id: str):
+def get_notes_pdf(session_id: str, download: bool = False):
     session = _session_or_404(session_id)
     if not os.path.exists(_notes_pdf_path(session_id)):
         raise HTTPException(404, "정리 PDF가 아직 없습니다.")
     title = db().get_document(session["document_id"])["title"]
-    return FileResponse(_notes_pdf_path(session_id), media_type="application/pdf", filename=f"{title} 정리.pdf")
+    return FileResponse(_notes_pdf_path(session_id), media_type="application/pdf", filename=f"{title} 정리.pdf",
+                        content_disposition_type="attachment" if download else "inline")
 
 
 # 수업 중에 받은 과제
@@ -1420,6 +1429,10 @@ def update_annotation(ann_id: int, body: AnnotationUpdate):
         annotation = db().update_annotation(ann_id, body.text.strip())
         db().set_confidence(ann_id, 1.0)
         annotation = db().get_annotation(ann_id)
+    if body.type is not None:
+        if body.type not in ("explanation", "example", "emphasis", "exam", "notice", "tip", "qa"):
+            raise HTTPException(400, "필기 종류가 이상해요.")
+        annotation = db().set_annotation_type(ann_id, body.type)
     if body.confirm:
         annotation = db().confirm_annotation(ann_id)
     return annotation
@@ -1791,14 +1804,69 @@ def list_timetable():
     return db().list_classes()
 
 
-@app.post("/timetable")
-def add_timetable(body: ClassCreate):
+def add_timetable_check(body: ClassCreate) -> None:
     clock = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
     if not body.course.strip():
         raise HTTPException(400, "과목 이름을 적어 주세요.")
     if not clock.match(body.start) or not clock.match(body.end) or body.start >= body.end:
-        raise HTTPException(400, "시간은 09:00 처럼 적고, 끝나는 시간이 시작보다 늦어야 해요.")
+        raise HTTPException(400, f"{body.course} 시간은 09:00 처럼 적고, 끝나는 시간이 시작보다 늦어야 해요.")
+
+
+@app.post("/timetable")
+def add_timetable(body: ClassCreate):
+    add_timetable_check(body)
     return db().add_class(body.course.strip()[:40], body.weekday, body.start, body.end, body.place.strip()[:40])
+
+
+def _shrink_image(data: bytes, mime: str, longest: int = 1600) -> tuple[bytes, str]:
+    """사진 읽는 AI 에 보내기 전에 긴 변을 1600px 로 (휴대폰 캡처는 크고, Groq 는 4MB 까지만 받는다)"""
+    try:
+        doc = pymupdf.open(stream=data, filetype=(mime.split("/")[-1] or "png"))
+        page = doc[0]
+        zoom = min(1.0, longest / max(page.rect.width, page.rect.height))
+        return page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False).tobytes("jpg", jpg_quality=88), "image/jpeg"
+    except Exception:  # 못 줄이면 그대로
+        return data, mime
+
+
+@app.post("/timetable/from-image")
+async def timetable_from_image(file: UploadFile = File(...)):
+    """시간표 캡처(에브리타임·학교 포털·종이 사진)를 읽어 수업 목록을 돌려준다. 저장은 사람이 확인한 뒤 /timetable/bulk 로"""
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, "사진이 비어 있어요.")
+    if len(data) > MAX_PHOTO_BYTES:
+        raise HTTPException(413, "사진은 12MB 이하만 올릴 수 있어요.")
+    mime = file.content_type if (file.content_type or "").startswith("image/") else "image/png"
+    image, mime = _shrink_image(data, mime)
+    try:
+        rows = clean_timetable(await app.state.llm.read_timetable(image, mime))
+    except Exception as exc:
+        log.exception("시간표 사진 읽기 실패")
+        raise HTTPException(502, "시간표 사진을 읽지 못했어요. 잠시 뒤 다시 하거나 직접 넣어 주세요.") from exc
+    if not rows:
+        raise HTTPException(422, "사진에서 수업을 찾지 못했어요. 시간표 전체가 보이게 캡처해 주세요.")
+    return {"classes": rows}
+
+
+class ClassBulk(BaseModel):
+    classes: list[ClassCreate]
+    replace: bool = False  # true = 지금 시간표를 지우고 이것으로 바꾸기
+
+
+@app.post("/timetable/bulk")
+def add_timetable_bulk(body: ClassBulk):
+    """사진에서 읽고 사람이 확인한 수업을 한 번에 넣는다"""
+    for c in body.classes:
+        add_timetable_check(c)
+    if body.replace:
+        for old in db().list_classes():
+            db().delete_class(old["id"])
+    have = {(c["course"], c["weekday"], c["start"]) for c in db().list_classes()}
+    for c in body.classes:
+        if (c.course.strip(), c.weekday, c.start) not in have:
+            db().add_class(c.course.strip()[:40], c.weekday, c.start, c.end, c.place.strip()[:40])
+    return db().list_classes()
 
 
 @app.delete("/timetable/{class_id}", status_code=204)

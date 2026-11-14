@@ -757,6 +757,11 @@ class Database:
         self._write("UPDATE annotations SET text = ?, edited_by_user = 1 WHERE id = ?", (text, ann_id))
         return self.get_annotation(ann_id)
 
+    def set_annotation_type(self, ann_id: int, kind: str) -> dict | None:
+        self._feedback(ann_id, "edit")
+        self._write("UPDATE annotations SET type = ?, edited_by_user = 1 WHERE id = ?", (kind, ann_id))
+        return self.get_annotation(ann_id)
+
     def move_annotation(self, ann_id: int, page_id: int) -> dict | None:
         """보류함의 필기를 사용자가 고른 페이지에 붙인다 (문단 연결은 풀고 페이지 여백에 둔다)."""
         page = self._query("SELECT page_no FROM pages WHERE id = ?", (page_id,))

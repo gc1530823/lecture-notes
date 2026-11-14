@@ -14,6 +14,7 @@ from . import training_log
 from .config import settings
 from .llm import (
     BOARD_SYSTEM,
+    TIMETABLE_SYSTEM,
     ANNOTATION_SCHEMA,
     ASK_SCHEMA,
     CATCHUP_SCHEMA,
@@ -361,11 +362,17 @@ class OllamaLLM:
 
     async def read_board(self, image: bytes, mime: str) -> dict:
         """사진을 읽는 Ollama 모델(OLLAMA_VISION_MODEL, 예: qwen2.5vl:3b)로 칠판 사진을 필기로 옮긴다."""
+        return await self._vision(BOARD_SYSTEM, "이 사진을 필기로 옮겨 주세요.", image)
+
+    async def read_timetable(self, image: bytes, mime: str) -> dict:
+        return await self._vision(TIMETABLE_SYSTEM, "이 시간표의 수업을 모두 옮겨 주세요.", image)
+
+    async def _vision(self, system: str, ask: str, image: bytes) -> dict:
         import base64
 
         payload = {"model": settings.ollama_vision_model, "stream": False, "format": "json", "think": False,
-                   "messages": [{"role": "system", "content": BOARD_SYSTEM},
-                                {"role": "user", "content": "이 사진을 필기로 옮겨 주세요.", "images": [base64.b64encode(image).decode()]}]}
+                   "messages": [{"role": "system", "content": system},
+                                {"role": "user", "content": ask, "images": [base64.b64encode(image).decode()]}]}
         try:
             response = await self.client.post("/api/chat", json=payload)
         except httpx.HTTPError as exc:

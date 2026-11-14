@@ -1,7 +1,7 @@
 // 2·3 강의 화면 (녹음 중): 강의자료 위에 형광펜·번호 깃발, 아래에 포스트잇 필기. 노트 수업은 모눈 노트에 주제별로 써 내려간다.
 // 녹음 → 서버(받아쓰기·AI 필기) → WebSocket 이벤트로 화면에 붙는다. 기존 웹앱과 같은 규약 (lib/live.ts).
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import type { Annotation, DocumentDetail, GlossaryTerm, Page } from "../api/types";
+import type { Annotation, DocumentDetail, GlossaryTerm, NoteType, Page } from "../api/types";
 import { getJSON, postJSON } from "../api/useApi";
 import { LiveWave, refreshWaves } from "../lib/wave";
 import { play, setRecording } from "../lib/sound";
@@ -502,12 +502,14 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
       setSheet(null);
     } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
   };
-  const saveNote = async (note: Note, text: string) => {
+  const saveNote = async (note: Note, text: string, type: NoteType = note.type) => {
     if (!text.trim()) return deleteNote(note);
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/annotations/${note.id}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text === note.text ? undefined : text, type: type === note.type ? undefined : type }),
       });
+      if (!res.ok) throw new Error("저장하지 못했어요");
       const updated = await res.json();
       setNotes((n) => n.map((x) => (x.id === note.id ? updated : x)));
       setSheet(null);
@@ -762,7 +764,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
             {sheet === "pdf" && sessionId && <LectureMore sessionId={sessionId} onDeleted={() => go({ name: "doc", docId })} />}
             {typeof sheet === "object" && "edit" in sheet && (() => {
               const n = notes.find((x) => x.id === sheet.edit);
-              return n ? <EditNoteSheet note={n} onSave={(t) => void saveNote(n, t)} onDelete={() => void deleteNote(n)} /> : null;
+              return n ? <EditNoteSheet note={n} onSave={(t, k) => void saveNote(n, t, k)} onDelete={() => void deleteNote(n)} /> : null;
             })()}
             {sheet === "ask" && (
               <AskSheet page={page} onAsk={ask} onCatchUp={(m) => setSheet({ catchUp: m })} />
@@ -1031,15 +1033,61 @@ function SourceSheet({ sessionId, note, canPlay, onPlay }: { sessionId: string; 
 }
 
 /** 필기 고치기·지우기 */
-function EditNoteSheet({ note, onSave, onDelete }: { note: Note; onSave: (text: string) => void; onDelete: () => void }) {
+const KINDS: NoteType[] = ["explanation", "example", "emphasis", "exam", "notice", "tip", "qa"];
+
+/** 필기 고치기: 종류(색) 고르기 · 꾸미기(제목·굵게·형광펜·번호·나열) · 바로 미리 보기 */
+function EditNoteSheet({ note, onSave, onDelete }: { note: Note; onSave: (text: string, type: NoteType) => void; onDelete: () => void }) {
   const [text, setText] = useState(note.text);
+  const [type, setType] = useState<NoteType>(note.type);
+  const box = useRef<HTMLTextAreaElement>(null);
+  // 고른 글자를 감싸거나, 고른 줄 앞에 붙인다
+  const wrap = (left: string, right = left, empty = "글자") => {
+    const el = box.current; if (!el) return;
+    const { selectionStart: a, selectionEnd: b } = el;
+    const picked = text.slice(a, b) || empty;
+    const next = text.slice(0, a) + left + picked + right + text.slice(b);
+    setText(next);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(a + left.length, a + left.length + picked.length); });
+  };
+  const lines = (make: (line: string, i: number) => string) => {
+    const el = box.current; if (!el) return;
+    const start = text.lastIndexOf("\n", el.selectionStart - 1) + 1;
+    const endAt = text.indexOf("\n", el.selectionEnd);
+    const end = endAt < 0 ? text.length : endAt;
+    const block = text.slice(start, end).split("\n").map((l) => l.replace(/^(?:\d+\.\s|·\s)/, "")).map(make).join("\n");
+    setText(text.slice(0, start) + block + text.slice(end));
+    requestAnimationFrame(() => el.focus());
+  };
+  const title = () => {
+    const first = text.split("\n")[0];
+    if (/^[^:\n]{1,28}:\s/.test(first)) return; // 이미 제목이 있다
+    setText(text.includes("\n") ? text.replace("\n", ":\n") : `제목: ${text}`);
+  };
+  const changed = text !== note.text || type !== note.type;
   return (
     <>
       <h3 className="t-title-m">필기 고치기</h3>
-      <textarea className="input" rows={4} value={text} onChange={(e) => setText(e.target.value)} style={{ padding: 12, resize: "vertical" }} autoFocus />
+      <div className="kind-pick" role="radiogroup" aria-label="필기 종류">
+        {KINDS.map((k) => (
+          <button key={k} role="radio" aria-checked={type === k} className={`kind-chip${type === k ? " on" : ""}`}
+            style={{ "--paper": `var(--note-${k}-paper)`, "--ink": `var(--note-${k}-ink)` } as CSSProperties} onClick={() => setType(k)}>
+            {NOTE_LABEL[k]}
+          </button>
+        ))}
+      </div>
+      <div className="fmt-bar" aria-label="꾸미기">
+        <button onClick={title}><b>제목</b></button>
+        <button onClick={() => wrap("**")}><b>굵게</b></button>
+        <button onClick={() => wrap("==")}><mark>형광펜</mark></button>
+        <button onClick={() => lines((l, i) => `${i + 1}. ${l}`)}>1. 번호</button>
+        <button onClick={() => lines((l) => `· ${l}`)}>· 나열</button>
+      </div>
+      <textarea ref={box} className="input" rows={5} value={text} onChange={(e) => setText(e.target.value)} style={{ padding: 12, resize: "vertical" }} autoFocus />
+      <span className="t-caption muted">미리 보기 · "제목: 내용"이면 제목이 굵게, 줄마다 "1." 이면 번호 목록이 돼요</span>
+      <div className="edit-preview"><PostIt type={type}>{text || " "}</PostIt></div>
       <div className="row">
         <Button className="grow" variant="record" icon="trash" onClick={onDelete}>지우기</Button>
-        <Button className="grow" onClick={() => onSave(text)} disabled={!text.trim() || text === note.text}>저장</Button>
+        <Button className="grow" onClick={() => onSave(text, type)} disabled={!text.trim() || !changed}>저장</Button>
       </div>
     </>
   );

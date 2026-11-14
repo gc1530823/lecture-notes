@@ -1,5 +1,6 @@
 // 강의 화면 보조 기능: 과제(목록·상세·AI 초안), 정리 PDF, 녹음 다시 듣기 플레이어
 import { useEffect, useRef, useState } from "react";
+import { PdfViewer } from "../components/PdfViewer";
 import { getJSON, postJSON } from "../api/useApi";
 import type { Task } from "../lib/live";
 import { Button, Chip, Icon } from "../components/ui";
@@ -134,14 +135,26 @@ export function NotesPdf({ sessionId }: { sessionId: string }) {
       {state?.status === "building" ? (
         <Button block disabled><span className="spin" /> 만드는 중{state.total ? ` ${state.done}/${state.total}쪽` : "…"}</Button>
       ) : state?.status === "ready" ? (
-        <div className="row">
-          <a className="btn btn-primary grow" href={`${API}${path}`} target="_blank" rel="noreferrer">열기 · 내려받기</a>
-          <Button variant="secondary" onClick={build}>다시 만들기</Button>
-        </div>
+        <PdfActions url={`${API}${path}`} title="필기 붙은 슬라이드" onRebuild={build} />
       ) : (
         <Button block onClick={build} disabled={!state}>만들기</Button>
       )}
     </div>
+  );
+}
+
+/** 만든 PDF: 앱 안에서 열기 · 폰에 내려받기 · 다시 만들기 */
+function PdfActions({ url, title, onRebuild }: { url: string; title: string; onRebuild: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="row pdf-actions">
+        <Button className="grow" icon="book-open-text" onClick={() => setOpen(true)}>열기</Button>
+        <a className="btn btn-secondary grow" href={`${url}?download=1`} download><Icon name="download-simple" size={16} /> 내려받기</a>
+        <button className="round" onClick={onRebuild} aria-label="다시 만들기" title="다시 만들기"><Icon name="arrows-clockwise" size={16} /></button>
+      </div>
+      {open && <PdfViewer url={url} title={title} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
@@ -173,10 +186,7 @@ export function StudyNotePdf({ sessionId }: { sessionId: string }) {
       {state?.status === "building" ? (
         <Button block disabled><span className="spin" /> AI 가 정리하는 중… (1분쯤)</Button>
       ) : state?.status === "ready" ? (
-        <div className="row">
-          <a className="btn btn-primary grow" href={`${API}${path}`} target="_blank" rel="noreferrer">열기 · 내려받기</a>
-          <Button variant="secondary" onClick={build}>다시 만들기</Button>
-        </div>
+        <PdfActions url={`${API}${path}`} title="AI 정리 노트" onRebuild={build} />
       ) : (
         <Button block onClick={build} disabled={!state}>만들기</Button>
       )}

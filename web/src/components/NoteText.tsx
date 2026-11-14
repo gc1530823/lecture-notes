@@ -64,15 +64,16 @@ export function splitNote(raw: string): NoteParts {
 /** 글 안의 강조: **굵게**, ‘따옴표’, 날짜·마감, 영어 이름 (Deadlock) */
 function inline(text: string): ReactNode[] {
   const out: ReactNode[] = [];
-  const re = /\*\*([^*]+)\*\*|[‘'“"]([^’'”"]{1,24})[’'”"]|((?:다음\s?주|이번\s?주)\s?\S{1,3}요일(?:까지)?|\d{1,2}월\s?\d{1,2}일(?:까지)?|\d{1,2}\/\d{1,2}(?:까지)?)|\(([A-Za-z][A-Za-z0-9 '’.-]{1,40})\)/g;
+  const re = /==([^=]+)==|\*\*([^*]+)\*\*|[‘'“"]([^’'”"]{1,24})[’'”"]|((?:다음\s?주|이번\s?주)\s?\S{1,3}요일(?:까지)?|\d{1,2}월\s?\d{1,2}일(?:까지)?|\d{1,2}\/\d{1,2}(?:까지)?)|\(([A-Za-z][A-Za-z0-9 '’.-]{1,40})\)/g;
   let at = 0;
   let k = 0;
   for (const m of text.matchAll(re)) {
     if (m.index! > at) out.push(text.slice(at, m.index));
-    if (m[1]) out.push(<strong key={k++}>{m[1]}</strong>);
+    if (m[1]) out.push(<mark key={k++} className="note-hi">{m[1]}</mark>);
     else if (m[2]) out.push(<strong key={k++}>{m[2]}</strong>);
-    else if (m[3]) out.push(<mark key={k++} className="note-due">{m[3]}</mark>);
-    else if (m[4]) out.push(<span key={k++} className="note-en">{m[4]}</span>);
+    else if (m[3]) out.push(<strong key={k++}>{m[3]}</strong>);
+    else if (m[4]) out.push(<mark key={k++} className="note-due">{m[4]}</mark>);
+    else if (m[5]) out.push(<span key={k++} className="note-en">{m[5]}</span>);
     at = m.index! + m[0].length;
   }
   if (at < text.length) out.push(text.slice(at));

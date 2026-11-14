@@ -1132,3 +1132,27 @@ def test_renote_rebuilds_ai_notes_and_keeps_mine(client):
     ai_after = [n for n in after if n["id"] != mine["id"]]
     assert ai_after and not ai_before & {n["id"] for n in ai_after}   # AI 필기는 새로 썼다
     assert len(client.get(f"/sessions/{sid}/transcript").json()) >= 1  # 받아쓰기는 그대로 남는다
+
+
+def test_timetable_from_screenshot_then_confirm(client):
+    import pymupdf
+
+    pix = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 2400, 1200), False)
+    pix.clear_with(230)
+    shot = pix.tobytes("png")
+    for old in client.get("/timetable").json():
+        client.delete(f"/timetable/{old['id']}")
+    read = client.post("/timetable/from-image", files={"file": ("everytime.png", shot, "image/png")})
+    assert read.status_code == 200, read.text
+    rows = read.json()["classes"]
+    # 빈 과목 · 이상한 요일 · 끝이 시작보다 이른 줄은 버리고, "13시" 는 13:00 으로
+    assert [(r["course"], r["weekday"], r["start"]) for r in rows] == [
+        ("운영체제", 0, "10:30"), ("인공지능개론", 1, "13:00"), ("운영체제", 2, "10:30")]
+    assert client.get("/timetable").json() == []  # 확인 전에는 저장하지 않는다
+
+    saved = client.post("/timetable/bulk", json={"classes": rows}).json()
+    assert len(saved) == 3
+    assert len(client.post("/timetable/bulk", json={"classes": rows}).json()) == 3  # 두 번 넣어도 겹치지 않는다
+    one = client.post("/timetable/bulk", json={"classes": rows[:1], "replace": True}).json()
+    assert [c["course"] for c in one] == ["운영체제"]
+    assert client.post("/timetable/from-image", files={"file": ("x.png", b"", "image/png")}).status_code == 400

@@ -22,7 +22,7 @@ import numpy as np
 
 from . import training_log
 from .config import settings
-from .llm import BOARD_SYSTEM, FIX_SPEECH_SCHEMA, FIX_SPEECH_SYSTEM, LLMError, _fix_speech_prompt
+from .llm import BOARD_SYSTEM, TIMETABLE_SYSTEM, FIX_SPEECH_SCHEMA, FIX_SPEECH_SYSTEM, LLMError, _fix_speech_prompt
 from .ollama_llm import OllamaLLM
 from .stt import PROMPT_LEAD, Segment, guess_language, is_hallucination, split_sentences
 
@@ -129,13 +129,20 @@ class GroqLLM(OllamaLLM):
 
     async def read_board(self, image: bytes, mime: str) -> dict:
         """Groq의 사진 읽는 모델(GROQ_VISION_MODEL)로 칠판 사진을 필기로 옮긴다 (무료 사용량)."""
+        return await self._vision(BOARD_SYSTEM, "이 사진을 필기로 옮겨 주세요.", image, mime)
+
+    async def read_timetable(self, image: bytes, mime: str) -> dict:
+        """시간표 캡처(에브리타임·학교 포털)를 수업 목록으로"""
+        return await self._vision(TIMETABLE_SYSTEM, "이 시간표의 수업을 모두 옮겨 주세요.", image, mime)
+
+    async def _vision(self, system: str, ask: str, image: bytes, mime: str) -> dict:
         import base64
 
         payload = {
             "model": settings.groq_vision_model,
-            "messages": [{"role": "system", "content": BOARD_SYSTEM},
+            "messages": [{"role": "system", "content": system},
                          {"role": "user", "content": [
-                             {"type": "text", "text": "이 사진을 필기로 옮겨 주세요."},
+                             {"type": "text", "text": ask},
                              {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{base64.b64encode(image).decode()}"}}]}],
             "response_format": {"type": "json_object"},
             "temperature": 0.1,

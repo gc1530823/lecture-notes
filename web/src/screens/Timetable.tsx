@@ -1,5 +1,5 @@
 // 시간표: 오늘 수업을 홈 화면에 보여 주고(지금 수업은 강조), 누르면 그 과목 폴더로 간다. 여기서 바로 고친다.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getJSON, postJSON } from "../api/useApi";
 import { Button, Icon } from "../components/ui";
 import { courseTone } from "../lib/course";
@@ -80,8 +80,8 @@ export function Timetable({ courses, onPick, slot = "top" }: { courses: string[]
             {[0, 1, 2, 3, 4].map((d) => <span key={d}>{[0, 1, 2].map((h) => <i key={h} className={(d + h) % 3 === 0 ? `blk-${(d + h) % 8}` : undefined} />)}</span>)}
           </span>
           <span className="grow">
-            <b>{editing ? "과목을 하나씩 넣어 주세요" : "시간표 등록하기"}</b>
-            <small>{editing ? "다 넣었으면 닫기를 눌러요" : "수업 시간이 되면 그 과목이 홈 맨 위에 떠서 바로 녹음할 수 있어요"}</small>
+            <b>{editing ? "시간표를 넣어 주세요" : "시간표 등록하기"}</b>
+            <small>{editing ? "다 넣었으면 닫기를 눌러요" : "에타 · 학교 시간표 캡처 한 장이면 끝. 수업 시간이 되면 그 과목이 맨 위에 떠요"}</small>
           </span>
           <span className="tt-go">{editing ? "닫기" : <>등록 <Icon name="caret-right" size={14} /></>}</span>
         </button>
@@ -97,6 +97,8 @@ export function Timetable({ courses, onPick, slot = "top" }: { courses: string[]
       )}
       {editing && (
         <div className="timetable-edit">
+          <ImportFromImage hasRows={rows.length > 0} onSaved={() => { load(); window.dispatchEvent(new Event(CHANGED)); }} />
+          <p className="tt-or">또는 한 과목씩 직접 넣기</p>
           {rows.length > 0 && <WeekGrid rows={rows} onPick={onPick} />}
           {DAYS.map((day, i) => {
             const list = rows.filter((r) => r.weekday === i);
@@ -136,6 +138,84 @@ export function Timetable({ courses, onPick, slot = "top" }: { courses: string[]
   );
 }
 
+
+type Draft = Omit<ClassRow, "id">;
+
+/** 시간표 캡처로 넣기: 에브리타임·학교 포털 캡처를 AI가 읽고 → 사람이 확인·고친 뒤 → 한 번에 저장 */
+function ImportFromImage({ hasRows, onSaved }: { hasRows: boolean; onSaved: () => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [state, setState] = useState<"idle" | "reading" | "check" | "saving">("idle");
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [replace, setReplace] = useState(hasRows);
+  const [error, setError] = useState("");
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const read = async (file: File) => {
+    setError(""); setState("reading");
+    setPreview(URL.createObjectURL(file));
+    const body = new FormData();
+    body.append("file", file);
+    try {
+      const r = await fetch((import.meta.env.VITE_API_URL ?? "") + "/timetable/from-image", { method: "POST", body });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.detail ?? "시간표를 읽지 못했어요");
+      setDrafts(data.classes); setState("check");
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); setState("idle"); }
+  };
+  const save = async () => {
+    setError(""); setState("saving");
+    try {
+      await postJSON("/timetable/bulk", { classes: drafts, replace });
+      setDrafts([]); setState("idle"); setPreview(null); onSaved();
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); setState("check"); }
+  };
+  const edit = (i: number, change: Partial<Draft>) => setDrafts((d) => d.map((x, j) => (j === i ? { ...x, ...change } : x)));
+
+  return (
+    <div className="tt-import">
+      <input ref={input} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void read(f); }} />
+      {state !== "check" && state !== "saving" && (
+        <button className="tt-shot" onClick={() => input.current?.click()} disabled={state === "reading"}>
+          <span className="tt-shot-ic"><Icon name="camera" art size={26} /></span>
+          <span className="grow">
+            <b>{state === "reading" ? "시간표를 읽는 중…" : "시간표 캡처로 넣기"}</b>
+            <small>{state === "reading" ? "AI가 요일·시간·과목을 옮기고 있어요 (10초쯤)" : "에브리타임 · 학교 포털 시간표 캡처나 사진"}</small>
+          </span>
+          {state === "reading" ? <span className="spin" aria-hidden /> : <Icon name="caret-right" size={16} />}
+        </button>
+      )}
+      {(state === "check" || state === "saving") && (
+        <div className="tt-check">
+          <div className="row">
+            {preview && <img src={preview} alt="올린 시간표" className="tt-thumb" />}
+            <span className="grow"><b>{drafts.length}개 수업을 찾았어요</b><small>틀린 곳은 눌러서 고치고, 아니면 지워 주세요</small></span>
+          </div>
+          {drafts.map((d, i) => (
+            <div key={i} className={`tt-draft ${courseTone(d.course)}`}>
+              <input className="input" value={d.course} onChange={(e) => edit(i, { course: e.target.value })} aria-label="과목 이름" />
+              <div className="row">
+                <select className="input" value={d.weekday} onChange={(e) => edit(i, { weekday: Number(e.target.value) })} aria-label="요일">
+                  {DAYS.map((day, j) => <option key={day} value={j}>{day}</option>)}
+                </select>
+                <input className="input" type="time" value={d.start} onChange={(e) => edit(i, { start: e.target.value })} aria-label="시작" />
+                <input className="input" type="time" value={d.end} onChange={(e) => edit(i, { end: e.target.value })} aria-label="끝" />
+                <button className="round" onClick={() => setDrafts((x) => x.filter((_, j) => j !== i))} aria-label={`${d.course} 빼기`}><Icon name="x" size={14} /></button>
+              </div>
+            </div>
+          ))}
+          {hasRows && (
+            <label className="tt-replace"><input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} /> 지금 시간표를 지우고 이것으로 바꾸기</label>
+          )}
+          <div className="row">
+            <Button variant="secondary" onClick={() => { setState("idle"); setDrafts([]); setPreview(null); }}>다시 고르기</Button>
+            <Button onClick={() => void save()} disabled={!drafts.length || state === "saving"}>{state === "saving" ? "넣는 중…" : `${drafts.length}개 넣기`}</Button>
+          </div>
+        </div>
+      )}
+      {error && <p className="t-caption" style={{ color: "var(--note-exam-ink)" }}>{error}</p>}
+    </div>
+  );
+}
 
 const minutes = (clock: string) => Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3, 5));
 

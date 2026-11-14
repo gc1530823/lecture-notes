@@ -31,8 +31,14 @@ function loadLib(): Promise<PdfJs> {
 
 const docs = new Map<string, Promise<PdfDoc>>();
 export function loadPdf(docId: string): Promise<PdfDoc> {
+  return loadPdfUrl(`${import.meta.env.VITE_API_URL ?? ""}/documents/${docId}/pdf`, docId);
+}
+
+/** 아무 PDF 주소나 (정리 노트 PDF 를 앱 안에서 열 때). fresh = 다시 만든 파일이라 새로 받기 */
+export function loadPdfUrl(url: string, key = url, fresh = false): Promise<PdfDoc> {
+  const docId = key;
+  if (fresh) docs.delete(docId);
   if (!docs.has(docId)) {
-    const url = `${import.meta.env.VITE_API_URL ?? ""}/documents/${docId}/pdf`;
     const p = loadLib().then(async (pdfjs) => {
       const common = { cMapUrl: BASE + "cmaps/", cMapPacked: true, standardFontDataUrl: BASE + "standard_fonts/" };
       // 데모 빌드는 서버가 없어 미리 받아 둔 파일을 직접 읽어 넘긴다

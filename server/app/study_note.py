@@ -97,9 +97,9 @@ li { margin: 0 0 2pt 0; }
 .exam { background-color: #ffe9ee; padding: 6pt 9pt; margin: 6pt 0 0 0; font-size: 9.8pt; }
 .label { font-weight: bold; font-size: 8.5pt; }
 h3 { font-size: 12.5pt; margin: 22pt 0 6pt 0; color: #4a3ad9; }
-table { width: 100%; border-collapse: collapse; }
-td { padding: 4pt 6pt; border-bottom: 0.5pt solid #e2dff2; vertical-align: top; font-size: 9.8pt; }
-td.term { font-weight: bold; width: 30%; }
+.term { margin: 0; padding: 5pt 0 5pt 0; border-bottom: 0.5pt solid #e2dff2; font-size: 9.8pt; }
+.term b { color: #2b2550; }
+.term-en { color: #8a87a3; font-size: 8.5pt; }
 .focus { background-color: #fff6e0; padding: 8pt 12pt; }
 .q { margin: 8pt 0 0 0; font-weight: bold; }
 .a { margin: 2pt 0 0 0; color: #3e3c55; }
@@ -108,6 +108,15 @@ td.term { font-weight: bold; width: 30%; }
 
 def _e(text: str) -> str:
     return html.escape(text or "")
+
+
+def _term(term: str) -> str:
+    """'교착 상태 (Deadlock)' → 굵은 한글 이름 + 작은 영어 이름"""
+    import re
+    m = re.match(r"^(.*?)\s*\(([^)]*[A-Za-z][^)]*)\)\s*$", term)
+    if m and m.group(1):
+        return f'<b>{_e(m.group(1))}</b> <span class="term-en">{_e(m.group(2))}</span>'
+    return f"<b>{_e(term)}</b>"
 
 
 def _html(note: dict, course_title: str, started_at: float | None) -> str:
@@ -130,8 +139,8 @@ def _html(note: dict, course_title: str, started_at: float | None) -> str:
         if s["exam"]:
             parts.append(f'<div class="exam"><span class="label">시험 포인트 </span>{_e(s["exam"])}</div>')
     if note["terms"]:
-        parts.append("<h3>핵심 용어</h3><table>" + "".join(
-            f'<tr><td class="term">{_e(t["term"])}</td><td>{_e(t["meaning"])}</td></tr>' for t in note["terms"]) + "</table>")
+        # 표는 pymupdf 가 칸 너비를 못 지켜 글자가 세로로 쪼개진다 → 한 줄에 '용어 — 뜻'
+        parts.append("<h3>핵심 용어</h3>" + "".join(f'<p class="term">{_term(t["term"])} — {_e(t["meaning"])}</p>' for t in note["terms"]))
     if note["exam_focus"]:
         parts.append('<h3>시험에 나올 것</h3><div class="focus"><ul>' + "".join(f"<li>{_e(x)}</li>" for x in note["exam_focus"])
                      + "</ul></div>")

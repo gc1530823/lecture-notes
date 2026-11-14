@@ -1243,3 +1243,42 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .undo-bar > svg { color: var(--leaf); }
 .undo-bar button { display: inline-flex; align-items: center; gap: 4px; padding: 7px 11px; border-radius: 10px; background: color-mix(in srgb, var(--bg-paper) 16%, transparent);
   color: var(--bg-paper); font: 800 13px/16px var(--font-sans); }
+
+/* 시간표 캡처로 넣기 */
+.tt-import { display: flex; flex-direction: column; gap: 8px; }
+.tt-shot { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px; border-radius: 16px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 16%, var(--bg-card)), var(--bg-card));
+  border: 1.5px solid color-mix(in srgb, var(--accent-primary) 40%, transparent); }
+.tt-shot b { display: block; font: 800 15px/20px var(--font-sans); color: var(--text-primary); letter-spacing: -.02em; }
+.tt-shot small { display: block; font: 500 12.5px/17px var(--font-sans); color: var(--text-secondary); margin-top: 2px; }
+.tt-shot-ic { flex: none; width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; background: var(--bg-card); box-shadow: var(--shadow-card); }
+.tt-or { text-align: center; font: 600 12px/16px var(--font-sans); color: var(--text-tertiary); margin: 6px 0 2px; }
+.tt-check { display: flex; flex-direction: column; gap: 8px; }
+.tt-check b { display: block; font: 800 15px/20px var(--font-sans); } .tt-check small { display: block; font-size: 12.5px; color: var(--text-secondary); }
+.tt-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border-line); }
+.tt-draft { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 14px; background: var(--bg-card); border: 1px solid var(--border-line);
+  border-left: 4px solid var(--blk-ink, var(--accent-primary)); }
+.tt-draft .row { gap: 6px; } .tt-draft .input { padding: 7px 8px; font-size: 13.5px; min-width: 0; }
+.tt-draft select.input { flex: none; width: 58px; }
+.tt-replace { display: flex; align-items: center; gap: 8px; font: 600 13px/18px var(--font-sans); color: var(--text-secondary); }
+
+/* 필기 카드가 옆 카드 높이만큼 늘어나지 않게 */
+.postit-grid { align-items: start; }
+.note-hi { background: linear-gradient(transparent 45%, color-mix(in srgb, #ffe14d 75%, transparent) 45%); color: inherit; font-weight: 700; padding: 0 1px; }
+/* 필기 고치기: 종류 · 꾸미기 · 미리 보기 */
+.kind-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.kind-chip { padding: 6px 11px; border-radius: 99px; background: var(--paper); color: var(--ink); font: 700 12.5px/16px var(--font-sans); border: 2px solid transparent; }
+.kind-chip.on { border-color: var(--ink); box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 25%, transparent); }
+.fmt-bar { display: flex; gap: 6px; overflow-x: auto; }
+.fmt-bar button { flex: none; padding: 7px 11px; border-radius: 10px; background: var(--fill-soft); font: 600 13px/16px var(--font-sans); color: var(--text-primary); }
+.fmt-bar mark { background: #ffe14d; color: #222; padding: 0 2px; }
+.edit-preview .postit { transform: none; animation: none; }
+
+/* 앱 안 PDF 보기 */
+.pdf-viewer { position: fixed; inset: 0; z-index: 20; background: #2b2a33; display: flex; flex-direction: column; animation: rise .25s var(--ease-out); }
+.pdf-viewer header { display: flex; align-items: center; gap: 10px; padding: 10px 12px calc(10px) ; background: var(--bg-card); color: var(--text-primary); }
+.pdf-viewer header b { font: 800 16px/20px var(--font-sans); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdf-dl { display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; font-size: 13px; }
+.pdf-pages { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 12px; color: #ddd; }
+.pdf-pages canvas { width: min(100%, 820px); height: auto; background: #fff; border-radius: 4px; box-shadow: 0 4px 16px rgb(0 0 0 / .35); }
+.pdf-actions { gap: 8px; } .pdf-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }

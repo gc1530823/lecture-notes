@@ -400,6 +400,45 @@ BOARD_SYSTEM = """수업 중 학생이 찍은 칠판·화이트보드·화면 �
 - summary: 무엇에 대한 판서인지 한두 문장으로. JSON으로만 답합니다: {"text": "...", "summary": "..."}"""
 
 
+# 시간표 사진 읽기 (에브리타임 캡처 · 학교 포털 시간표 캡처 · 종이 시간표 사진)
+TIMETABLE_SYSTEM = """대학생의 주간 시간표 사진(에브리타임 캡처, 학교 포털 시간표, 종이 시간표)입니다. 수업을 하나도 빠짐없이 옮깁니다.
+- 표의 세로줄은 요일(월~일), 가로줄은 시각입니다. 왼쪽 시각 눈금(9, 10, 11… 또는 1교시, 2교시…)과 칸의 위·아래 위치로 시작·끝 시각을 셉니다.
+  교시만 있으면 1교시=09:00 부터 한 교시 1시간으로 셉니다 (표에 교시별 시각이 적혀 있으면 그것을 따릅니다).
+- 같은 과목이 여러 요일에 있으면 요일마다 따로 적습니다. 한 칸이 두 요일에 걸치지 않습니다.
+- course: 과목 이름만 (교수 이름·학수번호는 빼고), place: 강의실 (없으면 빈 문자열),
+  weekday: 0=월 1=화 2=수 3=목 4=금 5=토 6=일, start/end: "HH:MM" 24시간 (오후 1시 = 13:00).
+- 시간표가 아니면 classes 를 비웁니다. JSON으로만 답합니다:
+{"classes": [{"course": "운영체제", "weekday": 0, "start": "10:30", "end": "11:45", "place": "공학관 301"}]}"""
+
+
+def clean_timetable(data: dict) -> list[dict]:
+    """AI가 읽은 시간표에서 이상한 줄은 버린다 (시각 형식 · 요일 범위 · 겹치는 같은 수업)"""
+    import re as _re
+
+    def clock(v) -> str | None:
+        m = _re.match(r"^\s*(\d{1,2})\s*[:시.]\s*(\d{2})?", str(v or ""))
+        if not m:
+            return None
+        h, mi = int(m.group(1)), int(m.group(2) or 0)
+        return f"{h:02d}:{mi:02d}" if 0 <= h < 24 and 0 <= mi < 60 else None
+
+    out, seen = [], set()
+    for c in (data or {}).get("classes") or []:
+        if not isinstance(c, dict):
+            continue
+        course = str(c.get("course", "")).strip()[:40]
+        try:
+            day = int(c.get("weekday"))
+        except (TypeError, ValueError):
+            continue
+        start, end = clock(c.get("start")), clock(c.get("end"))
+        if not course or not 0 <= day <= 6 or not start or not end or start >= end or (course, day, start) in seen:
+            continue
+        seen.add((course, day, start))
+        out.append({"course": course, "weekday": day, "start": start, "end": end, "place": str(c.get("place", "")).strip()[:40]})
+    return sorted(out, key=lambda c: (c["weekday"], c["start"]))
+
+
 def clean_study(kind: str, items: list) -> list[dict]:
     required = STUDY_KEYS[kind]
     return [{k: str(v).strip() for k, v in item.items()} for item in items
@@ -482,6 +521,8 @@ class LLM(Protocol):
     async def tutor(self, context: str, messages: list[dict]) -> dict: ...
 
     async def read_board(self, image: bytes, mime: str) -> dict: ...
+
+    async def read_timetable(self, image: bytes, mime: str) -> dict: ...
 
 
 def _organize_prompt(page: dict, speech: str, notes: list[dict]) -> str:
@@ -694,13 +735,19 @@ class ClaudeLLM:
         return _response_json(await self.client.beta.messages.create(**params))
 
     async def read_board(self, image: bytes, mime: str) -> dict:
+        return await self._vision(BOARD_SYSTEM, "이 사진을 필기로 옮겨 주세요.", image, mime)
+
+    async def read_timetable(self, image: bytes, mime: str) -> dict:
+        return await self._vision(TIMETABLE_SYSTEM, "이 시간표의 수업을 모두 옮겨 주세요.", image, mime, 4000)
+
+    async def _vision(self, system: str, ask: str, image: bytes, mime: str, max_tokens: int = 2000) -> dict:
         import base64
 
         response = await self.client.messages.create(
-            model=settings.annotation_model, max_tokens=2000, system=BOARD_SYSTEM,
+            model=settings.annotation_model, max_tokens=max_tokens, system=system,
             messages=[{"role": "user", "content": [
                 {"type": "image", "source": {"type": "base64", "media_type": mime, "data": base64.b64encode(image).decode()}},
-                {"type": "text", "text": "이 사진을 필기로 옮겨 주세요."}]}])
+                {"type": "text", "text": ask}]}])
         text = "".join(b.text for b in response.content if getattr(b, "type", "") == "text")
         return json.loads(text[text.find("{"): text.rfind("}") + 1])
 
@@ -847,6 +894,13 @@ class FakeLLM:
 
     async def read_board(self, image: bytes, mime: str) -> dict:
         return {"text": "f(x) = wx + b → 손실 L(w)", "summary": f"칠판 사진 {len(image)}바이트 (가짜 응답)"}
+
+    async def read_timetable(self, image: bytes, mime: str) -> dict:
+        return {"classes": [{"course": "운영체제", "weekday": 0, "start": "10:30", "end": "11:45", "place": "공학관 301"},
+                            {"course": "운영체제", "weekday": 2, "start": "10:30", "end": "11:45", "place": "공학관 301"},
+                            {"course": "인공지능개론", "weekday": 1, "start": "13시", "end": "14:15", "place": ""},
+                            {"course": "", "weekday": 3, "start": "09:00", "end": "10:00"},
+                            {"course": "이상한 줄", "weekday": 9, "start": "09:00", "end": "08:00"}]}
 
     async def catch_up(self, slides: list[dict], speech: str) -> list[str]:
         return [f"놓친 내용: {s}" for s in speech.split(". ") if s][:4]
