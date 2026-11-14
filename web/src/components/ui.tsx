@@ -1,6 +1,7 @@
 // Figma "02 디자인 시스템" 페이지의 컴포넌트와 1:1로 맞춘 기본 부품.
 // 이름·속성(variant)도 Figma와 같게 두어 디자인과 코드를 오가기 쉽게 한다.
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
+import { NoteText } from "./NoteText";
 import type { NoteType } from "../api/types";
 
 // 색 아이콘: 벡터(Phosphor duotone, MIT). 옅은 채움 + 선, 아이콘마다 정해진 색. 작은 조작 아이콘은 굵은 선 아이콘.
@@ -125,7 +126,7 @@ export function PostIt({ type, number, children, tag, photo, meeting }: {
         {number !== undefined && <span className="postit-badge">{number}</span>}
       </div>
       {photo && <img className="postit-photo" src={photo} alt="칠판 사진" loading="lazy" />}
-      <p className="t-note" style={{ whiteSpace: "pre-wrap" }}>{children}</p>
+      {typeof children === "string" ? <NoteText text={children} /> : <p className="t-note" style={{ whiteSpace: "pre-wrap" }}>{children}</p>}
       {tag && <span className="postit-tag">{tag}</span>}
     </article>
   );
