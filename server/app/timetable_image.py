@@ -13,8 +13,10 @@ import pymupdf
 
 def load_rgb(data: bytes) -> np.ndarray:
     pix = pymupdf.Pixmap(data)
-    if pix.alpha or pix.n != 3:
-        pix = pymupdf.Pixmap(pymupdf.csRGB, pix, False)
+    if pix.alpha:
+        pix = pymupdf.Pixmap(pix, 0)           # 투명 칸 빼기
+    if pix.n != 3:
+        pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
     return np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, 3)
 
 
@@ -93,29 +95,28 @@ def find_blocks(data: bytes) -> dict | None:
         xs = [int(a + (b - a) * f) for f in (0.80, 0.85, 0.90, 0.94, 0.97)]
         seg = None   # [시작 y, 끝 y, 색 합, 줄 수]
         gap = 0
-        other = 0    # 다른 색이 몇 줄째 이어지는지 (글자 가장자리의 섞인 색은 몇 줄뿐이라 무시)
+        other = 0    # 다른 색이 몇 줄째 이어지는지 (붙어 있는 다른 수업인지 보려고)
         for y in range(first, bottom):
             cs = [rgb[y, x].astype(np.float32) for x in xs if colored[y, x]]
-            if len(cs) >= 2:
-                col = np.median(cs, axis=0)
-                if seg and np.abs(col - seg[2] / seg[3]).max() > 28:
-                    other += 1
-                    if other >= 6:   # 색이 정말 바뀌었다 = 붙어 있는 다른 수업
-                        seg[1] = y - other
-                        blocks.append(_block(day, seg, first, hour))
-                        seg, other = [y - other + 1, y, col * other, other], 0
-                    gap = 0
+            if seg is not None:
+                color = seg[2] / seg[3]
+                same = [c for c in cs if np.abs(c - color).max() <= 28]
+                if same:   # 이 칸 색이 한 점이라도 보이면 같은 칸 (글자가 나머지를 가려도)
+                    seg[1] = y; seg[2] += np.mean(same, axis=0); seg[3] += 1
+                    gap = other = 0
                     continue
-                other = 0
-                if seg is None:
-                    seg = [y, y, col.copy(), 1]
-                else:
-                    seg[1] = y; seg[2] += col; seg[3] += 1
-                gap = 0
-            elif seg:
+                if len(cs) >= 2 and np.abs(np.median(cs, axis=0) - cs[0]).max() <= 28:
+                    other += 1
+                    if other >= 6:   # 다른 색이 6줄 넘게 고르게 이어진다 = 붙어 있는 다른 수업
+                        blocks.append(_block(day, seg, first, hour))
+                        start = y - other + 1
+                        seg, gap, other = [start, y, np.median(cs, axis=0) * other, other], 0, 0
+                    continue
                 gap += 1
                 if gap > 6:
-                    blocks.append(_block(day, seg, first, hour)); seg = None; gap = 0
+                    blocks.append(_block(day, seg, first, hour)); seg = None; gap = other = 0
+            elif len(cs) >= 2:
+                seg = [y, y, np.median(cs, axis=0).copy(), 1]
         if seg:
             blocks.append(_block(day, seg, first, hour))
     blocks = [bl for bl in blocks if bl["bottom"] - bl["top"] > 0.3]

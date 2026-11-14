@@ -1169,3 +1169,4 @@ def test_timetable_screenshot_times_come_from_the_grid(client):
     times = [(r["weekday"], r["start"], r["end"]) for r in res["classes"]]
     assert times == [(0, "15:30", "18:30"), (0, "18:30", "19:30"), (1, "11:00", "15:30"),
                      (2, "09:30", "12:30"), (3, "13:30", "16:30"), (4, "09:30", "12:30")]
+

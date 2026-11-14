@@ -1824,13 +1824,17 @@ def add_timetable(body: ClassCreate):
     return db().add_class(body.course.strip()[:40], body.weekday, body.start, body.end, body.place.strip()[:40])
 
 
-def _shrink_image(data: bytes, mime: str, longest: int = 1600) -> tuple[bytes, str]:
+def _shrink_image(data: bytes, mime: str, longest: int = 2400) -> tuple[bytes, str]:
     """사진 읽는 AI 에 보내기 전에 긴 변을 1600px 로 (휴대폰 캡처는 크고, Groq 는 4MB 까지만 받는다)"""
     try:
-        doc = pymupdf.open(stream=data, filetype=(mime.split("/")[-1] or "png"))
-        page = doc[0]
-        zoom = min(1.0, longest / max(page.rect.width, page.rect.height))
-        return page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False).tobytes("jpg", jpg_quality=88), "image/jpeg"
+        pix = pymupdf.Pixmap(data)
+        if pix.alpha:
+            pix = pymupdf.Pixmap(pix, 0)
+        if pix.n != 3:
+            pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
+        while max(pix.width, pix.height) > longest:   # 반씩 줄이기 (흐려지지 않게)
+            pix.shrink(1)
+        return pix.tobytes("jpg", jpg_quality=88), "image/jpeg"
     except Exception:  # 못 줄이면 그대로
         return data, mime
 
@@ -1846,7 +1850,9 @@ async def timetable_from_image(file: UploadFile = File(...)):
     mime = file.content_type if (file.content_type or "").startswith("image/") else "image/png"
     image, mime = _shrink_image(data, mime)
     # 시각은 그림에서 직접 잰다 (정확), 과목 이름은 AI 가 읽는다
-    found = await asyncio.to_thread(find_blocks, image)
+    found = await asyncio.to_thread(find_blocks, data)   # 원본 크기로 재야 정확하다
+    if found is None:
+        found = await asyncio.to_thread(find_blocks, image)
     ai_rows, ai_error = [], ""
     try:
         ai_rows = clean_timetable(await app.state.llm.read_timetable(image, mime))

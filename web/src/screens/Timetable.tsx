@@ -141,6 +141,25 @@ export function Timetable({ courses, onPick, slot = "top" }: { courses: string[]
 
 type Draft = Omit<ClassRow, "id">;
 
+/** WebP·HEIC 같은 사진은 서버가 못 열 수 있어서, 폰 브라우저가 열어서 PNG 로 바꿔 보낸다 (PNG·JPEG 는 그대로) */
+async function asPng(file: File): Promise<Blob> {
+  if (/^image\/(png|jpe?g)$/.test(file.type)) return file;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    canvas.getContext("2d")!.drawImage(img, 0, 0);
+    const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, "image/png"));
+    if (!blob) throw new Error();
+    return new File([blob], "timetable.png", { type: "image/png" });
+  } catch {
+    throw new Error("이 사진 형식은 열 수 없어요. 시간표를 스크린샷으로 찍어서 올려 주세요.");
+  } finally { URL.revokeObjectURL(url); }
+}
+
 /** 시간표 캡처로 넣기: 에브리타임·학교 포털 캡처를 AI가 읽고 → 사람이 확인·고친 뒤 → 한 번에 저장 */
 function ImportFromImage({ hasRows, onSaved }: { hasRows: boolean; onSaved: () => void }) {
   const input = useRef<HTMLInputElement>(null);
@@ -155,8 +174,8 @@ function ImportFromImage({ hasRows, onSaved }: { hasRows: boolean; onSaved: () =
     setError(""); setState("reading");
     setPreview(URL.createObjectURL(file));
     const body = new FormData();
-    body.append("file", file);
     try {
+      body.append("file", await asPng(file));
       const r = await fetch((import.meta.env.VITE_API_URL ?? "") + "/timetable/from-image", { method: "POST", body });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data.detail ?? "시간표를 읽지 못했어요");
@@ -227,31 +246,45 @@ const minutes = (clock: string) => Number(clock.slice(0, 2)) * 60 + Number(clock
 /** 이번 주 시간표: 요일 칸마다 과목 블록. 오늘 칸에는 지금 시각 선 */
 export function WeekGrid({ rows, onPick }: { rows: ClassRow[]; onPick: (course: string) => void }) {
   const days = Math.max(5, ...rows.map((r) => r.weekday + 1));
-  const from = Math.floor(Math.min(...rows.map((r) => minutes(r.start))) / 60);
-  const to = Math.ceil(Math.max(...rows.map((r) => minutes(r.end))) / 60);
+  // 보통 9시~6시를 보여 주고, 그보다 이르거나 늦은 수업이 있으면 넓힌다
+  const from = Math.min(9, Math.floor(Math.min(...rows.map((r) => minutes(r.start))) / 60));
+  const to = Math.max(18, Math.ceil(Math.max(...rows.map((r) => minutes(r.end))) / 60));
   const hours = Math.max(1, to - from);
-  const hour = Math.max(22, Math.min(40, Math.round(220 / hours))); // 한 시간의 높이(px): 전체가 너무 길어지지 않게
+  const hour = 54; // 한 시간 높이(px): 과목 이름이 두세 줄 들어가게
   const today = todayIndex();
   const nowMin = minutes(clockOf());
-  const live = currentClass(rows)?.row;
-  const cols = { gridTemplateColumns: `repeat(${days}, 1fr)` };
+  const now = currentClass(rows);
+  const live = now?.live ? now.row : null;   // 지금 하는 수업만 표시 (다음 수업은 아님)
+  // 과목마다 다른 색: 나온 순서대로 8가지 파스텔을 돌려 쓴다 (겹치지 않게)
+  const courses = [...new Set([...rows].sort((a, b) => a.weekday - b.weekday || a.start.localeCompare(b.start)).map((r) => r.course))];
+  const colorOf = (course: string) => courses.indexOf(course) % 8;
+  const cols = { gridTemplateColumns: `30px repeat(${days}, 1fr)` };
+  const label = (h: number) => (h > 12 ? h - 12 : h); // 1시·2시… (표에서는 짧게)
   return (
-    <div className="week">
-      <div className="week-head" style={cols}>
-        {DAYS.slice(0, days).map((d, i) => <span key={d} className={i === today ? "today" : ""}>{d}</span>)}
+    <div className="tt-grid" role="table" aria-label="이번 주 시간표">
+      <div className="tt-head" style={cols} role="row">
+        <span />
+        {DAYS.slice(0, days).map((d, i) => <span key={d} role="columnheader" className={i === today ? "today" : ""}>{d}</span>)}
       </div>
-      <div className="week-body" style={{ ...cols, height: hours * hour, "--hour": `${hour}px` } as React.CSSProperties}>
-        {Array.from({ length: hours + 1 }, (_, i) => <span key={i} className="week-hour" style={{ top: i * hour }}>{from + i}</span>)}
+      <div className="tt-body" style={{ ...cols, height: hours * hour, "--hour": `${hour}px` } as React.CSSProperties}>
+        <div className="tt-hours">
+          {Array.from({ length: hours }, (_, i) => <span key={i} style={{ height: hour }}>{label(from + i)}</span>)}
+        </div>
         {DAYS.slice(0, days).map((d, day) => (
-          <div key={d} className={`week-col${day === today ? " today" : ""}`}>
-            {day === today && nowMin >= from * 60 && nowMin <= to * 60 && <span className="week-now" style={{ top: ((nowMin - from * 60) / 60) * hour }} />}
-            {rows.filter((r) => r.weekday === day).map((r, i) => (
-              <button key={r.id} className={`week-block ${courseTone(r.course)}${live?.id === r.id ? " live" : ""}`} onClick={() => onPick(r.course)}
-                style={{ top: ((minutes(r.start) - from * 60) / 60) * hour, height: Math.max(18, ((minutes(r.end) - minutes(r.start)) / 60) * hour - 2), animationDelay: `${day * 50 + i * 40}ms` }}
-                aria-label={`${d}요일 ${r.start} ${r.course}`}>
-                {r.course}{r.place && <small>{r.place}</small>}
-              </button>
-            ))}
+          <div key={d} className={`tt-col${day === today ? " today" : ""}`}>
+            {day === today && nowMin >= from * 60 && nowMin <= to * 60 && <span className="tt-now" style={{ top: ((nowMin - from * 60) / 60) * hour }} />}
+            {rows.filter((r) => r.weekday === day).map((r, i) => {
+              const h = ((minutes(r.end) - minutes(r.start)) / 60) * hour;
+              return (
+                <button key={r.id} className={`tt-block tt-c${colorOf(r.course)}${live?.id === r.id ? " live" : ""}`}
+                  onClick={() => onPick(r.course)}
+                  style={{ top: ((minutes(r.start) - from * 60) / 60) * hour, height: Math.max(20, h), animationDelay: `${day * 50 + i * 40}ms` }}
+                  aria-label={`${d}요일 ${r.start}~${r.end} ${r.course}${r.place ? ` ${r.place}` : ""}`}>
+                  <b>{r.course}</b>
+                  {r.place && h > 40 && <small>{r.place}</small>}
+                </button>
+              );
+            })}
           </div>
         ))}
       </div>
