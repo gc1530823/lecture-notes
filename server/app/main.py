@@ -509,6 +509,24 @@ async def _process_audio(session_id: str, document_id: str, path: str) -> None:
     await _summarize(session_id, document_id)
 
 
+@app.post("/sessions/{session_id}/retry")
+async def retry_session(session_id: str, background: BackgroundTasks):
+    """정리 실패한 강의를 다시: 받아쓴 글이 없으면 저장된 녹음부터, 있으면 필기·요약만 다시"""
+    session = _session_or_404(session_id)
+    if session["status"] != "failed":
+        raise HTTPException(409, "정리에 실패한 강의만 다시 할 수 있어요.")
+    if db().get_segments(session_id):
+        db().set_session_status(session_id, "processing")
+        background.add_task(_summarize, session_id, session["document_id"])
+    else:
+        found = audio_file(session_id)
+        if found is None:
+            raise HTTPException(404, "이 강의는 서버에 녹음이 없어 다시 할 수 없어요.")
+        db().set_session_status(session_id, "transcribing")
+        background.add_task(_process_audio, session_id, session["document_id"], found[0])
+    return db().get_session(session_id)
+
+
 @app.get("/sessions/{session_id}/glossary")
 def get_glossary(session_id: str):
     """실시간 용어 사전: 강의 중에 처음 나온 전문용어와 뜻 (나온 순서대로)."""

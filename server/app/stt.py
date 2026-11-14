@@ -147,10 +147,10 @@ class FallbackTranscriber:
                 return self.primary.transcribe(audio, hint, on_progress, patient=False)
             except LLMError as exc:
                 wait = getattr(exc, "wait", None)
-                if wait is None and "연결할 수 없" not in str(exc):
-                    raise
-                # 한도는 보통 몇 분~한 시간 뒤 풀린다. 그동안 매 조각 Groq에 물어보지 않는다
-                self.local_until = time.monotonic() + min(max(wait or 60.0, 30.0), 3600.0)
+                if wait is not None or "연결할 수 없" in str(exc):
+                    # 한도는 보통 몇 분~한 시간 뒤 풀린다. 그동안 매 조각 Groq에 물어보지 않는다
+                    self.local_until = time.monotonic() + min(max(wait or 60.0, 30.0), 3600.0)
+                # 그 밖의 오류(파일을 거절 등)도 강의를 버리지 않고 이번 것만 이 서버의 Whisper로
                 log.warning("받아쓰기: %s → 이 서버의 Whisper로 받아씁니다", exc)
         self.local_used += 1
         return self.local.transcribe(audio, hint, on_progress)

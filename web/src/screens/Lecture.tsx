@@ -656,6 +656,15 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         {!recording && phase !== "idle" && serverStatus?.status && ["transcribing", "processing"].includes(serverStatus.status) && (
           <div className="listen-row"><span className="spin" /><span className="t-caption muted">필기를 정리하고 있어요…</span></div>
         )}
+        {!recording && sessionId && serverStatus?.status === "failed" && (
+          <div className="listen-row retry-row">
+            <span className="t-caption muted grow">정리하지 못했어요. 녹음은 저장돼 있어요.</span>
+            <button className="chip chip-accent" onClick={async () => {
+              try { await postJSON(`/sessions/${sessionId}/retry`); window.location.reload(); }
+              catch (e) { alert(e instanceof Error ? e.message : String(e)); }
+            }}>다시 정리하기</button>
+          </div>
+        )}
         {recording && !a11y && (
           <p className="caption-line t-caption" aria-live="polite">
             <span className="rec-dot" />

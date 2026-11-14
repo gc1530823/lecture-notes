@@ -1050,3 +1050,23 @@ def test_ai_quiz_set_asks_and_grades(client):
     assert again.status_code == 409
     state = client.get(f"/quiz-sets/{qs['id']}").json()
     assert state["answered"] == len(types) and state["score"] == 2.5
+
+
+def test_retry_failed_session(client):
+    """정리에 실패한 강의는 '다시 정리하기'로: 받아쓴 글이 있으면 필기·요약만 다시"""
+    from app.main import app as the_app
+
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    assert client.post(f"/sessions/{sid}/retry").status_code == 409   # 실패한 강의만
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "학습률이 너무 크면 발산해요. 이거 시험에 꼭 나와요.", "start_ms": 0, "end_ms": 3000})
+        receive_annotation(ws)
+    the_app.state.db.set_session_status(sid, "failed")
+    assert client.post(f"/sessions/{sid}/retry").status_code == 200
+    for _ in range(50):
+        if client.get(f"/sessions/{sid}/summary").json()["status"] == "done":
+            break
+        time.sleep(0.1)
+    assert client.get(f"/sessions/{sid}/summary").json()["status"] == "done"

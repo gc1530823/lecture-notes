@@ -205,7 +205,10 @@ class GroqTranscriber:
             log.warning("Groq 받아쓰기 사용량 한도: %.0f초 기다립니다", wait)
             time.sleep(wait)
         if response.status_code >= 400:
-            raise LLMError(f"Groq 받아쓰기 오류 ({response.status_code}): {response.text[:200]}")
+            detail = " ".join(response.text.split())[:400] or "(내용 없음)"
+            log.warning("Groq 받아쓰기 오류 %s: %s (파일 %s, %d바이트, 프롬프트 %d자)", response.status_code, detail, filename,
+                        len(data), len(form.get("prompt", "")))
+            raise LLMError(f"Groq 받아쓰기 오류 ({response.status_code}): {detail}")
         body = response.json()
         segments = body.get("segments") or [{"start": 0, "end": body.get("duration", 0), "text": body.get("text", "")}]
         kept = []
@@ -232,7 +235,19 @@ class GroqTranscriber:
             for i, part in enumerate(parts):
                 offset = i * CHUNK_SECONDS * 1000
                 with open(part, "rb") as f:
-                    segments = self._request(os.path.basename(part), f.read(), hint, settings.groq_whisper_model, patient)
+                    data = f.read()
+                if len(data) < 4000:  # 끝에 남는 1초 남짓한 조각: 받아쓸 말이 없고 Groq가 거절하기도 한다
+                    continue
+                try:
+                    segments = self._request(os.path.basename(part), data, hint, settings.groq_whisper_model, patient)
+                except SpeechLimit:
+                    raise
+                except LLMError as exc:
+                    if "연결할 수 없" in str(exc):
+                        raise
+                    # 프롬프트(용어 힌트) 때문에 거절되는 경우가 있어, 힌트 없이 한 번 더
+                    log.warning("받아쓰기 조각 %d 다시 시도 (힌트 없이): %s", i, exc)
+                    segments = self._request(os.path.basename(part), data, "", settings.groq_whisper_model, patient)
                 result += [Segment(s.start_ms + offset, s.end_ms + offset, s.text) for s in segments]
                 if on_progress:
                     on_progress((i + 1) / len(parts))

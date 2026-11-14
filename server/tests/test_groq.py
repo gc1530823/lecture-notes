@@ -184,3 +184,33 @@ def test_speech_falls_back_to_local_whisper_when_groq_limit_hits_and_comes_back_
     clock["t"] += 60   # 한도가 풀린 뒤에는 다시 Groq
     assert [s.text for s in t.transcribe(pcm, "경사하강법")] == ["그록이 받아쓴 말이에요."]
     assert t.local_used == 2
+
+
+def test_groq_rejecting_a_file_retries_without_hint_then_falls_back_to_local(tmp_path):
+    """Groq가 파일을 400으로 거절해도 강의를 버리지 않는다: 힌트 없이 한 번 더, 그래도 안 되면 이 서버의 Whisper로"""
+    import subprocess
+
+    from app import stt
+    from app.groq import GroqTranscriber
+
+    audio = tmp_path / "lecture.wav"
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=3", "-ar", "16000", str(audio)], check=True)
+    calls = []
+
+    def handler(request):
+        calls.append(b'name="prompt"\r\n\r\n' in request.content and "경사하강법".encode() in request.content)
+        if len(calls) == 1:
+            return httpx.Response(400, text="")
+        return httpx.Response(200, json={"segments": [{"start": 0, "end": 2, "text": "힌트 없이 받아쓴 말이에요.", "no_speech_prob": 0.0}]})
+
+    t = GroqTranscriber(transport=httpx.MockTransport(handler))
+    assert [s.text for s in t.transcribe(str(audio), "경사하강법 학습률")] == ["힌트 없이 받아쓴 말이에요."]
+    assert calls == [True, False]   # 첫 번째는 힌트와 함께, 다시 할 때는 힌트 없이
+
+    class Local:
+        def transcribe(self, audio, hint="", on_progress=None):
+            return [stt.Segment(0, 2000, "이 서버가 받아쓴 말이에요.")]
+
+    always_bad = GroqTranscriber(transport=httpx.MockTransport(lambda r: httpx.Response(400, json={"error": {"message": "invalid file"}})))
+    t2 = stt.FallbackTranscriber(always_bad, Local())
+    assert [s.text for s in t2.transcribe(str(audio), "경사하강법")] == ["이 서버가 받아쓴 말이에요."]

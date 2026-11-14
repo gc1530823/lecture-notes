@@ -92,7 +92,7 @@ export default function DocDetail({ docId }: { docId: string }) {
               <ListItem key={s.id} icon="headphones" tone={courseTone(doc.course)} art={waves[s.id]?.w ? <Wave data={waves[s.id]} /> : undefined}
                 title={new Date(s.started_at * 1000).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit" })}
                 subtitle={`${doc.sessions.length - i}번째 강의 · ${STATUS[s.status] ?? s.status}`}
-                onClick={() => go({ name: "session", docId, sessionId: s.id, tab: "notes" })} />
+                onClick={() => go(s.status === "failed" ? { name: "lecture", docId, sessionId: s.id } : { name: "session", docId, sessionId: s.id, tab: "notes" })} />
             ))}
           </>
         )}
