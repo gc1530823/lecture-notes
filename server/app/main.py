@@ -1862,12 +1862,14 @@ async def timetable_from_image(file: UploadFile = File(...)):
         ai_error = str(exc)
     rows = combine_timetable(found, ai_rows)
     # AI 가 이름을 못 읽은 칸은 서버의 한국어 글자 인식으로 칸 안의 글을 직접 읽는다
-    if any(not r["course"] for r in rows if "_box" in r):
+    # (이름은 읽었는데 강의실이 빈 칸도 칸 안의 글에서 강의실을 채운다)
+    if any(not r["course"] or not r["place"] for r in rows if "_box" in r):
         try:
             rgb = await asyncio.to_thread(load_rgb, data)
             for r in rows:
-                if not r["course"] and "_box" in r:
-                    r["course"], place = name_and_place(await asyncio.to_thread(read_block, rgb, r["_box"], r["_color"]))
+                if (not r["course"] or not r["place"]) and "_box" in r:
+                    name, place = name_and_place(await asyncio.to_thread(read_block, rgb, r["_box"], r["_color"]))
+                    r["course"] = r["course"] or name
                     r["place"] = r["place"] or place
         except Exception:
             log.exception("시간표 글자 인식 실패")

@@ -1398,3 +1398,9 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   font: 600 13px/18px var(--font-sans); color: var(--text-secondary); background: transparent; }
 .soft-link:active { background: var(--fill-soft); }
 .soft-link:disabled { opacity: .6; }
+/* 홈 로고: 작은 마크 + 보라→분홍 글자, 오른쪽 설정 */
+.home-brand { gap: 7px; }
+.home-brand .lune-word { letter-spacing: 0; filter: drop-shadow(0 1px 4px color-mix(in srgb, var(--accent-primary) 25%, transparent)); }
+.home-brand .lune-mark { box-shadow: 0 2px 8px rgb(74 58 217 / .25); border-radius: 7px; }
+.home-me { color: var(--text-secondary); background: color-mix(in srgb, var(--bg-card) 75%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.home-me:active { transform: scale(.94); }

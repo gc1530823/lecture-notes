@@ -285,8 +285,8 @@ function HomeHead() {
   return (
     <header className="home-head">
       <div className="home-top">
-        <span className="home-brand"><LuneMark size={24} /><LuneWordmark height={13} /></span>
-        <button className="home-me" onClick={() => go({ name: "privacy" })} aria-label="설정">{name ? name.slice(0, 1) : <Icon name="gear" size={16} />}</button>
+        <span className="home-brand"><LuneMark size={22} /><LuneWordmark height={12} gradient /></span>
+        <button className="home-me" onClick={() => go({ name: "privacy" })} aria-label="설정"><Icon name="gear" size={18} /></button>
       </div>
       <div className="home-hello">
         <span className="home-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>
