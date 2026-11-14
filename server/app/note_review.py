@@ -13,6 +13,7 @@ import logging
 import re
 
 from .alignment import best_block
+from .note_text import tidy
 
 log = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ def apply(db, session_id: str, notes: list[dict], result: dict, allowed_pages: s
     done = {"fixed": 0, "moved": 0, "deleted": 0, "added": 0}
     for v in verdicts:
         note = by_id[v["id"]]
-        text = (v.get("text") or "").strip()
+        text = tidy(v.get("text") or "")
         if v["action"] == "fix" and text and text != note["text"] and len(text) <= max(200, 2 * len(note["text"])):
             db.review_annotation(note["id"], text=text)
             done["fixed"] += 1
@@ -103,7 +104,7 @@ def apply(db, session_id: str, notes: list[dict], result: dict, allowed_pages: s
             db.set_confidence(note["id"], max(note.get("confidence") or 0, 0.9))  # 다시 봐도 맞다
     existing = {n["text"] for n in notes}
     for m in result.get("missed", [])[:2]:
-        text, at = (m.get("text") or "").strip(), _at_ms(m.get("at", ""))
+        text, at = tidy(m.get("text") or ""), _at_ms(m.get("at", ""))
         if text and at is not None and m.get("page_no") in allowed_pages and text not in existing:
             page = by_no[m["page_no"]]
             block = best_block(db.get_blocks(page["id"]), text)

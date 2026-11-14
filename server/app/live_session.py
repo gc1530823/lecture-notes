@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 
+from .note_text import tidy
 from . import training_log
 from .live_stt import RecordOnly
 from .alignment import NEXT_PATTERNS, TOPIC_SHIFT, Estimate, PageIndex, PageTracker, best_block
@@ -255,8 +256,11 @@ class LiveSession:
             return
         if keep:
             for p in batch.previews:
+                text = tidy(p["text"])
+                if not text:
+                    continue
                 annotation = self.db.add_annotation(self.session_id, p["page_id"], p["block_id"], p["type"],
-                                                    p["text"], p["start_ms"])
+                                                    text, p["start_ms"])
                 await self.send({"type": "annotation_added", "annotation": annotation})
         await self.send({"type": "previews_resolved", "ids": [p["id"] for p in batch.previews]})
 
@@ -300,7 +304,7 @@ class LiveSession:
             await self.send({"type": "task_added", "task": task})
 
         for item in results.get("annotations", []):
-            text = str(item.get("text", "")).strip()
+            text = tidy(str(item.get("text", "")))  # "시험에 꼭 나온다" 같은 말은 빼고 내용만 (꼬리표가 보여 줌)
             if not text or item.get("type") not in ANNOTATION_TYPES:
                 continue
             chosen = by_page.get(item.get("page_no"))

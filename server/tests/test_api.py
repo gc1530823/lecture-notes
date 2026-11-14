@@ -902,7 +902,7 @@ def test_notes_are_checked_again_after_class_and_user_notes_are_left_alone(clien
     assert after[wrong["id"]]["text"] == "학습률은 0.1로 시작" and not after[wrong["id"]]["edited_by_user"]
     assert after[misplaced["id"]]["page_no"] == 2
     assert dup["id"] not in after
-    added = [n for n in after.values() if n["text"] == "발산 조건은 시험에 나옴"]
+    added = [n for n in after.values() if n["text"] == "발산 조건"]
     assert added and added[0]["type"] == "exam" and added[0]["start_ms"] == 12_000
     assert not any(n["text"] == "없는 쪽" for n in after.values())
     assert state["review"]["fixed"] == 1 and state["review"]["moved"] == 1 and state["review"]["deleted"] == 1 and state["review"]["added"] == 1
