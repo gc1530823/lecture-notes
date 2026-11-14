@@ -106,3 +106,60 @@ def test_friends_by_code_and_jokbo_merges_automatically(invite):
     finally:
         for x in (a, b, c):
             x.__exit__(None, None, None)
+
+
+def test_friend_privacy_settings(invite):
+    a, a_name = person("유나")
+    b, b_name = person("시우")
+    try:
+        b_code = b.get("/friends").json()["me"]["code"]
+        a.post("/friends", json={"code": b_code})
+        b_id = a.get("/friends").json()["outgoing"][0]["id"]
+        a_id = b.get("/friends").json()["incoming"][0]["id"]
+        b.post(f"/friends/{a_id}/accept")
+        doc_a, doc_b = upload(a), upload(b)
+        a.post("/sessions", json={"document_id": doc_a["id"]})
+        sb = b.post("/sessions", json={"document_id": doc_b["id"]}).json()
+        b.post(f"/sessions/{sb['id']}/annotations", json={"page_no": 1, "type": "exam", "text": "손실 함수 정의"})
+        b.post("/timetable", json={"course": "운영체제", "weekday": 0, "start": "09:00", "end": "10:15", "place": ""})
+        jokbo = lambda: a.get(f"/documents/{doc_a['id']}/jokbo").json()["friends"]
+
+        # 처음엔 모두 공개 · 합치기
+        assert jokbo() == [b_name]
+        assert a.get(f"/friends/{b_id}/timetable").json()["classes"][0]["course"] == "운영체제"
+        assert a.get("/friends/jokbo").json()["docs"][0]["friends"] == [b_name]
+
+        # 친구(B)가 시간표 비공개 → 못 봄 / 족보 항목에서 시험 표시를 빼면 합쳐도 시험 표시는 안 옴
+        b.patch("/friends/settings", json={"share_timetable": False, "items": ["terms"]})
+        assert a.get(f"/friends/{b_id}/timetable").status_code == 403
+        sheet = a.get(f"/documents/{doc_a['id']}/jokbo").json()
+        assert not any(n["who"] == b_name for c in sheet["crowd"] for n in c["notes"])
+        b.patch("/friends/settings", json={"share_timetable": True, "items": ["exam", "terms"]})
+
+        # B 가 그 강의자료만 비공개 → 안 합쳐짐, 다시 공개 → 합쳐짐
+        b.patch(f"/documents/{doc_b['id']}/friends", json={"share": False})
+        assert jokbo() == []
+        b.patch(f"/documents/{doc_b['id']}/friends", json={"share": True})
+        # B 가 A 에게만 숨기기
+        b.patch(f"/friends/{a_id}/settings", json={"share": False})
+        assert jokbo() == [] and a.get(f"/friends/{b_id}/timetable").status_code == 403
+        b.patch(f"/friends/{a_id}/settings", json={"share": True})
+        # A 가 합치기 끄기: 전체 · 이 친구 · 이 자료
+        for off, on in ((("/friends/settings", {"merge_jokbo": False}), ("/friends/settings", {"merge_jokbo": True})),
+                        ((f"/friends/{b_id}/settings", {"merge": False}), (f"/friends/{b_id}/settings", {"merge": True})),
+                        ((f"/documents/{doc_a['id']}/friends", {"merge": False}), (f"/documents/{doc_a['id']}/friends", {"merge": True}))):
+            a.patch(off[0], json=off[1])
+            assert jokbo() == []
+            a.patch(on[0], json=on[1])
+            assert jokbo() == [b_name]
+
+        # 친구 신청 받지 않기
+        c, _ = person("하준")
+        b.patch("/friends/settings", json={"allow_requests": False})
+        assert c.post("/friends", json={"code": b_code}).status_code == 403
+        c.__exit__(None, None, None)
+        me = a.get("/friends").json()
+        assert me["me"]["prefs"]["share_jokbo"] is True and me["friends"][0]["their_timetable"] is True
+    finally:
+        for x in (a, b):
+            x.__exit__(None, None, None)

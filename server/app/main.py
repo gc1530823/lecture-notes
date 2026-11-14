@@ -2077,25 +2077,41 @@ def _share_body(sheet: dict) -> dict:
     return body
 
 
+def _shares_with(owner: str, viewer: str) -> dict | None:
+    """owner 가 viewer 에게 보여 주는 설정 (친구가 아니거나 이 친구를 숨겼으면 None)"""
+    if viewer not in db().friend_ids(owner) or not db().pair(owner, viewer)["share"]:
+        return None
+    return (db().get_user(owner) or {}).get("prefs")
+
+
 def _friend_sheets(doc_id: str) -> list[dict]:
     """친구 족보 자동으로: 친구가 같은 강의자료(같은 PDF)로 들은 강의가 있으면 파일을 주고받지 않아도 합친다.
-    친구의 자료 중 족보에 들어가는 것(시험·강조·공지 표시, 용어, 예상 문제, 헷갈림 설명)만 쓰고, 녹음·받아쓰기는 보지 않는다."""
+    족보에 들어가는 것 중 친구가 공개한 항목만 쓰고, 녹음·받아쓰기는 보지 않는다.
+    내 설정(친구 족보 합치기 · 이 친구 합치기 · 이 자료에 합치기)과 친구 설정(족보 공개 · 나에게 공개 · 그 자료 공개)을 모두 따른다."""
     me = auth.CURRENT_USER.get()
     if not me:
         return []
-    friends = db().friend_ids(me)
-    if not friends:
+    my = (db().get_user(me) or {}).get("prefs", {})
+    if not my.get("merge_jokbo", True) or not db().doc_friend_flags(doc_id)["merge"]:
         return []
     mine = _fingerprint(doc_id)
     out = []
-    for fid in friends:
+    for fid in db().friend_ids(me):
+        if not db().pair(me, fid)["merge"]:
+            continue
+        theirs = _shares_with(fid, me)
+        if not theirs or not theirs.get("share_jokbo", True):
+            continue
         token = auth.CURRENT_USER.set(fid)
         try:
             for d in db().list_documents():
-                if _fingerprint(d["id"]) == mine and db().session_ids(d["id"]):
+                if (_fingerprint(d["id"]) == mine and db().session_ids(d["id"])
+                        and db().doc_friend_flags(d["id"])["share"]):
                     friend = db().get_user(fid)
+                    body = _share_body(_jokbo(d["id"], with_friends=False))
+                    items = set(theirs.get("items") or [])
                     out.append({"id": f"friend-{fid}", "nickname": friend["name"] if friend else "친구", "friend": True,
-                                "created_at": time.time(), "body": _share_body(_jokbo(d["id"], with_friends=False))})
+                                "created_at": time.time(), "body": {k: (v if k in items else []) for k, v in body.items()}})
                     break
         finally:
             auth.CURRENT_USER.reset(token)
@@ -2116,11 +2132,103 @@ def _me() -> str:
     return me
 
 
+class FriendPrefsUpdate(BaseModel):
+    share_jokbo: bool | None = None
+    share_timetable: bool | None = None
+    merge_jokbo: bool | None = None
+    allow_requests: bool | None = None
+    items: list[str] | None = None
+
+
+@app.patch("/friends/settings")
+def update_friend_settings(body: FriendPrefsUpdate):
+    """친구 설정: 내 족보 공개 · 내 시간표 공개 · 친구 족보 합치기 · 공개할 족보 항목 · 친구 신청 받기"""
+    from .db import JOKBO_ITEMS
+
+    change = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "items" in change:
+        change["items"] = [i for i in JOKBO_ITEMS if i in change["items"]]
+    db().set_friend_prefs(_me(), change)
+    return list_friends()
+
+
+class PairUpdate(BaseModel):
+    share: bool | None = None
+    merge: bool | None = None
+
+
+@app.patch("/friends/{other}/settings")
+def update_pair(other: str, body: PairUpdate):
+    """친구 한 명에 대한 설정: 이 친구에게 내 것 보여 주기 · 이 친구 족보 합치기"""
+    me = _me()
+    _friend_or_403(me, other)
+    db().set_pair(me, other, {k: v for k, v in body.model_dump().items() if v is not None})
+    return list_friends()
+
+
+class DocFriendUpdate(BaseModel):
+    share: bool | None = None
+    merge: bool | None = None
+
+
+@app.patch("/documents/{doc_id}/friends")
+def update_doc_friends(doc_id: str, body: DocFriendUpdate):
+    """이 강의자료의 족보를 친구에게 공개할지 · 친구 족보를 여기에 합칠지"""
+    if db().get_document(doc_id) is None:
+        raise HTTPException(404, "강의자료가 없습니다.")
+    return db().set_doc_friend_flags(doc_id, body.share, body.merge)
+
+
+def _friend_or_403(me: str, other: str) -> dict:
+    friend = next((f for f in db().friend_rows(me) if f["id"] == other and f["status"] == "accepted"), None)
+    if friend is None:
+        raise HTTPException(404, "친구가 아니에요.")
+    return friend
+
+
+@app.get("/friends/{other}/timetable")
+def friend_timetable(other: str):
+    """친구 시간표 보기 (친구가 공개했을 때만)"""
+    me = _me()
+    friend = _friend_or_403(me, other)
+    theirs = _shares_with(other, me)
+    if not theirs or not theirs.get("share_timetable", True):
+        raise HTTPException(403, f"{friend['name']}님이 시간표를 비공개로 해 뒀어요.")
+    token = auth.CURRENT_USER.set(other)
+    try:
+        return {"name": friend["name"], "classes": [{k: c[k] for k in ("course", "weekday", "start", "end", "place")}
+                                                    for c in db().list_classes()]}
+    finally:
+        auth.CURRENT_USER.reset(token)
+
+
+@app.get("/friends/jokbo")
+def friends_jokbo():
+    """족보 관리: 내 강의자료마다 함께 합쳐지는 친구와, 파일로 받은 족보"""
+    me = _me()
+    out = []
+    for d in db().list_documents():
+        if not db().session_ids(d["id"]):
+            continue
+        friends = [s["nickname"] for s in _friend_sheets(d["id"])]
+        files = [{"id": s["id"], "nickname": s["nickname"], "created_at": s["created_at"]} for s in db().list_shared(d["id"])]
+        out.append({"doc_id": d["id"], "title": d["title"], "course": d.get("course") or "", "friends": friends, "files": files,
+                    **{f"friend_{k}": v for k, v in db().doc_friend_flags(d["id"]).items()}})
+    out.sort(key=lambda x: (-(len(x["friends"]) + len(x["files"])), x["title"]))
+    return {"docs": out}
+
+
 @app.get("/friends")
 def list_friends():
     me = _me()
     rows = db().friend_rows(me)
-    return {"me": {"name": (db().get_user(me) or {}).get("name", ""), "code": db().friend_code(me)},
+    user = db().get_user(me) or {}
+    for r in rows:
+        if r["status"] == "accepted":
+            theirs = _shares_with(r["id"], me) or {}
+            r.update(db().pair(me, r["id"]), their_jokbo=bool(theirs.get("share_jokbo")),
+                     their_timetable=bool(theirs.get("share_timetable")))
+    return {"me": {"name": user.get("name", ""), "code": db().friend_code(me), "prefs": user.get("prefs", {})},
             "friends": [r for r in rows if r["status"] == "accepted"],
             "incoming": [r for r in rows if r["status"] == "pending" and not r["mine"]],
             "outgoing": [r for r in rows if r["status"] == "pending" and r["mine"]]}
@@ -2134,6 +2242,9 @@ def add_friend(body: FriendRequest):
         raise HTTPException(404, "그 코드의 친구를 찾지 못했어요. 코드를 다시 확인해 주세요.")
     if other["id"] == me:
         raise HTTPException(400, "내 코드예요. 친구의 코드를 넣어 주세요.")
+    if not (db().get_user(other["id"]) or {}).get("prefs", {}).get("allow_requests", True) and me not in [
+            r["id"] for r in db().friend_rows(other["id"])]:
+        raise HTTPException(403, f"{other['name']}님은 지금 친구 신청을 받지 않아요.")
     status = db().request_friend(me, other["id"])
     return {"status": status, "name": other["name"]}
 

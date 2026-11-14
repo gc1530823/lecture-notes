@@ -225,7 +225,7 @@ function ImportFromImage({ hasRows, onSaved }: { hasRows: boolean; onSaved: () =
 const minutes = (clock: string) => Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3, 5));
 
 /** 이번 주 시간표: 요일 칸마다 과목 블록. 오늘 칸에는 지금 시각 선 */
-function WeekGrid({ rows, onPick }: { rows: ClassRow[]; onPick: (course: string) => void }) {
+export function WeekGrid({ rows, onPick }: { rows: ClassRow[]; onPick: (course: string) => void }) {
   const days = Math.max(5, ...rows.map((r) => r.weekday + 1));
   const from = Math.floor(Math.min(...rows.map((r) => minutes(r.start))) / 60);
   const to = Math.ceil(Math.max(...rows.map((r) => minutes(r.end))) / 60);

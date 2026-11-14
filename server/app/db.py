@@ -25,6 +25,11 @@ def _owner_clause(column: str = "owner") -> tuple[str, tuple]:
     user = CURRENT_USER.get()
     return (f" WHERE {column} = ?", (user,)) if user is not None else ("", ())
 
+# 친구 설정 기본값: 모두 켜 둔다 (끄면 그것만 친구에게 안 보이거나 안 합친다)
+JOKBO_ITEMS = ("exam", "emphasis", "notice", "terms", "predicted", "confused")
+FRIEND_PREFS = {"share_jokbo": True, "share_timetable": True, "merge_jokbo": True, "allow_requests": True,
+                "items": list(JOKBO_ITEMS)}
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY,
@@ -114,6 +119,14 @@ CREATE TABLE IF NOT EXISTS friends (
     friend_id TEXT NOT NULL,
     status TEXT NOT NULL,
     created_at REAL NOT NULL,
+    PRIMARY KEY (user_id, friend_id)
+);
+CREATE TABLE IF NOT EXISTS friend_pairs (
+    -- 친구 한 명에 대한 내 설정: share = 이 친구에게 내 것 보여 주기, merge = 이 친구 족보 합치기
+    user_id TEXT NOT NULL,
+    friend_id TEXT NOT NULL,
+    share INTEGER NOT NULL DEFAULT 1,
+    merge INTEGER NOT NULL DEFAULT 1,
     PRIMARY KEY (user_id, friend_id)
 );
 CREATE TABLE IF NOT EXISTS logins (
@@ -276,6 +289,16 @@ class Database:
         if "friend_code" not in columns:
             self._conn.execute("ALTER TABLE users ADD COLUMN friend_code TEXT")
             self._conn.commit()
+        # 친구 설정 (JSON): 족보·시간표 공개, 친구 족보 합치기, 공개할 족보 항목, 친구 신청 받기
+        if "friend_prefs" not in columns:
+            self._conn.execute("ALTER TABLE users ADD COLUMN friend_prefs TEXT")
+            self._conn.commit()
+        # 강의자료마다: 이 자료 족보를 친구에게 공개 · 친구 족보를 여기에 합치기
+        columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(documents)")}
+        for col in ("friend_share", "friend_merge"):
+            if col not in columns:
+                self._conn.execute(f"ALTER TABLE documents ADD COLUMN {col} INTEGER NOT NULL DEFAULT 1")
+                self._conn.commit()
         # due_on: 사람이 고친 마감일 (YYYY-MM-DD), done_at: 끝낸 때 (할 일 달력)
         columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(tasks)")}
         for col, ddl in (("due_on", "TEXT"), ("done_at", "REAL")):
@@ -651,8 +674,12 @@ class Database:
         return rows[0] if rows else None
 
     def get_user(self, user_id: str) -> dict | None:
-        rows = self._query("SELECT id, name, friend_code FROM users WHERE id = ?", (user_id,))
-        return rows[0] if rows else None
+        rows = self._query("SELECT id, name, friend_code, friend_prefs FROM users WHERE id = ?", (user_id,))
+        if not rows:
+            return None
+        row = dict(rows[0])
+        row["prefs"] = {**FRIEND_PREFS, **json.loads(row.pop("friend_prefs") or "{}")}
+        return row
 
     def friend_code(self, user_id: str) -> str:
         """친구 코드 (처음 물을 때 만든다): 헷갈리는 글자(0·O·1·I) 없이 6자"""
@@ -665,6 +692,32 @@ class Database:
             if not self._query("SELECT 1 FROM users WHERE friend_code = ?", (code,)):
                 self._write("UPDATE users SET friend_code = ? WHERE id = ?", (code, user_id))
                 return code
+
+    def set_friend_prefs(self, user_id: str, change: dict) -> dict:
+        prefs = {**(self.get_user(user_id) or {}).get("prefs", FRIEND_PREFS), **change}
+        self._write("UPDATE users SET friend_prefs = ? WHERE id = ?", (json.dumps(prefs, ensure_ascii=False), user_id))
+        return prefs
+
+    def pair(self, user_id: str, friend_id: str) -> dict:
+        rows = self._query("SELECT share, merge FROM friend_pairs WHERE user_id = ? AND friend_id = ?", (user_id, friend_id))
+        return {"share": bool(rows[0]["share"]), "merge": bool(rows[0]["merge"])} if rows else {"share": True, "merge": True}
+
+    def set_pair(self, user_id: str, friend_id: str, change: dict) -> dict:
+        now = {**self.pair(user_id, friend_id), **change}
+        self._write("INSERT OR REPLACE INTO friend_pairs (user_id, friend_id, share, merge) VALUES (?, ?, ?, ?)",
+                    (user_id, friend_id, int(now["share"]), int(now["merge"])))
+        return now
+
+    def doc_friend_flags(self, doc_id: str) -> dict:
+        rows = self._query("SELECT friend_share, friend_merge FROM documents WHERE id = ?", (doc_id,))
+        return {"share": bool(rows[0]["friend_share"]), "merge": bool(rows[0]["friend_merge"])} if rows else {"share": True, "merge": True}
+
+    def set_doc_friend_flags(self, doc_id: str, share: bool | None, merge: bool | None) -> dict:
+        if share is not None:
+            self._write("UPDATE documents SET friend_share = ? WHERE id = ?", (int(share), doc_id))
+        if merge is not None:
+            self._write("UPDATE documents SET friend_merge = ? WHERE id = ?", (int(merge), doc_id))
+        return self.doc_friend_flags(doc_id)
 
     def user_by_code(self, code: str) -> dict | None:
         rows = self._query("SELECT id, name FROM users WHERE friend_code = ?", (code.strip().upper(),))
