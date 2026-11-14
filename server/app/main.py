@@ -543,6 +543,45 @@ def _why(step: str, exc: Exception) -> str:
     return f"{step} 단계에서 멈췄어요. {hint} ({type(exc).__name__}: {text[:160]})".replace("  ", " ")
 
 
+async def _renote(session_id: str, document_id: str, segments: list[dict]) -> None:
+    """저장된 받아쓰기를 처음부터 다시 흘려 넣어 필기를 새로 만든다 (그때 본 쪽도 그대로 따라간다)"""
+    async def discard(_message: dict) -> None:
+        pass
+
+    try:
+        live = LiveSession(db(), app.state.llm, db().get_session(session_id), discard)
+        last_page = None
+        for seg in segments:
+            if seg.get("page_no") and seg["page_no"] != last_page:
+                last_page = seg["page_no"]
+                with contextlib.suppress(Exception):
+                    await live.handle({"type": "page_view", "page": last_page})
+            await live.handle({"type": "transcript_final", "text": seg["text"], "start_ms": seg["start_ms"], "end_ms": seg["end_ms"],
+                               "loud": bool(seg.get("loud"))})
+        await live.close()
+    except Exception as exc:
+        log.exception("필기 다시 만들기 실패")
+        db().set_session_status(session_id, "failed", _why("필기 다시 만들기", exc))
+        return
+    db().set_session_status(session_id, "processing")
+    await _summarize(session_id, document_id)
+
+
+@app.post("/sessions/{session_id}/renote")
+async def renote_session(session_id: str, background: BackgroundTasks):
+    """필기 다시 만들기: AI 필기만 지우고 받아쓰기로 새로 쓴다 (내가 쓰거나 고친 필기·사진·질문은 그대로)"""
+    session = _session_or_404(session_id)
+    if session["status"] in ("recording", "transcribing", "processing"):
+        raise HTTPException(409, "지금은 강의를 정리하는 중이에요. 끝난 뒤에 다시 해 주세요.")
+    doc = db().get_document(session["document_id"])
+    if not db().get_segments(session_id):
+        raise HTTPException(409, "다시 만들 받아쓰기가 없어요.")
+    segments = db().reset_for_renote(session_id, notebook=doc["kind"] in ("notebook", "meeting"))
+    db().set_session_status(session_id, "processing")
+    background.add_task(_renote, session_id, session["document_id"], segments)
+    return db().get_session(session_id)
+
+
 @app.post("/sessions/{session_id}/retry")
 async def retry_session(session_id: str, background: BackgroundTasks):
     """정리 실패한 강의를 다시: 받아쓴 글이 없으면 저장된 녹음부터, 있으면 필기·요약만 다시"""

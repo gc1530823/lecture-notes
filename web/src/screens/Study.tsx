@@ -1,4 +1,4 @@
-// 4 공부하기: 요약 · 퀴즈 · 플래시카드 · 개념 · 마인드맵 · 암기 · AI 튜터
+// 강의 화면의 정리·공부·용어 탭 내용 (Session.tsx)
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { ClozeItem, Concept, Flashcard, MindNode, StudyResponse, SummaryResponse, TutorReply } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
@@ -8,29 +8,60 @@ import QuizCards from "./QuizCards";
 import SlidingTabs from "../components/SlidingTabs";
 import { useSwipe } from "../lib/gesture";
 
-const KINDS = [["summary", "요약"], ["quiz", "퀴즈 카드"], ["flashcards", "플래시카드"], ["concepts", "개념"], ["mindmap", "마인드맵"], ["cloze", "암기"], ["confused", "모르겠다"], ["tutor", "AI 튜터"]] as const;
+// 공부 탭은 세 가지만: 퀴즈(AI가 내고 채점) · 외우기(플래시카드 + 빈칸) · 질문하기(헷갈린 곳 + AI 튜터)
+const KINDS = [["quiz", "퀴즈"], ["memorize", "외우기"], ["ask", "질문하기"]] as const;
 type Kind = (typeof KINDS)[number][0];
 
 export default function Study({ sessionId }: { sessionId: string }) {
-  const [kind, setKind] = useState<Kind | "bilingual">("flashcards");
-  // 영어 강의면 "영어 이중 노트" 탭을 맨 앞에 보여 준다
+  const [kind, setKind] = useState<Kind>("quiz");
+  return (
+    <>
+      <SlidingTabs label="공부 방법" value={kind} onChange={setKind} items={KINDS} />
+      {kind === "quiz" && <QuizCards makePath={`/sessions/${sessionId}/quiz-set`} scopeLabel="이번 강의의 자료와 교수님 설명을" />}
+      {kind === "memorize" && (
+        <>
+          <p className="t-caption muted">카드를 넘기며 외우고, 아래 빈칸으로 한 번 더 확인해요</p>
+          <AIStudy<Flashcard[]> sessionId={sessionId} kind="flashcards" render={(b) => <Flashcards cards={b} />} />
+          <h3 className="t-title-s section-title">빈칸 채우기</h3>
+          <Cloze sessionId={sessionId} />
+        </>
+      )}
+      {kind === "ask" && (
+        <>
+          <h3 className="t-title-s section-title">헷갈렸던 곳</h3>
+          <ConfusedPane sessionId={sessionId} />
+          <h3 className="t-title-s section-title">AI에게 묻기</h3>
+          <Tutor sessionId={sessionId} />
+        </>
+      )}
+    </>
+  );
+}
+
+/** 정리 탭: 요약 · 마인드맵 (· 영어 강의면 이중 노트) */
+export function Organize({ sessionId }: { sessionId: string }) {
   const { data: lang } = useApi<{ english: boolean }>(`/sessions/${sessionId}/language`);
   return (
     <>
-      <SlidingTabs scroll label="공부 도구" value={kind} onChange={setKind}
-        items={lang?.english ? [["bilingual", "영어 이중 노트"] as const, ...KINDS] : KINDS} />
-      {kind === "summary" && <SummaryPane sessionId={sessionId} />}
-      {kind === "quiz" && <QuizCards makePath={`/sessions/${sessionId}/quiz-set`} scopeLabel="이번 강의의 자료와 교수님 설명을" />}
-      {kind === "flashcards" && <AIStudy<Flashcard[]> sessionId={sessionId} kind="flashcards" render={(b) => <Flashcards cards={b} />} />}
-      {kind === "concepts" && <AIStudy<Concept[]> sessionId={sessionId} kind="concepts" render={(b) => (
-        <>{b.map((c, i) => <TermCard key={i} term={c.term} page={c.page_no} definition={c.example ? `${c.definition}\n예) ${c.example}` : c.definition} />)}</>
-      )} />}
-      {kind === "mindmap" && <AIStudy<MindNode> sessionId={sessionId} kind="mindmap" render={(b) => <MindMap root={b} />} />}
-      {kind === "cloze" && <Cloze sessionId={sessionId} />}
-      {kind === "confused" && <ConfusedPane sessionId={sessionId} />}
-      {kind === "bilingual" && <AIStudy<{ en: string; ko: string; page_no: number }[]> sessionId={sessionId} kind="bilingual" render={(b) => <Bilingual pairs={b} />} />}
-      {kind === "tutor" && <Tutor sessionId={sessionId} />}
+      <SummaryPane sessionId={sessionId} />
+      <h3 className="t-title-s section-title">마인드맵</h3>
+      <AIStudy<MindNode> sessionId={sessionId} kind="mindmap" render={(b) => <MindMap root={b} />} />
+      {lang?.english && (
+        <>
+          <h3 className="t-title-s section-title">영어 이중 노트</h3>
+          <AIStudy<{ en: string; ko: string; page_no: number }[]> sessionId={sessionId} kind="bilingual" render={(b) => <Bilingual pairs={b} />} />
+        </>
+      )}
     </>
+  );
+}
+
+/** 용어 탭 아래: AI 개념 설명 (예시까지). 수업 중에 모인 용어 사전과 한 곳에 */
+export function ConceptExplain({ sessionId }: { sessionId: string }) {
+  return (
+    <AIStudy<Concept[]> sessionId={sessionId} kind="concepts" render={(b) => (
+      <>{b.map((c, i) => <TermCard key={i} term={c.term} page={c.page_no} definition={c.example ? `${c.definition}\n예) ${c.example}` : c.definition} />)}</>
+    )} />
   );
 }
 

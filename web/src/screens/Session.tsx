@@ -1,16 +1,16 @@
 import { useState } from "react";
-// 강의 다시 보기: 필기(쪽마다 포스트잇 / 노트 모드는 모눈 노트), 공부하기, 용어 사전
+// 강의 다시 보기: 필기 → 정리 → 공부 → 용어 (공부하는 순서대로)
 import type { Annotation, DocumentDetail, GlossaryTerm, SummaryResponse } from "../api/types";
-import { useApi } from "../api/useApi";
+import { postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, NoteSection, PostIt, TermCard, TopBar } from "../components/ui";
 import { back, go } from "../router";
 import { NotesPdf, StudyNotePdf } from "./LectureExtras";
-import Study from "./Study";
+import Study, { ConceptExplain, Organize } from "./Study";
 import { StoryEntry } from "./Story";
 import { Skeleton } from "../lib/motion";
 import SlidingTabs from "../components/SlidingTabs";
 
-const TABS = [["notes", "필기"], ["study", "공부하기"], ["glossary", "용어 사전"]] as const;
+const TABS = [["notes", "필기"], ["organize", "정리"], ["study", "공부"], ["glossary", "용어"]] as const;
 
 export default function Session({ docId, sessionId, tab }: { docId: string; sessionId: string; tab: string }) {
   const { data: doc } = useApi<DocumentDetail>(`/documents/${docId}`);
@@ -23,17 +23,30 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
         <SlidingTabs label="강의 보기" items={TABS} value={tab as (typeof TABS)[number][0]} onChange={(key) => go({ name: "session", docId, sessionId, tab: key })} />
         {tab === "notes" && doc && (
           <>
-            <Button variant="secondary" icon={doc.kind === "notebook" ? "notebook" : "file-pdf"}
+            <Button icon={doc.kind === "notebook" ? "notebook" : "file-pdf"}
               onClick={() => go({ name: "lecture", docId, sessionId })}>{doc.kind === "meeting" ? "회의 노트로 보기" : doc.kind === "notebook" ? "노트로 보기" : "강의자료 위에서 보기"}</Button>
-            {doc.kind !== "meeting" && <StoryEntry docId={docId} sessionId={sessionId} />}
-            <StudyNotePdf sessionId={sessionId} />
-            <NotesPdf sessionId={sessionId} />
-            <ExportRow sessionId={sessionId} />
+            <Renote sessionId={sessionId} />
             <Notes doc={doc} sessionId={sessionId} />
           </>
         )}
+        {tab === "organize" && doc && (
+          <>
+            <Organize sessionId={sessionId} />
+            <h3 className="t-title-s section-title">내려받기</h3>
+            <StudyNotePdf sessionId={sessionId} />
+            {doc.kind !== "meeting" && <StoryEntry docId={docId} sessionId={sessionId} />}
+            <NotesPdf sessionId={sessionId} />
+            <ExportRow sessionId={sessionId} />
+          </>
+        )}
         {tab === "study" && <Study sessionId={sessionId} />}
-        {tab === "glossary" && <Glossary sessionId={sessionId} />}
+        {tab === "glossary" && (
+          <>
+            <Glossary sessionId={sessionId} />
+            <h3 className="t-title-s section-title">AI 개념 설명 <span className="t-caption faint">예시까지 더 자세히</span></h3>
+            <ConceptExplain sessionId={sessionId} />
+          </>
+        )}
       </div>
     </div>
   );
@@ -180,5 +193,23 @@ function Minutes({ sessionId }: { sessionId: string }) {
       {section("일정·공지", "megaphone", data.notices, "notice")}
       {section("논의 요점", "chat-teardrop-text", data.discussion, "explanation")}
     </>
+  );
+}
+
+/** 필기 다시 만들기: AI 필기만 지우고 받아쓰기로 새로 쓴다 (내가 쓰거나 고친 필기·사진·질문은 그대로) */
+function Renote({ sessionId }: { sessionId: string }) {
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    if (!confirm("AI 필기를 처음부터 다시 만들까요?\n내가 쓰거나 고친 필기, 사진, 질문은 그대로 남아요. 요약과 퀴즈도 새로 만들어져요. (1~3분)")) return;
+    setBusy(true);
+    try {
+      await postJSON(`/sessions/${sessionId}/renote`);
+      window.location.hash = `#/doc/${encodeURIComponent(location.hash.split("/")[2] ?? "")}/lecture/${sessionId}`;
+    } catch (e) { alert(e instanceof Error ? e.message : String(e)); setBusy(false); }
+  };
+  return (
+    <Button variant="secondary" icon="arrows-clockwise" onClick={() => void run()} disabled={busy}>
+      {busy ? "다시 만드는 중…" : "필기 다시 만들기"}
+    </Button>
   );
 }

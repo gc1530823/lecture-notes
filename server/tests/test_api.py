@@ -1097,3 +1097,31 @@ def test_study_note_pdf_and_delete_session(client):
     assert client.get(f"/sessions/{sid}/summary").status_code == 404
     assert client.get(f"/documents/{doc['id']}").status_code == 200   # 강의자료는 그대로
     assert client.get(f"/sessions/{sid}/study-pdf").status_code == 404
+
+
+def test_renote_rebuilds_ai_notes_and_keeps_mine(client):
+    """필기 다시 만들기: AI 필기만 새로 쓰고, 내가 쓴 필기는 그대로"""
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "학습률이 너무 크면 발산해요. 이거 시험에 꼭 나와요.", "start_ms": 0, "end_ms": 3000})
+        receive_annotation(ws)
+    client.post(f"/sessions/{sid}/end")
+    for _ in range(50):
+        if client.get(f"/sessions/{sid}/summary").json()["status"] == "done":
+            break
+        time.sleep(0.1)
+    mine = client.post(f"/sessions/{sid}/annotations", json={"page_no": 1, "text": "내가 쓴 필기"}).json()
+    before = client.get(f"/sessions/{sid}/annotations").json()
+    assert client.post(f"/sessions/{sid}/renote").status_code == 200
+    for _ in range(80):
+        if client.get(f"/sessions/{sid}/summary").json()["status"] == "done":
+            break
+        time.sleep(0.1)
+    after = client.get(f"/sessions/{sid}/annotations").json()
+    assert any(n["id"] == mine["id"] and n["text"] == "내가 쓴 필기" for n in after)
+    ai_before = {n["id"] for n in before if n["id"] != mine["id"]}
+    ai_after = [n for n in after if n["id"] != mine["id"]]
+    assert ai_after and not ai_before & {n["id"] for n in ai_after}   # AI 필기는 새로 썼다
+    assert len(client.get(f"/sessions/{sid}/transcript").json()) >= 1  # 받아쓰기는 그대로 남는다

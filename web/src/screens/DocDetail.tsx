@@ -2,9 +2,8 @@
 import { useRef, useState } from "react";
 import type { DocumentBrief } from "../api/types";
 import { useApi } from "../api/useApi";
-import { Button, Chip, Empty, Icon, ListItem, TopBar } from "../components/ui";
+import { Chip, Empty, Icon, ListItem, TopBar } from "../components/ui";
 import { courseTone } from "../lib/course";
-import { ExamStoryEntry } from "./Story";
 import { useWaves, Wave } from "../lib/wave";
 import { getJSON } from "../api/useApi";
 import { useEffect } from "react";
@@ -65,35 +64,41 @@ export default function DocDetail({ docId }: { docId: string }) {
               }}>{doc.course ? `과목 · ${doc.course}` : "과목 정하기"}</Chip>
             </div>
             <OcrProgress docId={docId} />
-            <Button block variant="record" icon="microphone" onClick={() => go({ name: "lecture", docId })}>
-              {doc.kind === "meeting" ? "회의 기록 시작" : "수업 시작"}
-            </Button>
-            <ListItem icon="headphones" title={upload ?? "녹음 파일로 정리하기"}
-              subtitle="'음성 메모'로 녹음한 파일을 올리면 화면을 꺼 둔 수업도 필기·요약·퀴즈로 만들어요"
-              onClick={() => !upload && audioInput.current?.click()} />
+            {/* 이 자료로 할 일은 두 가지: 지금 녹음하거나, 녹음 파일을 붙이거나 */}
+            <div className="record-hub two">
+              <button className="record-main" onClick={() => go({ name: "lecture", docId })}>
+                <span className="record-ic"><Icon name="microphone" art size={32} /></span>
+                <span><b>{doc.kind === "meeting" ? "회의 기록 시작" : "수업 녹음 시작"}</b><small>필기가 이 자료 위에 붙어요</small></span>
+              </button>
+              <button className="record-main alt" onClick={() => !upload && audioInput.current?.click()}>
+                <span className="record-ic"><Icon name="upload-simple" art size={32} /></span>
+                <span><b>녹음 파일 올리기</b><small>{upload ?? "녹음한 수업을 정리해요"}</small></span>
+              </button>
+            </div>
             <input ref={audioInput} type="file" accept="audio/*,.m4a,.mp3,.wav" hidden
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) sendAudio(f); }} />
-            {doc.kind !== "meeting" && <>
-            <ListItem icon="cards" title="Anki로 내보내기" subtitle="플래시카드·예상 문제·용어를 Anki 앱에서 가져올 수 있는 파일로 (파일 › 가져오기)"
-              onClick={() => { window.location.href = `${API}/documents/${docId}/anki.txt`; }} />
-            <ListItem icon="brain" title="AI 퀴즈" subtitle="AI가 이 자료와 지금까지 들은 강의를 공부하고 객관식·OX·빈칸·단답·서술 문제를 내요. 답하면 바로 채점해요"
-              onClick={() => go({ name: "quiz", docId })} />
-            <ListItem icon="star" title="족보 노트" subtitle="모든 강의에서 시험에 나온다고 한 것·유력한 쪽·헷갈린 것·예상 문제를 한 장에"
-              onClick={() => go({ name: "jokbo", docId })} />
-            </>}
-            {doc.kind === "slides" && (
-              <ListItem icon="target" title="시험 예상 지도" subtitle="여러 강의에서 교수님이 강조한 쪽을 모아 봐요"
-                onClick={() => go({ name: "exam", docId })} />
-            )}
-            {doc.kind === "slides" && <ExamStoryEntry docId={docId} />}
-            <h2 className="t-title-s section-title">지난 강의</h2>
-            {doc.sessions.length === 0 && <p className="muted">아직 녹음한 강의가 없어요.</p>}
+
+            <h2 className="t-title-s section-title">강의 {doc.sessions.length}개</h2>
+            {doc.sessions.length === 0 && <p className="muted">아직 녹음한 강의가 없어요. 위에서 녹음을 시작하거나 올려 주세요.</p>}
             {doc.sessions.map((s, i) => (
               <ListItem key={s.id} icon="headphones" tone={courseTone(doc.course)} art={waves[s.id]?.w ? <Wave data={waves[s.id]} /> : undefined}
                 title={new Date(s.started_at * 1000).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit" })}
                 subtitle={`${doc.sessions.length - i}번째 강의 · ${STATUS[s.status] ?? s.status}`}
                 onClick={() => go(s.status === "failed" ? { name: "lecture", docId, sessionId: s.id } : { name: "session", docId, sessionId: s.id, tab: "notes" })} />
             ))}
+
+            {doc.kind !== "meeting" && doc.sessions.length > 0 && (
+              <>
+                <h2 className="t-title-s section-title">시험 준비 <span className="t-caption faint">이 자료의 모든 강의로</span></h2>
+                <ListItem icon="star" title="족보 노트" subtitle="시험에 나온다고 한 것 · 유력한 쪽 · 헷갈린 것 · 예상 문제를 한 장에"
+                  onClick={() => go({ name: "jokbo", docId })} />
+                <ListItem icon="brain" title="AI 퀴즈" subtitle="AI 가 이 자료와 강의를 공부하고 문제를 내요 · 바로 채점"
+                  onClick={() => go({ name: "quiz", docId })} />
+                <button className="link-row" onClick={() => { window.location.href = `${API}/documents/${docId}/anki.txt`; }}>
+                  <Icon name="export" size={16} /> Anki 로 내보내기
+                </button>
+              </>
+            )}
           </>
         )}
       </div>

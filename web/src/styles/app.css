@@ -1081,3 +1081,28 @@ body:has(.tabbar) .screen { padding-bottom: calc(72px + env(safe-area-inset-bott
 .note-actions button.danger { color: var(--accent-record); }
 .study-pdf { border: 1.5px solid color-mix(in srgb, var(--accent-primary) 35%, var(--border-line)); }
 .postit-slot.sel .source-chip { position: static; margin-top: 6px; }
+
+/* ── 중심 기능: 녹음 시작 · 녹음 파일 올리기 (홈 · 강의자료 화면) ── */
+.record-hub { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 4px 0 6px; }
+.record-main { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 16px 14px; border-radius: 20px; border: 0; text-align: left;
+  cursor: pointer; color: #fff; background: linear-gradient(140deg, #4a3ad9, #6b5cf6 60%, #8f7dff); box-shadow: 0 10px 24px rgb(74 58 217 / .28);
+  transition: transform .12s; animation: rise .4s both; }
+.record-main.alt { color: var(--text-primary); background: var(--bg-card); box-shadow: var(--shadow-card); animation-delay: .05s; }
+.record-main:active { transform: scale(.97); }
+.record-main:disabled { opacity: .6; }
+.record-main b { display: block; font: 800 16px/22px var(--font-sans); letter-spacing: -.02em; }
+.record-main small { display: block; margin-top: 2px; font: 500 12px/16px var(--font-sans); opacity: .85; }
+.record-main.alt small { color: var(--text-secondary); opacity: 1; }
+.record-ic { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: rgb(255 255 255 / .18); }
+.record-main.alt .record-ic { background: var(--fill-soft); }
+.record-main .record-ic .icon.art { color: #fff; }
+.record-main.alt .record-ic .icon.art { color: inherit; }
+.record-add { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; border-radius: 16px;
+  border: 1.5px dashed color-mix(in srgb, var(--accent-primary) 40%, var(--border-line)); background: transparent; color: var(--accent-primary);
+  font: 700 14px/20px var(--font-sans); cursor: pointer; }
+.record-add small { color: var(--text-tertiary); font-weight: 500; }
+.record-hub.two { margin-top: 2px; }
+.link-row { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 6px 2px; border: 0; background: none;
+  color: var(--text-secondary); font: 600 13px/18px var(--font-sans); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.top-bar-home { margin-left: -6px; }
+.section-title { margin-top: 18px; }

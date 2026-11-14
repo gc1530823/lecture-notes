@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { android } from "../lib/live";
-import { Button, Empty, Icon, ListItem } from "../components/ui";
+import { Empty, Icon, ListItem } from "../components/ui";
 import { ExamBanner } from "./Semester";
 import { Timetable } from "./Timetable";
 import { StreakCard } from "./Story";
@@ -12,7 +12,6 @@ import { Skeleton } from "../lib/motion";
 import { courseTone } from "../lib/course";
 import { useWaves, Wave } from "../lib/wave";
 import { go } from "../router";
-import { play } from "../lib/sound";
 import { LuneMark, LuneWordmark } from "../components/Brand";
 
 
@@ -51,17 +50,6 @@ function useReminder() {
   }, []);
 }
 
-/** 시간대에 맞는 인사 */
-function greeting(now = new Date()): string {
-  const h = now.getHours();
-  if (h < 6) return "늦은 밤이에요";
-  if (h < 11) return "좋은 아침이에요";
-  if (h < 14) return "점심은 먹었어요?";
-  if (h < 18) return "오후 수업도 힘내요";
-  if (h < 23) return "오늘 배운 것, 복습할까요?";
-  return "오늘도 수고했어요";
-}
-
 export default function Home() {
   const { data: docs, error, loading, reload } = useApi<DocumentBrief[]>("/documents");
   useReminder();
@@ -70,7 +58,6 @@ export default function Home() {
   useEffect(() => {
     try { if (!localStorage.getItem("ln.onboarded") && !sessionStorage.getItem("ln.introSeen")) { sessionStorage.setItem("ln.introSeen", "1"); go({ name: "intro" }); } } catch { /* 괜찮다 */ }
   }, []);
-  const line = greeting();
   // 과목 폴더: "all" = 전체, "" = 과목 없음, 그 밖에는 과목 이름 (기기에 기억)
   const [filter, setFilter] = useState<string>(() => { try { return localStorage.getItem("ln.course") ?? "all"; } catch { return "all"; } });
   const pick = (c: string) => { setFilter(c); try { localStorage.setItem("ln.course", c); } catch { /* 괜찮다 */ } };
@@ -115,13 +102,47 @@ export default function Home() {
     xhr.send(form);
   };
 
-  const newNotebook = async (kind: "notebook" | "meeting" = "notebook") => {
+  // 강의자료에 녹음 파일 붙이기: 그 자료로 강의를 하나 만들고 받아쓰기 → 필기 → 요약
+  const uploadToDoc = (docId: string, f: File) => {
+    const form = new FormData();
+    form.append("document_id", docId);
+    form.append("file", f);
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", (import.meta.env.VITE_API_URL ?? "") + "/sessions/from-audio");
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) setBusy(`녹음 올리는 중 ${Math.round((e.loaded / e.total) * 100)}%`); };
+    xhr.onload = () => {
+      setBusy(null);
+      if (xhr.status >= 300) { alert(`올리지 못했어요 (${xhr.status})`); return; }
+      const made = JSON.parse(xhr.responseText) as { id: string };
+      go({ name: "lecture", docId, sessionId: made.id });
+    };
+    xhr.onerror = () => { setBusy(null); alert("올리지 못했어요. 인터넷 연결을 확인해 주세요."); };
+    setBusy("녹음 올리는 중…");
+    xhr.send(form);
+  };
+
+  // 녹음 시작 / 녹음 올리기 → 어느 강의자료에? (자료 없이도 돼요)
+  const [picker, setPicker] = useState<null | "record" | "upload">(null);
+  const target = useRef<string | null>(null);
+  const audioToDoc = useRef<HTMLInputElement>(null);
+  const choose = (docId: string | null) => {
+    const mode = picker;
+    setPicker(null);
+    if (mode === "record") {
+      if (docId) go({ name: "lecture", docId }); else void newNotebook("notebook", true);
+    } else if (mode === "upload") {
+      target.current = docId;
+      (docId ? audioToDoc : audio).current?.click();
+    }
+  };
+
+  const newNotebook = async (kind: "notebook" | "meeting" = "notebook", startNow = false) => {
     const title = prompt(kind === "meeting" ? "회의 이름" : "수업 이름", kind === "meeting" ? "팀 회의" : "새 노트 수업");
     if (title === null) return;
     setBusy("노트를 만드는 중…");
     try {
       const doc = await postJSON<{ id: string }>("/documents/notebook", { title, kind, course: filter !== "all" ? filter : "" });
-      go({ name: "doc", docId: doc.id });
+      go(startNow ? { name: "lecture", docId: doc.id } : { name: "doc", docId: doc.id });
     } catch (e) {
       alert(e instanceof Error ? e.message : String(e));
     } finally {
@@ -137,7 +158,6 @@ export default function Home() {
     ? [...courses.map((c) => [c, shown.filter((d) => d.course === c)] as [string, DocumentBrief[]]), ["", shown.filter((d) => !d.course)] as [string, DocumentBrief[]]]
         .filter(([, list]) => list.length > 0)
     : [[filter, shown]];
-  const latestSlides = (docs ?? []).find((d) => d.kind === "slides");
 
   return (
     <div className="screen">
@@ -149,43 +169,51 @@ export default function Home() {
         </div>
       </header>
       <div className="screen-body">
-        <HeroCarousel line={line} quizDoc={latestSlides} />
-        <div className="tiles">
-          <Tile icon="calendar" title="오늘의 복습" sub="망각 곡선" onClick={() => go({ name: "review" })} />
-          <Tile icon="star" title="족보 노트" sub="시험 핵심 정리" onClick={() => latestSlides ? go({ name: "jokbo", docId: latestSlides.id }) : alert("강의자료를 먼저 올려 주세요")} />
-          <Tile icon="hand-palm" title="시험 D-day" sub="남은 날과 계획" onClick={() => go({ name: "semester", tab: "exams" })} />
-          <Tile icon="target" title="시험 예상 지도" sub="예상 문제" onClick={() => latestSlides ? go({ name: "exam", docId: latestSlides.id }) : alert("강의자료를 먼저 올려 주세요")} />
-          <Tile icon="chats-circle" title="AI 튜터" sub="질문하기" onClick={() => go({ name: "semester", tab: "tutor" })} />
-          <Tile icon="tree-structure" title="개념 지도" sub="학기 전체" onClick={() => go({ name: "semester", tab: "map" })} />
-        </div>
         <Timetable courses={courses} onPick={pick} />
-        {/* 과목 고르기: 과목마다 정해진 블록 색 */}
-        <div className="picks" role="group" aria-label="과목">
-          <button className={`pick${filter === "all" ? " on" : ""}`} aria-pressed={filter === "all"} onClick={() => pick("all")}>전체</button>
-          {courses.map((c) => (
-            <button key={c} className={`pick ${courseTone(c)}${filter === c ? " on" : ""}`} aria-pressed={filter === c} onClick={() => pick(c)}><i />{c}</button>
-          ))}
-          {hasLoose && courses.length > 0 && <button className={`pick${filter === "" ? " on" : ""}`} aria-pressed={filter === ""} onClick={() => pick("")}>과목 없음</button>}
-        </div>
-        <ExamBanner />
-        <TasksCard />
-        <StreakCard />
-        <div className="row">
-          <h2 className="section-title grow">내 강의</h2>
-          <button className="chip chip-default" onClick={() => void newNotebook("meeting")}>회의 기록</button>
-        </div>
+
+        {/* 이 앱의 중심: 강의자료에 녹음을 붙인다 (지금 녹음하거나, 녹음 파일을 올리거나) */}
+        <section className="record-hub" aria-label="강의 녹음">
+          <button className="record-main" onClick={() => setPicker("record")} disabled={!!busy}>
+            <span className="record-ic"><Icon name="microphone" art size={34} /></span>
+            <span><b>수업 녹음 시작</b><small>들으면서 강의자료에 필기가 붙어요</small></span>
+          </button>
+          <button className="record-main alt" onClick={() => setPicker("upload")} disabled={!!busy}>
+            <span className="record-ic"><Icon name="upload-simple" art size={34} /></span>
+            <span><b>녹음 파일 올리기</b><small>{busy ?? "이미 녹음한 수업을 정리해요"}</small></span>
+          </button>
+          <button className="record-add" onClick={() => file.current?.click()} disabled={!!busy}>
+            <Icon name="plus" size={16} /> 강의자료 올리기 <small>PDF · PPT · 한글</small>
+          </button>
+        </section>
+        <input ref={file} type="file" accept="application/pdf,.pdf,.ppt,.pptx,.key,.odp,.doc,.docx,.hwp,.hwpx" hidden
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
+        <input ref={audio} type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadAudio(f); }} />
+        <input ref={audioToDoc} type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f && target.current) uploadToDoc(target.current, f); }} />
+
+        <h2 className="section-title">내 강의</h2>
+        {courses.length > 0 && (
+          <div className="picks" role="group" aria-label="과목">
+            <button className={`pick${filter === "all" ? " on" : ""}`} aria-pressed={filter === "all"} onClick={() => pick("all")}>전체</button>
+            {courses.map((c) => (
+              <button key={c} className={`pick ${courseTone(c)}${filter === c ? " on" : ""}`} aria-pressed={filter === c} onClick={() => pick(c)}><i />{c}</button>
+            ))}
+            {hasLoose && <button className={`pick${filter === "" ? " on" : ""}`} aria-pressed={filter === ""} onClick={() => pick("")}>과목 없음</button>}
+          </div>
+        )}
         {loading && !docs && <Skeleton lines={4} />}
         {error && <Empty icon="warning-circle">서버에 연결할 수 없어요<br /><span className="t-caption">{error}</span></Empty>}
         {docs && shown.length === 0 && (
           <Empty icon="notebook">
             <strong className="t-title-s">아직 강의가 없어요</strong><br />
-            강의자료 PDF를 올리거나, 자료 없는 수업은 노트로 시작하세요.<br />녹음 파일만 있어도 돼요: 아래 "녹음"을 눌러 올리면 주제별로 정리해 드려요.
+            위에서 강의자료를 올리고 수업을 녹음해 보세요.<br />녹음 파일만 있어도 돼요.
           </Empty>
         )}
         {groups.map(([course, list]) => (
           <section key={course || "-"} className="course-group">
             {(filter === "all" && courses.length > 0) && (
-              <h2 className={`course-title ${courseTone(course)}`}><span>{course || "과목 없음"}</span> <small>{list.length}</small></h2>
+              <h3 className={`course-title ${courseTone(course)}`}><span>{course || "과목 없음"}</span> <small>{list.length}</small></h3>
             )}
             {list.map((doc, i) => (
               <ListItem key={doc.id} index={i} tone={courseTone(doc.course)} art={doc.sessions[0] && waves[doc.sessions[0].id]?.w ? <Wave data={waves[doc.sessions[0].id]} /> : undefined} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
@@ -193,83 +221,40 @@ export default function Home() {
             ))}
           </section>
         ))}
-        <div className="home-actions">
-          <Button variant="secondary" icon="note-pencil" onClick={() => newNotebook()} disabled={!!busy}>노트 수업</Button>
-          <Button variant="secondary" icon="headphones" onClick={() => audio.current?.click()} disabled={!!busy} aria-label="녹음 파일만 올리기">녹음 파일</Button>
-          <input ref={audio} type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
-            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadAudio(f); }} />
-          <Button icon="tray-arrow-down" onClick={() => file.current?.click()} disabled={!!busy}>{busy ?? "강의자료"}</Button>
-          <input ref={file} type="file" accept="application/pdf,.pdf,.ppt,.pptx,.key,.odp,.doc,.docx,.hwp,.hwpx" hidden
-            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
+
+        <h2 className="section-title">공부 · 시험</h2>
+        <div className="tiles">
+          <Tile icon="calendar" title="오늘의 복습" sub="잊기 전에 다시" onClick={() => go({ name: "review" })} />
+          <Tile icon="target" title="시험 준비" sub="D-day · 족보 노트" onClick={() => go({ name: "semester", tab: "exams" })} />
+          <Tile icon="chats-circle" title="AI에게 묻기" sub="모든 강의에서" onClick={() => go({ name: "semester", tab: "tutor" })} />
+          <Tile icon="tree-structure" title="학기 전체" sub="개념 지도" onClick={() => go({ name: "semester", tab: "map" })} />
         </div>
+        <ExamBanner />
+        <TasksCard />
+        <StreakCard />
+
+        {picker && (
+          <>
+            <div className="sheet-bg" onClick={() => setPicker(null)} />
+            <div className="sheet" role="dialog" aria-modal="true" aria-label="강의자료 고르기">
+              <h3 className="t-title-m">{picker === "record" ? "어느 강의자료로 녹음할까요?" : "어느 강의자료에 녹음을 붙일까요?"}</h3>
+              <p className="t-caption muted">강의자료를 고르면 필기가 그 쪽 옆에 붙어요</p>
+              {(docs ?? []).filter((d) => d.kind !== "meeting").map((d) => (
+                <ListItem key={d.id} icon={d.kind === "notebook" ? "notebook" : "file-pdf"} title={d.title} subtitle={subtitleOf(d)} onClick={() => choose(d.id)} />
+              ))}
+              <ListItem icon="note-pencil" title="강의자료 없이" subtitle="주제가 바뀔 때마다 노트를 나눠서 정리해요" onClick={() => choose(null)} />
+              {picker === "record" && (
+                <ListItem icon="users" title="회의 기록" subtitle="결정·할 일·일정을 회의록으로" onClick={() => { setPicker(null); void newNotebook("meeting", true); }} />
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
 /** 보라 배너: 인사 + 오늘의 복습 (참고 디자인의 "오늘도 수고했어요!") */
-/** 맨 위 배너: 옆으로 밀어 넘기는 카드 (복습 · 시험 D-day · AI 퀴즈). 가만히 두면 6초마다 저절로 넘어간다 */
-function HeroCarousel({ line, quizDoc }: { line: string; quizDoc?: DocumentBrief }) {
-  const [count, setCount] = useState<number | null>(null);
-  const [exam, setExam] = useState<{ title: string; days: number } | null>(null);
-  const [at, setAt] = useState(0);
-  const track = useRef<HTMLDivElement>(null);
-  const touched = useRef(false);
-  useEffect(() => {
-    getJSON<{ cards: unknown[] }>("/review/today").then((t) => setCount(t.cards.length)).catch(() => setCount(null));
-    getJSON<{ title: string; exam_date: string }[]>("/exams").then((list) => {
-      const today = new Date().toISOString().slice(0, 10);
-      const next = list.filter((e) => e.exam_date >= today).sort((a, b) => a.exam_date.localeCompare(b.exam_date))[0];
-      if (next) setExam({ title: next.title, days: Math.round((new Date(next.exam_date + "T00:00:00").getTime() - new Date(today + "T00:00:00").getTime()) / 86400000) });
-    }).catch(() => {});
-  }, []);
-  const slides = [
-    { key: "review", tone: "violet", icon: "graduation-cap", title: line,
-      sub: count ? `오늘의 복습 ${count}장을 시작해 볼까요?` : count === 0 ? "오늘 복습은 다 했어요. 새 강의를 들어 볼까요?" : "강의를 듣고 나면 복습 카드가 쌓여요",
-      go: () => go({ name: "review" }) },
-    ...(exam ? [{ key: "exam", tone: "rose", icon: "target", title: `${exam.title} ${exam.days === 0 ? "D-DAY" : `D-${exam.days}`}`,
-      sub: exam.days === 0 ? "오늘이에요! 족보 노트로 마지막 정리" : "남은 날에 맞춘 오늘의 공부 계획 보기", go: () => go({ name: "semester", tab: "exams" }) }] : []),
-    ...(quizDoc ? [{ key: "quiz", tone: "sky", icon: "brain", title: "AI 퀴즈 카드",
-      sub: `${quizDoc.title}, AI가 낸 문제로 실력 확인`, go: () => go({ name: "quiz", docId: quizDoc.id }) }] : []),
-  ];
-  // 저절로 넘기기 (손대면 멈춘다)
-  useEffect(() => {
-    if (slides.length < 2 || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const t = window.setInterval(() => {
-      if (touched.current || document.hidden) return;
-      const el = track.current;
-      if (!el) return;
-      const next = (Math.round(el.scrollLeft / el.clientWidth) + 1) % slides.length;
-      el.scrollTo({ left: next * el.clientWidth, behavior: "smooth" });
-    }, 6000);
-    return () => window.clearInterval(t);
-  }, [slides.length]);
-  const onScroll = () => {
-    const el = track.current;
-    if (!el) return;
-    const n = Math.round(el.scrollLeft / el.clientWidth);
-    if (n !== at) { setAt(n); if (touched.current) play("slide"); }
-  };
-  return (
-    <div className="hero-carousel">
-      <div ref={track} className="hero-track" onScroll={onScroll} onPointerDown={() => { touched.current = true; }}>
-        {slides.map((s, i) => (
-          <button key={s.key} className={`hero-card tone-${s.tone}${i === at ? " on" : ""}`} onClick={s.go}>
-            <b>{s.title}</b>
-            <span>{s.sub}</span>
-            <svg className="hero-art" aria-hidden="true"><use href={`${import.meta.env.BASE_URL}icons.svg#dt-${s.icon}`} /></svg>
-          </button>
-        ))}
-      </div>
-      {slides.length > 1 && (
-        <div className="hero-dots" aria-hidden="true">
-          {slides.map((s, i) => <i key={s.key} className={i === at ? "on" : ""} />)}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function Tile({ icon, title, sub, onClick }: { icon: string; title: string; sub: string; onClick: () => void }) {
   return (
     <button className="tile" onClick={onClick}>

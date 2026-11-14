@@ -414,6 +414,28 @@ class Database:
             )
         return docs
 
+    def reset_for_renote(self, session_id: str, notebook: bool) -> list[dict]:
+        """필기 다시 만들기 준비: AI 필기·받아쓰기·요약·용어·퀴즈를 지우고, 지우기 전 받아쓰기를 돌려준다.
+        사람이 쓰거나 고친 필기, 사진 필기, 질문(qa)은 남긴다. 노트 수업이면 주제 쪽을 첫 쪽만 남기고 다시 나눈다."""
+        segments = self.get_segments(session_id)
+        with self._lock, self._conn:
+            self._conn.execute("""DELETE FROM annotations WHERE session_id = ? AND edited_by_user = 0 AND type != 'qa'
+                                  AND id NOT IN (SELECT annotation_id FROM photos WHERE annotation_id IS NOT NULL)""", (session_id,))
+            for table in ("transcript_segments", "summaries", "page_notes", "study_sets", "glossary", "quiz_sets"):
+                self._conn.execute(f"DELETE FROM {table} WHERE session_id = ?", (session_id,))
+            if notebook:
+                doc_id = self._conn.execute("SELECT document_id FROM sessions WHERE id = ?", (session_id,)).fetchone()[0]
+                pages = [r[0] for r in self._conn.execute("SELECT id FROM pages WHERE document_id = ? ORDER BY page_no", (doc_id,))]
+                if pages:
+                    first, rest = pages[0], pages[1:]
+                    for pid in rest:
+                        self._conn.execute("UPDATE annotations SET page_id = ? WHERE page_id = ?", (first, pid))
+                        self._conn.execute("DELETE FROM blocks WHERE page_id = ?", (pid,))
+                        self._conn.execute("DELETE FROM pages WHERE id = ?", (pid,))
+                    self._conn.execute("UPDATE pages SET text = '' WHERE id = ?", (first,))
+                    self._conn.execute("UPDATE documents SET page_count = 1 WHERE id = ?", (doc_id,))
+        return segments
+
     def delete_session(self, session_id: str) -> None:
         """강의 하나와 그 강의에서 나온 것(받아쓰기·필기·요약·퀴즈·표시)을 지운다"""
         with self._lock, self._conn:

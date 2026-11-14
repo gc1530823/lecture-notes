@@ -722,7 +722,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           )}
           {sessionId && phase !== "idle" && (
             <button className="round round-soft" onClick={() => setSheet("ask")} disabled={asking} aria-label="방금 뭐라고?">
-              {asking ? <span className="spin" /> : <Icon name="hand-waving" art size={30} />}<span className="tool-label">질문</span>
+              {asking ? <span className="spin" /> : <Icon name="chat-circle-dots" art size={30} />}<span className="tool-label">질문</span>
             </button>
           )}
           {phase === "idle" && <button className="round round-record" onClick={startWithConsent} aria-label="녹음 시작"><Icon name="microphone" art size={46} /></button>}

@@ -5,14 +5,15 @@ import type { NoteType } from "../api/types";
 
 // 색 아이콘: 벡터(Phosphor duotone, MIT). 옅은 채움 + 선, 아이콘마다 정해진 색. 작은 조작 아이콘은 굵은 선 아이콘.
 const DUO_ALIAS: Record<string, string> = {
-  "file-pdf": "file-text", magnifier: "magnifying-glass", calendar: "calendar-check", "hand-palm": "question", "hand-waving": "arrow-counter-clockwise",
+  "file-pdf": "file-text", magnifier: "magnifying-glass", calendar: "calendar-check", "hand-palm": "question", "hand-waving": "chat-circle-dots",
   carrot: "fire", "list-numbers": "clipboard-text", "check-square": "clipboard-text", "clock-counter-clockwise": "clock", warning: "warning-circle",
   meeting: "users", "magnifying-glass": "magnifying-glass", "chat-dots": "chat-circle-dots",
 };
 const DUO = new Set(["microphone", "headphones", "notebook", "file-text", "book-open-text", "star", "target", "cards", "brain", "lightbulb", "note-pencil",
   "graduation-cap", "megaphone", "fire", "magnifying-glass", "shield-check", "calendar-check", "camera", "question", "chat-circle-dots", "chats-circle",
   "chat-teardrop-text", "clock", "timer", "trash", "clipboard-text", "check-circle", "warning-circle", "sparkle", "magic-wand", "tree-structure", "users",
-  "chalkboard-teacher", "arrow-counter-clockwise", "waveform", "books", "notepad", "house", "gear"]);
+  "chalkboard-teacher", "arrow-counter-clockwise", "waveform", "books", "notepad", "house", "gear", "upload-simple", "arrows-clockwise",
+  "folder-simple-plus"]);
 /** 아이콘마다의 색 (참고 디자인처럼: 일정은 파랑, 별은 노랑, 과녁은 빨강, 생각은 분홍…) */
 const TONE: Record<string, string> = {
   microphone: "violet", headphones: "violet", waveform: "violet", notebook: "violet", "note-pencil": "violet", notepad: "violet", books: "violet",
@@ -21,6 +22,7 @@ const TONE: Record<string, string> = {
   star: "yellow", lightbulb: "yellow", sparkle: "yellow", "magic-wand": "yellow", clock: "orange", timer: "orange", megaphone: "orange", fire: "orange",
   "warning-circle": "orange", "clipboard-text": "orange", target: "red", trash: "red", brain: "pink", cards: "pink", "graduation-cap": "violet",
   "check-circle": "green", "chalkboard-teacher": "green", camera: "slate", house: "violet", gear: "slate",
+  "upload-simple": "blue", "arrows-clockwise": "blue", "folder-simple-plus": "green",
 };
 
 /** 색 벡터 아이콘이 있는 이름인지 */
@@ -82,12 +84,18 @@ export function ListItem({ icon, title, subtitle, onClick, index, tone, art }: {
   return onClick ? <button className={cls} style={style} onClick={onClick}>{inner}</button> : <div className={cls} style={style}>{inner}</div>;
 }
 
-export function TopBar({ title, onBack, action }: { title: string; onBack?: () => void; action?: ReactNode }) {
+export function TopBar({ title, onBack, action, home = true }: { title: string; onBack?: () => void; action?: ReactNode; home?: boolean }) {
   return (
     <header className="top-bar">
       {onBack && (
         <button className="top-bar-back" onClick={onBack} aria-label="뒤로">
           <Icon name="caret-left" />
+        </button>
+      )}
+      {onBack && home && (
+        // 어디서든 한 번에 홈으로
+        <button className="top-bar-back top-bar-home" onClick={() => { window.location.hash = "#/"; }} aria-label="홈으로">
+          <Icon name="house" />
         </button>
       )}
       <h1 className="top-bar-title t-title-m">{title}</h1>
