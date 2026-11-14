@@ -1579,6 +1579,10 @@ def delete_mark(mark_id: int):
 
 @app.get("/documents/{doc_id}/jokbo")
 def jokbo(doc_id: str):
+    return _jokbo(doc_id, with_friends=True)
+
+
+def _jokbo(doc_id: str, with_friends: bool):
     doc, pages, exam_sessions = _exam_inputs(doc_id)
     scores = score_pages([p["page_no"] for p in pages], exam_sessions)
     top = top_pages(scores, limit=5)
@@ -1591,7 +1595,8 @@ def jokbo(doc_id: str):
     for sid, material in zip(db().session_ids(doc_id), exam_sessions):
         sessions.append({"id": sid, "annotations": material["annotations"], "terms": db().list_terms(sid),
                          "marks": db().list_marks(sid), "summary": db().get_summary(sid)})
-    return build_jokbo({**doc, "pages": pages}, sessions, scores, top, questions, db().list_shared(doc_id))
+    shared = db().list_shared(doc_id) + (_friend_sheets(doc_id) if with_friends else [])
+    return build_jokbo({**doc, "pages": pages}, sessions, scores, top, questions, shared)
 
 
 # 망각 곡선 복습: 플래시카드·예상 문제·"모르겠다" 설명을 카드로 모아, 틀린 것은 자주 아는 것은 드물게
@@ -2066,11 +2071,90 @@ class ShareImport(BaseModel):
     share: dict
 
 
-@app.get("/documents/{doc_id}/share")
-def export_share(doc_id: str, nickname: str = ""):
-    sheet = jokbo(doc_id)
+def _share_body(sheet: dict) -> dict:
     body = {k: sheet[k] for k in ("exam", "emphasis", "notice", "terms", "predicted")}
     body["confused"] = [c for c in sheet["confused"] if c["explanation"]]
+    return body
+
+
+def _friend_sheets(doc_id: str) -> list[dict]:
+    """친구 족보 자동으로: 친구가 같은 강의자료(같은 PDF)로 들은 강의가 있으면 파일을 주고받지 않아도 합친다.
+    친구의 자료 중 족보에 들어가는 것(시험·강조·공지 표시, 용어, 예상 문제, 헷갈림 설명)만 쓰고, 녹음·받아쓰기는 보지 않는다."""
+    me = auth.CURRENT_USER.get()
+    if not me:
+        return []
+    friends = db().friend_ids(me)
+    if not friends:
+        return []
+    mine = _fingerprint(doc_id)
+    out = []
+    for fid in friends:
+        token = auth.CURRENT_USER.set(fid)
+        try:
+            for d in db().list_documents():
+                if _fingerprint(d["id"]) == mine and db().session_ids(d["id"]):
+                    friend = db().get_user(fid)
+                    out.append({"id": f"friend-{fid}", "nickname": friend["name"] if friend else "친구", "friend": True,
+                                "created_at": time.time(), "body": _share_body(_jokbo(d["id"], with_friends=False))})
+                    break
+        finally:
+            auth.CURRENT_USER.reset(token)
+    return out
+
+
+# 친구: 친구 코드로 신청 → 받은 사람이 수락. 친구끼리는 같은 강의자료의 족보가 저절로 합쳐진다
+
+
+class FriendRequest(BaseModel):
+    code: str
+
+
+def _me() -> str:
+    me = auth.CURRENT_USER.get()
+    if not auth.enabled() or not me:
+        raise HTTPException(400, "친구 기능은 로그인해서 쓸 때만 있어요.")
+    return me
+
+
+@app.get("/friends")
+def list_friends():
+    me = _me()
+    rows = db().friend_rows(me)
+    return {"me": {"name": (db().get_user(me) or {}).get("name", ""), "code": db().friend_code(me)},
+            "friends": [r for r in rows if r["status"] == "accepted"],
+            "incoming": [r for r in rows if r["status"] == "pending" and not r["mine"]],
+            "outgoing": [r for r in rows if r["status"] == "pending" and r["mine"]]}
+
+
+@app.post("/friends")
+def add_friend(body: FriendRequest):
+    me = _me()
+    other = db().user_by_code(body.code)
+    if other is None:
+        raise HTTPException(404, "그 코드의 친구를 찾지 못했어요. 코드를 다시 확인해 주세요.")
+    if other["id"] == me:
+        raise HTTPException(400, "내 코드예요. 친구의 코드를 넣어 주세요.")
+    status = db().request_friend(me, other["id"])
+    return {"status": status, "name": other["name"]}
+
+
+@app.post("/friends/{other}/accept")
+def accept_friend(other: str):
+    if not db().accept_friend(_me(), other):
+        raise HTTPException(404, "받은 친구 신청이 없어요.")
+    return list_friends()
+
+
+@app.delete("/friends/{other}", status_code=204)
+def remove_friend(other: str):
+    if not db().remove_friend(_me(), other):
+        raise HTTPException(404, "친구가 아니에요.")
+
+
+@app.get("/documents/{doc_id}/share")
+def export_share(doc_id: str, nickname: str = ""):
+    sheet = _jokbo(doc_id, with_friends=False)
+    body = _share_body(sheet)
     return {"format": "lecture-notes-share/1", "title": sheet["title"], "fingerprint": _fingerprint(doc_id),
             "nickname": nickname.strip()[:20], "created_at": time.time(), **body}
 

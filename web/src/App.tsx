@@ -1,6 +1,7 @@
 // Figma "강의노트 디자인 / 03 디자인" 화면을 옮긴 새 프론트. 화면은 해시 주소로 고른다 (router.ts).
 import DocDetail from "./screens/DocDetail";
 import { TasksScreen } from "./screens/Tasks";
+import { FriendsScreen } from "./screens/Friends";
 import ExamMap from "./screens/ExamMap";
 import { JokboScreen, PrivacyScreen, ReviewScreen } from "./screens/ExamPrep";
 import Home from "./screens/Home";
@@ -56,6 +57,7 @@ function screen(route: ReturnType<typeof useRoute>) {
     case "semester": return <Semester tab={route.tab} />;
     case "search": return <Search />;
     case "tasks": return <TasksScreen />;
+    case "friends": return <FriendsScreen />;
     case "lecture": return <Lecture key={route.docId + (route.sessionId ?? "")} docId={route.docId} sessionId={route.sessionId} />;
     case "session": return <Session docId={route.docId} sessionId={route.sessionId} tab={route.tab} />;
   }

@@ -1284,3 +1284,24 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .pdf-actions { gap: 8px; } .pdf-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .tt-note { margin: 0; padding: 9px 12px; border-radius: 12px; background: color-mix(in srgb, var(--ico-orange) 14%, transparent); color: var(--text-primary); font: 600 13px/19px var(--font-sans); }
 .tt-draft .input.need { border-color: var(--ico-orange); background: color-mix(in srgb, var(--ico-orange) 8%, var(--bg-card)); }
+
+/* 친구 */
+.my-code { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 22px 16px 16px; margin-bottom: 22px; border-radius: 22px; text-align: center;
+  background: linear-gradient(140deg, var(--accent-primary), color-mix(in srgb, var(--accent-primary) 60%, #ff8fc8)); color: #fff; box-shadow: var(--shadow-card); }
+.my-code .t-caption { color: rgb(255 255 255 / .85); }
+.my-code .code { font: 800 36px/44px var(--font-sans); letter-spacing: .18em; padding-left: .18em; }
+.my-code .row { width: 100%; margin-top: 6px; }
+.add-friend { display: flex; gap: 8px; padding: 12px; background: var(--bg-card); border-radius: 18px; }
+.add-friend .input { flex: 1; min-width: 0; font: 700 17px/22px var(--font-sans); letter-spacing: .12em; text-transform: uppercase; }
+.friend-msg { margin: 8px 4px 0; font: 600 13px/18px var(--font-sans); color: var(--accent-deep); }
+.friend-empty { margin: 0; padding: 16px; background: var(--bg-card); border-radius: 18px; color: var(--text-secondary); font-size: 13.5px; }
+.avatar { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font: 800 16px/1 var(--font-sans);
+  background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-card)); color: var(--accent-deep); }
+.avatar.wait { opacity: .55; }
+.set-row .chip + .chip { margin-left: 4px; }
+.friend-how { padding: 14px 16px; border-radius: 18px; background: var(--fill-soft); font-size: 13px; line-height: 1.6; color: var(--text-secondary); }
+.friend-how b { display: flex; align-items: center; gap: 6px; color: var(--text-primary); font-size: 14px; }
+.friend-how p { margin: 6px 0 0; } .friend-how strong { color: var(--text-primary); }
+.friends .set-group { margin: 0 0 22px; }
+.friends .set-group h3 { font: 700 12.5px/18px var(--font-sans); color: var(--text-tertiary); letter-spacing: .02em; margin: 0 4px 8px; }
+.friends .set-row .chip.chip-accent { background: var(--accent-primary); color: var(--text-on-accent); font-weight: 800; }

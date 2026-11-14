@@ -368,6 +368,7 @@ export function PrivacyScreen() {
             <h3>계정</h3>
             <SettingRow icon="users" title={me.user.name} sub="내 강의·녹음·필기는 나만 볼 수 있어요"
               right={<button className="chip chip-default" onClick={() => void logout()}>로그아웃</button>} />
+            <SettingRow icon="chats-circle" title="친구" sub="친구 코드로 추가하면 같은 수업 족보가 저절로 합쳐져요" onClick={() => go({ name: "friends" })} />
           </section>
         )}
 
@@ -498,9 +499,12 @@ function ShareBox({ docId, friends }: { docId: string; friends: string[] }) {
         <span className="list-item-icon is-art"><Icon name="users" art size={40} /></span>
         <span className="grow">
           <strong className="t-title-s" style={{ display: "block" }}>함께 만드는 족보</strong>
-          <span className="t-caption muted">{friends.length ? `${friends.join(", ")}의 족보를 합쳤어요` : "같은 수업 친구와 족보 파일을 주고받아 합쳐요 (카톡·메일로 보내면 돼요)"}</span>
+          <span className="t-caption muted">{friends.length ? `${friends.join(", ")}의 족보를 합쳤어요` : "LUNE 친구는 같은 PDF 로 들은 족보가 저절로 합쳐져요. 친구가 아니면 파일로 주고받아요"}</span>
         </span>
       </div>
+      <button className="link-row" onClick={() => go({ name: "friends" })}>
+        <Icon name="users" art size={20} /><span className="grow">친구 추가 · 관리</span><Icon name="caret-right" size={14} />
+      </button>
       <div className="row">
         <Button className="grow" variant="secondary" onClick={exportFile}>내 족보 보내기</Button>
         <Button className="grow" onClick={() => input.current?.click()} disabled={busy}>{busy ? "합치는 중…" : "친구 족보 합치기"}</Button>

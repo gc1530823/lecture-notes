@@ -108,6 +108,14 @@ CREATE TABLE IF NOT EXISTS users (
     password TEXT NOT NULL,
     created_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS friends (
+    -- 친구: user_id 가 friend_id 에게 신청 (pending) → 받은 사람이 수락하면 accepted. 한 쌍에 한 줄
+    user_id TEXT NOT NULL,
+    friend_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    PRIMARY KEY (user_id, friend_id)
+);
 CREATE TABLE IF NOT EXISTS logins (
     -- 로그인 표 (쿠키) 의 해시
     token_hash TEXT PRIMARY KEY,
@@ -262,6 +270,11 @@ class Database:
         columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(sessions)")}
         if "error" not in columns:
             self._conn.execute("ALTER TABLE sessions ADD COLUMN error TEXT")
+            self._conn.commit()
+        # friend_code: 친구 추가할 때 알려 주는 짧은 코드
+        columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(users)")}
+        if "friend_code" not in columns:
+            self._conn.execute("ALTER TABLE users ADD COLUMN friend_code TEXT")
             self._conn.commit()
         # due_on: 사람이 고친 마감일 (YYYY-MM-DD), done_at: 끝낸 때 (할 일 달력)
         columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(tasks)")}
@@ -636,6 +649,62 @@ class Database:
     def user_by_name(self, name: str) -> dict | None:
         rows = self._query("SELECT * FROM users WHERE name = ?", (name,))
         return rows[0] if rows else None
+
+    def get_user(self, user_id: str) -> dict | None:
+        rows = self._query("SELECT id, name, friend_code FROM users WHERE id = ?", (user_id,))
+        return rows[0] if rows else None
+
+    def friend_code(self, user_id: str) -> str:
+        """친구 코드 (처음 물을 때 만든다): 헷갈리는 글자(0·O·1·I) 없이 6자"""
+        row = self.get_user(user_id)
+        if row and row["friend_code"]:
+            return row["friend_code"]
+        abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        while True:
+            code = "".join(abc[b % len(abc)] for b in os.urandom(6))
+            if not self._query("SELECT 1 FROM users WHERE friend_code = ?", (code,)):
+                self._write("UPDATE users SET friend_code = ? WHERE id = ?", (code, user_id))
+                return code
+
+    def user_by_code(self, code: str) -> dict | None:
+        rows = self._query("SELECT id, name FROM users WHERE friend_code = ?", (code.strip().upper(),))
+        return rows[0] if rows else None
+
+    def friend_rows(self, user_id: str) -> list[dict]:
+        """나와 관련된 친구 줄: [{other, name, status, mine(내가 신청했는지), created_at}]"""
+        rows = self._query(
+            """SELECT f.user_id, f.friend_id, f.status, f.created_at, u.name, u.id AS other FROM friends f
+               JOIN users u ON u.id = CASE WHEN f.user_id = ? THEN f.friend_id ELSE f.user_id END
+               WHERE f.user_id = ? OR f.friend_id = ? ORDER BY f.created_at""", (user_id, user_id, user_id))
+        return [{"id": r["other"], "name": r["name"], "status": r["status"], "mine": r["user_id"] == user_id,
+                 "created_at": r["created_at"]} for r in rows]
+
+    def friend_ids(self, user_id: str) -> list[str]:
+        return [r["id"] for r in self.friend_rows(user_id) if r["status"] == "accepted"]
+
+    def request_friend(self, user_id: str, other: str) -> str:
+        """신청. 상대가 이미 나에게 신청했으면 바로 친구. 돌려주는 값: 'pending' | 'accepted'"""
+        with self._lock, self._conn:
+            back = self._conn.execute("SELECT status FROM friends WHERE user_id = ? AND friend_id = ?", (other, user_id)).fetchone()
+            if back:
+                self._conn.execute("UPDATE friends SET status = 'accepted' WHERE user_id = ? AND friend_id = ?", (other, user_id))
+                return "accepted"
+            mine = self._conn.execute("SELECT status FROM friends WHERE user_id = ? AND friend_id = ?", (user_id, other)).fetchone()
+            if mine:
+                return mine[0]
+            self._conn.execute("INSERT INTO friends (user_id, friend_id, status, created_at) VALUES (?, ?, 'pending', ?)",
+                               (user_id, other, time.time()))
+            return "pending"
+
+    def accept_friend(self, user_id: str, other: str) -> bool:
+        with self._lock, self._conn:
+            return self._conn.execute("UPDATE friends SET status = 'accepted' WHERE user_id = ? AND friend_id = ?",
+                                      (other, user_id)).rowcount > 0
+
+    def remove_friend(self, user_id: str, other: str) -> bool:
+        with self._lock, self._conn:
+            return self._conn.execute("DELETE FROM friends WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)",
+                                      (user_id, other, other, user_id)).rowcount > 0
 
     def add_login(self, token_hash: str, user_id: str, expires_at: float) -> None:
         self._write("INSERT INTO logins (token_hash, user_id, expires_at) VALUES (?, ?, ?)", (token_hash, user_id, expires_at))

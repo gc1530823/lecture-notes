@@ -69,3 +69,40 @@ def test_without_invite_code_no_login(monkeypatch):
     with TestClient(app) as c:
         assert c.get("/auth/me").json() == {"auth": False, "user": None}
         assert c.get("/documents").status_code == 200
+
+
+def test_friends_by_code_and_jokbo_merges_automatically(invite):
+    a, a_name = person("하린")
+    b, b_name = person("도윤")
+    c, _ = person("서준")
+    try:
+        code_b = b.get("/friends").json()["me"]["code"]
+        assert len(code_b) == 6
+        assert a.post("/friends", json={"code": "ZZZZZZ"}).status_code == 404
+        assert a.post("/friends", json={"code": a.get("/friends").json()["me"]["code"]}).status_code == 400
+        assert a.post("/friends", json={"code": code_b.lower()}).json() == {"status": "pending", "name": b_name}
+        assert [r["name"] for r in b.get("/friends").json()["incoming"]] == [a_name]
+        assert a.get("/friends").json()["friends"] == []
+
+        # 같은 강의자료(같은 PDF)로 각자 들은 강의: 친구가 되기 전에는 섞이지 않는다
+        doc_a, doc_b = upload(a), upload(b)
+        sa = a.post("/sessions", json={"document_id": doc_a["id"]}).json()
+        sb = b.post("/sessions", json={"document_id": doc_b["id"]}).json()
+        b.post(f"/sessions/{sb['id']}/annotations", json={"page_no": 1, "type": "exam", "text": "경사하강법 업데이트 식"})
+        assert a.get(f"/documents/{doc_a['id']}/jokbo").json()["friends"] == []
+
+        a_id = [r for r in b.get("/friends").json()["incoming"]][0]["id"]
+        friends = b.post(f"/friends/{a_id}/accept").json()["friends"]
+        assert [f["name"] for f in friends] == [a_name]
+        sheet = a.get(f"/documents/{doc_a['id']}/jokbo").json()
+        assert sheet["friends"] == [b_name]
+        assert any(n["who"] == b_name for c_ in sheet["crowd"] for n in c_["notes"])
+        assert sa["id"]
+        # 친구가 아닌 사람은 친구 목록·족보에 안 나온다
+        assert c.get("/friends").json()["friends"] == []
+        # 끊으면 다시 섞이지 않는다
+        assert b.delete(f"/friends/{a_id}").status_code == 204
+        assert a.get(f"/documents/{doc_a['id']}/jokbo").json()["friends"] == []
+    finally:
+        for x in (a, b, c):
+            x.__exit__(None, None, None)
