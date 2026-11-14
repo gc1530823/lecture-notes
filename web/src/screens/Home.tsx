@@ -12,6 +12,7 @@ import { Skeleton } from "../lib/motion";
 import { courseTone } from "../lib/course";
 import { useWaves, Wave } from "../lib/wave";
 import { go } from "../router";
+import { getPrefs } from "../lib/prefs";
 import { LuneMark, LuneWordmark } from "../components/Brand";
 
 
@@ -45,7 +46,8 @@ function useReminder() {
       if (!review?.total && !exam) return;
       const title = count ? `오늘 복습 ${count}장이 기다려요` : "오늘 강의 복습할 시간이에요";
       const text = [exam ? `${exam.title} ${days === 0 ? "D-DAY" : `D-${days}`}` : "", "눌러서 바로 복습하기"].filter(Boolean).join(" · ");
-      app.setReminder!(title, text, 20, 0);
+      const hour = getPrefs().reminder;
+      if (hour) app.setReminder!(title, text, hour, 0);
     });
   }, []);
 }
@@ -164,8 +166,7 @@ export default function Home() {
       <header className="home-head">
         <div className="row">
           <span className="home-brand grow"><LuneMark size={30} /><LuneWordmark height={19} /></span>
-          <button className="top-bar-back" onClick={() => go({ name: "search" })} aria-label="모든 강의에서 찾기"><Icon name="magnifying-glass" /></button>
-          <button className="top-bar-back" onClick={() => go({ name: "privacy" })} aria-label="설정"><Icon name="gear" /></button>
+          <span className="home-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>
         </div>
       </header>
       <div className="screen-body">
@@ -185,6 +186,7 @@ export default function Home() {
             <Icon name="plus" size={16} /> 강의자료 올리기 <small>PDF · PPT · 한글</small>
           </button>
         </section>
+        <Timetable courses={courses} onPick={pick} slot="invite" />
         <input ref={file} type="file" accept="application/pdf,.pdf,.ppt,.pptx,.key,.odp,.doc,.docx,.hwp,.hwpx" hidden
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
         <input ref={audio} type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden

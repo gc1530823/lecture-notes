@@ -1,7 +1,7 @@
 // 시간표: 오늘 수업을 홈 화면에 보여 주고(지금 수업은 강조), 누르면 그 과목 폴더로 간다. 여기서 바로 고친다.
 import { useCallback, useEffect, useState } from "react";
 import { getJSON, postJSON } from "../api/useApi";
-import { Button, Chip, Icon } from "../components/ui";
+import { Button, Icon } from "../components/ui";
 import { courseTone } from "../lib/course";
 
 export interface ClassRow { id: number; course: string; weekday: number; start: string; end: string; place: string }
@@ -24,7 +24,11 @@ export function currentClass(rows: ClassRow[], now = new Date()): { row: ClassRo
   return next ? { row: next, live: false } : null;
 }
 
-export function Timetable({ courses, onPick }: { courses: string[]; onPick: (course: string) => void }) {
+const CHANGED = "ln-timetable-changed";
+
+/** slot="top": 시간표가 있을 때 홈 맨 위 (지금·다음 수업 + 오늘 수업)
+ *  slot="invite": 시간표가 비었을 때 녹음 버튼 아래에 눈에 띄는 '시간표 등록' 카드 */
+export function Timetable({ courses, onPick, slot = "top" }: { courses: string[]; onPick: (course: string) => void; slot?: "top" | "invite" }) {
   const [rows, setRows] = useState<ClassRow[] | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ course: "", weekday: todayIndex(), start: "09:00", end: "10:15", place: "" });
@@ -33,9 +37,12 @@ export function Timetable({ courses, onPick }: { courses: string[]; onPick: (cou
 
   const load = useCallback(() => { getJSON<ClassRow[]>("/timetable").then(setRows).catch(() => setRows(null)); }, []);
   useEffect(load, [load]);
+  useEffect(() => { window.addEventListener(CHANGED, load); return () => window.removeEventListener(CHANGED, load); }, [load]);
   useEffect(() => { const t = window.setInterval(() => tick((n) => n + 1), 60000); return () => window.clearInterval(t); }, []);
 
   if (rows === null) return null; // 서버가 시간표를 모르거나(옛 서버·데모) 못 불러오면 조용히 숨긴다
+  // 시간표가 있으면 위(top)에, 없으면 아래 등록 카드(invite)에. 등록하는 동안에는 그 자리에 그대로 둔다
+  if (slot === "top" ? rows.length === 0 : rows.length > 0 && !editing) return null;
   const now = currentClass(rows);
   const today = rows.filter((r) => r.weekday === todayIndex());
 
@@ -45,11 +52,13 @@ export function Timetable({ courses, onPick }: { courses: string[]; onPick: (cou
       await postJSON("/timetable", form);
       setForm((f) => ({ ...f, course: "", place: "" }));
       load();
+      window.dispatchEvent(new Event(CHANGED));
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
   const remove = async (id: number) => {
     await fetch((import.meta.env.VITE_API_URL ?? "") + `/timetable/${id}`, { method: "DELETE" });
     load();
+    window.dispatchEvent(new Event(CHANGED));
   };
 
   return (
@@ -65,13 +74,27 @@ export function Timetable({ courses, onPick }: { courses: string[]; onPick: (cou
           <span className="list-item-chev"><Icon name="caret-right" size={18} /></span>
         </button>
       ) : null}
-      <div className="row timetable-row">
-        <span className="t-caption muted grow">
-          {rows.length === 0 ? "시간표를 넣으면 수업 시간에 맞춰 과목을 바로 열어 줘요"
-            : today.length ? `오늘 ${today.map((r) => `${r.course} ${r.start}`).join(" · ")}` : "오늘은 수업이 없어요"}
-        </span>
-        <Chip onClick={() => setEditing((v) => !v)}>{editing ? "닫기" : rows.length ? "시간표" : "시간표 넣기"}</Chip>
-      </div>
+      {slot === "invite" ? (
+        <button className={`tt-invite${editing ? " open" : ""}`} onClick={() => setEditing((v) => !v)} aria-expanded={editing}>
+          <span className="tt-mini" aria-hidden>
+            {[0, 1, 2, 3, 4].map((d) => <span key={d}>{[0, 1, 2].map((h) => <i key={h} className={(d + h) % 3 === 0 ? `blk-${(d + h) % 8}` : undefined} />)}</span>)}
+          </span>
+          <span className="grow">
+            <b>{editing ? "과목을 하나씩 넣어 주세요" : "시간표 등록하기"}</b>
+            <small>{editing ? "다 넣었으면 닫기를 눌러요" : "수업 시간이 되면 그 과목이 홈 맨 위에 떠서 바로 녹음할 수 있어요"}</small>
+          </span>
+          <span className="tt-go">{editing ? "닫기" : <>등록 <Icon name="caret-right" size={14} /></>}</span>
+        </button>
+      ) : (
+        <button className="tt-card" onClick={() => setEditing((v) => !v)} aria-expanded={editing}>
+          <span className="tt-ic"><Icon name="calendar-check" size={22} /></span>
+          <span className="grow">
+            <b>{today.length ? "오늘 수업" : "오늘은 수업이 없어요"}</b>
+            <small>{today.length ? today.map((r) => `${r.course} ${r.start}`).join(" · ") : "푹 쉬거나 복습해요"}</small>
+          </span>
+          <span className="tt-btn">{editing ? "닫기" : "시간표 고치기"}</span>
+        </button>
+      )}
       {editing && (
         <div className="timetable-edit">
           {rows.length > 0 && <WeekGrid rows={rows} onPick={onPick} />}

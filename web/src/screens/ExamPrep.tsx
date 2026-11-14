@@ -6,6 +6,7 @@ import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, PostIt, TermCard, TopBar } from "../components/ui";
 import { android } from "../lib/live";
+import { getPrefs, setPrefs, type Prefs } from "../lib/prefs";
 import { back, go } from "../router";
 
 const API = import.meta.env.VITE_API_URL ?? "";
@@ -300,11 +301,43 @@ function PrivacyFacts({ info }: { info: Privacy | null }) {
   );
 }
 
-/** 개인정보 화면: 무엇이 어디로 가는지, 모두 지우기 */
+/** 설정 한 줄: 아이콘 · 제목 · 설명 · 오른쪽 조작 */
+function SettingRow({ icon, title, sub, right, onClick, danger }: { icon: string; title: string; sub?: string; right?: ReactNode; onClick?: () => void; danger?: boolean }) {
+  const body = (
+    <>
+      <span className={`set-ic${danger ? " danger" : ""}`}><Icon name={icon} art size={24} /></span>
+      <span className="grow set-text"><b>{title}</b>{sub && <small>{sub}</small>}</span>
+      {right ?? (onClick && <Icon name="caret-right" size={16} />)}
+    </>
+  );
+  return onClick ? <button className={`set-row${danger ? " danger" : ""}`} onClick={onClick}>{body}</button> : <div className="set-row">{body}</div>;
+}
+
+function Segmented<T extends string | number>({ value, options, onChange }: { value: T; options: [T, string][]; onChange: (v: T) => void }) {
+  return (
+    <span className="seg" role="radiogroup">
+      {options.map(([v, label]) => (
+        <button key={String(v)} role="radio" aria-checked={v === value} className={v === value ? "on" : ""} onClick={() => onChange(v)}>{label}</button>
+      ))}
+    </span>
+  );
+}
+
+function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
+  return <button className={`switch${on ? " on" : ""}`} role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)}><i /></button>;
+}
+
+/** 설정: 계정 · 화면 · 소리와 진동 · 공부 · 녹음과 개인정보 · 앱 정보 */
 export function PrivacyScreen() {
   const info = usePrivacy();
   const { data: docs, reload } = useApi<DocumentBrief[]>("/documents");
   const [busy, setBusy] = useState(false);
+  const [prefs, setP] = useState<Prefs>(getPrefs());
+  const [sound, setSound] = useState(soundOn());
+  const [me, setMe] = useState<{ auth: boolean; user: { name: string } | null } | null>(null);
+  const [showFacts, setShowFacts] = useState(false);
+  useEffect(() => { getJSON<typeof me>("/auth/me").then(setMe).catch(() => {}); }, []);
+  const change = (c: Partial<Prefs>) => setP(setPrefs(c));
 
   const wipe = async () => {
     if (!docs?.length || !confirm(`강의자료 ${docs.length}개와 그 녹음·필기·복습 기록을 모두 지울까요? 되돌릴 수 없어요.`)) return;
@@ -314,19 +347,78 @@ export function PrivacyScreen() {
     await reload();
     setBusy(false);
   };
+  const logout = async () => {
+    if (!confirm("로그아웃할까요? 자료는 서버에 그대로 있어요.")) return;
+    await postJSON("/auth/logout").catch(() => {});
+    window.location.hash = "#/";
+    window.location.reload();
+  };
+  const reminder = (h: number) => {
+    change({ reminder: h });
+    const app = android();
+    if (h === 0) app?.cancelReminder?.(); else app?.setReminder?.("오늘 배운 것, 복습할 시간이에요", "눌러서 바로 복습하기", h, 0);
+  };
 
   return (
-    <div className="screen">
-      <TopBar title="개인정보와 녹음" onBack={() => back({ name: "home" })} />
+    <div className="screen settings">
+      <TopBar title="설정" onBack={() => back({ name: "home" })} />
       <div className="screen-body">
-        <div className="banner"><p className="t-body"><b>녹음은 교수님 허락을 받고, 본인 공부에만 써 주세요.</b></p></div>
-        <PrivacyFacts info={info} />
-        <Account />
-        <SoundToggle />
-        {android() && <Button block variant="secondary" onClick={() => android()?.changeServer()}>서버 주소 바꾸기</Button>}
-        <Button block variant="record" icon="trash" onClick={wipe} disabled={busy || !docs?.length}>
-          {busy ? "지우는 중…" : `내 자료 모두 지우기${docs?.length ? ` (${docs.length}개)` : ""}`}
-        </Button>
+        {me?.auth && me.user && (
+          <section className="set-group">
+            <h3>계정</h3>
+            <SettingRow icon="users" title={me.user.name} sub="내 강의·녹음·필기는 나만 볼 수 있어요"
+              right={<button className="chip chip-default" onClick={() => void logout()}>로그아웃</button>} />
+          </section>
+        )}
+
+        <section className="set-group">
+          <h3>화면</h3>
+          <SettingRow icon="sparkle" title="화면 색" right={<Segmented value={prefs.theme} onChange={(v) => change({ theme: v })}
+            options={[["system", "기기대로"], ["light", "밝게"], ["dark", "어둡게"]]} />} />
+          <SettingRow icon="book-open-text" title="글자 크기" right={<Segmented value={prefs.text} onChange={(v) => change({ text: v })}
+            options={[["normal", "보통"], ["large", "크게"]]} />} />
+          <SettingRow icon="waveform" title="움직임 줄이기" sub="화면 전환·카드 효과를 끄고 바로 보여 줘요"
+            right={<Switch on={prefs.motion === "reduce"} onChange={(v) => change({ motion: v ? "reduce" : "full" })} label="움직임 줄이기" />} />
+        </section>
+
+        <section className="set-group">
+          <h3>소리와 진동</h3>
+          <SettingRow icon="megaphone" title="효과음" sub="정답·카드 넘기기·복습 끝 같은 순간에만 작게"
+            right={<Switch on={sound} onChange={(v) => { setSoundOn(v); setSound(v); }} label="효과음" />} />
+          {sound && (
+            <div className="set-preview">{PREVIEW.map(([name, label]) => <button key={name} className="chip chip-default" onClick={() => play(name)}>{label}</button>)}</div>
+          )}
+          <SettingRow icon="hand-palm" title="진동" sub="녹음 중에는 소리 대신 진동으로 알려요 (시험·공지 얘기)"
+            right={<Switch on={prefs.vibrate} onChange={(v) => change({ vibrate: v })} label="진동" />} />
+        </section>
+
+        <section className="set-group">
+          <h3>공부</h3>
+          <SettingRow icon="brain" title="퀴즈 카드 기본 장 수" right={<Segmented value={prefs.quizCount} onChange={(v) => change({ quizCount: v })}
+            options={[[5, "5"], [8, "8"], [12, "12"]]} />} />
+          {android() && (
+            <SettingRow icon="clock" title="복습 알림" sub="매일 이 시각에 '오늘 복습 N장'을 알려요" right={<Segmented value={prefs.reminder} onChange={reminder}
+              options={[[0, "끄기"], [19, "7시"], [21, "9시"], [23, "11시"]]} />} />
+          )}
+        </section>
+
+        <section className="set-group">
+          <h3>녹음과 개인정보</h3>
+          <SettingRow icon="shield-check" title="녹음 전 안내" sub="녹음은 교수님 허락을 받고, 본인 공부에만 써 주세요" />
+          <SettingRow icon="question" title="내 녹음과 자료는 어디로 가나요?" sub={showFacts ? undefined : "받아쓰기 · AI · 저장 위치 보기"} onClick={() => setShowFacts((v) => !v)} />
+          {showFacts && <div className="set-facts"><PrivacyFacts info={info} /></div>}
+          <SettingRow icon="arrow-counter-clockwise" title="녹음 동의 다시 받기" sub="다음 녹음 때 안내를 다시 보여 줘요"
+            onClick={() => { try { localStorage.removeItem("ln.consent"); } catch { /* 괜찮다 */ } alert("다음 녹음 때 다시 물어볼게요."); }} />
+          <SettingRow icon="trash" danger title={busy ? "지우는 중…" : "내 자료 모두 지우기"} sub={docs?.length ? `강의자료 ${docs.length}개와 녹음·필기·복습 기록` : "지울 자료가 없어요"}
+            onClick={busy || !docs?.length ? undefined : () => void wipe()} />
+        </section>
+
+        <section className="set-group">
+          <h3>앱 정보</h3>
+          <SettingRow icon="sparkle" title="LUNE · AI 강의 노트" sub="Listen. Learn. Remember." />
+          <SettingRow icon="graduation-cap" title="처음 안내 다시 보기" onClick={() => go({ name: "intro" })} />
+          {android() && <SettingRow icon="gear" title="서버 주소 바꾸기" sub="다른 LUNE 서버에 연결해요" onClick={() => android()?.changeServer()} />}
+        </section>
       </div>
     </div>
   );
@@ -431,47 +523,3 @@ function groupNotes(notes: { who: string; text: string }[]) {
 }
 
 /** 효과음 켜고 끄기 (기기에 기억). 녹음 중에는 켜 둬도 소리 대신 진동만 */
-/** 친구들과 함께 쓰는 서버면: 누구로 로그인했는지 + 로그아웃 */
-function Account() {
-  const [me, setMe] = useState<{ auth: boolean; user: { name: string } | null } | null>(null);
-  useEffect(() => { getJSON<typeof me>("/auth/me").then(setMe).catch(() => {}); }, []);
-  if (!me?.auth || !me.user) return null;
-  const logout = async () => {
-    if (!confirm("로그아웃할까요? 자료는 서버에 그대로 있어요.")) return;
-    await postJSON("/auth/logout").catch(() => {});
-    window.location.hash = "#/";
-    window.location.reload();
-  };
-  return (
-    <div className="list-item">
-      <span className="list-item-icon is-art"><Icon name="users" art size={40} /></span>
-      <span className="grow">
-        <span className="t-title-s" style={{ display: "block" }}>{me.user.name}</span>
-        <span className="list-item-sub">내 강의·녹음·필기는 나만 볼 수 있어요</span>
-      </span>
-      <button className="chip chip-default" onClick={() => void logout()}>로그아웃</button>
-    </div>
-  );
-}
-
-function SoundToggle() {
-  const [on, setOn] = useState(soundOn());
-  return (
-    <>
-    <button className="list-item" onClick={() => { setSoundOn(!on); setOn(!on); }} data-sound aria-pressed={on}>
-      <span className="list-item-icon is-art"><Icon name="megaphone" art size={40} /></span>
-      <span className="grow">
-        <span className="t-title-s" style={{ display: "block" }}>효과음 {on ? "켜짐" : "꺼짐"}</span>
-        <span className="list-item-sub">정답·카드 넘기기·복습 끝 같은 순간에만 작게. 녹음 중에는 소리 대신 진동만 나요</span>
-      </span>
-      <span className={`switch${on ? " on" : ""}`} aria-hidden="true"><i /></span>
-    </button>
-    {on && (
-      <div className="sound-preview">
-        <span className="t-caption muted">미리 듣기</span>
-        <div>{PREVIEW.map(([name, label]) => <button key={name} className="chip chip-default" onClick={() => play(name)}>{label}</button>)}</div>
-      </div>
-    )}
-    </>
-  );
-}

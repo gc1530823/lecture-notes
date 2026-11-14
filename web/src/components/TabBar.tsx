@@ -5,7 +5,7 @@ import { Icon } from "./ui";
 /** 아래 탭: 홈 · 복습 · 찾기 · 설정 */
 export default function TabBar({ current }: { current: "home" | "review" | "search" | "more" }) {
   const tabs = [["home", "house", "홈", () => go({ name: "home" })], ["review", "cards", "복습", () => go({ name: "review" })],
-    ["search", "magnifying-glass", "찾기", () => go({ name: "search" })], ["more", "dots-three-outline", "더보기", () => go({ name: "privacy" })]] as const;
+    ["search", "magnifying-glass", "찾기", () => go({ name: "search" })], ["more", "gear", "설정", () => go({ name: "privacy" })]] as const;
   return (
     <nav className="tabbar" aria-label="아래 탭">
       {tabs.map(([key, icon, label, onClick]) => (

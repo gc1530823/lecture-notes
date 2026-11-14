@@ -1106,3 +1106,60 @@ body:has(.tabbar) .screen { padding-bottom: calc(72px + env(safe-area-inset-bott
   color: var(--text-secondary); font: 600 13px/18px var(--font-sans); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .top-bar-home { margin-left: -6px; }
 .section-title { margin-top: 18px; }
+
+/* ── 홈 머리 · 시간표 카드 ── */
+.home-date { font: 600 13px/18px var(--font-sans); color: var(--text-tertiary); letter-spacing: -.01em; }
+.tt-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px 14px 14px 12px;
+  background: var(--bg-card); border: 1px solid var(--border-line); border-radius: 18px; box-shadow: var(--shadow-card);
+  transition: transform .15s var(--ease-out); }
+.tt-card:active { transform: scale(.985); }
+.tt-ic { flex: none; width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent); color: var(--accent-primary); }
+.tt-card b { display: block; font: 700 15px/21px var(--font-sans); letter-spacing: -.02em; color: var(--text-primary); }
+.tt-card small { display: block; font: 500 12.5px/18px var(--font-sans); color: var(--text-secondary); margin-top: 1px; }
+.tt-btn { flex: none; padding: 7px 13px; border-radius: 99px; background: var(--accent-primary); color: var(--text-on-accent);
+  font: 700 12.5px/16px var(--font-sans); }
+
+/* ── 설정 ── */
+.settings .set-group { margin: 0 0 22px; }
+.settings .set-group h3 { font: 700 12.5px/18px var(--font-sans); color: var(--text-tertiary); letter-spacing: .02em; margin: 0 4px 8px; }
+.settings .set-group > .set-row, .settings .set-group > :not(h3) { background: var(--bg-card); }
+.set-group { border-radius: 18px; }
+.set-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 13px 14px; min-height: 60px;
+  background: var(--bg-card); border-bottom: 1px solid var(--border-line); color: var(--text-primary); }
+.set-group h3 + .set-row, .set-group h3 + * { border-top-left-radius: 18px; border-top-right-radius: 18px; }
+.set-group > .set-row:last-child, .set-group > :last-child { border-bottom: 0; border-bottom-left-radius: 18px; border-bottom-right-radius: 18px; }
+button.set-row:active { background: var(--fill-soft); }
+.set-ic { flex: none; width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; background: var(--fill-soft); }
+.set-ic.danger, .set-row.danger b { color: var(--ico-red); }
+.set-text b { display: block; font: 600 15px/20px var(--font-sans); letter-spacing: -.02em; }
+.set-text small { display: block; font: 400 12.5px/17px var(--font-sans); color: var(--text-secondary); margin-top: 2px; }
+.seg { flex: none; display: inline-flex; padding: 3px; border-radius: 12px; background: var(--fill-soft); gap: 2px; }
+.seg button { padding: 6px 10px; border-radius: 9px; font: 600 12.5px/16px var(--font-sans); color: var(--text-secondary); transition: background-color .2s, color .2s; }
+.seg button.on { background: var(--bg-card); color: var(--accent-deep); box-shadow: 0 1px 3px rgb(0 0 0 / .12); }
+.set-preview { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px 14px; background: var(--bg-card); border-bottom: 1px solid var(--border-line); }
+.set-facts { padding: 4px 16px 14px; background: var(--bg-card); border-bottom: 1px solid var(--border-line); font-size: 13px; }
+
+/* 설정 적용: 글자 크기 · 움직임 줄이기 */
+html[data-text="large"] body { zoom: 1.1; }
+html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-motion="reduce"] *::after {
+  animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+
+/* 시간표가 비었을 때: 눈에 띄는 등록 카드 */
+.tt-invite { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; margin-top: 12px; padding: 16px;
+  border-radius: 20px; border: 1.5px dashed color-mix(in srgb, var(--accent-primary) 55%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 13%, var(--bg-card)), var(--bg-card));
+  transition: transform .15s var(--ease-out); }
+.tt-invite:active { transform: scale(.985); }
+.tt-invite.open { border-style: solid; }
+.tt-invite b { display: block; font: 800 16px/22px var(--font-sans); letter-spacing: -.02em; color: var(--text-primary); }
+.tt-invite small { display: block; font: 500 12.5px/18px var(--font-sans); color: var(--text-secondary); margin-top: 3px; }
+.tt-mini { flex: none; display: grid; grid-template-columns: repeat(5, 9px); gap: 3px; padding: 8px; border-radius: 14px;
+  background: var(--bg-card); box-shadow: var(--shadow-card); }
+.tt-mini > span { display: grid; gap: 3px; }
+.tt-mini i { display: block; width: 9px; height: 11px; border-radius: 3px; background: var(--fill-soft); }
+.tt-mini i[class] { background: var(--blk); }
+.tt-go { flex: none; display: inline-flex; align-items: center; gap: 2px; padding: 9px 14px; border-radius: 99px;
+  background: var(--accent-primary); color: var(--text-on-accent); font: 700 13px/16px var(--font-sans);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 35%, transparent); }
+.timetable:has(.tt-invite) .timetable-edit { margin-top: 10px; }

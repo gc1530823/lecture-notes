@@ -29,6 +29,7 @@ async function answer(input: RequestInfo | URL, init?: RequestInit): Promise<Res
       return realFetch(`./${file.__file}`);
     }
     if (hit !== undefined) return json(hit);
+    if (path === "/timetable") return json([]); // 데모: 빈 시간표 (등록 카드가 보이게)
     if (path.endsWith("/audio")) return new Response(null, { status: 404 });
     return json({ detail: "데모에는 없는 내용이에요" }, 404);
   }

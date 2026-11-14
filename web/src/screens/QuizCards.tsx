@@ -8,6 +8,7 @@ import { Button, Chip, TopBar } from "../components/ui";
 import { back } from "../router";
 import { play } from "../lib/sound";
 import { useSwipe } from "../lib/gesture";
+import { getPrefs } from "../lib/prefs";
 
 type Verdict = "correct" | "partial" | "wrong";
 interface Result { verdict: Verdict; score: number; feedback: string; given: string }
@@ -45,7 +46,7 @@ function CardHead({ q, total }: { q: Question; total: number }) {
 
 export default function QuizCards({ makePath, scopeLabel }: { makePath: string; scopeLabel: string }) {
   const [set, setSet] = useState<QuizSet | null>(null);
-  const [count, setCount] = useState(8);
+  const [count, setCount] = useState(getPrefs().quizCount);
   const [making, setMaking] = useState(false);
   const [grading, setGrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
