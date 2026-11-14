@@ -40,9 +40,11 @@ export function FriendsScreen() {
         <SlidingTabs label="친구 메뉴" value={tab} onChange={setTab}
           items={[["friends", `친구${data?.incoming.length ? ` · ${data.incoming.length}` : ""}`], ["jokbo", "족보"], ["privacy", "공개 설정"]] as const} />
         {error && <p className="muted">{error}</p>}
+        <div key={tab} className="pane-in">
         {data && tab === "friends" && <FriendsTab data={data} reload={load} onSettings={() => setTab("privacy")} />}
         {data && tab === "jokbo" && <JokboTab prefs={data.me.prefs} onSettings={() => setTab("privacy")} />}
         {data && tab === "privacy" && <PrivacyTab prefs={data.me.prefs} onSaved={setData} />}
+        </div>
       </div>
     </div>
   );

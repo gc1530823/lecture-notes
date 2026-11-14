@@ -506,8 +506,8 @@ function ShareBox({ docId, friends }: { docId: string; friends: string[] }) {
         <Icon name="users" art size={20} /><span className="grow">친구 추가 · 관리</span><Icon name="caret-right" size={14} />
       </button>
       <div className="row">
-        <Button className="grow" variant="secondary" onClick={exportFile}>내 족보 보내기</Button>
-        <Button className="grow" onClick={() => input.current?.click()} disabled={busy}>{busy ? "합치는 중…" : "친구 족보 합치기"}</Button>
+        <Button className="grow" variant="secondary" onClick={exportFile}>파일로 보내기</Button>
+        <Button className="grow" variant="secondary" onClick={() => input.current?.click()} disabled={busy}>{busy ? "합치는 중…" : "받은 파일 합치기"}</Button>
         <input ref={input} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void importFile(f); }} />
       </div>
     </div>

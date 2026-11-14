@@ -208,8 +208,8 @@ function Renote({ sessionId }: { sessionId: string }) {
     } catch (e) { alert(e instanceof Error ? e.message : String(e)); setBusy(false); }
   };
   return (
-    <Button variant="secondary" icon="arrows-clockwise" onClick={() => void run()} disabled={busy}>
-      {busy ? "다시 만드는 중…" : "필기 다시 만들기"}
-    </Button>
+    <button className="soft-link" onClick={() => void run()} disabled={busy}>
+      <Icon name="arrows-clockwise" size={14} /> {busy ? "다시 만드는 중…" : "AI 필기 다시 만들기"}
+    </button>
   );
 }

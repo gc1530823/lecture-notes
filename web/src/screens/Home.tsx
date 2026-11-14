@@ -221,7 +221,7 @@ export default function Home() {
 
         <h2 className="section-title">공부 · 시험</h2>
         <div className="tiles">
-          <Tile icon="calendar" title="오늘의 복습" sub="잊기 전에 다시" onClick={() => go({ name: "review" })} />
+          <Tile icon="users" title="친구와 족보" sub="같은 수업 족보 합치기" onClick={() => go({ name: "friends" })} />
           <Tile icon="target" title="시험 준비" sub="D-day · 족보 노트" onClick={() => go({ name: "semester", tab: "exams" })} />
           <Tile icon="chats-circle" title="AI에게 묻기" sub="모든 강의에서" onClick={() => go({ name: "semester", tab: "tutor" })} />
           <Tile icon="tree-structure" title="학기 전체" sub="개념 지도" onClick={() => go({ name: "semester", tab: "map" })} />

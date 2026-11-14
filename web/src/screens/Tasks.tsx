@@ -255,9 +255,9 @@ export function ScheduleScreen({ view }: { view: "timetable" | "tasks" }) {
       <TopBar title="일정" onBack={() => goBack({ name: "home" })} />
       <div className="screen-body">
         <SlidingTabs label="일정 보기" value={tab} onChange={setTab} items={[["timetable", "시간표"], ["tasks", "할 일"]] as const} />
-        {tab === "timetable"
+        <div key={tab} className="pane-in">{tab === "timetable"
           ? <TimetableEditor onPick={(course) => { try { localStorage.setItem("ln.course", course); } catch { /* 괜찮다 */ } go({ name: "home" }); }} />
-          : <TasksPane />}
+          : <TasksPane />}</div>
       </div>
     </div>
   );

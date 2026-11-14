@@ -1389,3 +1389,12 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .home-hello h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent-primary), #c86bf0); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .home-hello p { margin: 2px 0 0; font: 500 14px/20px var(--font-sans); color: var(--text-secondary); }
 .home-head + .screen-body { padding-top: 4px; }
+
+/* 탭 안 내용이 바뀔 때: 살짝 떠오르며 나타나기 */
+.pane-in { animation: pane-in .32s var(--ease-out) both; }
+@keyframes pane-in { from { opacity: 0; transform: translateY(8px); } }
+/* 가벼운 글자 버튼 (덜 중요한 동작) */
+.soft-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; align-self: center; padding: 8px 14px; border-radius: 99px;
+  font: 600 13px/18px var(--font-sans); color: var(--text-secondary); background: transparent; }
+.soft-link:active { background: var(--fill-soft); }
+.soft-link:disabled { opacity: .6; }
