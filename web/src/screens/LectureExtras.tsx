@@ -126,8 +126,8 @@ export function NotesPdf({ sessionId }: { sessionId: string }) {
       <div className="row">
         <span className="list-item-icon is-art"><Icon name="file-pdf" art size={40} /></span>
         <span className="grow">
-          <strong className="t-title-s" style={{ display: "block" }}>강의 정리 PDF</strong>
-          <span className="t-caption muted">슬라이드마다 형광펜·필기·정리 노트·교수님 설명, 끝에 과제와 용어 사전</span>
+          <strong className="t-title-s" style={{ display: "block" }}>필기 붙은 슬라이드 PDF</strong>
+          <span className="t-caption muted">슬라이드에 형광펜과 필기를 붙인 그대로, 끝에 과제와 용어 사전</span>
         </span>
       </div>
       {error && <p className="t-caption" style={{ color: "var(--accent-record)" }}>{error}</p>}
@@ -142,6 +142,67 @@ export function NotesPdf({ sessionId }: { sessionId: string }) {
         <Button block onClick={build} disabled={!state}>만들기</Button>
       )}
     </div>
+  );
+}
+
+/** AI 정리 노트 PDF: AI 가 배운 내용을 주제별로 새로 정리한 노트 (핵심·설명·예시·시험 포인트·용어·확인 문제) */
+export function StudyNotePdf({ sessionId }: { sessionId: string }) {
+  const [state, setState] = useState<{ status: string; error?: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const path = `/sessions/${sessionId}/study-pdf`;
+  useEffect(() => { getJSON<typeof state>(`${path}/status`).then(setState).catch((e) => setError(e.message)); }, [path]);
+  useEffect(() => {
+    if (state?.status !== "building") return;
+    const t = window.setTimeout(() => getJSON<typeof state>(`${path}/status`).then(setState).catch(() => {}), 2000);
+    return () => window.clearTimeout(t);
+  }, [state, path]);
+  const build = async () => {
+    setError(null);
+    try { setState(await postJSON<typeof state>(path)); } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  };
+  return (
+    <div className="banner study-pdf">
+      <div className="row">
+        <span className="list-item-icon is-art"><Icon name="notebook" art size={40} /></span>
+        <span className="grow">
+          <strong className="t-title-s" style={{ display: "block" }}>AI 정리 노트 PDF</strong>
+          <span className="t-caption muted">AI 가 오늘 배운 내용을 공부해서 주제별로 새로 정리해요 · 핵심, 설명, 예시, 시험 포인트, 용어, 확인 문제</span>
+        </span>
+      </div>
+      {(error || state?.error) && <p className="t-caption" style={{ color: "var(--accent-record)" }}>{error || state?.error}</p>}
+      {state?.status === "building" ? (
+        <Button block disabled><span className="spin" /> AI 가 정리하는 중… (1분쯤)</Button>
+      ) : state?.status === "ready" ? (
+        <div className="row">
+          <a className="btn btn-primary grow" href={`${API}${path}`} target="_blank" rel="noreferrer">열기 · 내려받기</a>
+          <Button variant="secondary" onClick={build}>다시 만들기</Button>
+        </div>
+      ) : (
+        <Button block onClick={build} disabled={!state}>만들기</Button>
+      )}
+    </div>
+  );
+}
+
+/** 강의 화면 › 더보기: 정리 PDF 두 가지와 이 강의 지우기 */
+export function LectureMore({ sessionId, onDeleted }: { sessionId: string; onDeleted: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const remove = async () => {
+    if (!confirm("이 강의를 지울까요? 녹음, 받아쓰기, 필기, 요약, 퀴즈가 모두 지워져요. 강의자료(PDF)는 남아요. 되돌릴 수 없어요.")) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`${API}/sessions/${sessionId}`, { method: "DELETE" });
+      if (!res.ok && res.status !== 204) throw new Error("지우지 못했어요");
+      onDeleted();
+    } catch (e) { alert(e instanceof Error ? e.message : String(e)); setBusy(false); }
+  };
+  return (
+    <>
+      <h3 className="t-title-m">더보기</h3>
+      <StudyNotePdf sessionId={sessionId} />
+      <NotesPdf sessionId={sessionId} />
+      <Button block variant="record" icon="trash" onClick={() => void remove()} disabled={busy}>{busy ? "지우는 중…" : "이 강의 지우기"}</Button>
+    </>
   );
 }
 

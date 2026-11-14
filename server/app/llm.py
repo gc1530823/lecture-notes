@@ -660,6 +660,12 @@ class ClaudeLLM:
         params = self._request(settings.summary_model, settings.summary_effort, QUIZ_SET_SYSTEM, prompt, QUIZ_SET_SCHEMA, max_tokens=16000)
         return _response_json(await self.client.beta.messages.create(**params)).get("questions", [])
 
+    async def study_note(self, prompt: str) -> dict:
+        from .study_note import STUDY_NOTE_SCHEMA, STUDY_NOTE_SYSTEM
+
+        params = self._request(settings.summary_model, settings.summary_effort, STUDY_NOTE_SYSTEM, prompt, STUDY_NOTE_SCHEMA, max_tokens=16000)
+        return _response_json(await self.client.beta.messages.create(**params))
+
     async def card_question(self, prompt: str) -> str:
         from .quiz import CARD_SCHEMA, CARD_SYSTEM
 
@@ -786,6 +792,13 @@ class FakeLLM:
              "choices": [], "answer_index": 0, "answer": "조건을 확인하고 하나를 깨는 방식으로 예방한다", "accept": [],
              "rubric": ["예시를 든다", "이유를 조건과 연결한다"], "explanation": "가짜 응답입니다."},
         ]
+
+    async def study_note(self, prompt: str) -> dict:
+        pages = [int(n) for n in re.findall(r'<page no="(\d+)">', prompt)] or [1]
+        return {"title": "정리 노트", "one_line": "가짜 응답으로 만든 정리 노트예요.",
+                "sections": [{"heading": f"{n}쪽 내용", "pages": [n], "points": ["핵심 하나", "핵심 둘"], "explain": "설명이에요.",
+                              "example": "예시예요." if n == pages[0] else "", "exam": "시험에 나와요." if n == pages[-1] else ""} for n in pages],
+                "terms": [{"term": "용어", "meaning": "뜻"}], "exam_focus": ["시험 포인트"], "check": [{"q": "확인 문제?", "a": "답"}]}
 
     async def card_question(self, prompt: str) -> str:
         return "이 개념이 왜 그렇게 동작하는지 설명해 보세요"

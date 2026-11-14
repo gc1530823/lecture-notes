@@ -56,7 +56,8 @@ async def lifespan(app: FastAPI):
     app.state.progress = {}  # 세션 id → 녹음 파일 받아쓰기 진행률 (0~1)
     app.state.reviews = {}
     app.state.quiz_jobs = set()  # 퀴즈를 다시 내는 중인 강의   # 세션 id → 강의 뒤 필기 다시 확인 결과 (몇 개 고쳤는지)
-    app.state.notes_pdf = {}  # 세션 id → 정리 PDF 만들기 상태
+    app.state.notes_pdf = {}
+    app.state.study_pdf = {}  # 세션 id → AI 정리 노트 만들기 상태  # 세션 id → 정리 PDF 만들기 상태
     app.state.exam_jobs = {}  # 강의자료 id → 예상 문제 만들기 상태
     app.state.study_jobs = {}  # (세션 id, 종류) → 공부 도구 만들기 상태
     warm_up = getattr(app.state.llm, "warm_up", None)
@@ -409,7 +410,24 @@ def delete_document(doc_id: str):
     # 그 강의들의 녹음(session-n.wav, session.m4a 등)과 정리 PDF도 지운다
     if os.path.isdir(settings.upload_dir):
         for name in os.listdir(settings.upload_dir):
-            if any(name.startswith(sid) or name in (f"notes-{sid}.pdf", f"full-{sid}.wav") for sid in sessions):
+            if any(name.startswith(sid) or name in _session_files(sid) for sid in sessions):
+                with contextlib.suppress(FileNotFoundError):
+                    os.remove(os.path.join(settings.upload_dir, name))
+
+
+def _session_files(sid: str) -> tuple[str, ...]:
+    """강의 하나에 딸린 파일 이름들 (녹음은 sid 로 시작)"""
+    return (f"notes-{sid}.pdf", f"full-{sid}.wav", f"study-{sid}.pdf")
+
+
+@app.delete("/sessions/{session_id}", status_code=204)
+def delete_session(session_id: str):
+    """강의(녹음) 하나만 지운다: 받아쓰기·필기·요약·퀴즈·녹음 파일까지. 강의자료는 그대로"""
+    _session_or_404(session_id)
+    db().delete_session(session_id)
+    if os.path.isdir(settings.upload_dir):
+        for name in os.listdir(settings.upload_dir):
+            if name.startswith(session_id) or name in _session_files(session_id):
                 with contextlib.suppress(FileNotFoundError):
                     os.remove(os.path.join(settings.upload_dir, name))
 
@@ -1217,6 +1235,71 @@ def start_notes_pdf(session_id: str, background: BackgroundTasks):
         app.state.notes_pdf[session_id] = {"status": "building", "done": 0, "total": 0}
         background.add_task(_build_notes_pdf, session_id)
     return _notes_pdf_status(session_id)
+
+
+# AI 정리 노트 PDF: AI 가 배운 내용을 주제별로 다시 정리한 노트 (study_note.py)
+
+
+def _study_pdf_path(session_id: str) -> str:
+    return os.path.join(settings.upload_dir, f"study-{session_id}.pdf")
+
+
+def _study_pdf_status(session_id: str) -> dict:
+    state = app.state.study_pdf.get(session_id)
+    if state:
+        return state
+    return {"status": "ready" if os.path.exists(_study_pdf_path(session_id)) else "none"}
+
+
+async def _build_study_pdf(session_id: str) -> None:
+    from .study_note import build_study_pdf, clean_note, study_prompt
+
+    state = app.state.study_pdf[session_id]
+    try:
+        session = db().get_session(session_id)
+        doc = db().get_document(session["document_id"])
+        material = quizlib.material(db().list_pages(doc["id"]), [_session_material(session_id)], limit=20000)
+        if len(material) < 40:
+            state.update(status="failed", error="정리할 강의 내용이 아직 없어요.")
+            return
+        note = clean_note(await app.state.llm.study_note(study_prompt(material, doc["title"], db().list_terms(session_id))), doc["title"])
+        if not note["sections"]:
+            state.update(status="failed", error="AI 가 정리 노트를 쓰지 못했어요. 다시 해 주세요.")
+            return
+        data = await asyncio.to_thread(build_study_pdf, note, doc["title"], session["started_at"])
+        os.makedirs(settings.upload_dir, exist_ok=True)
+        with open(_study_pdf_path(session_id), "wb") as f:
+            f.write(data)
+    except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError) as exc:
+        log.exception("정리 노트 만들기 실패")
+        state.update(status="failed", error=_why("정리 노트", exc))
+        return
+    app.state.study_pdf.pop(session_id, None)
+
+
+@app.post("/sessions/{session_id}/study-pdf", status_code=202)
+def start_study_pdf(session_id: str, background: BackgroundTasks):
+    """AI 정리 노트 PDF 를 (다시) 만든다"""
+    _session_or_404(session_id)
+    if _study_pdf_status(session_id)["status"] != "building":
+        app.state.study_pdf[session_id] = {"status": "building"}
+        background.add_task(_build_study_pdf, session_id)
+    return _study_pdf_status(session_id)
+
+
+@app.get("/sessions/{session_id}/study-pdf/status")
+def study_pdf_status(session_id: str):
+    _session_or_404(session_id)
+    return _study_pdf_status(session_id)
+
+
+@app.get("/sessions/{session_id}/study-pdf")
+def get_study_pdf(session_id: str):
+    session = _session_or_404(session_id)
+    if not os.path.exists(_study_pdf_path(session_id)):
+        raise HTTPException(404, "정리 노트가 아직 없습니다.")
+    title = db().get_document(session["document_id"])["title"]
+    return FileResponse(_study_pdf_path(session_id), media_type="application/pdf", filename=f"{title} 정리 노트.pdf")
 
 
 @app.get("/sessions/{session_id}/notes-pdf/status")

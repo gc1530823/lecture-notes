@@ -301,6 +301,12 @@ class OllamaLLM:
         data = await self._chat(QUIZ_SET_SYSTEM, prompt, QUIZ_SET_SCHEMA, 32768, 0.6)
         return data.get("questions", [])
 
+    async def study_note(self, prompt: str) -> dict:
+        """AI 정리 노트 (app/study_note.py)"""
+        from .study_note import STUDY_NOTE_SCHEMA, STUDY_NOTE_SYSTEM
+
+        return await self._chat(STUDY_NOTE_SYSTEM, prompt, STUDY_NOTE_SCHEMA, 32768, 0.3)
+
     async def card_question(self, prompt: str) -> str:
         """복습 카드 앞면 질문 (app/quiz.py)"""
         from .quiz import CARD_SCHEMA, CARD_SYSTEM

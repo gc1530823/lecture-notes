@@ -6,7 +6,7 @@ import { getJSON, postJSON } from "../api/useApi";
 import { LiveWave, refreshWaves } from "../lib/wave";
 import { play, setRecording } from "../lib/sound";
 import { android, browserRecognizer, LiveSocket, NativeLive, startMicrophone, type Live, type Mic, type ServerEvent } from "../lib/live";
-import { clock, NotesPdf, PlayerBar, TaskDetail, TaskList, usePlayer, type FullTask } from "./LectureExtras";
+import { clock, LectureMore, PlayerBar, TaskDetail, TaskList, usePlayer, type FullTask } from "./LectureExtras";
 import { ConsentSheet } from "./ExamPrep";
 import { loadPdf, renderPage, type PdfDoc } from "../lib/pdf";
 import { Button, Chip, Icon, NOTE_LABEL, PostIt, TermCard, TopBar } from "../components/ui";
@@ -25,7 +25,7 @@ const prefs = {
 };
 
 type Note = Annotation & { preview?: boolean };
-type Sheet = null | "ask" | "glossary" | "pending" | "tasks" | "pdf" | "add" | { catchUp: number } | { task: number } | { source: number };
+type Sheet = null | "ask" | "glossary" | "pending" | "tasks" | "pdf" | "add" | { edit: number } | { catchUp: number } | { task: number } | { source: number };
 
 
 export default function Lecture({ docId, sessionId: initialSession }: { docId: string; sessionId?: string }) {
@@ -492,21 +492,25 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     }
   };
 
-  const editNote = async (note: Note) => {
-    if (note.preview) return;
-    const text = prompt("필기 수정 (비우면 삭제)", note.text);
-    if (text === null) return;
+  const editNote = (note: Note) => { if (!note.preview) setSheet({ edit: note.id }); };
+  const deleteNote = async (note: Note) => {
+    if (!confirm("이 필기를 지울까요?")) return;
     try {
-      if (!text.trim()) {
-        await fetch(`${import.meta.env.VITE_API_URL ?? ""}/annotations/${note.id}`, { method: "DELETE" });
-        setNotes((n) => n.filter((x) => x.id !== note.id));
-      } else {
-        const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/annotations/${note.id}`, {
-          method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
-        });
-        const updated = await res.json();
-        setNotes((n) => n.map((x) => (x.id === note.id ? updated : x)));
-      }
+      await fetch(`${import.meta.env.VITE_API_URL ?? ""}/annotations/${note.id}`, { method: "DELETE" });
+      setNotes((n) => n.filter((x) => x.id !== note.id));
+      setSelected(null);
+      setSheet(null);
+    } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
+  };
+  const saveNote = async (note: Note, text: string) => {
+    if (!text.trim()) return deleteNote(note);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/annotations/${note.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
+      });
+      const updated = await res.json();
+      setNotes((n) => n.map((x) => (x.id === note.id ? updated : x)));
+      setSheet(null);
     } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
   };
 
@@ -536,7 +540,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
 
   const back = () => {
     if (recording && !confirm("녹음을 멈추고 나갈까요?")) return;
-    if (sessionId && phase === "ended") go({ name: "session", docId, sessionId, tab: "notes" }); else goBack({ name: "doc", docId });
+    // 뒤로 = 들어온 화면으로 (끝난 강의에서 필기 화면으로 '앞으로' 보내면 두 화면 사이를 끝없이 오가서 홈으로 못 갔다)
+    goBack({ name: "doc", docId });
   };
 
   return (
@@ -551,7 +556,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
             <Icon name="closed-captioning" />
           </button>
           {sessionId && phase === "ended" && (
-            <button className="top-bar-back" aria-label="강의 정리 PDF" onClick={() => setSheet("pdf")}><Icon name="file-pdf" /></button>
+            <button className="top-bar-back" aria-label="더보기: 정리 노트 PDF · 강의 지우기" onClick={() => setSheet("pdf")}><Icon name="dots-three-outline" /></button>
           )}
         </div>
       } />
@@ -592,9 +597,15 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
                 {visible.map((n, i) => (
                   <div key={n.id} className={`postit-slot${!n.preview && !n.edited_by_user && (n.confidence ?? 1) < 0.6 ? " unsure" : ""}${n.id === selected ? " sel" : ""}${n.id === fresh ? " fresh" : ""}${n.preview ? " preview" : ""}`}
                     onClick={() => setSelected(selected === n.id ? null : n.id)}
-                    onContextMenu={(e) => { e.preventDefault(); void editNote(n); }}>
+                    onContextMenu={(e) => { e.preventDefault(); editNote(n); }}>
                     <PostIt type={n.type} number={i + 1} photo={n.photo_id ? `${import.meta.env.VITE_API_URL ?? ""}/photos/${n.photo_id}` : null}
                       tag={n.preview ? "AI가 정리 중…" : beyond.has(n.id) ? "슬라이드에 없는 설명" : n.edited_by_user ? "직접 씀·고침" : undefined}>{n.text}</PostIt>
+                    {n.id === selected && !n.preview && (
+                      <div className="note-actions" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => editNote(n)}><Icon name="note-pencil" size={16} />수정</button>
+                        <button className="danger" onClick={() => void deleteNote(n)}><Icon name="trash" size={16} />삭제</button>
+                      </div>
+                    )}
                     {!n.preview && !n.edited_by_user && (n.confidence ?? 1) < 0.6 && (
                       <button className="confirm-chip" onClick={(e) => { e.stopPropagation(); void confirmNote(n); }}
                         aria-label="AI가 쪽을 확신하지 못한 필기예요. 맞으면 눌러 주세요">확인 필요 · 맞아요</button>
@@ -694,24 +705,24 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           </div>
           {sessionId && phase !== "idle" && (
             <button className="round round-soft" onClick={() => setSheet("add")} disabled={photoBusy} aria-label="내 필기 쓰기 · 칠판 사진">
-              {photoBusy ? <span className="spin" /> : <Icon name="note-pencil" art size={30} />}
+              {photoBusy ? <span className="spin" /> : <Icon name="note-pencil" art size={30} />}<span className="tool-label">내 필기</span>
             </button>
           )}
           <input ref={photoInput} type="file" accept="image/*" capture="environment" hidden
             onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void sendPhoto(f); }} />
           {sessionId && phase !== "idle" && (
             <button className="round round-soft star-btn" onClick={starHere} aria-label="여기 중요 ⭐">
-              <Icon name="star" art size={30} />
+              <Icon name="star" art size={30} /><span className="tool-label">중요</span>
             </button>
           )}
           {recording && (
             <button className="round round-soft confused-btn" onClick={markConfused} aria-label="모르겠어요 (표시만 하고 끝나고 설명)">
-              <Icon name="hand-palm" art size={30} />{confused > 0 && <span className="badge">{confused}</span>}
+              <Icon name="hand-palm" art size={30} />{confused > 0 && <span className="badge">{confused}</span>}<span className="tool-label">모르겠어요</span>
             </button>
           )}
           {sessionId && phase !== "idle" && (
             <button className="round round-soft" onClick={() => setSheet("ask")} disabled={asking} aria-label="방금 뭐라고?">
-              {asking ? <span className="spin" /> : <Icon name="hand-waving" art size={30} />}
+              {asking ? <span className="spin" /> : <Icon name="hand-waving" art size={30} />}<span className="tool-label">질문</span>
             </button>
           )}
           {phase === "idle" && <button className="round round-record" onClick={startWithConsent} aria-label="녹음 시작"><Icon name="microphone" art size={46} /></button>}
@@ -748,7 +759,11 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               const t = tasks.find((x) => x.id === sheet.task);
               return t ? <TaskDetail task={t} toast={toast} onChange={(u) => setTasks((all) => all.map((x) => (x.id === u.id ? u : x)))} /> : null;
             })()}
-            {sheet === "pdf" && sessionId && <NotesPdf sessionId={sessionId} />}
+            {sheet === "pdf" && sessionId && <LectureMore sessionId={sessionId} onDeleted={() => go({ name: "doc", docId })} />}
+            {typeof sheet === "object" && "edit" in sheet && (() => {
+              const n = notes.find((x) => x.id === sheet.edit);
+              return n ? <EditNoteSheet note={n} onSave={(t) => void saveNote(n, t)} onDelete={() => void deleteNote(n)} /> : null;
+            })()}
             {sheet === "ask" && (
               <AskSheet page={page} onAsk={ask} onCatchUp={(m) => setSheet({ catchUp: m })} />
             )}
@@ -1011,6 +1026,21 @@ function SourceSheet({ sessionId, note, canPlay, onPlay }: { sessionId: string; 
         ))}
       </div>
       {canPlay && <Button block variant="secondary" icon="play" onClick={onPlay}>이 부분 녹음 듣기</Button>}
+    </>
+  );
+}
+
+/** 필기 고치기·지우기 */
+function EditNoteSheet({ note, onSave, onDelete }: { note: Note; onSave: (text: string) => void; onDelete: () => void }) {
+  const [text, setText] = useState(note.text);
+  return (
+    <>
+      <h3 className="t-title-m">필기 고치기</h3>
+      <textarea className="input" rows={4} value={text} onChange={(e) => setText(e.target.value)} style={{ padding: 12, resize: "vertical" }} autoFocus />
+      <div className="row">
+        <Button className="grow" variant="record" icon="trash" onClick={onDelete}>지우기</Button>
+        <Button className="grow" onClick={() => onSave(text)} disabled={!text.trim() || text === note.text}>저장</Button>
+      </div>
     </>
   );
 }

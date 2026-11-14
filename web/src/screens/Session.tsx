@@ -4,7 +4,7 @@ import type { Annotation, DocumentDetail, GlossaryTerm, SummaryResponse } from "
 import { useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, NoteSection, PostIt, TermCard, TopBar } from "../components/ui";
 import { back, go } from "../router";
-import { NotesPdf } from "./LectureExtras";
+import { NotesPdf, StudyNotePdf } from "./LectureExtras";
 import Study from "./Study";
 import { StoryEntry } from "./Story";
 import { Skeleton } from "../lib/motion";
@@ -26,6 +26,7 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
             <Button variant="secondary" icon={doc.kind === "notebook" ? "notebook" : "file-pdf"}
               onClick={() => go({ name: "lecture", docId, sessionId })}>{doc.kind === "meeting" ? "회의 노트로 보기" : doc.kind === "notebook" ? "노트로 보기" : "강의자료 위에서 보기"}</Button>
             {doc.kind !== "meeting" && <StoryEntry docId={docId} sessionId={sessionId} />}
+            <StudyNotePdf sessionId={sessionId} />
             <NotesPdf sessionId={sessionId} />
             <ExportRow sessionId={sessionId} />
             <Notes doc={doc} sessionId={sessionId} />

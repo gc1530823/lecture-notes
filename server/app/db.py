@@ -414,6 +414,14 @@ class Database:
             )
         return docs
 
+    def delete_session(self, session_id: str) -> None:
+        """강의 하나와 그 강의에서 나온 것(받아쓰기·필기·요약·퀴즈·표시)을 지운다"""
+        with self._lock, self._conn:
+            for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes", "study_sets", "glossary",
+                          "feedback", "marks", "photos", "quiz_sets"):
+                self._conn.execute(f"DELETE FROM {table} WHERE session_id = ?", (session_id,))
+            self._conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+
     def delete_document(self, doc_id: str) -> list[str]:
         """강의자료와 그 강의들을 모두 지우고, 지운 강의 id를 돌려준다 (녹음·PDF 파일 정리용)."""
         with self._lock, self._conn:

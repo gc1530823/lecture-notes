@@ -1070,3 +1070,30 @@ def test_retry_failed_session(client):
             break
         time.sleep(0.1)
     assert client.get(f"/sessions/{sid}/summary").json()["status"] == "done"
+
+
+def test_study_note_pdf_and_delete_session(client):
+    """AI 정리 노트 PDF: 배운 내용을 주제별로 새로 정리한 PDF. 강의 지우기: 그 강의만 지우고 강의자료는 그대로"""
+    import pymupdf as _pdf
+
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "학습률이 너무 크면 발산해요. 이거 시험에 꼭 나와요.", "start_ms": 0, "end_ms": 3000})
+        receive_annotation(ws)
+    assert client.get(f"/sessions/{sid}/study-pdf/status").json()["status"] == "none"
+    assert client.post(f"/sessions/{sid}/study-pdf").status_code == 202
+    for _ in range(50):
+        if client.get(f"/sessions/{sid}/study-pdf/status").json()["status"] == "ready":
+            break
+        time.sleep(0.1)
+    res = client.get(f"/sessions/{sid}/study-pdf")
+    assert res.status_code == 200 and res.headers["content-type"] == "application/pdf"
+    text = "".join(p.get_text() for p in _pdf.open("pdf", res.content)).replace("\xa0", " ")
+    assert "AI 정리 노트" in text and "핵심 용어" in text and "스스로 확인하기" in text
+
+    assert client.delete(f"/sessions/{sid}").status_code == 204
+    assert client.get(f"/sessions/{sid}/summary").status_code == 404
+    assert client.get(f"/documents/{doc['id']}").status_code == 200   # 강의자료는 그대로
+    assert client.get(f"/sessions/{sid}/study-pdf").status_code == 404
