@@ -38,6 +38,16 @@
 - **한도 없이**: [Ollama](https://ollama.com) 를 깔고 `ollama pull qwen3:4b` 를 해 두면, Groq 무료 한도에 걸릴 때 이 컴퓨터의 AI 가 이어서 해요.
 - **노트북이 잠들면** 서버도 멈춰요. 수업 중에는 전원에 꽂고 잠자기를 꺼 두세요.
 
+## 우리 AI 쓰기 (선택, 한도 없이)
+
+| 무엇 | 받는 곳 | 넣을 곳 |
+| --- | --- | --- |
+| **우리 AI** (필기·요약, Groq 한도에 걸리면 이어 받음) | GitHub 저장소 → Releases → **우리 AI (최신)** 의 `lecture-notes.gguf.part00`, `part01`, `Modelfile` (합쳐서 2.4GB) | `deploy\model\` |
+| **우리 받아쓰기 AI** (한국어로 더 학습한 Whisper, 틀리는 글자 10.3% → 4.0%) | kaggle.com → 내 Code → **lecture-notes-stt** → Output 의 `whisper-ko-ct2` 폴더 (또는 zip) | `deploy\stt\` |
+
+넣고 서버를 다시 켜면 알아서 설치하고 써요 (Windows 는 Ollama 도 알아서 설치). 우리 AI 는 이 컴퓨터에서 돌아서 Groq 보다 느리고(한 번에 1분쯤),
+정리 품질은 Groq 가 더 좋아요. 그래서 평소엔 Groq, 한도에 걸릴 때만 우리 AI 가 이어 받아요.
+
 ## 안전
 
 - 초대 코드를 아는 사람만 가입할 수 있어요. 코드를 바꾸려면 `deploy/.env` 의 `INVITE_CODE` 를 고치고 다시 켜요 (이미 가입한 사람은 그대로).

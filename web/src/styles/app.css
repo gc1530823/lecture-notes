@@ -1054,3 +1054,5 @@ body:has(.tabbar) .screen { padding-bottom: calc(72px + env(safe-area-inset-bott
 .login-card .input { padding: 0 14px; font: 500 16px/22px var(--font-sans); }
 .login-error { margin: 0; color: var(--accent-record); font: 600 13px/18px var(--font-sans); }
 @keyframes login-pop { from { transform: scale(.4) rotate(-12deg); opacity: 0; } }
+.retry-row { align-items: flex-start; gap: 10px; }
+.retry-why { display: block; margin-top: 4px; color: var(--accent-record); font-size: 12px; line-height: 17px; word-break: break-all; }

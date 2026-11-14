@@ -490,9 +490,9 @@ async def _process_audio(session_id: str, document_id: str, path: str) -> None:
             app.state.transcriber.transcribe, path, " ".join(doc["keywords"][:40]),
             lambda p: progress.__setitem__(session_id, p),
         )
-    except Exception:  # 디코딩 실패, 모델 다운로드 실패 등
+    except Exception as exc:  # 디코딩 실패, 모델 다운로드 실패 등
         log.exception("녹음 파일 받아쓰기 실패")
-        db().set_session_status(session_id, "failed")
+        db().set_session_status(session_id, "failed", _why("받아쓰기", exc))
         return
     finally:
         progress.pop(session_id, None)
@@ -507,6 +507,22 @@ async def _process_audio(session_id: str, document_id: str, path: str) -> None:
     await live.close()
     db().set_session_status(session_id, "processing")
     await _summarize(session_id, document_id)
+
+
+def _why(step: str, exc: Exception) -> str:
+    """실패 이유를 사람이 알아볼 말로 (화면에 보여 준다)"""
+    text = " ".join(str(exc).split())
+    if "401" in text or "invalid_api_key" in text or "Invalid API Key" in text or "GROQ_API_KEY" in text:
+        hint = "Groq 키가 맞지 않아요. 서버를 다시 켜면 키를 확인하고 다시 물어봐요."
+    elif "429" in text or "한도" in text:
+        hint = "Groq 무료 한도에 걸렸어요. 잠시 뒤 '다시 정리하기'를 눌러 주세요."
+    elif "연결할 수 없" in text or "Connect" in text:
+        hint = "AI 서버에 연결할 수 없었어요. 인터넷을 확인하고 다시 해 주세요."
+    elif "ffmpeg" in text.lower() or "FileNotFound" in type(exc).__name__:
+        hint = "녹음 파일을 열 수 없었어요 (ffmpeg 가 없거나 파일이 깨졌을 수 있어요)."
+    else:
+        hint = ""
+    return f"{step} 단계에서 멈췄어요. {hint} ({type(exc).__name__}: {text[:160]})".replace("  ", " ")
 
 
 @app.post("/sessions/{session_id}/retry")
@@ -668,9 +684,9 @@ async def _summarize(session_id: str, document_id: str) -> None:
     pages = db().list_pages(document_id)
     try:
         body = await app.state.llm.summarize(pages, db().get_segments(session_id), db().list_annotations(session_id))
-    except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError):
+    except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError) as exc:
         log.exception("요약·퀴즈 생성 실패")
-        db().set_session_status(session_id, "failed")
+        db().set_session_status(session_id, "failed", _why("필기·요약", exc))
         return
     body["quiz"] = [q for q in body["quiz"] if 0 <= q["answer_index"] < len(q["choices"])]
     body["tips"] = []
@@ -692,7 +708,7 @@ def get_summary(session_id: str, background: BackgroundTasks):
     if summary and session["status"] == "done" and _old_quiz(session_id, summary) and session_id not in app.state.quiz_jobs:
         app.state.quiz_jobs.add(session_id)
         background.add_task(_remake_quiz, session_id)
-    return {"status": session["status"], "summary": summary, "quiz_status": "making" if session_id in app.state.quiz_jobs else "ready",
+    return {"status": session["status"], "error": session.get("error"), "summary": summary, "quiz_status": "making" if session_id in app.state.quiz_jobs else "ready",
             "progress": app.state.progress.get(session_id), "review": app.state.reviews.get(session_id)}
 
 

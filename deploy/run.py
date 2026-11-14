@@ -9,7 +9,6 @@
 - 무료 터널 주소는 켤 때마다 바뀐다. 새 주소를 카톡으로 보내면 친구 앱이 눌러서 바로 연결된다.
 """
 
-import getpass
 import os
 import re
 import secrets
@@ -19,6 +18,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -42,6 +42,32 @@ def need(cmd: str, how: str) -> str:
     return path
 
 
+def clean_key(text: str) -> str:
+    """붙여 넣다 섞인 공백·따옴표·보이지 않는 글자(Ctrl+V 가 ^V 로 들어가는 것 등)를 걷어 낸다"""
+    return re.sub(r"[^A-Za-z0-9_]", "", text.strip().strip("'\""))
+
+
+def check_groq(key: str) -> str:
+    """'ok' · 'bad'(키가 틀림) · 'offline'(지금 확인할 수 없음 — 막지 않는다)"""
+    if not re.fullmatch(r"gsk_[A-Za-z0-9]{20,}", key):
+        return "bad"
+    request = urllib.request.Request("https://api.groq.com/openai/v1/models", headers={"Authorization": f"Bearer {key}",
+                                                                                     "User-Agent": "lecture-notes-server"})
+    try:
+        with urllib.request.urlopen(request, timeout=10) as res:
+            return "ok" if res.status == 200 else "offline"
+    except urllib.error.HTTPError as exc:
+        return "bad" if exc.code in (400, 401, 403) else "offline"
+    except OSError:
+        return "offline"
+
+
+def ask_groq_key() -> str:
+    say("\nGroq API 키를 넣어 주세요 (https://console.groq.com/keys 에서 무료로 만들어요. gsk_ 로 시작해요).")
+    say("붙여넣기: 마우스 오른쪽 클릭 또는 Ctrl+V. 없으면 그냥 Enter (그러면 이 컴퓨터의 AI 만 써요).")
+    return clean_key(input("Groq 키: "))
+
+
 def load_env() -> dict:
     env = {}
     if ENV_FILE.exists():
@@ -50,10 +76,24 @@ def load_env() -> dict:
                 key, value = line.split("=", 1)
                 env[key.strip()] = value.strip()
     changed = False
-    if not env.get("GROQ_API_KEY"):
-        say("\n[처음 한 번] Groq API 키를 넣어 주세요 (https://console.groq.com/keys 에서 무료로 만들 수 있어요).")
-        say("            입력해도 화면에 보이지 않아요. 없으면 그냥 Enter (그러면 이 컴퓨터의 AI만 써요).")
-        env["GROQ_API_KEY"] = getpass.getpass("Groq 키: ").strip()
+    if "GROQ_API_KEY" not in env:
+        env["GROQ_API_KEY"] = ask_groq_key()
+        changed = True
+    # 켤 때마다 키가 진짜 되는지 Groq 에 물어본다 (틀린 키면 받아쓰기·필기가 모두 실패해서)
+    while env.get("GROQ_API_KEY"):
+        cleaned = clean_key(env["GROQ_API_KEY"])
+        if cleaned != env["GROQ_API_KEY"]:
+            env["GROQ_API_KEY"], changed = cleaned, True
+        state = check_groq(env["GROQ_API_KEY"])
+        if state == "ok":
+            say("Groq 키 확인: 잘 돼요 ✓")
+            break
+        if state == "offline":
+            say("Groq 키 확인: 지금은 확인할 수 없어 일단 그대로 켜요 (인터넷 연결 확인)")
+            break
+        shown = env["GROQ_API_KEY"][:6] + "…" if env["GROQ_API_KEY"] else "(비어 있음)"
+        say(f"\n[!] 저장된 Groq 키가 맞지 않아요 ({shown}, {len(env['GROQ_API_KEY'])}자). 다시 넣어 주세요.")
+        env["GROQ_API_KEY"] = ask_groq_key()
         changed = True
     if not env.get("INVITE_CODE"):
         suggestion = "쫑긋-" + secrets.token_hex(2)
@@ -95,6 +135,54 @@ def build_web() -> None:
     subprocess.run([npm, "run", "build", "--silent"], cwd=WEB, check=True)
 
 
+def install_our_ai() -> None:
+    """우리 AI(필기·요약): deploy/model/ 에 릴리스 '우리 AI (최신)'의 파일(lecture-notes.gguf.part00, part01, Modelfile)을
+    넣어 두면 이어 붙여 Ollama 에 등록한다 (처음 한 번)"""
+    folder = ROOT / "deploy" / "model"
+    parts = sorted(folder.glob("lecture-notes.gguf.part*")) if folder.exists() else []
+    if not parts:
+        return
+    if not shutil.which("ollama"):
+        say("\n우리 AI 파일은 있는데 Ollama 가 없어요. https://ollama.com 에서 설치한 뒤 다시 켜 주세요.")
+        return
+    listed = subprocess.run(["ollama", "list"], capture_output=True, text=True).stdout
+    if re.search(r"^lecture-notes", listed, re.M):
+        return
+    say("\n우리 AI 를 설치하는 중… (처음 한 번, 2.4GB 라 몇 분 걸려요)")
+    gguf = folder / "lecture-notes.gguf"
+    with open(gguf, "wb") as out:
+        for part in parts:
+            with open(part, "rb") as f:
+                shutil.copyfileobj(f, out, 16 * 1024 * 1024)
+    modelfile = folder / "Modelfile"
+    text = modelfile.read_text(encoding="utf-8") if modelfile.exists() else "FROM ./lecture-notes.gguf\n"
+    modelfile.write_text(re.sub(r"^FROM .*$", "FROM ./lecture-notes.gguf", text, flags=re.M), encoding="utf-8")
+    done = subprocess.run(["ollama", "create", "lecture-notes", "-f", str(modelfile)], cwd=folder)
+    gguf.unlink(missing_ok=True)
+    if done.returncode == 0:
+        for part in parts:
+            part.unlink(missing_ok=True)
+        say("우리 AI 설치 끝 ✓")
+
+
+def our_stt() -> dict:
+    """우리 받아쓰기 AI(한국어로 더 학습한 Whisper): deploy/stt/ 에 whisper-ko-ct2 폴더(또는 그 zip)를 넣어 두면 쓴다"""
+    folder = ROOT / "deploy" / "stt"
+    if not folder.exists():
+        return {}
+    for zipped in folder.glob("*.zip"):
+        import zipfile
+        say(f"받아쓰기 AI 압축 푸는 중… ({zipped.name})")
+        with zipfile.ZipFile(zipped) as z:
+            z.extractall(folder)
+        zipped.unlink()
+    model = next((p.parent for p in folder.rglob("model.bin")), None)
+    if not model:
+        return {}
+    say(f"받아쓰기: 우리 한국어 받아쓰기 AI ({model.name}) ✓")
+    return {"WHISPER_MODEL": str(model)}
+
+
 def ai_mode(env: dict) -> dict:
     """Groq 키가 있으면 Groq, 이 컴퓨터에 Ollama 모델이 있으면 한도에 걸릴 때 그 모델이 이어서"""
     out = {}
@@ -106,8 +194,9 @@ def ai_mode(env: dict) -> dict:
             models = ""
     local = "lecture-notes" if re.search(r"^lecture-notes", models, re.M) else "qwen3:4b" if "qwen3:4b" in models else None
     if env.get("GROQ_API_KEY") and local:
-        out.update(LLM_MODE="hybrid", OLLAMA_MODEL=local, HYBRID_LOCAL_FIRST="1" if local == "lecture-notes" else "0")
-        say(f"AI: 수업 중은 Groq, 한도에 걸리면 이 컴퓨터의 AI({local})가 이어서")
+        # 정리 품질은 Groq 가 더 좋아서, 우리 AI 는 Groq 한도에 걸렸을 때 이어 받는다 (한도 없이)
+        out.update(LLM_MODE="hybrid", OLLAMA_MODEL=local, HYBRID_LOCAL_FIRST="0")
+        say(f"AI: Groq, 한도에 걸리면 이 컴퓨터의 우리 AI({local})가 이어서 (한도 없음)")
     elif env.get("GROQ_API_KEY"):
         out.update(LLM_MODE="groq")
         say("AI: Groq (무료 한도에 걸리면 잠시 기다려요. 'ollama pull qwen3:4b' 를 해 두면 한도 없이 이어서 해요)")
@@ -194,11 +283,27 @@ def start_funnel(ts: str) -> str:
         say("\n[!] Tailscale 에 로그인되지 않았어요. Tailscale 앱을 열어 로그인한 뒤 다시 켜 주세요.")
         sys.exit(1)
     say("\n고정 인터넷 주소를 여는 중… (Tailscale Funnel)")
-    out = subprocess.run([ts, "funnel", "--bg", str(PORT)], capture_output=True, text=True, encoding="utf-8", errors="replace")
-    text = (out.stdout or "") + (out.stderr or "")
-    if out.returncode != 0:
-        link = re.search(r"https://login\.tailscale\.com/\S+", text)
-        say("\n[!] Funnel 을 켜지 못했어요." + (f" 이 주소를 브라우저로 열어 Funnel 을 허용한 뒤 다시 켜 주세요:\n    {link.group(0)}" if link else "\n" + text))
+    # 처음에는 "Funnel 을 허용해 주세요" 주소를 띄우고 허용할 때까지 기다린다 → 화면에 그대로 보여 준다 (최대 10분)
+    proc = subprocess.Popen([ts, "funnel", "--bg", str(PORT)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            text=True, encoding="utf-8", errors="replace")
+    lines: list[str] = []
+
+    def read():
+        for line in proc.stdout:  # type: ignore[union-attr]
+            lines.append(line)
+            if "https://login.tailscale.com" in line:
+                say("\n[처음 한 번] 아래 주소를 브라우저로 열어 Funnel 을 허용해 주세요 (허용하면 저절로 이어져요):")
+                say("    " + line.strip())
+                if WIN:
+                    os.startfile(re.search(r"https://\S+", line).group(0))  # type: ignore[attr-defined]
+    threading.Thread(target=read, daemon=True).start()
+    try:
+        proc.wait(timeout=600)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+    if proc.returncode != 0:
+        say("\n[!] 고정 주소(Funnel)를 켜지 못했어요:\n" + "".join(lines[-8:]))
+        say("    임시 주소로 켜려면 deploy/.env 에 TUNNEL=cloudflare 를 넣어 주세요.")
         sys.exit(1)
     return f"https://{name}"
 
@@ -222,7 +327,8 @@ def main() -> None:
     env = load_env()
     py = venv_python()
     build_web()
-    run_env = {**os.environ, **{k: v for k, v in env.items() if v}, **ai_mode(env)}
+    install_our_ai()
+    run_env = {**os.environ, **{k: v for k, v in env.items() if v}, **ai_mode(env), **our_stt()}
     run_env.setdefault("DB_PATH", str(SERVER / "data" / "lecture_notes.db"))
     run_env.setdefault("UPLOAD_DIR", str(SERVER / "data" / "uploads"))
     (SERVER / "data").mkdir(exist_ok=True)

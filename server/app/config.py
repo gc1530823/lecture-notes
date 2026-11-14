@@ -16,7 +16,8 @@ class Settings:
     # "ollama" = 내 컴퓨터의 무료 공개 모델 (키가 없을 때 기본값)
     # "claude" = Claude API (유료, 품질 최고)
     # "fake"   = 테스트·화면 개발용 가짜 응답
-    groq_api_key: str = os.getenv("GROQ_API_KEY", "")
+    # 붙여 넣다 섞인 공백·따옴표·보이지 않는 글자는 걷어 낸다 (Windows 에서 Ctrl+V 가 ^V 로 들어가는 등)
+    groq_api_key: str = "".join(c for c in os.getenv("GROQ_API_KEY", "") if c.isascii() and (c.isalnum() or c == "_"))
     llm_mode: str = os.getenv("LLM_MODE", "groq" if os.getenv("GROQ_API_KEY") else "ollama")
     groq_model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
     # 녹음 파일은 조금 느려도 더 정확한 large-v3, 실시간 조각은 빠른 turbo

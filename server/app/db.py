@@ -258,6 +258,11 @@ class Database:
         if "confidence" not in columns:
             self._conn.execute("ALTER TABLE annotations ADD COLUMN confidence REAL NOT NULL DEFAULT 1")
             self._conn.commit()
+        # error: 정리에 실패한 이유 (화면에 보여 준다)
+        columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(sessions)")}
+        if "error" not in columns:
+            self._conn.execute("ALTER TABLE sessions ADD COLUMN error TEXT")
+            self._conn.commit()
         # owner: 누구 자료인지 (친구들과 함께 쓸 때). 혼자 쓸 때·예전 자료는 '' (첫 가입자가 가져간다)
         for table in ("documents", "classes", "exams"):
             columns = {r["name"] for r in self._conn.execute(f"PRAGMA table_info({table})")}
@@ -466,11 +471,12 @@ class Database:
         rows = self._query("SELECT * FROM sessions WHERE id = ?", (session_id,))
         return rows[0] if rows else None
 
-    def set_session_status(self, session_id: str, status: str) -> None:
+    def set_session_status(self, session_id: str, status: str, error: str | None = None) -> None:
+        """error: 실패했을 때 화면에 보여 줄 이유 (다른 상태로 바뀌면 지운다)"""
         ended = time.time() if status == "processing" else None
         self._write(
-            "UPDATE sessions SET status = ?, ended_at = COALESCE(ended_at, ?) WHERE id = ?",
-            (status, ended, session_id),
+            "UPDATE sessions SET status = ?, ended_at = COALESCE(ended_at, ?), error = ? WHERE id = ?",
+            (status, ended, error if status == "failed" else None, session_id),
         )
 
     def add_segment(self, session_id: str, page_id: int | None, start_ms: int, end_ms: int, text: str, loud: bool = False) -> int:

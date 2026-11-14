@@ -122,14 +122,14 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   }, [docId, initialSession, refresh]);
 
   // 녹음 파일로 정리 중인 강의: 끝날 때까지 필기를 다시 받아 온다
-  const [serverStatus, setServerStatus] = useState<{ status: string; progress: number | null } | null>(null);
+  const [serverStatus, setServerStatus] = useState<{ status: string; progress: number | null; error?: string | null } | null>(null);
   useEffect(() => {
     if (!initialSession) return;
     let alive = true;
     let timer: number | undefined;
     const poll = async () => {
       try {
-        const s = await getJSON<{ status: string; progress: number | null }>(`/sessions/${initialSession}/summary`);
+        const s = await getJSON<{ status: string; progress: number | null; error?: string | null }>(`/sessions/${initialSession}/summary`);
         if (!alive) return;
         const busy = s.status === "transcribing" || s.status === "processing";
         setServerStatus((prev) => {
@@ -658,7 +658,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         )}
         {!recording && sessionId && serverStatus?.status === "failed" && (
           <div className="listen-row retry-row">
-            <span className="t-caption muted grow">정리하지 못했어요. 녹음은 저장돼 있어요.</span>
+            <span className="t-caption muted grow">정리하지 못했어요. 녹음은 저장돼 있어요.{serverStatus.error && <><br /><span className="retry-why">{serverStatus.error}</span></>}</span>
             <button className="chip chip-accent" onClick={async () => {
               try { await postJSON(`/sessions/${sessionId}/retry`); window.location.reload(); }
               catch (e) { alert(e instanceof Error ? e.message : String(e)); }

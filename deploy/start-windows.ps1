@@ -39,4 +39,11 @@ if (-not (Has "tailscale") -and -not (Test-Path "C:\Program Files\Tailscale\tail
   Refresh-Path
 }
 
+# 우리 AI 파일(deploy\model)을 넣어 두었으면 Ollama 도 설치 (우리 AI 를 돌리는 프로그램)
+if ((Test-Path "$PSScriptRoot\model\lecture-notes.gguf.part00") -and -not (Has "ollama") -and (Get-Command winget -ErrorAction SilentlyContinue)) {
+  Write-Host "Ollama 설치 중… (우리 AI 를 돌리는 프로그램, 처음 한 번)" -ForegroundColor Cyan
+  winget install -e --id Ollama.Ollama --silent --accept-source-agreements --accept-package-agreements | Out-Host
+  Refresh-Path
+}
+
 & python "$PSScriptRoot\run.py" @args

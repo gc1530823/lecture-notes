@@ -89,7 +89,7 @@ class WhisperTranscriber:
         오래 걸리는 작업이라 스레드에서 부른다. hint에는 강의자료 용어와 직전 문장을 넣어 인식을 돕는다."""
         model = self._load()
         segments, info = model.transcribe(
-            audio, language=guess_language(hint), vad_filter=True, beam_size=1, initial_prompt=hint or None,
+            audio, language=guess_language(hint), vad_filter=True, beam_size=5 if isinstance(audio, str) else 1, initial_prompt=hint or None,
         )
         result = []
         for seg in segments:
