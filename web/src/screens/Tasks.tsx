@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getJSON } from "../api/useApi";
 import { Icon, TopBar } from "../components/ui";
 import { courseTone } from "../lib/course";
+import SlidingTabs from "../components/SlidingTabs";
+import { TimetableEditor } from "./Timetable";
 import { back as goBack, go } from "../router";
 
 export interface HomeTask {
@@ -141,7 +143,7 @@ export function TasksCard() {
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
 
 /** 할 일 화면: 달력 + 목록 + 끝낸 일 */
-export function TasksScreen() {
+function TasksPane() {
   const { tasks, setDone, setDue, undo } = useTasks();
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [day, setDay] = useState<string | null>(null);
@@ -157,7 +159,7 @@ export function TasksScreen() {
   }, [tasks]);
 
   if (!tasks) return (
-    <div className="screen"><TopBar title="할 일" onBack={() => goBack({ name: "home" })} /><div className="screen-body"><p className="muted">불러오는 중…</p></div></div>
+    <p className="muted">불러오는 중…</p>
   );
 
   const toggle = (t: HomeTask, done: boolean) => { kept.add(t.id); setDone(t, done); };
@@ -185,9 +187,8 @@ export function TasksScreen() {
     ];
 
   return (
-    <div className="screen tasks-screen">
-      <TopBar title="할 일" onBack={() => goBack({ name: "home" })} />
-      <div className="screen-body">
+    <div className="tasks-screen">
+      <div>
         <section className="cal" aria-label="마감 달력">
           <div className="cal-head">
             <button className="round" onClick={() => shift(-1)} aria-label="지난달"><Icon name="caret-left" size={16} /></button>
@@ -242,6 +243,22 @@ export function TasksScreen() {
         )}
       </div>
       <UndoBar task={undo} onUndo={(t) => setDone(t, false)} />
+    </div>
+  );
+}
+
+/** '일정' 탭: 시간표 · 할 일 (아래 탭 하나로 묶었다) */
+export function ScheduleScreen({ view }: { view: "timetable" | "tasks" }) {
+  const [tab, setTab] = useState(view);
+  return (
+    <div className="screen schedule">
+      <TopBar title="일정" onBack={() => goBack({ name: "home" })} />
+      <div className="screen-body">
+        <SlidingTabs label="일정 보기" value={tab} onChange={setTab} items={[["timetable", "시간표"], ["tasks", "할 일"]] as const} />
+        {tab === "timetable"
+          ? <TimetableEditor onPick={(course) => { try { localStorage.setItem("ln.course", course); } catch { /* 괜찮다 */ } go({ name: "home" }); }} />
+          : <TasksPane />}
+      </div>
     </div>
   );
 }

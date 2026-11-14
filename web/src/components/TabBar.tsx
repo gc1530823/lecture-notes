@@ -16,7 +16,7 @@ function useFriendAsks() {
 /** 아래 탭: 홈 · 복습 · 할 일 · 친구 · 찾기 · 설정 */
 export default function TabBar({ current }: { current: "home" | "review" | "tasks" | "friends" | "search" | "more" }) {
   const tabs = [["home", "house", "홈", () => go({ name: "home" })], ["review", "cards", "복습", () => go({ name: "review" })],
-    ["tasks", "calendar-dots", "할 일", () => go({ name: "tasks" })],
+    ["tasks", "calendar-dots", "일정", () => go({ name: "timetable" })],
     ["friends", "users", "친구", () => go({ name: "friends" })],
     ["search", "magnifying-glass", "찾기", () => go({ name: "search" })], ["more", "gear", "설정", () => go({ name: "privacy" })]] as const;
   const asks = useFriendAsks();
