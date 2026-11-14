@@ -108,24 +108,24 @@ def find_blocks(data: bytes) -> dict | None:
                 if len(cs) >= 2 and np.abs(np.median(cs, axis=0) - cs[0]).max() <= 28:
                     other += 1
                     if other >= 6:   # 다른 색이 6줄 넘게 고르게 이어진다 = 붙어 있는 다른 수업
-                        blocks.append(_block(day, seg, first, hour))
+                        blocks.append(_block(day, seg, first, hour, a, b))
                         start = y - other + 1
                         seg, gap, other = [start, y, np.median(cs, axis=0) * other, other], 0, 0
                     continue
                 gap += 1
                 if gap > 6:
-                    blocks.append(_block(day, seg, first, hour)); seg = None; gap = other = 0
+                    blocks.append(_block(day, seg, first, hour, a, b)); seg = None; gap = other = 0
             elif len(cs) >= 2:
                 seg = [y, y, np.median(cs, axis=0).copy(), 1]
         if seg:
-            blocks.append(_block(day, seg, first, hour))
+            blocks.append(_block(day, seg, first, hour, a, b))
     blocks = [bl for bl in blocks if bl["bottom"] - bl["top"] > 0.3]
     return {"days": len(days), "blocks": blocks} if blocks else None
 
 
-def _block(day: int, seg: list, first: int, hour: float) -> dict:
+def _block(day: int, seg: list, first: int, hour: float, x0: int, x1: int) -> dict:
     return {"day": day, "top": (seg[0] - first) / hour, "bottom": (seg[1] + 1 - first) / hour,
-            "color": [int(c) for c in seg[2] / seg[3]]}
+            "color": [int(c) for c in seg[2] / seg[3]], "box": (int(x0), int(seg[0]), int(x1), int(seg[1]) + 1)}
 
 
 def _clock(minutes: float) -> str:
@@ -171,7 +171,7 @@ def combine(found: dict | None, ai_rows: list[dict]) -> list[dict]:
             used.add(best)
             name, place = ai_rows[best]["course"], ai_rows[best]["place"]
         out.append({"course": name, "weekday": bl["day"], "start": _clock(start), "end": _clock(min(end, 24 * 60 - 5)),
-                    "place": place})
+                    "place": place, "_box": bl["box"], "_color": bl["color"]})
     # 칸을 하나도 못 찾은 요일에서 AI 가 읽은 것은 그대로 더한다
     seen_days = {bl["day"] for bl in blocks}
     out += [r for i, r in enumerate(ai_rows) if i not in used and r["weekday"] not in seen_days]

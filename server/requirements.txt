@@ -6,6 +6,7 @@ python-multipart>=0.0.9
 pydantic>=2.7
 httpx>=0.27          # 무료 모드(Ollama) 호출
 faster-whisper>=1.1  # 녹음 파일 받아쓰기 (무료, 서버에서)
+onnxruntime>=1.17  # 시간표 캡처의 과목 이름 읽기 (한국어 글자 인식, 서버에서)
 av<16                # PyAV 16부터 faster-whisper 1.2와 맞지 않는다 (metadata_errors 인자 제거)
 
 # tests

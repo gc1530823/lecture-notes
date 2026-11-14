@@ -25,7 +25,8 @@ from . import auth, training_log
 from .config import settings
 from .db import Database
 from .dedupe import merge_concepts
-from .timetable_image import combine as combine_timetable, find_blocks
+from .ocr import name_and_place, read_block
+from .timetable_image import combine as combine_timetable, find_blocks, load_rgb
 from .due import parse_due
 from .live_session import LiveSession
 from .llm import LLMError, accept_fixed_speech, clean_timetable, make_llm
@@ -1860,6 +1861,18 @@ async def timetable_from_image(file: UploadFile = File(...)):
         log.exception("시간표 사진 읽기 실패")
         ai_error = str(exc)
     rows = combine_timetable(found, ai_rows)
+    # AI 가 이름을 못 읽은 칸은 서버의 한국어 글자 인식으로 칸 안의 글을 직접 읽는다
+    if any(not r["course"] for r in rows if "_box" in r):
+        try:
+            rgb = await asyncio.to_thread(load_rgb, data)
+            for r in rows:
+                if not r["course"] and "_box" in r:
+                    r["course"], place = name_and_place(await asyncio.to_thread(read_block, rgb, r["_box"], r["_color"]))
+                    r["place"] = r["place"] or place
+        except Exception:
+            log.exception("시간표 글자 인식 실패")
+    for r in rows:
+        r.pop("_box", None); r.pop("_color", None)
     if not rows:
         if ai_error:
             raise HTTPException(502, f"시간표 사진을 읽지 못했어요. 직접 넣어 주세요. (이유: {ai_error[:160]})")
@@ -1868,8 +1881,8 @@ async def timetable_from_image(file: UploadFile = File(...)):
     note = ""
     if unnamed:
         note = (f"과목 이름을 {unnamed}개 못 읽었어요. 빈 칸에 이름을 적어 주세요."
-                + (" (AI 가 사진을 못 읽어서 시간만 맞춰 뒀어요)" if ai_error else ""))
-    return {"classes": rows, "note": note}
+                + (" (사진 속 글을 다 읽지 못했어요)" if ai_error else ""))
+    return {"classes": rows, "note": note, "ai_error": ai_error[:300]}
 
 
 class ClassBulk(BaseModel):
