@@ -1,4 +1,4 @@
-"""내 컴퓨터를 강의노트 서버로: 서버를 켜고, 무료 터널(Cloudflare)로 인터넷 주소를 만들어 준다.
+"""내 컴퓨터를 LUNE 서버로: 서버를 켜고, 무료 터널(Cloudflare)로 인터넷 주소를 만들어 준다.
 
   python deploy/run.py            서버 + 인터넷 주소 (친구들·발표용)
   python deploy/run.py --local    이 컴퓨터·같은 와이파이에서만 (터널 없이)
@@ -96,7 +96,7 @@ def load_env() -> dict:
         env["GROQ_API_KEY"] = ask_groq_key()
         changed = True
     if not env.get("INVITE_CODE"):
-        suggestion = "쫑긋-" + secrets.token_hex(2)
+        suggestion = "lune-" + secrets.token_hex(2)
         say(f"\n[처음 한 번] 친구들이 가입할 때 넣을 초대 코드를 정해 주세요. 그냥 Enter 면 '{suggestion}'")
         env["INVITE_CODE"] = input("초대 코드: ").strip() or suggestion
         changed = True
@@ -322,7 +322,7 @@ def main() -> None:
         import signal
         signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
     local_only = "--local" in sys.argv
-    say("=" * 56 + "\n 쫑긋 강의노트 서버\n" + "=" * 56)
+    say("=" * 56 + "\n LUNE 서버 · Listen. Learn. Remember.\n" + "=" * 56)
     need("ffmpeg", "설치 스크립트(start-windows.bat / start-mac.command)를 쓰면 함께 설치돼요.")
     env = load_env()
     py = venv_python()

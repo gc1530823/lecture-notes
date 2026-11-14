@@ -1,5 +1,5 @@
 #!/bin/bash
-# 쫑긋 강의노트 서버 (Mac): 필요한 프로그램을 Homebrew 로 설치하고 run.py 를 실행한다. Finder 에서 두 번 눌러 실행하세요.
+# LUNE 서버 (Mac): 필요한 프로그램을 Homebrew 로 설치하고 run.py 를 실행한다. Finder 에서 두 번 눌러 실행하세요.
 # 설치하는 것: Python 3.12, Node.js, FFmpeg, cloudflared, Tailscale (이미 있으면 건너뜀)
 cd "$(dirname "$0")" || exit 1
 

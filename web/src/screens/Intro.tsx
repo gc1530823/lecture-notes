@@ -1,5 +1,5 @@
 // 소개 화면 (처음 한 번): 스크롤에 맞춰 장면이 이어지는 영화 같은 소개.
-// 화면은 고정돼 있고(sticky), 스크롤한 만큼(0~1)이 --p 로 들어가 쫑긋·글자·아이콘이 그 값에 맞춰 움직인다.
+// 화면은 고정돼 있고(sticky), 스크롤한 만큼(0~1)이 --p 로 들어가 로고·글자·아이콘이 그 값에 맞춰 움직인다.
 // 손가락·마우스 위치는 --mx/--my 로 들어가 깊이감(겹겹이 다르게 움직임)을 만든다.
 import { useEffect, useRef, useState } from "react";
 import { Button, Icon } from "../components/ui";
@@ -48,7 +48,7 @@ export default function Intro() {
     <div className="intro" ref={root} style={{ height: `${SCENES * 100}dvh` }}>
       <div className={`intro-stage scene-${scene}`}>
         <div className="intro-sky" aria-hidden="true" />
-        <div className="intro-word" aria-hidden="true">쫑긋</div>
+        <div className="intro-word" aria-hidden="true">LUNE</div>
         <div className="intro-floaters" aria-hidden="true">
           {FLOATERS.map((name, i) => <span key={name} className={`floater f${i}`}><Icon name={name} art size={64} /></span>)}
         </div>
@@ -61,7 +61,7 @@ export default function Intro() {
         <div className="intro-mascot"><span className="intro-hero" key={hero}><Icon name={hero} art size={200} /></span></div>
         {scene === 4 && <Confetti count={44} />}
 
-        <div className="intro-copy c0"><p className="intro-kicker">수업을 대신 들어 주는 강의노트</p><h1>귀를 쫑긋.</h1></div>
+        <div className="intro-copy c0"><p className="intro-kicker">수업을 대신 들어 주는 AI 강의 노트</p><h1>Listen.<br />Learn.<br />Remember.</h1></div>
         <div className="intro-copy c1"><h2>녹음만 켜세요.<br />나머지는 알아서.</h2><p>교수님 말이 실시간으로 글이 되고, 강의자료의 그 문단 옆에 필기로 붙어요.</p></div>
         <div className="intro-copy c2"><h2>“시험에 나와요”<br />놓치지 않아요.</h2><p>시험·과제·공지 얘기가 나오면 바로 표시해 둬요.</p></div>
         <div className="intro-copy c3"><h2>수업이 끝나면<br />공부가 준비돼 있어요.</h2><p>요약 · 플래시카드 · 족보 노트 · 오늘의 복습까지 준비돼요.</p></div>

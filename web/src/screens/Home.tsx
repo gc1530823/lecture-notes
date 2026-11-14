@@ -13,6 +13,7 @@ import { courseTone } from "../lib/course";
 import { useWaves, Wave } from "../lib/wave";
 import { go } from "../router";
 import { play } from "../lib/sound";
+import { LuneMark, LuneWordmark } from "../components/Brand";
 
 
 export function subtitleOf(doc: DocumentBrief): string {
@@ -142,7 +143,7 @@ export default function Home() {
     <div className="screen">
       <header className="home-head">
         <div className="row">
-          <span className="home-brand grow"><Icon name="book-open-text" art size={28} /> 강의노트</span>
+          <span className="home-brand grow"><LuneMark size={30} /><LuneWordmark height={19} /></span>
           <button className="top-bar-back" onClick={() => go({ name: "search" })} aria-label="모든 강의에서 찾기"><Icon name="magnifying-glass" /></button>
           <button className="top-bar-back" onClick={() => go({ name: "privacy" })} aria-label="설정"><Icon name="gear" /></button>
         </div>

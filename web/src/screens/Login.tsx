@@ -4,6 +4,7 @@ import { useState } from "react";
 import { postJSON } from "../api/useApi";
 import { Button } from "../components/ui";
 import SlidingTabs from "../components/SlidingTabs";
+import { LuneMark, LuneWordmark, TAGLINE } from "../components/Brand";
 
 export interface Me { auth: boolean; user: { id: string; name: string } | null }
 
@@ -24,11 +25,10 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
   const ready = name.trim() && password.length >= (mode === "signup" ? 6 : 1) && (mode === "login" || invite.trim());
   return (
     <div className="login">
-      <div className="login-mark" aria-hidden="true">
-        <svg viewBox="0 0 256 256"><use href={`${import.meta.env.BASE_URL}icons.svg#microphone`} /></svg>
-      </div>
-      <h1>쫑긋 강의노트</h1>
-      <p className="t-caption muted">녹음하면 강의자료 위에 필기가 붙어요</p>
+      <LuneMark size={84} className="login-mark" />
+      <h1 aria-label="LUNE"><LuneWordmark height={30} /></h1>
+      <p className="login-tag">{TAGLINE}</p>
+      <p className="t-caption muted">녹음하면 강의자료 위에 AI 필기가 붙어요</p>
       <form className="login-card" onSubmit={(e) => { e.preventDefault(); if (ready && !busy) void submit(); }}>
         <SlidingTabs label="로그인 방법" value={mode} onChange={(m) => { setMode(m); setError(null); }}
           items={[["login", "로그인"], ["signup", "처음이에요"]] as const} />

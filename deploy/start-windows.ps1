@@ -1,4 +1,4 @@
-﻿# 쫑긋 강의노트 서버 (Windows): 필요한 프로그램을 winget 으로 설치하고 run.py 를 실행한다.
+﻿# LUNE 서버 (Windows): 필요한 프로그램을 winget 으로 설치하고 run.py 를 실행한다.
 # 설치하는 것: Python 3.12, Node.js LTS, FFmpeg, cloudflared, Tailscale (이미 있으면 건너뜀)
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
