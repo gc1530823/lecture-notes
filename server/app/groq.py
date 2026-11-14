@@ -25,7 +25,7 @@ from . import training_log
 from .config import settings
 from .llm import BOARD_SYSTEM, TIMETABLE_SYSTEM, FIX_SPEECH_SCHEMA, FIX_SPEECH_SYSTEM, LLMError, _fix_speech_prompt
 from .ollama_llm import OllamaLLM
-from .stt import PROMPT_LEAD, Segment, guess_language, is_hallucination, split_sentences
+from .stt import PROMPT_LEAD, Segment, is_hallucination, split_sentences
 
 log = logging.getLogger(__name__)
 
@@ -231,14 +231,17 @@ class GroqTranscriber:
     def __init__(self, transport: httpx.BaseTransport | None = None) -> None:
         self.client = httpx.Client(base_url=BASE_URL, timeout=httpx.Timeout(300, connect=10), transport=transport)
 
-    def _request(self, filename: str, data: bytes, hint: str, model: str, patient: bool = True) -> list[Segment]:
-        """patient=False: 한도에 걸리면 기다리지 않고 바로 SpeechLimit을 낸다 (이 서버의 Whisper로 넘기려고)."""
-        language = guess_language(hint)
-        form = {"model": model, "language": language, "response_format": "verbose_json",
-                "temperature": "0"}
+    def _request(self, filename: str, data: bytes, hint: str, model: str, patient: bool = True,
+                 language: str | None = None) -> list[Segment]:
+        """patient=False: 한도에 걸리면 기다리지 않고 바로 SpeechLimit을 낸다 (이 서버의 Whisper로 넘기려고).
+        language=None: Whisper 가 목소리를 듣고 언어를 고른다 (강의자료가 영어여도 한국어로 말하면 한국어로).
+        고른 언어는 self.detected 에 남긴다 (녹음 파일은 첫 조각에서 정한 언어를 끝까지 쓴다)."""
+        form = {"model": model, "response_format": "verbose_json", "temperature": "0"}
+        if language:
+            form["language"] = language
         # Whisper는 프롬프트의 말투를 따라 쓰므로, 마침표가 있는 문장을 앞에 두어 문장 끝에 마침표를 찍게 한다.
         # 프롬프트는 짧아야 해서 용어·직전 문장은 뒤쪽만 남긴다
-        form["prompt"] = PROMPT_LEAD[language] + hint[-160:]
+        form["prompt"] = PROMPT_LEAD[language if language in PROMPT_LEAD else "ko"] + hint[-160:]
         for attempt in range(MAX_RETRIES):
             try:
                 response = self.client.post("/audio/transcriptions", data=form, files={"file": (filename, data)},
@@ -258,6 +261,7 @@ class GroqTranscriber:
                         len(data), len(form.get("prompt", "")))
             raise LLMError(f"Groq 받아쓰기 오류 ({response.status_code}): {detail}")
         body = response.json()
+        self.detected = {"korean": "ko", "english": "en"}.get(str(body.get("language", "")).lower(), body.get("language") or None)
         segments = body.get("segments") or [{"start": 0, "end": body.get("duration", 0), "text": body.get("text", "")}]
         kept = []
         for s in segments:
@@ -278,6 +282,7 @@ class GroqTranscriber:
             return split_sentences(self._request("live.wav", _wav_bytes(audio), hint, settings.groq_live_whisper_model,
                                                  patient))
         result: list[Segment] = []
+        language = None   # 첫 조각에서 목소리로 정하고, 다음 조각부터는 그 언어로 고정
         with tempfile.TemporaryDirectory() as tmp:
             parts = _split_audio(audio, tmp)
             for i, part in enumerate(parts):
@@ -287,7 +292,9 @@ class GroqTranscriber:
                 if len(data) < 4000:  # 끝에 남는 1초 남짓한 조각: 받아쓸 말이 없고 Groq가 거절하기도 한다
                     continue
                 try:
-                    segments = self._request(os.path.basename(part), data, hint, settings.groq_whisper_model, patient)
+                    segments = self._request(os.path.basename(part), data, hint, settings.groq_whisper_model, patient, language)
+                    if language is None and segments:
+                        language = getattr(self, "detected", None)
                 except SpeechLimit:
                     raise
                 except LLMError as exc:
@@ -295,7 +302,7 @@ class GroqTranscriber:
                         raise
                     # 프롬프트(용어 힌트) 때문에 거절되는 경우가 있어, 힌트 없이 한 번 더
                     log.warning("받아쓰기 조각 %d 다시 시도 (힌트 없이): %s", i, exc)
-                    segments = self._request(os.path.basename(part), data, "", settings.groq_whisper_model, patient)
+                    segments = self._request(os.path.basename(part), data, "", settings.groq_whisper_model, patient, language)
                 result += [Segment(s.start_ms + offset, s.end_ms + offset, s.text) for s in segments]
                 if on_progress:
                     on_progress((i + 1) / len(parts))

@@ -90,7 +90,8 @@ class WhisperTranscriber:
         model = self._load()
         segments, info = model.transcribe(
             # 서버 CPU 에서는 beam 5 가 2~3배 느리다 → 1 (VAD 로 조용한 곳은 건너뛴다)
-            audio, language=guess_language(hint), vad_filter=True, beam_size=1, initial_prompt=hint or None,
+            # 언어는 강의자료 글이 아니라 목소리로 정한다 (영어 슬라이드 + 한국어 강의가 흔하다)
+            audio, language=None, vad_filter=True, beam_size=1, initial_prompt=hint or None,
         )
         result = []
         for seg in segments:

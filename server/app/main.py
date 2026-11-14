@@ -609,6 +609,22 @@ async def retry_session(session_id: str, background: BackgroundTasks):
     return db().get_session(session_id)
 
 
+@app.post("/sessions/{session_id}/retranscribe")
+async def retranscribe(session_id: str, background: BackgroundTasks):
+    """녹음부터 다시 받아쓰기 (예: 한국어 강의가 영어로 받아써졌을 때). AI 필기·받아쓰기는 새로, 내가 쓴 필기는 그대로"""
+    session = _session_or_404(session_id)
+    if session["status"] in ("transcribing", "processing", "recording"):
+        raise HTTPException(409, "지금 정리하는 중이에요. 끝난 뒤 다시 해 주세요.")
+    found = audio_file(session_id)
+    if found is None:
+        raise HTTPException(404, "이 강의는 서버에 녹음이 없어 다시 받아쓸 수 없어요.")
+    doc = db().get_document(session["document_id"])
+    db().reset_for_renote(session_id, notebook=doc["kind"] in ("notebook", "meeting"))
+    db().set_session_status(session_id, "transcribing")
+    background.add_task(_process_audio, session_id, session["document_id"], found[0])
+    return db().get_session(session_id)
+
+
 @app.get("/sessions/{session_id}/glossary")
 def get_glossary(session_id: str):
     """실시간 용어 사전: 강의 중에 처음 나온 전문용어와 뜻 (나온 순서대로)."""

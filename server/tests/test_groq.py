@@ -71,7 +71,8 @@ def test_transcribe_file_in_chunks_with_offsets(monkeypatch):
     # 10분 조각마다 시작 시각을 더해 준다 (여기서는 2초 조각)
     assert [s.start_ms for s in segments[::2]] == [500, 2500, 4500]
     assert segments[1].text == "꼭 기억하세요."
-    assert b"whisper-large-v3\r\n" in requests[0].content and b"name=\"language\"" in requests[0].content
+    # 언어는 목소리로: 첫 조각에는 언어를 정해 보내지 않는다 (강의자료가 영어여도 한국어 강의일 수 있다)
+    assert b"whisper-large-v3\r\n" in requests[0].content and b"name=\"language\"" not in requests[0].content
 
 
 def test_transcribe_live_chunk_sends_wav():
@@ -128,16 +129,14 @@ def test_study_tools_work_with_groq_page_material(tmp_path, monkeypatch):
 
 
 def test_english_lecture_is_transcribed_as_english_and_prompt_echo_is_dropped():
-    from app.stt import guess_language, is_hallucination
+    from app.stt import is_hallucination
 
     hint = "BISECTION string start abcdefgh loop iterates expressions values objects algorithms"
-    assert guess_language(hint) == "en"
-    assert guess_language("경사하강법 학습률 역전파 손실 함수 기울기 소실 과적합 정규화") == "ko"
     seen = []
 
     def handler(request):
         seen.append(request.content)
-        return httpx.Response(200, json={"segments": [
+        return httpx.Response(200, json={"language": "english", "segments": [
             {"start": 0, "end": 20, "text": "BISECTION string start abcdefgh loop", "no_speech_prob": 0.1, "compression_ratio": 1.2},
             {"start": 20, "end": 21, "text": "you", "no_speech_prob": 0.2},
             {"start": 21, "end": 30, "text": "♪ music ♪", "no_speech_prob": 0.9},
@@ -150,7 +149,9 @@ def test_english_lecture_is_transcribed_as_english_and_prompt_echo_is_dropped():
     t = GroqTranscriber(transport=httpx.MockTransport(handler))
     segments = t._request("a.wav", b"RIFF", hint, "whisper-large-v3")
     assert [s.text for s in segments] == ["Let's dive right in.", "So why do we have multicore processors?"]
-    assert b'name="language"\r\n\r\nen' in seen[0] and b"Okay, let's get started" in seen[0]
+    assert b'name="language"' not in seen[0] and t.detected == "en"   # 목소리로 영어라고 알아냄
+    t._request("b.wav", b"RIFF", hint, "whisper-large-v3", language="en")
+    assert b'name="language"\r\n\r\nen' in seen[1] and b"Okay, let's get started" in seen[1]
     assert not is_hallucination("자 오늘은 경사하강법부터 볼게요", "경사하강법 학습률")
 
 

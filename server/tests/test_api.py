@@ -232,6 +232,20 @@ def test_audio_file_becomes_a_lecture_with_notes_and_summary(client):
     assert {n["page_no"] for n in notes} == {1, 2}
     assert len(client.get(f"/sessions/{session['id']}/tasks").json()) == 1
 
+    # 녹음부터 다시 받아쓰기: 내가 쓴 필기는 남고 다시 정리된다
+    mine = client.post(f"/sessions/{session['id']}/annotations", json={"page_no": 1, "text": "내 메모"}).json()
+    again = client.post(f"/sessions/{session['id']}/retranscribe")
+    assert again.status_code == 200 and again.json()["status"] == "transcribing"
+    for _ in range(100):
+        summary = client.get(f"/sessions/{session['id']}/summary").json()
+        if summary["status"] in ("done", "failed"):
+            break
+        time.sleep(0.05)
+    assert summary["status"] == "done"
+    texts = [n["text"] for n in client.get(f"/sessions/{session['id']}/annotations").json()]
+    assert "내 메모" in texts and mine["id"]
+    assert len(client.get(f"/sessions/{session['id']}/tasks").json()) == 1
+
 
 def test_document_list_and_delete(client):
     doc = upload(client)

@@ -206,11 +206,21 @@ export function LectureMore({ sessionId, onDeleted }: { sessionId: string; onDel
       onDeleted();
     } catch (e) { alert(e instanceof Error ? e.message : String(e)); setBusy(false); }
   };
+  const redo = async () => {
+    if (!confirm("녹음부터 다시 받아쓸까요? AI 필기·요약도 새로 만들어요. 내가 쓴 필기는 남아요.")) return;
+    setBusy(true);
+    try {
+      await postJSON(`/sessions/${sessionId}/retranscribe`);
+      window.location.reload();
+    } catch (e) { alert(e instanceof Error ? e.message : String(e)); setBusy(false); }
+  };
   return (
     <>
       <h3 className="t-title-m">더보기</h3>
       <StudyNotePdf sessionId={sessionId} />
       <NotesPdf sessionId={sessionId} />
+      <Button block variant="secondary" icon="arrows-clockwise" onClick={() => void redo()} disabled={busy}>녹음부터 다시 받아쓰기</Button>
+      <span className="t-caption muted">받아쓰기가 이상할 때 (예: 한국어 강의가 영어로 나왔을 때). 내가 쓴 필기는 그대로예요.</span>
       <Button block variant="record" icon="trash" onClick={() => void remove()} disabled={busy}>{busy ? "지우는 중…" : "이 강의 지우기"}</Button>
     </>
   );
