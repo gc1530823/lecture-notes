@@ -774,7 +774,8 @@ def get_summary(session_id: str, background: BackgroundTasks):
         app.state.quiz_jobs.add(session_id)
         background.add_task(_remake_quiz, session_id)
     return {"status": session["status"], "error": session.get("error"), "summary": summary, "quiz_status": "making" if session_id in app.state.quiz_jobs else "ready",
-            "progress": app.state.progress.get(session_id), "review": app.state.reviews.get(session_id)}
+            "progress": app.state.progress.get(session_id), "review": app.state.reviews.get(session_id),
+            "engine": getattr(app.state.transcriber, "engine", None)}
 
 
 def _quiz_inputs(session_id: str) -> tuple[list[dict], list[dict], list[dict]]:
@@ -2221,6 +2222,38 @@ def friend_timetable(other: str):
                                                     for c in db().list_classes()]}
     finally:
         auth.CURRENT_USER.reset(token)
+
+
+@app.get("/diag/ai")
+async def diag_ai():
+    """AI 연결 진단 (로그인한 사람만): Groq 에 닿는지, 사진 읽는 모델이 있는지, 받아쓰기가 어디로 가는지. 키 값은 보여 주지 않는다"""
+    import httpx
+
+    out: dict = {"llm_mode": settings.llm_mode, "stt_mode": settings.stt_mode, "groq_key_set": bool(settings.groq_api_key)}
+    if settings.groq_api_key:
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                r = await client.get("https://api.groq.com/openai/v1/models",
+                                     headers={"Authorization": f"Bearer {settings.groq_api_key}"})
+            out["groq_status"] = r.status_code
+            if r.status_code < 400:
+                ids = [m.get("id", "") for m in r.json().get("data", [])]
+                out["vision_models"] = [i for i in ids if re.search(r"vision|llama-4|scout|maverick|[-_]vl|pixtral|gemma-3", i, re.I)]
+                out["whisper_models"] = [i for i in ids if "whisper" in i]
+            else:
+                out["groq_error"] = r.text[:200]
+        except Exception as exc:
+            out["groq_error"] = f"{type(exc).__name__}: {exc}"[:200]
+    t = app.state.transcriber
+    out["stt_engine"] = getattr(t, "engine", None)
+    out["stt_local_used"] = getattr(t, "local_used", None)
+    out["stt_last_error"] = getattr(t, "last_error", None)
+    try:
+        import onnxruntime  # noqa: F401
+        out["ocr_runtime"] = True
+    except ImportError:
+        out["ocr_runtime"] = False
+    return out
 
 
 @app.get("/friends/jokbo")

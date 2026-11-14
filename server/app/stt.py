@@ -89,7 +89,8 @@ class WhisperTranscriber:
         오래 걸리는 작업이라 스레드에서 부른다. hint에는 강의자료 용어와 직전 문장을 넣어 인식을 돕는다."""
         model = self._load()
         segments, info = model.transcribe(
-            audio, language=guess_language(hint), vad_filter=True, beam_size=5 if isinstance(audio, str) else 1, initial_prompt=hint or None,
+            # 서버 CPU 에서는 beam 5 가 2~3배 느리다 → 1 (VAD 로 조용한 곳은 건너뛴다)
+            audio, language=guess_language(hint), vad_filter=True, beam_size=1, initial_prompt=hint or None,
         )
         result = []
         for seg in segments:
@@ -138,6 +139,12 @@ class FallbackTranscriber:
         self.max_chunk_ms = getattr(primary, "max_chunk_ms", 10_000)
         self.local_until = 0.0
         self.local_used = 0  # 몇 번 넘겼는지 (상태 표시·시험용)
+        self.last_error = ""  # Groq 가 왜 안 됐는지 (진단용)
+
+    @property
+    def engine(self) -> str:
+        """지금 받아쓰는 곳: groq(빠름) | local(이 서버, 느림)"""
+        return "local" if time.monotonic() < self.local_until else "groq"
 
     def transcribe(self, audio, hint: str = "", on_progress: Callable[[float], None] | None = None) -> list[Segment]:
         from .llm import LLMError
@@ -151,6 +158,7 @@ class FallbackTranscriber:
                     # 한도는 보통 몇 분~한 시간 뒤 풀린다. 그동안 매 조각 Groq에 물어보지 않는다
                     self.local_until = time.monotonic() + min(max(wait or 60.0, 30.0), 3600.0)
                 # 그 밖의 오류(파일을 거절 등)도 강의를 버리지 않고 이번 것만 이 서버의 Whisper로
+                self.last_error = str(exc)[:300]
                 log.warning("받아쓰기: %s → 이 서버의 Whisper로 받아씁니다", exc)
         self.local_used += 1
         return self.local.transcribe(audio, hint, on_progress)

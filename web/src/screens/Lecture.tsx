@@ -122,14 +122,14 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   }, [docId, initialSession, refresh]);
 
   // 녹음 파일로 정리 중인 강의: 끝날 때까지 필기를 다시 받아 온다
-  const [serverStatus, setServerStatus] = useState<{ status: string; progress: number | null; error?: string | null } | null>(null);
+  const [serverStatus, setServerStatus] = useState<{ status: string; progress: number | null; error?: string | null; engine?: string | null } | null>(null);
   useEffect(() => {
     if (!initialSession) return;
     let alive = true;
     let timer: number | undefined;
     const poll = async () => {
       try {
-        const s = await getJSON<{ status: string; progress: number | null; error?: string | null }>(`/sessions/${initialSession}/summary`);
+        const s = await getJSON<{ status: string; progress: number | null; error?: string | null; engine?: string | null }>(`/sessions/${initialSession}/summary`);
         if (!alive) return;
         const busy = s.status === "transcribing" || s.status === "processing";
         setServerStatus((prev) => {
@@ -701,7 +701,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               </div>
             )}
             <span className="t-caption muted" style={{ display: "block" }}>
-              {recording ? `AI 필기 생성 중 · 현재 ${notebook ? `${page}번 주제` : `${page} / ${doc.pages.length}쪽`}` : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}`
+              {recording ? `AI 필기 생성 중 · 현재 ${notebook ? `${page}번 주제` : `${page} / ${doc.pages.length}쪽`}` : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}${serverStatus.engine === "local" ? " · Groq 가 막혀 서버에서 받아쓰는 중이라 느려요" : ""}`
                 : serverStatus?.status === "processing" ? "필기·요약 정리 중…" : serverStatus?.status === "failed" ? "정리하지 못했어요" : "강의가 끝났어요") : "버튼을 누르면 녹음을 시작해요"}
             </span>
           </div>
