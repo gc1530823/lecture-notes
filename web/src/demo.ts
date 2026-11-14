@@ -42,6 +42,7 @@ async function answer(input: RequestInfo | URL, init?: RequestInit): Promise<Res
     return json({ answer: "데모 페이지라 AI 튜터가 직접 답하지는 않아요. 실제 앱에서는 오늘 강의 내용으로 근거 쪽과 함께 답해요.", pages: [1], sources: [] });
   }
   if (path.startsWith("/review/")) return json({ ok: true });
+  if (path.startsWith("/tasks/")) return json({ ok: true }); // 데모: 체크·마감일은 화면에서만
   if (path.endsWith("/quiz-set")) return makeQuiz(path);
   const grade = path.match(/^\/quiz-sets\/(\d+)\/grade$/);
   if (grade) return gradeQuiz(Number(grade[1]), JSON.parse(String(init?.body ?? "{}")));

@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from . import auth, training_log
 from .config import settings
 from .db import Database
+from .due import parse_due
 from .live_session import LiveSession
 from .llm import LLMError, accept_fixed_speech, make_llm
 from .beyond import beyond_slides
@@ -208,7 +209,8 @@ class SessionCreate(BaseModel):
 
 
 class TaskUpdate(BaseModel):
-    done: bool
+    done: bool | None = None
+    due_on: str | None = None  # "YYYY-MM-DD", "" = 직접 정한 마감일 지우기
 
 
 class AnnotationUpdate(BaseModel):
@@ -1374,8 +1376,14 @@ def _task_or_404(task_id: int) -> dict:
 
 @app.patch("/tasks/{task_id}")
 def update_task(task_id: int, body: TaskUpdate):
-    _task_or_404(task_id)
-    return db().set_task_done(task_id, body.done)
+    task = _task_or_404(task_id)
+    if body.due_on is not None:
+        if body.due_on and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", body.due_on):
+            raise HTTPException(422, "마감일은 YYYY-MM-DD 로 적어 주세요.")
+        task = db().set_task_due(task_id, body.due_on)
+    if body.done is not None:
+        task = db().set_task_done(task_id, body.done)
+    return task
 
 
 @app.post("/tasks/{task_id}/draft")
@@ -1740,7 +1748,9 @@ def all_tasks():
     for d in db().list_documents():
         for s in d["sessions"]:
             for t in db().list_tasks(s["id"]):
-                out.append({**t, "doc_id": d["id"], "doc_title": d["title"], "course": d.get("course") or "", "started_at": s["started_at"]})
+                guess = parse_due(t["due_text"], s["started_at"])
+                out.append({**t, "doc_id": d["id"], "doc_title": d["title"], "course": d.get("course") or "", "started_at": s["started_at"],
+                            "due_date": t["due_on"] or (guess.isoformat() if guess else None)})
     return sorted(out, key=lambda t: (t["done"], -t["started_at"]))
 
 

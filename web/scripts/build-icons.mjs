@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 const out = "public/icons.svg";
 const old = readFileSync(out, "utf8");
 const ids = [...old.matchAll(/<symbol id="([^"]+)"/g)].map((m) => m[1]).filter((id) => !id.startsWith("dt-"));
-for (const extra of ["plus", "magnifying-glass", "stop", "arrow-right", "check", "carrot", "arrows-clockwise", "upload-simple", "question", "chat-circle-dots"]) if (!ids.includes(extra)) ids.push(extra);
+for (const extra of ["plus", "magnifying-glass", "stop", "arrow-right", "check", "carrot", "arrows-clockwise", "upload-simple", "question", "chat-circle-dots", "calendar-dots", "arrow-counter-clockwise", "caret-up", "caret-down"]) if (!ids.includes(extra)) ids.push(extra);
 let symbols = ids.map((id) => {
   const file = `node_modules/@phosphor-icons/core/assets/bold/${id}-bold.svg`;
   if (!existsSync(file)) { // Phosphor에 없는 이름은 예전 모양 그대로

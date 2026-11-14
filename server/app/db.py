@@ -263,6 +263,12 @@ class Database:
         if "error" not in columns:
             self._conn.execute("ALTER TABLE sessions ADD COLUMN error TEXT")
             self._conn.commit()
+        # due_on: 사람이 고친 마감일 (YYYY-MM-DD), done_at: 끝낸 때 (할 일 달력)
+        columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(tasks)")}
+        for col, ddl in (("due_on", "TEXT"), ("done_at", "REAL")):
+            if col not in columns:
+                self._conn.execute(f"ALTER TABLE tasks ADD COLUMN {col} {ddl}")
+                self._conn.commit()
         # owner: 누구 자료인지 (친구들과 함께 쓸 때). 혼자 쓸 때·예전 자료는 '' (첫 가입자가 가져간다)
         for table in ("documents", "classes", "exams"):
             columns = {r["name"] for r in self._conn.execute(f"PRAGMA table_info({table})")}
@@ -776,7 +782,7 @@ class Database:
 
     def get_task(self, task_id: int) -> dict | None:
         rows = self._query(
-            """SELECT t.id, t.session_id, p.page_no, t.kind, t.title, t.instructions, t.due_text, t.done, t.draft
+            """SELECT t.id, t.session_id, p.page_no, t.kind, t.title, t.instructions, t.due_text, t.done, t.draft, t.due_on, t.done_at
                FROM tasks t LEFT JOIN pages p ON p.id = t.page_id WHERE t.id = ?""",
             (task_id,),
         )
@@ -784,14 +790,18 @@ class Database:
 
     def list_tasks(self, session_id: str) -> list[dict]:
         rows = self._query(
-            """SELECT t.id, t.session_id, p.page_no, t.kind, t.title, t.instructions, t.due_text, t.done, t.draft
+            """SELECT t.id, t.session_id, p.page_no, t.kind, t.title, t.instructions, t.due_text, t.done, t.draft, t.due_on, t.done_at
                FROM tasks t LEFT JOIN pages p ON p.id = t.page_id WHERE t.session_id = ? ORDER BY t.id""",
             (session_id,),
         )
         return [_task(r) for r in rows]
 
     def set_task_done(self, task_id: int, done: bool) -> dict | None:
-        self._write("UPDATE tasks SET done = ? WHERE id = ?", (int(done), task_id))
+        self._write("UPDATE tasks SET done = ?, done_at = ? WHERE id = ?", (int(done), time.time() if done else None, task_id))
+        return self.get_task(task_id)
+
+    def set_task_due(self, task_id: int, due_on: str | None) -> dict | None:
+        self._write("UPDATE tasks SET due_on = ? WHERE id = ?", (due_on or None, task_id))
         return self.get_task(task_id)
 
     def save_task_draft(self, task_id: int, draft: dict) -> dict | None:

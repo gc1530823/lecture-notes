@@ -1,5 +1,6 @@
 // Figma "강의노트 디자인 / 03 디자인" 화면을 옮긴 새 프론트. 화면은 해시 주소로 고른다 (router.ts).
 import DocDetail from "./screens/DocDetail";
+import { TasksScreen } from "./screens/Tasks";
 import ExamMap from "./screens/ExamMap";
 import { JokboScreen, PrivacyScreen, ReviewScreen } from "./screens/ExamPrep";
 import Home from "./screens/Home";
@@ -33,7 +34,7 @@ export default function App() {
 function Routed() {
   const route = useRoute();
   // 화면이 바뀔 때마다 새로 그려 들어오는 모션을 준다 (styles/app.css 의 .route)
-  const tab = route.name === "home" ? "home" : route.name === "review" ? "review" : route.name === "search" ? "search" : route.name === "privacy" ? "more" : null;
+  const tab = route.name === "home" ? "home" : route.name === "review" ? "review" : route.name === "search" ? "search" : route.name === "tasks" ? "tasks" : route.name === "privacy" ? "more" : null;
   return (
     <>
       <div className="route" key={href(route)}>{screen(route)}</div>
@@ -54,6 +55,7 @@ function screen(route: ReturnType<typeof useRoute>) {
     case "privacy": return <PrivacyScreen />;
     case "semester": return <Semester tab={route.tab} />;
     case "search": return <Search />;
+    case "tasks": return <TasksScreen />;
     case "lecture": return <Lecture key={route.docId + (route.sessionId ?? "")} docId={route.docId} sessionId={route.sessionId} />;
     case "session": return <Session docId={route.docId} sessionId={route.sessionId} tab={route.tab} />;
   }
