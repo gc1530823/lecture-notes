@@ -23,9 +23,6 @@ android {
 
     buildFeatures { buildConfig = true }
 
-    // 폰 받아쓰기 엔진(.so)을 압축해서 넣는다: APK 가 55MB → 약 20MB (설치할 때 한 번 풀어 둔다)
-    packaging { jniLibs { useLegacyPackaging = true } }
-
     signingConfigs {
         // 서명 키가 저장소 Secrets(ANDROID_KEYSTORE_BASE64 등)에 있으면 그 키로 서명한다 → 새 버전을 덮어 깔 수 있다.
         // 없으면 빌드 서버의 임시 디버그 키로 서명한다 → 새 버전은 지우고 다시 깔아야 한다 (자료는 서버에 있어 그대로).
