@@ -1210,3 +1210,34 @@ def test_english_lecture_checkbox_fixes_language(client):
                 break
             time.sleep(0.05)
     assert seen == ["en", None]
+
+
+def test_full_recording_replaces_gappy_live_audio(client):
+    """녹음 오프라인 저장: 서버가 받은 길이를 알려 주고, 폰의 전체 녹음을 올리면 처음부터 다시 정리 (내 필기는 그대로)"""
+    import io
+    import wave
+
+    from app.main import app as the_app
+    from app.stt import Segment
+
+    class Fake:
+        def transcribe(self, path, hint, on_progress=None):
+            return [Segment(0, 3000, "경사하강법은 기울기 반대 방향으로 이동해요.")]
+
+    the_app.state.transcriber = Fake()
+    doc = upload(client)
+    s = client.post("/sessions", json={"document_id": doc["id"]}).json()
+    assert client.get(f"/sessions/{s['id']}/received").json() == {"ms": 0}
+    mine = client.post(f"/sessions/{s['id']}/annotations", json={"page_no": 1, "text": "내 메모"}).json()
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(b"\0\0" * 16000)
+    res = client.post(f"/sessions/{s['id']}/full-audio", files={"file": ("full.wav", buf.getvalue(), "audio/wav")})
+    assert res.status_code == 200 and res.json()["status"] == "transcribing"
+    for _ in range(100):
+        if client.get(f"/sessions/{s['id']}/summary").json()["status"] in ("done", "failed"):
+            break
+        time.sleep(0.05)
+    assert any(n["text"] == "내 메모" for n in client.get(f"/sessions/{s['id']}/annotations").json()) and mine["id"]
+    assert client.get(f"/sessions/{s['id']}/audio").status_code == 200
+    assert client.post(f"/sessions/{s['id']}/full-audio", files={"file": ("x.wav", b"x", "audio/wav")}).status_code == 400

@@ -717,6 +717,40 @@ async def stream(ws: WebSocket, session_id: str):
         await live.close()
 
 
+@app.get("/sessions/{session_id}/received")
+def received_audio(session_id: str):
+    """서버가 받은 실시간 녹음 길이 (ms). 폰이 가진 전체 녹음과 견줘 빠진 곳이 있는지 본다"""
+    _session_or_404(session_id)
+    return {"ms": recorded_ms(session_id)}
+
+
+@app.post("/sessions/{session_id}/full-audio")
+async def full_audio(session_id: str, background: BackgroundTasks, file: UploadFile = File(...)):
+    """녹음 오프라인 저장: 수업 중 연결이 끊겨 서버가 못 받은 소리가 있으면, 폰이 모아 둔 전체 녹음을 올린다.
+    그 파일을 이 강의의 녹음으로 삼아 처음부터 다시 받아쓰고 정리한다 (내가 쓴 필기는 그대로)."""
+    session = _session_or_404(session_id)
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    path = os.path.join(settings.upload_dir, f"{session_id}.audio")
+    size = 0
+    with open(path + ".part", "wb") as f:
+        while chunk := await file.read(1 << 20):
+            size += len(chunk)
+            if size > MAX_AUDIO_BYTES:
+                f.close()
+                os.remove(path + ".part")
+                raise HTTPException(413, "녹음 파일이 너무 커요.")
+            f.write(chunk)
+    if size < 1000:
+        os.remove(path + ".part")
+        raise HTTPException(400, "녹음이 비어 있어요.")
+    os.replace(path + ".part", path)
+    doc = db().get_document(session["document_id"])
+    db().reset_for_renote(session_id, notebook=doc["kind"] in ("notebook", "meeting"))
+    db().set_session_status(session_id, "transcribing")
+    background.add_task(_process_audio, session_id, session["document_id"], path)
+    return db().get_session(session_id)
+
+
 @app.post("/sessions/{session_id}/end")
 def end_session(session_id: str, background: BackgroundTasks):
     session = _session_or_404(session_id)

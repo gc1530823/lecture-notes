@@ -1,6 +1,7 @@
 // 2·3 강의 화면 (녹음 중): 강의자료 위에 형광펜·번호 깃발, 아래에 포스트잇 필기. 노트 수업은 모눈 노트에 주제별로 써 내려간다.
 // 녹음 → 서버(받아쓰기·AI 필기) → WebSocket 이벤트로 화면에 붙는다. 기존 웹앱과 같은 규약 (lib/live.ts).
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { LocalRecording, syncRecordings } from "../lib/localRec";
 import { EnglishToggle, lectureLang } from "../components/EnglishToggle";
 import type { Annotation, DocumentDetail, GlossaryTerm, NoteType, Page } from "../api/types";
 import { getJSON, postJSON } from "../api/useApi";
@@ -68,6 +69,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   // 이벤트 처리기에서 최신 값을 읽기 위한 거울
   const live = useRef<Live | null>(null);
   const mic = useRef<Mic | null>(null);
+  const localRec = useRef<LocalRecording | null>(null);
   const recognizer = useRef<{ stop(): void } | null>(null);
   const wakeLock = useRef<{ release(): Promise<void> } | null>(null);
   const pageRef = useRef(page);
@@ -282,7 +284,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     const app = android();
     // 마이크는 버튼을 누른 바로 그 순간에 켜야 iPhone Safari가 허락한다 (서버 응답을 기다리기 전에)
     // 안드로이드 앱 안에서는 앱이 직접 녹음한다 (화면이 꺼져도 이어진다)
-    const micStart = app ? Promise.resolve(null) : startMicrophone((pcm) => live.current?.sendAudio(pcm));
+    // 서버로 보내면서 폰 안에도 전부 모아 둔다 (연결이 끊겨도 녹음이 빠지지 않게 · lib/localRec.ts)
+    const micStart = app ? Promise.resolve(null) : startMicrophone((pcm) => { live.current?.sendAudio(pcm); localRec.current?.append(pcm); });
     micStart.catch(() => {}); // 실패는 아래에서 다룬다
     let id: string;
     try {
@@ -292,6 +295,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
       return toast(e instanceof Error ? e.message : String(e));
     }
     const began = Date.now();
+    if (!app) localRec.current = new LocalRecording(id);
     setSessionId(id);
     setStartedAt(began);
     setNow(began);
@@ -344,6 +348,10 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     }
     live.current?.close();
     live.current = null;
+    // 폰에 모아 둔 녹음: 서버가 다 받았으면 지우고, 빠진 곳이 있으면 전체 녹음을 올려 처음부터 다시 정리
+    const rec = localRec.current;
+    localRec.current = null;
+    if (rec) void rec.finish().then(syncRecordings).then((n) => { if (n) toast("연결이 끊겼던 부분까지 전체 녹음을 올렸어요. 처음부터 다시 정리해요."); });
     setPhase(sessionId || finish ? "ended" : "idle");
   };
 
