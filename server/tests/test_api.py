@@ -1365,3 +1365,33 @@ def test_my_usage_counts_documents_and_files(client):
     u = client.get("/account/usage").json()
     assert u["documents"] >= 1 and u["lectures"] >= 1 and u["bytes"]["documents"] > 0
     assert u["bytes"]["total"] == u["bytes"]["audio"] + u["bytes"]["documents"] + u["bytes"]["photos"]
+
+
+def test_resume_unfinished_after_restart(client):
+    """서버가 정리 중에 다시 켜지면: 받아쓴 글이 있으면 요약을 이어 하고, 녹음도 글도 없으면 '실패'로 바꿔 다시 할 수 있게"""
+    import asyncio
+
+    from app import main as m
+
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "학습률이 너무 크면 발산해요. 이거 시험에 꼭 나와요.", "start_ms": 0, "end_ms": 3000})
+        receive_annotation(ws)
+    lost = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    m.app.state.db.set_session_status(sid, "processing")
+    m.app.state.db.set_session_status(lost, "transcribing")
+
+    async def no_wait(_s):
+        return None
+    real_sleep = asyncio.sleep
+    asyncio.sleep = no_wait
+    try:
+        asyncio.run(m._resume_unfinished())
+    finally:
+        asyncio.sleep = real_sleep
+    assert client.get(f"/sessions/{sid}/summary").json()["status"] == "done"
+    s = client.get(f"/sessions/{lost}/summary").json()
+    assert s["status"] == "failed" and "다시 정리하기" in s["error"]
+    assert not m.app.state.db.get_setting(f"resumed:{sid}")

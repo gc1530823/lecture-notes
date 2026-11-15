@@ -72,6 +72,7 @@ async def lifespan(app: FastAPI):
         asyncio.create_task(warm_up())
     backups = asyncio.create_task(_backup_loop())
     a1 = asyncio.create_task(_a1_loop())
+    asyncio.create_task(_resume_unfinished())
     yield
     backups.cancel()
     a1.cancel()
@@ -886,6 +887,38 @@ async def _process_audio(session_id: str, document_id: str, path: str) -> None:
     await live.close()
     db().set_session_status(session_id, "processing")
     await _summarize(session_id, document_id)
+
+
+async def _resume_unfinished() -> None:
+    """서버가 다시 켜질 때(1시간마다 업데이트·메모리 부족 등) 정리하다 멈춘 녹음 파일 강의를 이어서 한다.
+    그냥 두면 '정리 중'에서 영영 멈추고 '다시 정리하기'도 막힌다. 같은 강의는 한 번만 이어 하고, 또 멈추면 실패로 바꾼다."""
+    await asyncio.sleep(5)
+    rows = db()._query("SELECT s.id, s.status, s.document_id, d.owner FROM sessions s JOIN documents d ON d.id = s.document_id "
+                       "WHERE s.status IN ('transcribing', 'processing')")
+    for r in rows:
+        sid, doc_id = r["id"], r["document_id"]
+        token = auth.CURRENT_USER.set(r["owner"] or None)
+        try:
+            key = f"resumed:{sid}"
+            found = audio_file(sid)
+            if db().get_setting(key) or (r["status"] == "transcribing" and found is None):
+                db().set_session_status(sid, "failed", "정리하는 동안 서버가 다시 켜져 멈췄어요. '다시 정리하기'를 눌러 주세요.")
+                continue
+            db().set_setting(key, "1")
+            log.warning("멈춘 강의 이어서 정리: %s (%s)", sid, r["status"])
+            if r["status"] == "processing" and db().get_segments(sid):
+                await _summarize(sid, doc_id)
+            else:
+                doc = db().get_document(doc_id)
+                db().reset_for_renote(sid, notebook=(doc or {}).get("kind") in ("notebook", "meeting"))
+                db().set_session_status(sid, "transcribing")
+                await _process_audio(sid, doc_id, found[0])
+            db().set_setting(key, None)
+        except Exception:
+            log.exception("멈춘 강의 이어서 정리 실패: %s", sid)
+            db().set_session_status(sid, "failed", "정리하는 동안 서버가 다시 켜져 멈췄어요. '다시 정리하기'를 눌러 주세요.")
+        finally:
+            auth.CURRENT_USER.reset(token)
 
 
 def _why(step: str, exc: Exception) -> str:
