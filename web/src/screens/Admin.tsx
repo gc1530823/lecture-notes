@@ -147,6 +147,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         <OwnerAccountTools />
       </section>
 
+      <BackupCard />
+
       <section className="admin-card">
         <b className="admin-title"><Icon name="arrows-clockwise" size={16} /> 새 서버로 옮기기</b>
         <p className="t-caption muted" style={{ margin: 0 }}>코드를 새 서버 설치 스크립트의 MIGRATE_CODE 에 넣으면 계정·강의·녹음을 통째로 가져가요. 2일 동안 써요.</p>
@@ -172,5 +174,46 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         </div>
       </section>
     </div>
+  );
+}
+
+interface Backup { repo: string; has_token: boolean; last: { at: number; files: number; total_files: number } | null; error: string; running: boolean }
+
+/** 자동 백업: 하루 한 번 허깅페이스 비공개 데이터셋에 DB + 새 파일 */
+function BackupCard() {
+  const [b, setB] = useState<Backup | null>(null);
+  const [token, setToken] = useState("");
+  const [repo, setRepo] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const load = useCallback(() => { getJSON<Backup>("/admin/backup").then((x) => { setB(x); setRepo((r) => r || x.repo); }).catch(() => {}); }, []);
+  useEffect(load, [load]);
+  useEffect(() => { if (!b?.running) return; const t = window.setTimeout(load, 4000); return () => window.clearTimeout(t); }, [b, load]);
+  const run = async (fn: () => Promise<void>) => { setMsg(null); try { await fn(); } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); } };
+  return (
+    <section className="admin-card">
+      <b className="admin-title"><Icon name="download-simple" size={16} /> 자동 백업</b>
+      <p className="t-caption muted" style={{ margin: 0 }}>
+        하루 한 번 계정·강의·필기·녹음을 허깅페이스 비공개 저장소에 올려요 (무료). 녹음은 새로 생긴 것만 올려요.
+      </p>
+      {b && (
+        <ul className="admin-checks">
+          <li><span className={`admin-dot ${b.has_token ? "good" : "bad"}`} />{b.has_token ? `켜짐 · ${b.repo}` : "꺼짐 · 아래에 토큰을 넣어 주세요"}</li>
+          {b.last && <li><span className="admin-dot good" />마지막 백업 {new Date(b.last.at * 1000).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" })} · 새 파일 {b.last.files}개 · 모두 {b.last.total_files}개</li>}
+          {b.error && <li><span className="admin-dot bad" />최근 실패: {b.error}</li>}
+          {b.running && <li><span className="spin" /> 백업하는 중…</li>}
+        </ul>
+      )}
+      <p className="t-caption muted" style={{ margin: 0 }}>허깅페이스 → Settings → Access Tokens → Create new token → <b>Write</b> 로 만든 토큰을 넣어요.</p>
+      <input className="input" placeholder="저장소 이름 (예: kimheejin0823/lune-backup)" value={repo} onChange={(e) => setRepo(e.target.value)} />
+      <input className="input" type="password" placeholder={b?.has_token ? "토큰 (바꿀 때만)" : "허깅페이스 Write 토큰 hf_…"} value={token} onChange={(e) => setToken(e.target.value)} />
+      <div className="row">
+        <Button variant="secondary" disabled={!token.startsWith("hf_") || !repo.includes("/")}
+          onClick={() => void run(async () => { await call("/admin/backup", "PUT", { token, repo }); setToken(""); setMsg("백업을 켰어요."); load(); })}>저장</Button>
+        <span className="grow" />
+        <Button disabled={!b?.has_token || b?.running} icon="arrows-clockwise"
+          onClick={() => void run(async () => { await postJSON("/admin/backup/run"); setMsg("백업을 시작했어요. 녹음이 많으면 처음에는 오래 걸려요."); load(); })}>지금 백업</Button>
+      </div>
+      {msg && <p className="set-msg">{msg}</p>}
+    </section>
   );
 }

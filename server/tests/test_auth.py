@@ -271,3 +271,40 @@ def test_admin_page_separate_from_user_accounts(invite, tmp_path):
             assert admin.post("/admin/login", json={"password": "admin-pass-2"}).status_code == 200
         finally:
             app.state.db = old
+
+
+def test_daily_backup_to_private_dataset(invite, tmp_path, monkeypatch):
+    """백업: DB 사본 + 새 파일만 올린다 (허깅페이스 대신 가짜로 확인)"""
+    import os
+    import time as _t
+
+    import huggingface_hub
+    from app import backup
+    from app.db import Database
+
+    commits = []
+
+    class FakeApi:
+        def __init__(self, token=None): pass
+        def create_repo(self, *a, **k): pass
+        def create_commit(self, repo, repo_type, commit_message, operations):
+            commits.append([op.path_in_repo for op in operations])
+        def list_repo_files(self, *a, **k): return [f"db/lune-2026-01-{d:02d}.db.gz" for d in range(1, 20)]
+        def whoami(self): return {"name": "kimheejin0823"}
+
+    monkeypatch.setattr(huggingface_hub, "HfApi", FakeApi)
+    d = Database(str(tmp_path / "b.db"))
+    up = tmp_path / "uploads"; up.mkdir()
+    (up / "a.pdf").write_bytes(b"x" * 10)
+    (up / "full-s.wav").write_bytes(b"x")
+    old = _t.time() - 3600
+    os.utime(up / "a.pdf", (old, old))
+    d.set_setting("backup_token", "hf_x"); d.set_setting("backup_repo", "me/lune-backup")
+    assert backup.due(d)
+    r = backup.run(d, str(up))
+    assert r["files"] == 1 and ["uploads/a.pdf"] in commits and any("db/latest.db.gz" in c for c in commits)
+    assert any(c and c[0].startswith("db/lune-2026-01-01") for c in commits)   # 오래된 사본 정리
+    assert not backup.due(d)
+    commits.clear()
+    backup.run(d, str(up))
+    assert not any("uploads/a.pdf" in c for c in commits)   # 이미 올린 파일은 다시 안 올린다

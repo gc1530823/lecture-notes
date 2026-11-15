@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import auth, mailer, training_log
+from . import auth, backup, mailer, training_log
 from .config import settings
 from .db import Database
 from .dedupe import merge_concepts
@@ -69,7 +69,9 @@ async def lifespan(app: FastAPI):
     warm_up = getattr(app.state.llm, "warm_up", None)
     if warm_up:
         asyncio.create_task(warm_up())
+    backups = asyncio.create_task(_backup_loop())
     yield
+    backups.cancel()
 
 
 app = FastAPI(title="Lecture Notes MVP", lifespan=lifespan)
@@ -2650,6 +2652,74 @@ async def admin_overview(request: Request):
                        "mem_total_mb": mem_total, "mem_avail_mb": mem_avail},
             "ai": await diag_ai(), "users": db().admin_users(),
             "invite_custom": bool(db().get_setting("invite_code")), "mail": (mailer.account(db()) or ("",))[0]}
+
+
+# 자동 백업 (app/backup.py): 하루 한 번 허깅페이스 비공개 데이터셋에
+
+
+async def _backup_loop() -> None:
+    while True:
+        await asyncio.sleep(3600)
+        try:
+            if backup.due(db()):
+                await asyncio.to_thread(backup.run, db(), settings.upload_dir)
+                log.info("자동 백업 끝")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("자동 백업 실패")
+
+
+class BackupSetting(BaseModel):
+    token: str
+    repo: str
+
+
+@app.get("/admin/backup")
+def backup_status(request: Request):
+    _admin(request)
+    return {"repo": db().get_setting("backup_repo") or "", "has_token": bool(db().get_setting("backup_token")),
+            "last": json.loads(db().get_setting("backup_last") or "null"), "error": db().get_setting("backup_error") or "",
+            "running": bool(getattr(app.state, "backup_running", False))}
+
+
+@app.put("/admin/backup")
+async def backup_setup(body: BackupSetting, request: Request):
+    """허깅페이스 쓰기 토큰 + 저장소 이름 (예: 아이디/lune-backup). 저장하기 전에 토큰이 맞는지 확인한다"""
+    _admin(request)
+    repo, token = body.repo.strip(), body.token.strip()
+    if not re.fullmatch(r"[\w.-]+/[\w.-]+", repo):
+        raise HTTPException(400, "저장소 이름은 '아이디/lune-backup' 처럼 적어 주세요.")
+    try:
+        from huggingface_hub import HfApi
+
+        who = await asyncio.to_thread(lambda: HfApi(token=token).whoami())
+    except Exception as exc:
+        raise HTTPException(400, "허깅페이스 토큰이 맞지 않아요. 'Write' 권한 토큰인지 확인해 주세요.") from exc
+    db().set_setting("backup_token", token)
+    db().set_setting("backup_repo", repo)
+    return {"repo": repo, "user": who.get("name", "")}
+
+
+@app.post("/admin/backup/run", status_code=202)
+async def backup_now(request: Request, background: BackgroundTasks):
+    _admin(request)
+    if not db().get_setting("backup_token"):
+        raise HTTPException(400, "먼저 백업 설정을 넣어 주세요.")
+    if getattr(app.state, "backup_running", False):
+        return {"running": True}
+
+    async def go():
+        app.state.backup_running = True
+        try:
+            await asyncio.to_thread(backup.run, db(), settings.upload_dir)
+        except Exception:
+            log.exception("백업 실패")
+        finally:
+            app.state.backup_running = False
+
+    background.add_task(go)
+    return {"running": True}
 
 
 class InviteChange(BaseModel):
