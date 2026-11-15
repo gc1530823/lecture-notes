@@ -13,6 +13,8 @@ import httpx
 from . import training_log
 from .config import settings
 from .llm import (
+    BOARD_OCR_SYSTEM,
+    BOARD_SCHEMA,
     BOARD_SYSTEM,
     TIMETABLE_SYSTEM,
     ANNOTATION_SCHEMA,
@@ -359,6 +361,12 @@ class OllamaLLM:
     async def title_topic(self, speech: str) -> str:
         data = await self._chat(TITLE_SYSTEM, f"<speech>\n{speech[-3000:]}\n</speech>", TITLE_SCHEMA, context_tokens=4096)
         return str(data.get("title", "")).strip()
+
+    async def tidy_board(self, lines: list[str], speech: str = "") -> dict:
+        """사진 글자 인식(OCR)으로 읽은 줄들을 판서 필기로 다듬는다 (사진 읽는 AI 가 없을 때). 글만 보내므로 무료 글 모델로 된다"""
+        prompt = ("<ocr>\n" + "\n".join(lines[:80]) + "\n</ocr>"
+                  + (f"\n<speech>\n{speech[-1500:]}\n</speech>" if speech else ""))
+        return await self._chat(BOARD_OCR_SYSTEM, prompt, BOARD_SCHEMA, context_tokens=4096)
 
     async def read_board(self, image: bytes, mime: str) -> dict:
         """사진을 읽는 Ollama 모델(OLLAMA_VISION_MODEL, 예: qwen2.5vl:3b)로 칠판 사진을 필기로 옮긴다."""

@@ -1287,3 +1287,39 @@ def test_timetable_next_doc_auto_and_picked(client):
     for d in (old, new):
         client.post("/sessions", json={"document_id": d["id"]})
     assert "자료구조" not in client.get("/timetable/next").json()
+
+
+def test_board_photo_falls_back_to_ocr_and_tidies_it(client, monkeypatch):
+    """사진 읽는 AI 가 없으면: 서버 글자 인식으로 줄을 읽고, 글 모델이 띄어쓰기를 다듬어 필기로 남긴다"""
+    from app import main as m
+    from app import ocr
+
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+
+    async def no_vision(data, mime):
+        raise RuntimeError("사진 읽는 모델 없음")
+
+    async def tidy(lines, speech=""):
+        return {"summary": "정규화 판서", "text": "\n".join(l.replace("SE L E C T", "SELECT") for l in lines)}
+
+    monkeypatch.setattr(m.app.state.llm, "read_board", no_vision, raising=False)
+    monkeypatch.setattr(m.app.state.llm, "tidy_board", tidy, raising=False)
+    monkeypatch.setattr(ocr, "read_photo", lambda data: ["1NF: 원자값", "SE L E C T name"])
+    note = client.post(f"/sessions/{sid}/photo", data={"page_no": "1"}, files={"file": ("b.jpg", b"\xff\xd8x", "image/jpeg")}).json()
+    assert note["text"] == "칠판: 정규화 판서\n1NF: 원자값\nSELECT name"
+    # 다듬기도 실패하면 읽은 줄 그대로
+    async def broken(lines, speech=""):
+        raise RuntimeError("x")
+    monkeypatch.setattr(m.app.state.llm, "tidy_board", broken, raising=False)
+    note = client.post(f"/sessions/{sid}/photo", data={"page_no": "1"}, files={"file": ("b.jpg", b"\xff\xd8x", "image/jpeg")}).json()
+    assert note["text"].endswith("1NF: 원자값\nSE L E C T name")
+
+
+def test_photo_ocr_helpers():
+    import numpy as np
+
+    from app import ocr
+    m = np.zeros((10, 20), bool); m[1:3, 2:8] = 1; m[2:5, 6:9] = 1; m[7:9, 12:18] = 1
+    assert sorted(ocr.components(m)) == [(2, 1, 9, 5, 19), (12, 7, 18, 9, 12)]
+    assert ocr.reading_order([(50, 10, 90, 20), (0, 12, 40, 22), (0, 40, 30, 50)]) == [(0, 12, 40, 22), (50, 10, 90, 20), (0, 40, 30, 50)]

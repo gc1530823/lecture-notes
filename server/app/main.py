@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import auth, backup, mailer, training_log
+from . import auth, backup, mailer, ocr, training_log
 from .config import settings
 from .db import Database
 from .dedupe import merge_concepts
@@ -2470,18 +2470,37 @@ async def add_photo(session_id: str, page_no: int = Form(...), file: UploadFile 
     with open(path, "wb") as f:
         f.write(data)
     photo_id = db().add_photo(session_id, page["page_no"], path, mime)
-    try:
-        read = await app.state.llm.read_board(data, mime)
-        summary, text = str(read.get("summary", "")).strip(), str(read.get("text", "")).strip()
-        note_text = f"칠판: {summary}" + (f"\n{text}" if text else "")
-    except Exception:  # 사진을 읽는 모델이 없거나 실패해도 사진은 남긴다
-        log.exception("칠판 사진 읽기 실패")
-        note_text = "칠판 사진 (글을 읽지 못했어요)"
     segments = db().get_segments(session_id)
+    note_text = await _read_photo_note(data, mime, " ".join(x["text"] for x in segments[-20:]))
     at = max((s["end_ms"] for s in segments), default=0)
     note = db().add_annotation(session_id, page["id"], None, "example", note_text[:1500], at)
     db().link_photo(photo_id, note["id"])
     return {**note, "photo_id": photo_id}
+
+
+async def _read_photo_note(data: bytes, mime: str, speech: str) -> str:
+    """사진 → 필기 글. 사진 읽는 AI 가 있으면 그것으로, 없으면(지금 Groq 무료에는 없음) 서버의 한국어 글자 인식으로 읽고
+    글 모델이 띄어쓰기·오타를 다듬는다. 다 안 되면 읽은 줄 그대로, 그것도 없으면 사진만 남긴다"""
+    try:
+        read = await app.state.llm.read_board(data, mime)
+        summary, text = str(read.get("summary", "")).strip(), str(read.get("text", "")).strip()
+        if summary or text:
+            return f"칠판: {summary}" + (f"\n{text}" if text else "")
+    except Exception as exc:
+        log.info("사진 읽는 AI 없음 → 글자 인식으로: %s", str(exc)[:120])
+    lines = await asyncio.to_thread(ocr.read_photo, data)
+    if not lines:
+        return "칠판 사진 (글을 읽지 못했어요)"
+    try:
+        tidy = getattr(app.state.llm, "tidy_board", None)
+        if tidy:
+            read = await tidy(lines, speech)
+            summary, text = str(read.get("summary", "")).strip(), str(read.get("text", "")).strip()
+            if text:
+                return f"칠판: {summary}" + f"\n{text}"
+    except Exception:
+        log.exception("판서 다듬기 실패 (읽은 글 그대로 남김)")
+    return "칠판 (사진에서 읽은 글)\n" + "\n".join(lines)
 
 
 @app.get("/photos/{photo_id}")
