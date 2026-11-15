@@ -444,15 +444,20 @@ def test_admin_a1_auto_create_retries_until_capacity(invite, monkeypatch):
 
         class Obj:
             def __init__(self, **kw): self.__dict__.update(kw)
-        calls = {"n": 0}
+        free = {"cores": 0}      # 오라클에 남은 자리 (코어 수)
 
         class Compute:
+            grown = []
             def list_images(self, *a, **k): return Obj(data=[Obj(id="img")])
             def launch_instance(self, details):
-                calls["n"] += 1
-                if calls["n"] == 1:
+                if details.shape_config.ocpus > free["cores"]:
                     raise oci.exceptions.ServiceError(500, "InternalError", {}, "Out of host capacity.")
                 return Obj(data=Obj(id="ocid1.instance.new"))
+            def get_instance(self, iid): return Obj(data=Obj(lifecycle_state="RUNNING"))
+            def update_instance(self, iid, details):
+                if details.shape_config.ocpus > free["cores"]:
+                    raise oci.exceptions.ServiceError(500, "InternalError", {}, "Out of host capacity.")
+                Compute.grown.append(details.shape_config.ocpus)
 
         class Net:
             def list_subnets(self, *a, **k): return Obj(data=[Obj(id="subnet")])
@@ -461,9 +466,19 @@ def test_admin_a1_auto_create_retries_until_capacity(invite, monkeypatch):
             def list_availability_domains(self, *a, **k): return Obj(data=[Obj(name="AD-1")])
 
         monkeypatch.setattr(a1retry, "_clients", lambda db: ({"tenancy": "t"}, Compute(), Net(), Ident()))
-        assert "빈자리" in a1retry.try_once(m.db())["message"]
+        assert "빈자리" in a1retry.try_once(m.db())["message"]          # 자리가 하나도 없음
+        free["cores"] = 1                                                 # 1코어 자리만 남: 작은 것부터 만든다
+        st = a1retry.try_once(m.db())
+        assert st["instance"] == "ocid1.instance.new" and st["ocpus"] == 1 and not st.get("done")
+        assert admin.get("/admin/a1").json()["has_key"]                   # 키는 더 키울 때까지 둔다
+        assert "설치가 끝나면" in a1retry.try_once(m.db())["message"]      # 설치 중엔 키우지 않는다
+        monkeypatch.setattr(a1retry, "SETTLE", 0)
+        free["cores"] = 2
+        st = a1retry.try_once(m.db())
+        assert st["ocpus"] == 2 and Compute.grown == [2] and not st.get("done")
+        free["cores"] = 4
         done = a1retry.try_once(m.db())
-        assert done["done"] and done["instance"] == "ocid1.instance.new"
+        assert done["done"] and done["ocpus"] == 4 and Compute.grown == [2, 4]
         after = admin.get("/admin/a1").json()
         assert after["done"] and not after["has_key"] and not after["has_init"]   # 열쇠는 지웠다
         assert not a1retry.due(m.db())

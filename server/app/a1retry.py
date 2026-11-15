@@ -15,6 +15,9 @@ import time
 log = logging.getLogger(__name__)
 SHAPE = "VM.Standard.A1.Flex"
 OCPUS, MEMORY_GB = 4, 24
+# 큰 자리가 없으면 작은 크기라도 먼저 만들고(1코어·6GB도 지금 서버의 6배 메모리), 나중에 자리가 나면 2 → 4코어로 키운다
+SIZES = [(4, 24), (2, 12), (1, 6)]
+SETTLE = 30 * 60        # 만든 뒤 설치(약 15분)가 끝나기 전에는 키우지 않는다 (키우면 다시 켜지므로)
 NAME = "lune2"
 
 
@@ -42,14 +45,59 @@ def _clients(db):
     return config, oci.core.ComputeClient(config), oci.core.VirtualNetworkClient(config), oci.identity.IdentityClient(config)
 
 
+def _capacity_msg(exc) -> str:
+    if "capacity" in (exc.message or "").lower() or exc.code == "InternalError":
+        return "아직 빈자리가 없어요 (Out of host capacity)"
+    if exc.code == "TooManyRequests":
+        return "너무 자주 물어봐서 잠시 쉬어요"
+    return f"{exc.code}: {(exc.message or '')[:120]}"
+
+
+def _finish(db, **change) -> dict:
+    # 4코어까지 다 키웠으니 오라클 열쇠·설치 스크립트(키 포함)는 지운다 (백업에 남지 않게)
+    db.set_setting("a1_config", None)
+    db.set_setting("a1_init", None)
+    return _save(db, done=True, enabled=False, **change)
+
+
+def _grow(db, st: dict, compute) -> dict:
+    """이미 만든 작은 서버를 한 단계 이상 키워 본다 (자리가 나면). 키우면 서버가 잠깐 다시 켜진다"""
+    import oci
+
+    tries = st.get("tries", 0) + 1
+    inst = compute.get_instance(st["instance"]).data
+    if inst.lifecycle_state != "RUNNING":
+        return _save(db, tries=tries, message=f"서버 상태가 {inst.lifecycle_state} 라 키우기를 기다려요", at=time.time())
+    if time.time() - st.get("created_at", 0) < SETTLE:
+        return _save(db, tries=tries, message=f"{st.get('ocpus')}코어로 만들었어요. 설치가 끝나면 더 키워 볼게요", at=time.time())
+    last = None
+    for ocpus, mem in SIZES:
+        if ocpus <= st.get("ocpus", 0):
+            break
+        try:
+            compute.update_instance(st["instance"], oci.core.models.UpdateInstanceDetails(
+                shape_config=oci.core.models.UpdateInstanceShapeConfigDetails(ocpus=ocpus, memory_in_gbs=mem)))
+        except oci.exceptions.ServiceError as exc:
+            last = exc
+            continue
+        log.warning("큰 서버를 %s코어로 키웠어요", ocpus)
+        if ocpus >= OCPUS:
+            return _finish(db, tries=tries, ocpus=ocpus, message="4코어·24GB로 다 키웠어요! (잠깐 다시 켜져요)", at=time.time())
+        return _save(db, tries=tries, ocpus=ocpus, message=f"{ocpus}코어·{mem}GB로 키웠어요. 계속 더 키워 볼게요", at=time.time())
+    return _save(db, tries=tries, message=f"{st.get('ocpus')}코어로 돌아가는 중 · 더 키울 자리는 " + _capacity_msg(last).replace("아직 ", ""),
+                 at=time.time())
+
+
 def try_once(db) -> dict:
-    """한 번 시도: 성공하면 done=True, 자리가 없으면 메시지만 남긴다"""
+    """한 번 시도: 아직 없으면 큰 크기부터 작은 크기 순서로 만들어 보고, 작은 걸 만들었으면 다음부터는 키워 본다"""
     import oci
 
     st = status(db)
     if st.get("done"):
         return st
     config, compute, network, identity = _clients(db)
+    if st.get("instance"):
+        return _grow(db, st, compute)
     tenancy = config["tenancy"]
     ad = identity.list_availability_domains(tenancy).data[0].name
     subnet = next(iter(network.list_subnets(tenancy).data), None)
@@ -59,27 +107,29 @@ def try_once(db) -> dict:
                                  shape=SHAPE, sort_by="TIMECREATED", sort_order="DESC").data
     if not images:
         return _save(db, message="우분투 24.04 이미지를 찾지 못했어요", at=time.time())
-    details = oci.core.models.LaunchInstanceDetails(
-        compartment_id=tenancy, availability_domain=ad, display_name=NAME, shape=SHAPE,
-        shape_config=oci.core.models.LaunchInstanceShapeConfigDetails(ocpus=OCPUS, memory_in_gbs=MEMORY_GB),
-        source_details=oci.core.models.InstanceSourceViaImageDetails(image_id=images[0].id),
-        create_vnic_details=oci.core.models.CreateVnicDetails(subnet_id=subnet.id, assign_public_ip=True),
-        metadata={"user_data": base64.b64encode((db.get_setting("a1_init") or "").encode()).decode()})
     tries = st.get("tries", 0) + 1
-    try:
-        inst = compute.launch_instance(details).data
-    except oci.exceptions.ServiceError as exc:
-        msg = {"InternalError": "아직 빈자리가 없어요 (Out of host capacity)",
-               "TooManyRequests": "너무 자주 물어봐서 잠시 쉬어요"}.get(exc.code, f"{exc.code}: {exc.message[:120]}")
-        if "capacity" in (exc.message or "").lower():
-            msg = "아직 빈자리가 없어요 (Out of host capacity)"
-        return _save(db, tries=tries, message=msg, at=time.time())
-    log.warning("큰 서버를 만들었어요: %s", inst.id)
-    # 다 만들었으니 오라클 열쇠·설치 스크립트(키 포함)는 지운다 (백업에 남지 않게)
-    db.set_setting("a1_config", None)
-    db.set_setting("a1_init", None)
-    return _save(db, tries=tries, done=True, enabled=False, instance=inst.id, message="큰 서버를 만들었어요! 15분쯤 뒤 설치가 끝나요.",
-                 at=time.time())
+    last = None
+    for ocpus, mem in SIZES:
+        details = oci.core.models.LaunchInstanceDetails(
+            compartment_id=tenancy, availability_domain=ad, display_name=NAME, shape=SHAPE,
+            shape_config=oci.core.models.LaunchInstanceShapeConfigDetails(ocpus=ocpus, memory_in_gbs=mem),
+            source_details=oci.core.models.InstanceSourceViaImageDetails(image_id=images[0].id),
+            create_vnic_details=oci.core.models.CreateVnicDetails(subnet_id=subnet.id, assign_public_ip=True),
+            metadata={"user_data": base64.b64encode((db.get_setting("a1_init") or "").encode()).decode()})
+        try:
+            inst = compute.launch_instance(details).data
+        except oci.exceptions.ServiceError as exc:
+            last = exc
+            if "capacity" not in (exc.message or "").lower() and exc.code != "InternalError":
+                break      # 자리 문제가 아니면 (키·한도 등) 더 작은 크기로 해도 같으니 그만
+            continue
+        log.warning("큰 서버를 %s코어로 만들었어요: %s", ocpus, inst.id)
+        if ocpus >= OCPUS:
+            return _finish(db, tries=tries, instance=inst.id, ocpus=ocpus, created_at=time.time(),
+                           message="큰 서버를 만들었어요! 15분쯤 뒤 설치가 끝나요.", at=time.time())
+        return _save(db, tries=tries, instance=inst.id, ocpus=ocpus, created_at=time.time(),
+                     message=f"{ocpus}코어·{mem}GB로 먼저 만들었어요! 15분쯤 뒤 설치가 끝나요. 자리가 나면 더 키워요.", at=time.time())
+    return _save(db, tries=tries, message=_capacity_msg(last), at=time.time())
 
 
 def due(db, every: float = 120) -> bool:

@@ -12,7 +12,7 @@ interface Status { set: boolean; logged_in: boolean; auth: boolean }
 interface User { id: string; name: string; created_at: number; has_email: boolean; docs: number; lectures: number; last_login: number | null }
 interface Overview {
   server: { version: string; disk_free_gb: number; disk_total_gb: number; mem_total_mb: number; mem_avail_mb: number };
-  ai: { groq_status?: number; groq_error?: string; vision_models?: string[]; whisper_models?: string[]; stt_engine?: string; stt_last_error?: string; ocr_runtime?: boolean; llm_mode?: string };
+  ai: { groq_status?: number; groq_error?: string; vision_models?: string[]; whisper_models?: string[]; stt_engine?: string; stt_last_error?: string; ocr_runtime?: boolean; ocr_photo_ready?: boolean; llm_mode?: string };
   users: User[]; invite_custom: boolean; mail: string;
 }
 
@@ -111,8 +111,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           <li>{ok(ai.groq_status === 200)} Groq 연결 {ai.groq_status ? `(${ai.groq_status})` : ""}{ai.groq_error ? ` · ${ai.groq_error}` : ""}</li>
           <li>{ok((ai.whisper_models ?? []).length > 0)} 받아쓰기 모델 {(ai.whisper_models ?? []).join(", ") || "없음"}</li>
           <li>{ok(ai.stt_engine === "groq")} 지금 받아쓰는 곳: {ai.stt_engine === "local" ? "이 서버 (Groq 막힘 · 느림)" : "Groq"}{ai.stt_last_error ? ` · 최근 오류: ${ai.stt_last_error}` : ""}</li>
-          <li>{ok((ai.vision_models ?? []).length > 0)} 사진 읽는 모델 {(ai.vision_models ?? []).join(", ") || "없음 (시간표는 서버 글자 인식으로 대신)"}</li>
-          <li>{ok(!!ai.ocr_runtime)} 서버 글자 인식 {ai.ocr_runtime ? "준비됨" : "없음"}</li>
+          <li>{ok(!!ai.ocr_runtime)} 사진 글자 읽기 (이 서버 · PP-OCRv5) {!ai.ocr_runtime ? "없음" : ai.ocr_photo_ready ? "준비됨" : "준비됨 · 첫 사진 때 모델을 받아요"}</li>
+          <li>{ok(true)} Groq 사진 모델 {(ai.vision_models ?? []).join(", ") || "지금 Groq에 없음 → 위의 서버 글자 인식으로 읽어요"}</li>
         </ul>
       </section>
 
@@ -219,7 +219,7 @@ function BackupCard() {
   );
 }
 
-type A1 = { configured: boolean; enabled?: boolean; done?: boolean; tries?: number; message?: string; at?: number; instance?: string;
+type A1 = { configured: boolean; enabled?: boolean; done?: boolean; tries?: number; message?: string; at?: number; instance?: string; ocpus?: number;
   region: string; has_key: boolean; has_init: boolean };
 
 /** 큰 무료 서버(A1.Flex) 자동 만들기: 오라클 API 키와 설치 스크립트를 한 번 넣으면 이 서버가 2분마다 대신 시도 */
@@ -245,11 +245,11 @@ function A1Card() {
   return (
     <section className="admin-card">
       <b className="admin-title"><Icon name="arrows-clockwise" size={16} /> 큰 무료 서버 자동 만들기</b>
-      <p className="t-caption muted" style={{ margin: 0 }}>오라클에 큰 서버(4코어·24GB, 무료) 자리가 날 때까지 이 서버가 2분마다 대신 시도해요. 클라우드 셸을 켜 둘 필요가 없어요. 만들면 열쇠는 지워요.</p>
+      <p className="t-caption muted" style={{ margin: 0 }}>오라클에 큰 서버(무료) 자리가 날 때까지 이 서버가 2분마다 대신 시도해요. 4코어 자리가 없으면 2코어·1코어라도 먼저 만들고, 자리가 나면 4코어까지 키워요(키울 때 잠깐 다시 켜져요). 클라우드 셸을 켜 둘 필요가 없어요. 만들면 열쇠는 지워요.</p>
       {a && (
         <ul className="admin-checks">
           <li><span className={`admin-dot ${a.done ? "good" : a.enabled ? "good" : "bad"}`} />
-            {a.done ? `만들었어요 · ${a.instance ?? ""}` : a.enabled ? `시도 중 · ${a.tries ?? 0}번째` : a.configured ? "멈춤" : "꺼짐 · 아래를 채워 주세요"}</li>
+            {a.done ? `다 만들었어요 · ${a.ocpus ?? 4}코어` : a.instance && a.enabled ? `${a.ocpus}코어로 돌아가는 중 · 4코어까지 키우는 중 (${a.tries ?? 0}번째)` : a.enabled ? `시도 중 · ${a.tries ?? 0}번째` : a.configured ? "멈춤" : "꺼짐 · 아래를 채워 주세요"}</li>
           {a.message && <li><span className="admin-dot" />{a.message}{a.at ? ` (${new Date(a.at * 1000).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" })})` : ""}</li>}
         </ul>
       )}

@@ -3148,6 +3148,8 @@ async def diag_ai():
         out["ocr_runtime"] = True
     except ImportError:
         out["ocr_runtime"] = False
+    from . import ocr as _ocr  # 사진 글자 읽기 모델(PP-OCRv5): 처음 쓸 때 받아 둔다
+    out["ocr_photo_ready"] = os.path.exists(os.path.join(_ocr._model_dir(), "det.onnx"))
     return out
 
 
