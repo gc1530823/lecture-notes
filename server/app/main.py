@@ -174,7 +174,7 @@ def auth_signup(body: AuthRequest, request: Request):
     if _too_many(request):
         raise HTTPException(429, "잠시 뒤 다시 해 주세요.")
     name = body.name.strip()
-    if not auth.invite_ok(body.invite):
+    if not auth.invite_ok(body.invite, db().get_setting("invite_code")):
         _login_fails.setdefault(_client(request), []).append(time.time())
         raise HTTPException(403, "초대 코드가 맞지 않아요.")
     if not auth.NAME.match(name):
@@ -392,20 +392,16 @@ class MailSetting(BaseModel):
 
 
 @app.get("/admin/mail")
-def mail_setting():
-    me = _me()
-    if me != db().first_user_id():
-        raise HTTPException(403, "서버 주인만 볼 수 있어요.")
+def mail_setting(request: Request):
+    _admin(request)
     acc = mailer.account(db())
     return {"user": acc[0] if acc else ""}
 
 
 @app.put("/admin/mail")
-async def set_mail(body: MailSetting):
-    """서버 주인: 메일 보내기용 Gmail 계정 + 앱 비밀번호. 저장하기 전에 자기 자신에게 시험 메일을 보낸다"""
-    me = _me()
-    if me != db().first_user_id():
-        raise HTTPException(403, "서버 주인만 할 수 있어요.")
+async def set_mail(body: MailSetting, request: Request):
+    """관리자: 메일 보내기용 Gmail 계정 + 앱 비밀번호. 저장하기 전에 그 주소로 시험 메일을 보낸다"""
+    _admin(request)
     if not EMAIL_RE.match(body.user.strip()):
         raise HTTPException(400, "Gmail 주소를 확인해 주세요.")
     old = (db().get_setting("smtp_user"), db().get_setting("smtp_password"))
@@ -426,11 +422,9 @@ class ResetFor(BaseModel):
 
 
 @app.post("/admin/reset-code")
-def issue_reset_code(body: ResetFor):
-    """서버 주인이 비밀번호를 잊은 친구에게 내주는 초기화 코드 (24시간)"""
-    me = _me()
-    if me != db().first_user_id():
-        raise HTTPException(403, "서버 주인(처음 가입한 사람)만 할 수 있어요.")
+def issue_reset_code(body: ResetFor, request: Request):
+    """관리자가 비밀번호를 잊은 사람에게 내주는 초기화 코드 (24시간)"""
+    _admin(request)
     user = db().user_by_name(body.name.strip())
     if not user:
         raise HTTPException(404, "그 이름의 계정이 없어요.")
@@ -2528,6 +2522,159 @@ def friend_timetable(other: str):
         auth.CURRENT_USER.reset(token)
 
 
+# 관리자 페이지 (#/admin): 사용자 계정과 따로 관리자 비밀번호로 들어간다.
+# 처음 한 번은 초대 코드로 관리자 비밀번호를 정한다 (정한 뒤에는 잠긴다). 서버 환경 변수 ADMIN_PASSWORD 가 있으면 그것을 쓴다.
+
+
+class AdminLogin(BaseModel):
+    password: str
+    invite: str = ""
+
+
+def _admin_hash() -> str | None:
+    env = os.environ.get("ADMIN_PASSWORD", "").strip()
+    return ("env:" + env) if env else db().get_setting("admin_hash")
+
+
+def _admin_ok_password(password: str) -> bool:
+    h = _admin_hash()
+    if not h:
+        return False
+    if h.startswith("env:"):
+        return secrets.compare_digest(password, h[4:])
+    return auth.check_password(password, h)
+
+
+def _admin(request: Request) -> None:
+    token = request.cookies.get(auth.ADMIN_COOKIE)
+    until = db().get_setting("admin_token:" + auth.token_hash(token)) if token else None
+    if not until or float(until) < time.time():
+        raise HTTPException(401, "관리자 로그인이 필요해요.")
+
+
+def _admin_session(request: Request) -> JSONResponse:
+    token = secrets.token_urlsafe(32)
+    until = time.time() + auth.ADMIN_HOURS * 3600
+    db().set_setting("admin_token:" + auth.token_hash(token), str(until))
+    res = JSONResponse({"set": True, "logged_in": True})
+    secure = request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
+    res.set_cookie(auth.ADMIN_COOKIE, token, max_age=auth.ADMIN_HOURS * 3600, httponly=True, samesite="strict", secure=secure, path="/")
+    return res
+
+
+@app.get("/admin/status")
+def admin_status(request: Request):
+    try:
+        _admin(request)
+        logged = True
+    except HTTPException:
+        logged = False
+    return {"set": bool(_admin_hash()), "logged_in": logged, "auth": auth.enabled()}
+
+
+@app.post("/admin/setup")
+def admin_setup(body: AdminLogin, request: Request):
+    """처음 한 번: 초대 코드로 관리자 비밀번호를 정한다"""
+    if _admin_hash():
+        raise HTTPException(409, "관리자 비밀번호가 이미 있어요. 로그인해 주세요.")
+    if _too_many(request):
+        raise HTTPException(429, "여러 번 틀려서 10분 동안 막혔어요.")
+    if not auth.invite_ok(body.invite, db().get_setting("invite_code")):
+        _login_fails.setdefault(_client(request), []).append(time.time())
+        raise HTTPException(403, "초대 코드가 맞지 않아요.")
+    if len(body.password) < 8:
+        raise HTTPException(400, "관리자 비밀번호는 8자 이상으로 해 주세요.")
+    db().set_setting("admin_hash", auth.hash_password(body.password))
+    return _admin_session(request)
+
+
+@app.post("/admin/login")
+def admin_login(body: AdminLogin, request: Request):
+    if _too_many(request):
+        raise HTTPException(429, "여러 번 틀려서 10분 동안 막혔어요.")
+    if not _admin_ok_password(body.password):
+        _login_fails.setdefault(_client(request), []).append(time.time())
+        raise HTTPException(401, "관리자 비밀번호가 맞지 않아요.")
+    return _admin_session(request)
+
+
+@app.post("/admin/logout")
+def admin_logout(request: Request):
+    token = request.cookies.get(auth.ADMIN_COOKIE)
+    if token:
+        db().set_setting("admin_token:" + auth.token_hash(token), None)
+    res = JSONResponse({"ok": True})
+    res.delete_cookie(auth.ADMIN_COOKIE, path="/")
+    return res
+
+
+class AdminPassword(BaseModel):
+    current: str
+    password: str
+
+
+@app.post("/admin/password")
+def admin_password(body: AdminPassword, request: Request):
+    _admin(request)
+    if os.environ.get("ADMIN_PASSWORD"):
+        raise HTTPException(400, "이 서버는 관리자 비밀번호를 서버 설정(ADMIN_PASSWORD)으로 정해 두었어요.")
+    if not _admin_ok_password(body.current):
+        raise HTTPException(401, "지금 관리자 비밀번호가 맞지 않아요.")
+    if len(body.password) < 8:
+        raise HTTPException(400, "관리자 비밀번호는 8자 이상으로 해 주세요.")
+    db().set_setting("admin_hash", auth.hash_password(body.password))
+    return {"ok": True}
+
+
+@app.get("/admin/overview")
+async def admin_overview(request: Request):
+    """서버 상태 · AI 진단 · 사람 목록"""
+    _admin(request)
+    disk = shutil.disk_usage(os.path.dirname(os.path.abspath(settings.upload_dir)) or "/")
+    mem_total = mem_avail = 0
+    try:
+        with open("/proc/meminfo") as f:
+            info = dict(line.split(":", 1) for line in f)
+        mem_total = int(info["MemTotal"].split()[0]) // 1024
+        mem_avail = int(info["MemAvailable"].split()[0]) // 1024
+    except (OSError, KeyError, ValueError):
+        pass
+    version = ""
+    for path in ("/opt/lune/app/VERSION", os.path.join(os.path.dirname(__file__), "..", "..", "VERSION")):
+        try:
+            version = open(path).read().strip()
+            break
+        except OSError:
+            continue
+    return {"server": {"version": version, "disk_free_gb": round(disk.free / 1e9, 1), "disk_total_gb": round(disk.total / 1e9, 1),
+                       "mem_total_mb": mem_total, "mem_avail_mb": mem_avail},
+            "ai": await diag_ai(), "users": db().admin_users(),
+            "invite_custom": bool(db().get_setting("invite_code")), "mail": (mailer.account(db()) or ("",))[0]}
+
+
+class InviteChange(BaseModel):
+    code: str
+
+
+@app.put("/admin/invite")
+def admin_invite(body: InviteChange, request: Request):
+    """초대 코드 바꾸기 (새로 가입할 때만 쓰인다. 이미 가입한 사람은 그대로)"""
+    _admin(request)
+    code = body.code.strip()
+    if len(code) < 6:
+        raise HTTPException(400, "초대 코드는 6자 이상으로 해 주세요.")
+    db().set_setting("invite_code", code)
+    return {"ok": True}
+
+
+@app.post("/admin/users/{user_id}/logout")
+def admin_logout_user(user_id: str, request: Request):
+    """그 사람의 모든 기기 로그인 끊기"""
+    _admin(request)
+    db().drop_logins(user_id)
+    return {"ok": True}
+
+
 # 서버 옮기기: 서버 주인이 '옮기기 코드'를 받아 새 서버의 설치 스크립트에 넣으면, 새 서버가 이 서버의 자료를 통째로 가져간다
 # 코드는 파일에 둔다 (서버가 1시간마다 업데이트로 다시 켜져도 남게). 새 서버 자리가 날 때까지 오래 걸릴 수 있어 2일 동안 쓴다
 MIGRATE_DAYS = 2
@@ -2545,21 +2692,10 @@ def _migrate_load() -> dict:
         return {}
 
 
-@app.get("/admin/migrate")
-def migrate_info():
-    me = _me()
-    first = db().first_user_id()
-    name = (db().get_user(first) or {}).get("name", "") if first else ""
-    # 주인이 아니면 주인 계정 이름의 첫 글자만 알려 준다 (어느 계정으로 로그인해야 하는지)
-    return {"owner": me == first, "owner_hint": (name[:1] + "…") if name and me != first else ""}
-
-
 @app.post("/admin/migrate")
-def migrate_code():
-    """옮기기 코드 (2일 동안 쓸 수 있다). 서버 주인만"""
-    me = _me()
-    if me != db().first_user_id():
-        raise HTTPException(403, "서버 주인(처음 가입한 사람)만 할 수 있어요.")
+def migrate_code(request: Request):
+    """옮기기 코드 (2일 동안 쓸 수 있다). 관리자만"""
+    _admin(request)
     code = secrets.token_urlsafe(18)
     saved = {"code": code, "until": time.time() + MIGRATE_DAYS * 86400}
     os.makedirs(os.path.dirname(_migrate_file()), exist_ok=True)

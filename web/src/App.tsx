@@ -2,6 +2,7 @@
 import DocDetail from "./screens/DocDetail";
 import { ScheduleScreen } from "./screens/Tasks";
 import { FriendsScreen } from "./screens/Friends";
+import { AdminScreen } from "./screens/Admin";
 import ExamMap from "./screens/ExamMap";
 import { JokboScreen, PrivacyScreen, ReviewScreen } from "./screens/ExamPrep";
 import Home from "./screens/Home";
@@ -18,6 +19,14 @@ import { useEffect, useState } from "react";
 import { getJSON } from "./api/useApi";
 
 export default function App() {
+  // 관리자 페이지는 사용자 로그인과 따로 (관리자 비밀번호)
+  const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => { const on = () => setHash(window.location.hash); window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
+  if (hash.startsWith("#/admin")) return <AdminScreen />;
+  return <UserApp />;
+}
+
+function UserApp() {
   // 친구들과 함께 쓰는 서버면 먼저 로그인 (혼자 쓰는 서버·데모는 바로)
   const [me, setMe] = useState<Me | null>(null);
   useEffect(() => {

@@ -18,6 +18,8 @@ import time
 
 CURRENT_USER: contextvars.ContextVar[str | None] = contextvars.ContextVar("current_user", default=None)
 COOKIE = "ln_session"
+ADMIN_COOKIE = "ln_admin"   # 관리자 페이지 (사용자 계정과 따로)
+ADMIN_HOURS = 12
 LOGIN_DAYS = 180
 
 
@@ -25,8 +27,9 @@ def enabled() -> bool:
     return bool(os.environ.get("INVITE_CODE", "").strip())
 
 
-def invite_ok(code: str) -> bool:
-    want = os.environ.get("INVITE_CODE", "").strip()
+def invite_ok(code: str, override: str | None = None) -> bool:
+    """override: 관리자 페이지에서 바꾼 초대 코드 (있으면 그것이 이긴다)"""
+    want = (override or os.environ.get("INVITE_CODE", "")).strip()
     return bool(want) and hmac.compare_digest(code.strip().encode(), want.encode())
 
 
@@ -67,7 +70,7 @@ OWNER_SQL = {
     "timetable": "SELECT owner FROM classes WHERE id = ?",
 }
 # 로그인 없이 열리는 곳: 화면 파일, 상태 확인, 로그인 자체
-PUBLIC = ("/health", "/auth/", "/migrate/", "/web", "/app", "/favicon", "/icons", "/assets", "/manifest")
+PUBLIC = ("/health", "/auth/", "/migrate/", "/admin/", "/web", "/app", "/favicon", "/icons", "/assets", "/manifest")
 
 
 def is_public(path: str) -> bool:

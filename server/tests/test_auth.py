@@ -165,31 +165,6 @@ def test_friend_privacy_settings(invite):
             x.__exit__(None, None, None)
 
 
-def test_owner_can_export_everything_for_a_new_server(invite):
-    import io
-    import tarfile
-
-    owner_id = None
-    from app.main import db as _db
-    owner_id = _db().first_user_id()
-    a, _ = person("이사")
-    try:
-        me = a.get("/auth/me").json()["user"]["id"]
-        if me != owner_id:   # 다른 시험에서 이미 주인이 생겼으면: 주인이 아니면 막힌다
-            assert a.post("/admin/migrate").status_code == 403
-            assert a.get("/admin/migrate").json()["owner"] is False
-            return
-        code = a.post("/admin/migrate").json()["code"]
-    finally:
-        a.__exit__(None, None, None)
-    with TestClient(app) as anon:
-        assert anon.get("/migrate/export?code=wrong").status_code == 403
-        res = anon.get(f"/migrate/export?code={code}")
-        assert res.status_code == 200
-        names = tarfile.open(fileobj=io.BytesIO(res.content)).getnames()
-        assert any(n.endswith(".db") for n in names)
-
-
 def test_forgot_password_with_recovery_code_and_owner_reset_code(invite):
     with TestClient(app) as c:
         name = f"잊음{uuid.uuid4().hex[:6]}"
@@ -209,34 +184,8 @@ def test_forgot_password_with_recovery_code_and_owner_reset_code(invite):
         assert anon.post("/account/password", json={"current": "wrong", "password": "third123"}).status_code == 401
         assert anon.post("/account/password", json={"current": "newpass1", "password": "third123"}).status_code == 200
         assert anon.post("/auth/login", json={"name": name, "password": "third123"}).status_code == 200
-        # 주인이 아니면 초기화 코드를 못 낸다
-        from app.main import db as _db
-        if anon.get("/auth/me").json()["user"]["id"] != _db().first_user_id():
-            assert anon.post("/admin/reset-code", json={"name": name}).status_code == 403
-            assert anon.get("/admin/migrate").json()["owner_hint"].endswith("…")
-
-
-def test_owner_reset_code_flow(invite, tmp_path):
-    """서버 주인 = 처음 가입한 사람: 깨끗한 DB 에서 주인이 친구 초기화 코드를 내주고 친구가 그것으로 바꾼다"""
-    from app.db import Database
-
-    with TestClient(app) as owner, TestClient(app) as friend:
-        old = app.state.db
-        app.state.db = Database(str(tmp_path / "x.db"))
-        try:
-            owner.post("/auth/signup", json={"name": "주인", "password": "secret12", "invite": "우리반-2026"})
-            friend.post("/auth/signup", json={"name": "친구", "password": "secret12", "invite": "우리반-2026"})
-            assert owner.get("/admin/migrate").json()["owner"] is True
-            assert friend.get("/admin/migrate").json()["owner_hint"] == "주…"
-            assert friend.post("/admin/reset-code", json={"name": "주인"}).status_code == 403
-            code = owner.post("/admin/reset-code", json={"name": "친구"}).json()["code"]
-            friend.post("/auth/logout")
-            assert friend.post("/auth/reset", json={"name": "친구", "code": code, "password": "fresh123"}).status_code == 200
-            assert friend.post("/auth/login", json={"name": "친구", "password": "fresh123"}).status_code == 200
-            # 초기화 코드도 한 번 쓰면 끝
-            assert friend.post("/auth/reset", json={"name": "친구", "code": code, "password": "x123456"}).status_code == 401
-        finally:
-            app.state.db = old
+        # 사용자 계정으로는 관리자 일을 못 한다
+        assert anon.post("/admin/reset-code", json={"name": name}).status_code == 401
 
 
 def test_email_verification_and_forgot_password_by_email(invite, tmp_path, monkeypatch):
@@ -248,15 +197,17 @@ def test_email_verification_and_forgot_password_by_email(invite, tmp_path, monke
     sent = []
     monkeypatch.setattr(mailer, "send", lambda db, to, subject, text: sent.append((to, text)))
     code_in = lambda: _re.search(r"\b(\d{6})\b", sent[-1][1]).group(1)
-    with TestClient(app) as owner, TestClient(app) as anon:
+    with TestClient(app) as owner, TestClient(app) as anon, TestClient(app) as admin:
         old = app.state.db
         app.state.db = Database(str(tmp_path / "m.db"))
         try:
             owner.post("/auth/signup", json={"name": "주인", "password": "secret12", "invite": "우리반-2026"})
             # 메일 설정 전에는 이메일 찾기를 못 쓴다
             assert anon.post("/auth/forgot", json={"who": "주인"}).status_code == 503
-            assert owner.put("/admin/mail", json={"user": "lune.app@gmail.com", "password": "abcd efgh ijkl mnop"}).status_code == 200
-            assert owner.get("/admin/mail").json() == {"user": "lune.app@gmail.com"}
+            assert admin.post("/admin/setup", json={"invite": "우리반-2026", "password": "admin-pass-1"}).status_code == 200
+            assert admin.put("/admin/mail", json={"user": "lune.app@gmail.com", "password": "abcd efgh ijkl mnop"}).status_code == 200
+            assert admin.get("/admin/mail").json() == {"user": "lune.app@gmail.com"}
+            assert owner.put("/admin/mail", json={"user": "x@gmail.com", "password": "abcdefghijklmnop"}).status_code == 401
             # 이메일 등록: 인증번호 → 확인
             assert owner.post("/account/email", json={"email": "나@없는주소"}).status_code == 400
             assert owner.post("/account/email", json={"email": "me@example.com"}).json() == {"sent": "me@example.com"}
@@ -270,5 +221,53 @@ def test_email_verification_and_forgot_password_by_email(invite, tmp_path, monke
             assert len(sent) == n + 1 and sent[-1][0] == "me@example.com"
             assert anon.post("/auth/reset", json={"name": "주인", "code": code_in(), "password": "newpass1"}).status_code == 200
             assert anon.post("/auth/login", json={"name": "주인", "password": "newpass1"}).status_code == 200
+        finally:
+            app.state.db = old
+
+
+
+def test_admin_page_separate_from_user_accounts(invite, tmp_path):
+    """관리자 페이지: 처음 한 번 초대 코드로 비밀번호를 정하고, 그 뒤로는 관리자 비밀번호로만"""
+    import io
+    import tarfile
+
+    from app.db import Database
+
+    with TestClient(app) as admin, TestClient(app) as friend, TestClient(app) as anon:
+        old = app.state.db
+        app.state.db = Database(str(tmp_path / "a.db"))
+        try:
+            friend.post("/auth/signup", json={"name": "친구", "password": "secret12", "invite": "우리반-2026"})
+            assert anon.get("/admin/status").json() == {"set": False, "logged_in": False, "auth": True}
+            assert anon.get("/admin/overview").status_code == 401
+            assert anon.post("/admin/setup", json={"invite": "틀림", "password": "admin-pass-1"}).status_code == 403
+            assert admin.post("/admin/setup", json={"invite": "우리반-2026", "password": "short"}).status_code == 400
+            assert admin.post("/admin/setup", json={"invite": "우리반-2026", "password": "admin-pass-1"}).status_code == 200
+            # 한 번 정하면 잠긴다
+            assert anon.post("/admin/setup", json={"invite": "우리반-2026", "password": "hijack-123"}).status_code == 409
+            assert anon.post("/admin/login", json={"password": "wrong-pass"}).status_code == 401
+            # 사용자 계정 로그인으로는 관리자 일을 못 한다
+            assert friend.get("/admin/overview").status_code == 401
+            over = admin.get("/admin/overview").json()
+            assert [u["name"] for u in over["users"]] == ["친구"] and "disk_free_gb" in over["server"]
+            # 초대 코드 바꾸기
+            assert admin.put("/admin/invite", json={"code": "새코드2027"}).status_code == 200
+            assert anon.post("/auth/signup", json={"name": "새사람", "password": "secret12", "invite": "우리반-2026"}).status_code == 403
+            assert anon.post("/auth/signup", json={"name": "새사람", "password": "secret12", "invite": "새코드2027"}).status_code == 200
+            # 비밀번호 초기화 코드 · 로그인 끊기
+            code = admin.post("/admin/reset-code", json={"name": "친구"}).json()["code"]
+            fid = next(u["id"] for u in admin.get("/admin/overview").json()["users"] if u["name"] == "친구")
+            assert admin.post(f"/admin/users/{fid}/logout").status_code == 200
+            assert friend.get("/documents").status_code == 401
+            assert friend.post("/auth/reset", json={"name": "친구", "code": code, "password": "fresh123"}).status_code == 200
+            # 서버 옮기기 코드
+            mc = admin.post("/admin/migrate").json()["code"]
+            res = anon.get(f"/migrate/export?code={mc}")
+            assert res.status_code == 200 and any(n.endswith(".db") for n in tarfile.open(fileobj=io.BytesIO(res.content)).getnames())
+            # 관리자 비밀번호 바꾸기 · 로그아웃
+            assert admin.post("/admin/password", json={"current": "admin-pass-1", "password": "admin-pass-2"}).status_code == 200
+            admin.post("/admin/logout")
+            assert admin.get("/admin/overview").status_code == 401
+            assert admin.post("/admin/login", json={"password": "admin-pass-2"}).status_code == 200
         finally:
             app.state.db = old

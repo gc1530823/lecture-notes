@@ -729,6 +729,18 @@ class Database:
         rows = self._query("SELECT * FROM users WHERE lower(email) = lower(?)", (email.strip(),))
         return rows[0] if rows else None
 
+    def admin_users(self) -> list[dict]:
+        """관리자 페이지: 사람마다 가입일 · 이메일 여부 · 강의자료·강의 수"""
+        rows = self._query("""SELECT u.id, u.name, u.created_at, u.email IS NOT NULL AND u.email != '' AS has_email,
+                                     (SELECT COUNT(*) FROM documents d WHERE d.owner = u.id) AS docs,
+                                     (SELECT COUNT(*) FROM sessions s JOIN documents d ON d.id = s.document_id WHERE d.owner = u.id) AS lectures,
+                                     (SELECT MAX(l.expires_at) FROM logins l WHERE l.user_id = u.id) AS last_login
+                              FROM users u ORDER BY u.created_at""")
+        return [{**dict(r), "has_email": bool(r["has_email"])} for r in rows]
+
+    def drop_logins(self, user_id: str) -> None:
+        self._write("DELETE FROM logins WHERE user_id = ?", (user_id,))
+
     def first_user_id(self) -> str | None:
         """서버 주인 = 맨 처음 가입한 사람"""
         rows = self._query("SELECT id FROM users ORDER BY created_at LIMIT 1")
