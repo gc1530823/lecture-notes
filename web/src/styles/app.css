@@ -1623,3 +1623,5 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .fold-head b { display: block; font: 700 15px/20px var(--font-sans); }
 .fold-head small { display: block; font: 400 12px/16px var(--font-sans); color: var(--text-secondary); }
 .fold-body { padding: 0 12px 12px; }
+.free-range { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; font: 600 12.5px/16px var(--font-sans); color: var(--text-secondary); }
+.free-range select { min-height: 36px; padding: 4px 8px; border-radius: 10px; border: 1px solid var(--border-line); background: var(--bg-card); color: var(--text-primary); font: 700 13px/16px var(--font-sans); }

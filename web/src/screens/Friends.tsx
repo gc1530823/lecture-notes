@@ -34,24 +34,45 @@ const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 const toClock = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
 /** 같이 비는 시간 (공강): 평일 9시~18시에서 둘 다 수업이 없는 1시간 이상 */
-function freeTogether(a: { weekday: number; start: string; end: string }[], b: typeof a, from = 9 * 60, to = 18 * 60) {
+function freeTogether(a: { weekday: number; start: string; end: string }[], b: typeof a, from = 9 * 60, to = 18 * 60, min = 60) {
   const out: { weekday: number; start: string; end: string; all: boolean }[] = [];
   for (let d = 0; d < 5; d++) {
     const busy = [...a, ...b].filter((c) => c.weekday === d).map((c) => [toMin(c.start), toMin(c.end)]).sort((x, y) => x[0] - y[0]);
     let t = from;
     for (const [s, e] of [...busy, [to, to]]) {
-      if (Math.min(s, to) - t >= 60) out.push({ weekday: d, start: toClock(t), end: toClock(Math.min(s, to)), all: !busy.length });
+      if (Math.min(s, to) - t >= min) out.push({ weekday: d, start: toClock(t), end: toClock(Math.min(s, to)), all: !busy.length });
       t = Math.max(t, e);
     }
   }
   return out;
 }
 
+const RANGE_KEY = "ln.freeRange";
 function FreeTogether({ name, mine, theirs }: { name: string; mine: ClassRow[]; theirs: ClassRow[] }) {
-  const slots = freeTogether(mine, theirs);
+  // 볼 시간대와 최소 길이는 사람마다 다르다 (아침 수업·저녁 동아리) → 고르고 기기에 기억
+  const [range, setRange] = useState<[number, number, number]>(() => {
+    try { const r = JSON.parse(localStorage.getItem(RANGE_KEY) ?? "null"); if (Array.isArray(r) && r.length === 3) return r as [number, number, number]; } catch { /* 기본값 */ }
+    return [9, 18, 60];
+  });
+  const pick = (r: [number, number, number]) => { setRange(r); try { localStorage.setItem(RANGE_KEY, JSON.stringify(r)); } catch { /* 괜찮다 */ } };
+  const [from, to, min] = range;
+  const slots = freeTogether(mine, theirs, from * 60, to * 60, min);
   return (
     <div className="free-together">
       <b><Icon name="clock" size={16} /> {name}님과 같이 비는 시간</b>
+      <div className="free-range">
+        <select value={from} onChange={(e) => pick([Number(e.target.value), Math.max(to, Number(e.target.value) + 1), min])} aria-label="시작 시각">
+          {Array.from({ length: 15 }, (_, i) => i + 7).map((h) => <option key={h} value={h}>{h}시</option>)}
+        </select>
+        <span>~</span>
+        <select value={to} onChange={(e) => pick([Math.min(from, Number(e.target.value) - 1), Number(e.target.value), min])} aria-label="끝 시각">
+          {Array.from({ length: 15 }, (_, i) => i + 9).map((h) => <option key={h} value={h}>{h}시</option>)}
+        </select>
+        <span>· 최소</span>
+        <select value={min} onChange={(e) => pick([from, to, Number(e.target.value)])} aria-label="최소 길이">
+          {[30, 60, 90, 120].map((m) => <option key={m} value={m}>{m < 60 ? `${m}분` : `${m / 60}시간`}</option>)}
+        </select>
+      </div>
       {slots.length ? (
         <div className="free-days">
           {[0, 1, 2, 3, 4].filter((d) => slots.some((f) => f.weekday === d)).map((d) => (
@@ -61,7 +82,7 @@ function FreeTogether({ name, mine, theirs }: { name: string; mine: ClassRow[]; 
             </div>
           ))}
         </div>
-      ) : <small>평일 9시~6시에 같이 비는 1시간이 없어요</small>}
+      ) : <small>평일 {from}시~{to}시에 같이 비는 {min < 60 ? `${min}분` : `${min / 60}시간`}이 없어요</small>}
     </div>
   );
 }
