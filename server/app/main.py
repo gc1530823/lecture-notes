@@ -141,13 +141,23 @@ _login_fails: dict[str, list[float]] = {}
 
 
 def _client(request: Request) -> str:
-    return request.headers.get("cf-connecting-ip") or (request.client.host if request.client else "?")
+    """요청한 사람의 주소. Tailscale Funnel 은 이 컴퓨터 안(127.0.0.1)에서 넘겨주므로 그때만 X-Forwarded-For 를 믿는다"""
+    host = request.client.host if request.client else "?"
+    forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    if host in ("127.0.0.1", "::1") and forwarded:
+        return forwarded
+    return request.headers.get("cf-connecting-ip") or host
 
 
-def _too_many(request: Request) -> bool:
-    recent = [t for t in _login_fails.get(_client(request), []) if t > time.time() - 600]
-    _login_fails[_client(request)] = recent
-    return len(recent) >= 10
+def _too_many(request: Request, key: str = "", limit: int = 10, window: int = 600) -> bool:
+    who = key + _client(request)
+    recent = [t for t in _login_fails.get(who, []) if t > time.time() - window]
+    _login_fails[who] = recent
+    return len(recent) >= limit
+
+
+ADMIN_LIMIT = (5, 900)          # 한 사람: 15분에 5번 틀리면 잠금
+ADMIN_GLOBAL = (30, 3600)       # 모두 합쳐: 1시간에 30번 틀리면 관리자 로그인 전체 잠금 (주소를 바꿔 가며 시도해도)
 
 
 def _start_login(request: Request, user: dict) -> JSONResponse:
@@ -2712,10 +2722,14 @@ def admin_setup(body: AdminLogin, request: Request):
 
 @app.post("/admin/login")
 def admin_login(body: AdminLogin, request: Request):
-    if _too_many(request):
-        raise HTTPException(429, "여러 번 틀려서 10분 동안 막혔어요.")
+    now = time.time()
+    everyone = [t for t in _login_fails.get("admin:*", []) if t > now - ADMIN_GLOBAL[1]]
+    _login_fails["admin:*"] = everyone
+    if _too_many(request, "admin:", *ADMIN_LIMIT) or len(everyone) >= ADMIN_GLOBAL[0]:
+        raise HTTPException(429, "여러 번 틀려서 관리자 로그인이 잠시 잠겼어요. 15분 뒤에 다시 해 주세요.")
     if not _admin_ok_password(body.password):
-        _login_fails.setdefault(_client(request), []).append(time.time())
+        _login_fails.setdefault("admin:" + _client(request), []).append(now)
+        everyone.append(now)
         raise HTTPException(401, "관리자 비밀번호가 맞지 않아요.")
     return _admin_session(request)
 

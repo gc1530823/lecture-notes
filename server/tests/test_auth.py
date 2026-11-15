@@ -261,6 +261,12 @@ def test_admin_page_separate_from_user_accounts(invite, tmp_path):
             # 한 번 정하면 잠긴다
             assert anon.post("/admin/setup", json={"invite": "우리반-2026", "password": "hijack-123"}).status_code == 409
             assert anon.post("/admin/login", json={"password": "wrong-pass"}).status_code == 401
+            # 한 사람이 다섯 번 틀리면 맞는 비밀번호도 잠시 막힌다 (다른 주소에서는 그대로)
+            for _ in range(4):
+                anon.post("/admin/login", json={"password": "wrong-pass"})
+            assert anon.post("/admin/login", json={"password": "admin-pass-1"}).status_code == 429
+            from app import main as m
+            m._login_fails.clear()
             # 사용자 계정 로그인으로는 관리자 일을 못 한다
             assert friend.get("/admin/overview").status_code == 401
             over = admin.get("/admin/overview").json()

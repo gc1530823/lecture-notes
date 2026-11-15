@@ -100,3 +100,17 @@ def test_english_terms_spoken_in_korean_match_english_slides():
     tracker = PageTracker(index)
     tracker.observe("그래디언트 디센트부터 볼게요", 0, now=0)
     assert tracker.observe("자 이제 백프로파게이션은 체인 룰을 씁니다", 20_000, now=20).page_no == 2
+
+
+def test_pinned_page_wins_until_unpinned():
+    """'이 쪽 고정': 교수님이 다른 쪽 얘기를 해도 고정한 쪽에 붙고, 풀면 그 쪽에서부터 다시 따라간다"""
+    t = tracker()
+    t.pin(1)
+    est = t.observe("합성곱 신경망은 필터로 이미지의 특징을 추출하고 풀링으로 크기를 줄여요", 0)
+    assert est.page_no == 1 and est.confidence == 1.0
+    t.pin(None)
+    for i in range(3):
+        est = t.observe("합성곱 신경망은 필터로 이미지의 특징을 추출하고 풀링으로 크기를 줄여요", 10_000 + i * 5_000)
+    assert est.page_no == 4
+    t.pin(9)   # 없는 쪽은 무시
+    assert t.pinned is None

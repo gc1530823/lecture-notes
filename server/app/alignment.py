@@ -184,6 +184,7 @@ class PageTracker:
     window: list[tuple[int, str]] = field(default_factory=list)
     user_page: int | None = None
     user_page_at: float = -1e9
+    pinned: int | None = None   # 사용자가 '이 쪽 고정'을 누른 쪽: 풀 때까지 추정보다 우선
 
     def __post_init__(self) -> None:
         n = self.index.size
@@ -198,6 +199,12 @@ class PageTracker:
         if 1 <= page_no <= self.index.size:
             self.user_page = page_no
             self.user_page_at = (time.monotonic() if now is None else now) if manual else -1e9
+
+    def pin(self, page_no: int | None) -> None:
+        """이 쪽 고정 (None 이면 풀기). 고정하는 동안 필기는 그 쪽에 붙고, 풀면 그 쪽에서부터 다시 추정한다"""
+        self.pinned = page_no if page_no and 1 <= page_no <= self.index.size else None
+        if self.pinned:
+            self.belief = [1.0 if i == self.pinned - 1 else 0.0 for i in range(self.index.size)]
 
     def observe(self, text: str, start_ms: int, now: float | None = None) -> Estimate:
         """받아쓰기 한 문장을 반영하고 현재 페이지 추정을 돌려준다."""
@@ -227,6 +234,9 @@ class PageTracker:
             user[self.user_page - 1] = weight
 
         self.belief = _normalize([p * e * u for p, e, u in zip(prior, emission, user)])
+        if self.pinned:
+            self.belief = [1.0 if i == self.pinned - 1 else 0.0 for i in range(n)]
+            return Estimate(page_no=self.pinned, confidence=1.0, candidates=[self.pinned])
         order = sorted(range(n), key=lambda i: self.belief[i], reverse=True)
         return Estimate(page_no=order[0] + 1, confidence=self.belief[order[0]], candidates=[i + 1 for i in order[:3]])
 

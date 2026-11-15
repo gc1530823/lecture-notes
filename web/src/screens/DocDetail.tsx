@@ -20,6 +20,7 @@ export default function DocDetail({ docId }: { docId: string }) {
   const waves = useWaves();
   const doc = docs?.find((d) => d.id === docId);
   const [upload, setUpload] = useState<string | null>(null);
+  const [menu, setMenu] = useState(false);
   const audioInput = useRef<HTMLInputElement>(null);
 
   // '음성 메모' 등으로 녹음해 둔 파일 → 서버가 받아쓰고 필기·요약까지. 큰 파일이라 올라가는 정도를 보여 주려고 XHR을 쓴다
@@ -50,7 +51,17 @@ export default function DocDetail({ docId }: { docId: string }) {
   return (
     <div className="screen">
       <TopBar title={doc?.title ?? "강의"} onBack={() => back({ name: "home" })}
-        action={doc && <button className="top-bar-back" onClick={remove} aria-label="강의자료 지우기"><Icon name="trash" /></button>} />
+        action={doc && (
+          <div className="top-menu">
+            <button className="top-bar-back" onClick={() => setMenu(!menu)} aria-label="더보기" aria-expanded={menu}><Icon name="dots-three-outline" /></button>
+            {menu && <>
+              <div className="top-menu-bg" onClick={() => setMenu(false)} />
+              <div className="top-menu-list" role="menu">
+                <button role="menuitem" className="danger" onClick={() => { setMenu(false); void remove(); }}><Icon name="trash" size={16} /> 강의자료와 강의 모두 지우기</button>
+              </div>
+            </>}
+          </div>
+        )} />
       <div className="screen-body">
         {error && <Empty icon="warning-circle">{error}</Empty>}
         {docs && !doc && <Empty icon="warning">자료를 찾을 수 없어요</Empty>}

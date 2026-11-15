@@ -215,6 +215,10 @@ def _split_audio(path: str, out_dir: str) -> list[str]:
     return sorted(os.path.join(out_dir, n) for n in os.listdir(out_dir) if n.startswith("part"))
 
 
+# 받아쓰기 모델 한도가 차면 바꿔 쓸 짝 (둘 다 무료, 한도는 따로)
+OTHER_WHISPER = {"whisper-large-v3": "whisper-large-v3-turbo", "whisper-large-v3-turbo": "whisper-large-v3"}
+
+
 class SpeechLimit(LLMError):
     def __init__(self, message: str, wait: float) -> None:
         super().__init__(message)
@@ -242,6 +246,7 @@ class GroqTranscriber:
         # Whisper는 프롬프트의 말투를 따라 쓰므로, 마침표가 있는 문장을 앞에 두어 문장 끝에 마침표를 찍게 한다.
         # 프롬프트는 짧아야 해서 용어·직전 문장은 뒤쪽만 남긴다
         form["prompt"] = PROMPT_LEAD[language if language in PROMPT_LEAD else "ko"] + hint[-160:]
+        switched = False
         for attempt in range(MAX_RETRIES):
             try:
                 response = self.client.post("/audio/transcriptions", data=form, files={"file": (filename, data)},
@@ -250,6 +255,12 @@ class GroqTranscriber:
                 raise LLMError(f"Groq에 연결할 수 없습니다: {exc}") from exc
             if response.status_code != 429:
                 break
+            # 한도는 모델마다 따로다: 기다리거나 느린 서버 Whisper 로 넘기기 전에 다른 무료 받아쓰기 모델로 한 번
+            other = OTHER_WHISPER.get(form["model"])
+            if other and not switched:
+                log.warning("Groq %s 한도: %s 로 받아씁니다", form["model"], other)
+                form["model"], switched = other, True
+                continue
             wait = _wait_seconds(response, attempt)
             if not patient:
                 raise SpeechLimit(f"Groq 받아쓰기 한도 ({wait:.0f}초 뒤 풀림)", wait)

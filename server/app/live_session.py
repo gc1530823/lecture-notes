@@ -86,6 +86,12 @@ class LiveSession:
         kind = message.get("type")
         if kind == "page_view":
             await self._on_page_view(int(message["page"]), manual=not message.get("initial", False))
+        elif kind == "pin":
+            if not self.notebook:
+                page = message.get("page")
+                self.tracker.pin(int(page) if page else None)
+                if page and self.batch and self.batch.estimate.page_no != int(page):
+                    self._schedule_flush()   # 고정 전 쌓인 받아쓰기는 그 전 쪽 것
         elif kind == "transcript_final":
             await self._on_transcript(message)
         elif kind == "flush":

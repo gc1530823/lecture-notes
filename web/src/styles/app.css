@@ -1588,3 +1588,15 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .free-day { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .free-day > i { font-style: normal; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ico-green); color: #fff; font: 800 12px/1 var(--font-sans); flex: none; }
 .free-day .free-chip { padding: 5px 10px; }
+/* 머리 줄 아이콘에 짧은 이름 */
+.top-bar-back { position: relative; }
+.top-icon-label { position: absolute; left: 50%; bottom: -1px; transform: translateX(-50%); font: 700 9.5px/1 var(--font-sans); color: var(--text-secondary); white-space: nowrap; }
+.top-bar-back:has(.top-icon-label) .icon { transform: translateY(-4px); }
+/* ⋯ 메뉴 */
+.top-menu { position: relative; }
+.top-menu-bg { position: fixed; inset: 0; z-index: 20; }
+.top-menu-list { position: absolute; right: 0; top: calc(100% + 4px); z-index: 21; min-width: 220px; padding: 6px; border-radius: 14px;
+  background: var(--bg-card); box-shadow: 0 10px 30px rgb(0 0 0 / .16); animation: rise .2s var(--ease-out) both; }
+.top-menu-list button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0 12px; white-space: nowrap; border-radius: 10px; font: 600 14px/18px var(--font-sans); color: var(--text-primary); }
+.top-menu-list button.danger { color: var(--accent-record); }
+.top-menu-list button:active { background: var(--fill-soft); }

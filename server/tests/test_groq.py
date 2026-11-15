@@ -215,3 +215,24 @@ def test_groq_rejecting_a_file_retries_without_hint_then_falls_back_to_local(tmp
     always_bad = GroqTranscriber(transport=httpx.MockTransport(lambda r: httpx.Response(400, json={"error": {"message": "invalid file"}})))
     t2 = stt.FallbackTranscriber(always_bad, Local())
     assert [s.text for s in t2.transcribe(str(audio), "경사하강법")] == ["이 서버가 받아쓴 말이에요."]
+
+
+def test_speech_switches_to_the_other_free_whisper_model_before_waiting():
+    """받아쓰기 한도는 모델마다 따로: 한 모델이 429면 기다리지 않고 다른 무료 모델로 받아쓴다"""
+    import numpy as np
+
+    from app.groq import GroqTranscriber
+
+    asked = []
+
+    def handler(request):
+        model = next(part for part in request.content.split(b"\r\n") if part.startswith(b"whisper"))
+        asked.append(model.decode())
+        if model == b"whisper-large-v3-turbo":
+            return httpx.Response(429, headers={"retry-after": "40"}, json={"error": {"message": "rate limit"}})
+        return httpx.Response(200, json={"segments": [{"start": 0, "end": 2, "text": "다른 모델이 받아썼어요.", "no_speech_prob": 0.0}]})
+
+    t = GroqTranscriber(transport=httpx.MockTransport(handler))
+    out = t.transcribe(np.zeros(16000, dtype=np.float32), "", patient=False)
+    assert [s.text for s in out] == ["다른 모델이 받아썼어요."]
+    assert asked == ["whisper-large-v3-turbo", "whisper-large-v3"]

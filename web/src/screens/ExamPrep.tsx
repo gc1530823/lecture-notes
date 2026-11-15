@@ -285,7 +285,7 @@ export function ConsentSheet({ onAgree, onCancel }: { onAgree: () => void; onCan
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="consent-title">
         <h3 className="t-title-m" id="consent-title">녹음하기 전에</h3>
         <div className="banner">
-          <p className="t-body"><b>강의 녹음은 교수님 허락을 받아 주세요.</b> 학교·수업마다 규칙이 달라요. 녹음은 본인 공부에만 쓰고 다른 사람에게 퍼뜨리지 마세요.</p>
+          <p className="t-body"><b>강의 녹음은 교수님 허락을 받아 주세요.</b> 학교·수업마다 규칙이 달라요. 녹음에는 교수님과 <b>질문하는 다른 학생 목소리</b>도 들어가요. 본인 공부에만 쓰고 다른 사람에게 퍼뜨리지 마세요.</p>
         </div>
         <PrivacyFacts info={info} />
         <label className="row t-body"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} /> 녹음 허락을 받았고, 위 내용을 확인했어요</label>

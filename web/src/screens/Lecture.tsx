@@ -46,7 +46,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const [phase, setPhase] = useState<"idle" | "recording" | "ending" | "ended">(initialSession ? "ended" : "idle");
   const [startedAt, setStartedAt] = useState(0);
   const [now, setNow] = useState(Date.now());
-  const [estimate, setEstimate] = useState<number | null>(null);
+  const [, setEstimate] = useState<number | null>(null);
   const [autoFollow, setAutoFollow] = useState(true);
   const [caption, setCaption] = useState("듣고 있어요…");
   const [perk, setPerk] = useState(false);
@@ -298,6 +298,11 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     return () => window.clearTimeout(t);
   }, [banner]);
 
+  // '이 쪽 고정': 고정하는 동안 AI 필기는 보고 있는 쪽에 붙는다 (서버 쪽 추정보다 우선). 넘기면 고정도 따라간다
+  useEffect(() => {
+    if (phase !== "recording" || !live.current) return;
+    live.current.send({ type: "pin", page: autoFollow ? null : page });
+  }, [phase, autoFollow, page]);
   // --- 녹음 ---
   const start = async (demoFile?: File, resume?: { id: string; ms: number }) => {
     const app = demoFile ? null : android(); // 시연 파일은 앱 안에서도 웹 방식으로 보낸다
@@ -570,7 +575,6 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const visible = all.filter((n) => n.page_no === page && !n.pending);
   const pending = notes.filter((n) => n.pending);
   const pageInfo = doc.pages[page - 1];
-  const elsewhere = estimate !== null && estimate !== page;
 
   const back = () => {
     if (recording && !confirm("녹음을 멈추고 나갈까요?")) return;
@@ -580,14 +584,16 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
 
   return (
     <div className="screen lecture">
-      <TopBar title={doc.title} onBack={back} action={
+      <TopBar title={doc.title} onBack={back} home={false} action={
         <div className="row" style={{ gap: 0 }}>
           <button className="top-bar-back" aria-label={`용어 사전 ${terms.length}개`} onClick={() => setSheet("glossary")} style={{ position: "relative" }}>
             <Icon name="book-open-text" />
             {terms.length > 0 && <span className="badge">{terms.length}</span>}
+            <small className="top-icon-label">용어</small>
           </button>
           <button className={`top-bar-back${a11y ? " on" : ""}`} aria-label="자막 모드 (크게 보기·중요할 때 진동)" aria-pressed={a11y} onClick={toggleA11y}>
             <Icon name="closed-captioning" />
+            <small className="top-icon-label">자막</small>
           </button>
           {sessionId && phase === "ended" && (
             <button className="top-bar-back" aria-label="더보기: 정리 노트 PDF · 강의 지우기" onClick={() => setSheet("pdf")}><Icon name="dots-three-outline" /></button>
@@ -616,8 +622,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               {tasks.length > 0 && <Chip variant="accent" onClick={() => setSheet("tasks")}>과제 {tasks.filter((t) => !t.done).length}</Chip>}
               {pending.length > 0 && <Chip variant="default" onClick={() => setSheet("pending")}>보류 {pending.length}</Chip>}
               {recording && !notebook && (
-                <Chip variant={autoFollow ? "accent" : "default"} onClick={() => setAutoFollow(!autoFollow)}>
-                  {autoFollow ? "자동 넘김" : elsewhere ? `지금 ${estimate}쪽 설명 중` : "직접 넘김"}
+                <Chip variant={autoFollow ? "default" : "selected"} onClick={() => setAutoFollow(!autoFollow)}>
+                  {autoFollow ? <><Icon name="lock-simple" size={13} /> 이 쪽 고정</> : <><Icon name="lock-simple" size={13} /> {page}쪽 고정 · 풀기</>}
                 </Chip>
               )}
             </div>
