@@ -1488,3 +1488,12 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .tutor-scope { display: inline-flex; padding: 3px; gap: 2px; border-radius: 12px; background: var(--fill-soft); align-self: flex-start; }
 .tutor-scope button { padding: 7px 13px; border-radius: 9px; font: 700 13px/16px var(--font-sans); color: var(--text-secondary); }
 .tutor-scope button.on { background: var(--bg-card); color: var(--accent-deep); box-shadow: 0 1px 3px rgb(0 0 0 / .12); }
+.ios-hint { display: flex; gap: 12px; align-items: flex-start; padding: 14px 14px 14px 16px; border-radius: 18px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 12%, var(--bg-card)), var(--bg-card)); border: 1px solid var(--border); animation: rise .35s ease both; }
+.ios-hint-ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--bg-card); color: var(--accent-deep); flex: none; }
+.ios-hint b { font: 700 14px/20px var(--font-sans); }
+.ios-hint p { margin: 2px 0 0; font: 400 13px/19px var(--font-sans); color: var(--text-secondary); }
+.ios-hint p .icon { vertical-align: -2px; }
+.ios-hint-x { padding: 4px; color: var(--text-tertiary); }
+.ios-rec-warn { margin: 8px 0 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--ico-orange) 12%, var(--bg-card)); color: var(--text-secondary); font: 400 13px/19px var(--font-sans); }
+.ios-rec-warn .icon { vertical-align: -3px; color: var(--ico-orange); }

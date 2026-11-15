@@ -9,6 +9,7 @@ import { ExamBanner } from "./Semester";
 import { Timetable } from "./Timetable";
 import { StreakCard } from "./Story";
 import { TasksCard } from "./Tasks";
+import { IosInstallHint } from "../components/IosHint";
 import { Skeleton } from "../lib/motion";
 import { courseTone } from "../lib/course";
 import { useWaves, Wave } from "../lib/wave";
@@ -201,6 +202,7 @@ export default function Home() {
         <input ref={audioToDoc} type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f && target.current) uploadToDoc(target.current, f); }} />
 
+        <IosInstallHint />
         <ExamBanner />
         <TasksCard />
 

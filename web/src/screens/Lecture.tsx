@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { LocalRecording, syncRecordings } from "../lib/localRec";
 import { EnglishToggle, lectureLang } from "../components/EnglishToggle";
+import { IosRecordWarning } from "../components/IosHint";
 import type { Annotation, DocumentDetail, GlossaryTerm, NoteType, Page } from "../api/types";
 import { getJSON, postJSON } from "../api/useApi";
 import { LiveWave, refreshWaves } from "../lib/wave";
@@ -739,7 +740,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               {asking ? <span className="spin" /> : <Icon name="chat-circle-dots" art size={30} />}<span className="tool-label">질문</span>
             </button>
           )}
-          {phase === "idle" && <div className="idle-lang"><EnglishToggle docId={docId} /></div>}
+          {phase === "idle" && <div className="idle-lang"><EnglishToggle docId={docId} /><IosRecordWarning /></div>}
           {phase === "idle" && <button className="round round-record" onClick={startWithConsent} aria-label="녹음 시작"><Icon name="microphone" art size={46} /></button>}
           {recording && <button className="round round-record on" onClick={() => void stop()} aria-label="강의 끝내기"><span className="stop" /></button>}
           {phase === "ending" && <span className="round round-soft"><span className="spin" /></span>}
