@@ -56,6 +56,38 @@ function useReminder() {
   }, []);
 }
 
+/** 처음 쓰는 사람 안내: 가입 → 강의자료 → 첫 녹음. 다 하면(또는 닫으면) 사라진다 */
+function FirstSteps({ docs, onDoc, onRecord }: { docs: DocumentBrief[]; onDoc: () => void; onRecord: () => void }) {
+  const [hide, setHide] = useState(() => { try { return localStorage.getItem("ln.firstSteps") === "off"; } catch { return false; } });
+  const hasDoc = docs.length > 0;
+  const hasRec = docs.some((d) => d.sessions.length > 0);
+  if (hide || (hasDoc && hasRec)) return null;
+  const close = () => { try { localStorage.setItem("ln.firstSteps", "off"); } catch { /* 괜찮다 */ } setHide(true); };
+  const steps: [string, string, boolean, (() => void) | null][] = [
+    ["가입하기", "끝났어요", true, null],
+    ["강의자료 올리기", "PDF · PPT · 한글 파일", hasDoc, onDoc],
+    ["첫 수업 녹음", "들으면서 쪽마다 필기가 붙어요", hasRec, onRecord],
+  ];
+  const next = steps.findIndex(([, , done]) => !done);
+  return (
+    <section className="first-steps" aria-label="시작하기">
+      <div className="row"><b className="grow">LUNE 시작하기 <small>{steps.filter(([, , d]) => d).length}/3</small></b>
+        <button className="ios-hint-x" aria-label="안내 닫기" onClick={close}><Icon name="x" size={16} /></button></div>
+      <ol>
+        {steps.map(([title, sub, done, act], i) => (
+          <li key={title} className={done ? "done" : i === next ? "now" : ""}>
+            <button disabled={done || !act} onClick={act ?? undefined}>
+              <span className="fs-num">{done ? <Icon name="check" size={14} /> : i + 1}</span>
+              <span className="grow"><b>{title}</b><small>{sub}</small></span>
+              {!done && i === next && <Icon name="caret-right" size={14} />}
+            </button>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 export default function Home() {
   const { data: docs, error, loading, reload } = useApi<DocumentBrief[]>("/documents");
   useReminder();
@@ -180,6 +212,7 @@ export default function Home() {
       <div className="screen-body">
         <Timetable courses={courses} onPick={pick} />
 
+        {docs && <FirstSteps docs={docs} onDoc={() => file.current?.click()} onRecord={() => setPicker("record")} />}
         {/* 이 앱의 중심: 강의자료에 녹음을 붙인다 (지금 녹음하거나, 녹음 파일을 올리거나) */}
         <section className="record-hub" aria-label="강의 녹음">
           <button className="record-main" onClick={() => setPicker("record")} disabled={!!busy}>
