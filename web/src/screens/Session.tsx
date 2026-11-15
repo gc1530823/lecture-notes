@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 // 강의 다시 보기: 필기 → 정리 → 공부 → 용어 (공부하는 순서대로)
 import type { Annotation, DocumentDetail, GlossaryTerm, SummaryResponse } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
-import { Button, Chip, Empty, Icon, NoteSection, PostIt, TermCard, TopBar } from "../components/ui";
+import { Button, Chip, Empty, Fold, Icon, NoteSection, PostIt, TermCard, TopBar } from "../components/ui";
 import { back, go } from "../router";
 import { NotesPdf, StudyNotePdf } from "./LectureExtras";
 import Study, { ConceptExplain, Organize } from "./Study";
@@ -37,7 +37,7 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
             <NotesPdf sessionId={sessionId} />
             <ExportRow sessionId={sessionId} />
             {/* 1분 스토리는 덤: 정리 탭 맨 아래 */}
-            {doc.kind !== "meeting" && <><h3 className="t-title-s section-title">한눈에 넘겨 보기</h3><StoryEntry docId={docId} sessionId={sessionId} /></>}
+            {doc.kind !== "meeting" && <Fold title="한눈에 넘겨 보기" sub="1분 스토리 · 수업 흐름"><StoryEntry docId={docId} sessionId={sessionId} /></Fold>}
           </>
         )}
         {tab === "study" && <Study sessionId={sessionId} />}

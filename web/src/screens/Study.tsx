@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { go } from "../router";
 import type { ClozeItem, Concept, Flashcard, MindNode, StudyResponse, SummaryResponse, TutorReply } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
-import { Button, Chip, Empty, Icon, TermCard } from "../components/ui";
+import { Button, Chip, Empty, Fold, Icon, TermCard } from "../components/ui";
 import { ConfusedPane } from "./ExamPrep";
 import QuizCards from "./QuizCards";
 import SlidingTabs from "../components/SlidingTabs";
@@ -45,8 +45,9 @@ export function Organize({ sessionId }: { sessionId: string }) {
   return (
     <>
       <SummaryPane sessionId={sessionId} />
-      <h3 className="t-title-s section-title">마인드맵</h3>
-      <AIStudy<MindNode> sessionId={sessionId} kind="mindmap" render={(b) => <MindMap root={b} />} />
+      <Fold title="마인드맵" sub="강의 내용을 가지로 펼쳐 보기">
+        <AIStudy<MindNode> sessionId={sessionId} kind="mindmap" render={(b) => <MindMap root={b} />} />
+      </Fold>
       {lang?.english && (
         <>
           <h3 className="t-title-s section-title">영어 이중 노트</h3>

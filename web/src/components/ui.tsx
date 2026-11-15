@@ -1,5 +1,6 @@
 // Figma "02 디자인 시스템" 페이지의 컴포넌트와 1:1로 맞춘 기본 부품.
 // 이름·속성(variant)도 Figma와 같게 두어 디자인과 코드를 오가기 쉽게 한다.
+import { useState } from "react";
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { NoteText } from "./NoteText";
 import type { NoteType } from "../api/types";
@@ -160,4 +161,18 @@ export function NoteSection({ number, title, highlight, lines }: { number: numbe
 /** 빈 화면: 그 내용에 맞는 3D 사물 그림 + 안내 글 */
 export function Empty({ icon, children }: { icon: string; children: ReactNode; mood?: string }) {
   return <div className="empty"><span className="empty-art"><Icon name={icon} art size={96} /></span><div>{children}</div></div>;
+}
+
+/** 접어 두는 칸: 제목 줄을 누르면 펼친다 (펼치기 전에는 안의 것을 불러오지 않는다) */
+export function Fold({ title, sub, children, defaultOpen = false }: { title: string; sub?: string; children: ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className={`fold${open ? " open" : ""}`}>
+      <button className="fold-head" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <span className="grow"><b>{title}</b>{sub && <small>{sub}</small>}</span>
+        <Icon name={open ? "caret-up" : "caret-down"} size={16} />
+      </button>
+      {open && <div className="fold-body">{children}</div>}
+    </section>
+  );
 }
