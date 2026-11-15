@@ -177,7 +177,7 @@ def test_owner_can_export_everything_for_a_new_server(invite):
         me = a.get("/auth/me").json()["user"]["id"]
         if me != owner_id:   # 다른 시험에서 이미 주인이 생겼으면: 주인이 아니면 막힌다
             assert a.post("/admin/migrate").status_code == 403
-            assert a.get("/admin/migrate").json() == {"owner": False}
+            assert a.get("/admin/migrate").json()["owner"] is False
             return
         code = a.post("/admin/migrate").json()["code"]
     finally:
@@ -188,3 +188,52 @@ def test_owner_can_export_everything_for_a_new_server(invite):
         assert res.status_code == 200
         names = tarfile.open(fileobj=io.BytesIO(res.content)).getnames()
         assert any(n.endswith(".db") for n in names)
+
+
+def test_forgot_password_with_recovery_code_and_owner_reset_code(invite):
+    with TestClient(app) as c:
+        name = f"잊음{uuid.uuid4().hex[:6]}"
+        res = c.post("/auth/signup", json={"name": name, "password": "secret12", "invite": "우리반-2026"}).json()
+        code = res["recovery_code"]   # 가입할 때 한 번 보여 준다
+        assert len(code) == 14 and res["user"]["name"] == name
+        assert c.get("/account/recovery").json() == {"has_code": True}
+        c.post("/auth/logout")
+    with TestClient(app) as anon:
+        assert anon.post("/auth/reset", json={"name": name, "code": "AAAA-BBBB-CCCC", "password": "newpass1"}).status_code == 401
+        ok = anon.post("/auth/reset", json={"name": name, "code": code.lower().replace("-", " "), "password": "newpass1"})
+        assert ok.status_code == 200 and anon.get("/auth/me").json()["user"]["name"] == name
+        # 복구 코드는 한 번 쓰면 끝, 새 비밀번호로 로그인
+        assert anon.post("/auth/reset", json={"name": name, "code": code, "password": "again123"}).status_code == 401
+        assert anon.post("/auth/login", json={"name": name, "password": "newpass1"}).status_code == 200
+        # 로그인한 채로 비밀번호 바꾸기
+        assert anon.post("/account/password", json={"current": "wrong", "password": "third123"}).status_code == 401
+        assert anon.post("/account/password", json={"current": "newpass1", "password": "third123"}).status_code == 200
+        assert anon.post("/auth/login", json={"name": name, "password": "third123"}).status_code == 200
+        # 주인이 아니면 초기화 코드를 못 낸다
+        from app.main import db as _db
+        if anon.get("/auth/me").json()["user"]["id"] != _db().first_user_id():
+            assert anon.post("/admin/reset-code", json={"name": name}).status_code == 403
+            assert anon.get("/admin/migrate").json()["owner_hint"].endswith("…")
+
+
+def test_owner_reset_code_flow(invite, tmp_path):
+    """서버 주인 = 처음 가입한 사람: 깨끗한 DB 에서 주인이 친구 초기화 코드를 내주고 친구가 그것으로 바꾼다"""
+    from app.db import Database
+
+    with TestClient(app) as owner, TestClient(app) as friend:
+        old = app.state.db
+        app.state.db = Database(str(tmp_path / "x.db"))
+        try:
+            owner.post("/auth/signup", json={"name": "주인", "password": "secret12", "invite": "우리반-2026"})
+            friend.post("/auth/signup", json={"name": "친구", "password": "secret12", "invite": "우리반-2026"})
+            assert owner.get("/admin/migrate").json()["owner"] is True
+            assert friend.get("/admin/migrate").json()["owner_hint"] == "주…"
+            assert friend.post("/admin/reset-code", json={"name": "주인"}).status_code == 403
+            code = owner.post("/admin/reset-code", json={"name": "친구"}).json()["code"]
+            friend.post("/auth/logout")
+            assert friend.post("/auth/reset", json={"name": "친구", "code": code, "password": "fresh123"}).status_code == 200
+            assert friend.post("/auth/login", json={"name": "친구", "password": "fresh123"}).status_code == 200
+            # 초기화 코드도 한 번 쓰면 끝
+            assert friend.post("/auth/reset", json={"name": "친구", "code": code, "password": "x123456"}).status_code == 401
+        finally:
+            app.state.db = old

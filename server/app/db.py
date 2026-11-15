@@ -293,6 +293,11 @@ class Database:
             self._conn.execute("ALTER TABLE users ADD COLUMN friend_code TEXT")
             self._conn.commit()
         # 친구 설정 (JSON): 족보·시간표 공개, 친구 족보 합치기, 공개할 족보 항목, 친구 신청 받기
+        # 비밀번호 찾기: 복구 코드(본인이 받아 둠) · 초기화 코드(서버 주인이 내줌, 24시간) 의 해시
+        for col, ddl in (("recovery_hash", "TEXT"), ("reset_hash", "TEXT"), ("reset_until", "REAL")):
+            if col not in columns:
+                self._conn.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
+                self._conn.commit()
         if "friend_prefs" not in columns:
             self._conn.execute("ALTER TABLE users ADD COLUMN friend_prefs TEXT")
             self._conn.commit()
@@ -675,6 +680,22 @@ class Database:
     def user_by_name(self, name: str) -> dict | None:
         rows = self._query("SELECT * FROM users WHERE name = ?", (name,))
         return rows[0] if rows else None
+
+    def set_password(self, user_id: str, password_hash: str) -> None:
+        """비밀번호를 바꾸고, 다른 기기의 로그인은 모두 끊는다"""
+        with self._lock, self._conn:
+            self._conn.execute("UPDATE users SET password = ? WHERE id = ?", (password_hash, user_id))
+            self._conn.execute("DELETE FROM logins WHERE user_id = ?", (user_id,))
+
+    def set_recovery(self, user_id: str, code_hash: str | None) -> None:
+        self._write("UPDATE users SET recovery_hash = ? WHERE id = ?", (code_hash, user_id))
+
+    def set_reset(self, user_id: str, code_hash: str | None, until: float | None) -> None:
+        self._write("UPDATE users SET reset_hash = ?, reset_until = ? WHERE id = ?", (code_hash, until, user_id))
+
+    def recovery_info(self, user_id: str) -> dict:
+        rows = self._query("SELECT recovery_hash, reset_hash, reset_until FROM users WHERE id = ?", (user_id,))
+        return dict(rows[0]) if rows else {}
 
     def first_user_id(self) -> str | None:
         """서버 주인 = 맨 처음 가입한 사람"""

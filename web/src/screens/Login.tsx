@@ -15,14 +15,37 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
   const [invite, setInvite] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forgot, setForgot] = useState(false);
+  const [code, setCode] = useState("");
+  const [saved, setSaved] = useState<{ me: Me; code: string } | null>(null);   // 가입 직후: 복구 코드를 보여 준다
   const submit = async () => {
     setBusy(true); setError(null);
     try {
-      onDone(await postJSON<Me>(`/auth/${mode}`, { name, password, invite }));
+      if (forgot) {
+        onDone(await postJSON<Me>("/auth/reset", { name, code, password }));
+      } else {
+        const me = await postJSON<Me & { recovery_code?: string }>(`/auth/${mode}`, { name, password, invite });
+        if (me.recovery_code) setSaved({ me, code: me.recovery_code }); else onDone(me);
+      }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     setBusy(false);
   };
-  const ready = name.trim() && password.length >= (mode === "signup" ? 6 : 1) && (mode === "login" || invite.trim());
+  const ready = forgot ? name.trim() && code.replace(/[^A-Za-z0-9]/g, "").length >= 12 && password.length >= 6
+    : name.trim() && password.length >= (mode === "signup" ? 6 : 1) && (mode === "login" || invite.trim());
+
+  if (saved) return (
+    <div className="login">
+      <LuneMark size={64} className="login-mark" />
+      <div className="login-card">
+        <h2 className="t-title-m" style={{ margin: 0 }}>복구 코드를 저장해 두세요</h2>
+        <p className="t-caption muted" style={{ margin: 0 }}>비밀번호를 잊었을 때 이 코드로 새 비밀번호를 만들 수 있어요. 지금 한 번만 보여 줘요.</p>
+        <code className="recovery-code">{saved.code}</code>
+        <Button variant="secondary" onClick={() => void navigator.clipboard?.writeText(saved.code).catch(() => {})}>복사하기</Button>
+        <p className="t-caption faint" style={{ margin: 0 }}>메모장·카톡 나에게 보내기 등에 붙여 두세요. 설정에서 새로 만들 수도 있어요.</p>
+        <Button block onClick={() => onDone(saved.me)}>저장했어요, 시작하기</Button>
+      </div>
+    </div>
+  );
   return (
     <div className="login">
       <LuneMark size={84} className="login-mark" />
@@ -30,9 +53,13 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
       <p className="login-tag">{TAGLINE}</p>
       <p className="t-caption muted">녹음하면 강의자료 위에 AI 필기가 붙어요</p>
       <form className="login-card" onSubmit={(e) => { e.preventDefault(); if (ready && !busy) void submit(); }}>
-        <SlidingTabs label="로그인 방법" value={mode} onChange={(m) => { setMode(m); setError(null); }}
-          items={[["login", "로그인"], ["signup", "처음이에요"]] as const} />
-        {mode === "signup" && (
+        {forgot ? (
+          <div className="forgot-head"><b>비밀번호 다시 만들기</b><small>가입할 때 받은 복구 코드, 또는 서버 주인에게 받은 초기화 코드를 넣어 주세요</small></div>
+        ) : (
+          <SlidingTabs label="로그인 방법" value={mode} onChange={(m) => { setMode(m); setError(null); }}
+            items={[["login", "로그인"], ["signup", "처음이에요"]] as const} />
+        )}
+        {!forgot && mode === "signup" && (
           <label><span>초대 코드</span>
             <input className="input" value={invite} onChange={(e) => setInvite(e.target.value)} placeholder="친구에게 받은 코드" autoComplete="off" />
           </label>
@@ -40,12 +67,22 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
         <label><span>이름</span>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 민지" autoComplete="username" maxLength={20} />
         </label>
-        <label><span>비밀번호</span>
+        {forgot && (
+          <label><span>복구 코드</span>
+            <input className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="ABCD-EFGH-JKLM" autoComplete="off" />
+          </label>
+        )}
+        <label><span>{forgot ? "새 비밀번호" : "비밀번호"}</span>
           <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-            placeholder={mode === "signup" ? "6자 이상" : ""} autoComplete={mode === "signup" ? "new-password" : "current-password"} />
+            placeholder={forgot || mode === "signup" ? "6자 이상" : ""} autoComplete={forgot || mode === "signup" ? "new-password" : "current-password"} />
         </label>
         {error && <p className="login-error">{error}</p>}
-        <Button block disabled={!ready || busy}>{busy ? "잠시만요…" : mode === "signup" ? "가입하고 시작하기" : "로그인"}</Button>
+        <Button block disabled={!ready || busy}>{busy ? "잠시만요…" : forgot ? "새 비밀번호로 로그인" : mode === "signup" ? "가입하고 시작하기" : "로그인"}</Button>
+        {(forgot || mode === "login") && (
+          <button type="button" className="soft-link" onClick={() => { setForgot(!forgot); setError(null); setPassword(""); }}>
+            {forgot ? "로그인으로 돌아가기" : "비밀번호를 잊었어요"}
+          </button>
+        )}
         <p className="t-caption faint" style={{ textAlign: "center", margin: 0 }}>
           {mode === "signup" ? "내 강의·녹음·필기는 나만 볼 수 있어요" : "한 번 로그인하면 이 기기에서 계속 유지돼요"}
         </p>

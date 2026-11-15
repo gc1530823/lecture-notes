@@ -33,6 +33,7 @@ def main() -> None:
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         tar.add(ROOT / "server" / "app", "lune/server/app", filter=keep)
         tar.add(ROOT / "server" / "requirements.txt", "lune/server/requirements.txt")
+        tar.add(ROOT / "server" / "on-update.sh", "lune/server/on-update.sh")   # 업데이트 뒤 서버가 root 로 돌리는 준비 (apt 등)
         tar.add(ROOT / "web" / "dist", "lune/web/dist", filter=keep)
         data = version.encode()
         info = tarfile.TarInfo("lune/VERSION")

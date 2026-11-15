@@ -1420,3 +1420,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .lang-toggle.on .lang-box { background: var(--accent-primary); border-color: var(--accent-primary); transform: scale(1.05); }
 .lang-toggle.on .lang-tag { color: var(--accent-deep); background: color-mix(in srgb, var(--accent-primary) 15%, transparent); }
 .idle-lang { flex: 1 1 100%; order: -1; }
+/* 비밀번호 찾기 · 복구 코드 */
+.recovery-code { display: block; text-align: center; font: 800 22px/30px ui-monospace, monospace; letter-spacing: .08em; padding: 14px; border-radius: 14px;
+  background: var(--fill-soft); color: var(--accent-deep); user-select: all; }
+.forgot-head b { display: block; font: 800 17px/22px var(--font-sans); } .forgot-head small { display: block; margin-top: 4px; font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); }

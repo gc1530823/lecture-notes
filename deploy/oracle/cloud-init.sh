@@ -72,6 +72,8 @@ rm -rf /opt/lune/old
 [ -d /opt/lune/app ] && mv /opt/lune/app /opt/lune/old
 mv /opt/lune/new/lune /opt/lune/app && rm -rf /opt/lune/new
 chown -R lune:lune /opt/lune/app
+# system-level needs that come with new code (apt packages etc.)
+[ -x /opt/lune/app/server/on-update.sh ] && /opt/lune/app/server/on-update.sh || true
 systemctl restart lune 2>/dev/null || true
 EOF
 chmod 700 /opt/lune/update.sh

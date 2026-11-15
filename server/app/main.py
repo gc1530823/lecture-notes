@@ -183,7 +183,15 @@ def auth_signup(body: AuthRequest, request: Request):
         raise HTTPException(400, "비밀번호는 6자 이상으로 해 주세요.")
     if db().user_by_name(name):
         raise HTTPException(409, "이미 있는 이름이에요. 다른 이름이나 로그인을 해 주세요.")
-    return _start_login(request, db().add_user(name, auth.hash_password(body.password)))
+    user = db().add_user(name, auth.hash_password(body.password))
+    code = _new_code()   # 비밀번호를 잊었을 때 쓰는 복구 코드: 가입할 때 한 번 보여 준다
+    db().set_recovery(user["id"], auth.hash_password(code))
+    res = _start_login(request, user)
+    body_json = json.loads(res.body)
+    body_json["recovery_code"] = code
+    res.body = json.dumps(body_json, ensure_ascii=False).encode()
+    res.headers["content-length"] = str(len(res.body))
+    return res
 
 
 @app.post("/auth/login")
@@ -197,6 +205,103 @@ def auth_login(body: AuthRequest, request: Request):
         _login_fails.setdefault(_client(request), []).append(time.time())
         raise HTTPException(401, "이름이나 비밀번호가 맞지 않아요.")
     return _start_login(request, user)
+
+
+# 비밀번호 찾기 (이메일 없이): 복구 코드는 가입할 때 한 번 보여 주고(설정에서 다시 만들 수 있음),
+# 그것도 잃어버린 친구에게는 서버 주인이 24시간 쓰는 초기화 코드를 내준다. 코드는 해시로만 저장한다.
+
+
+def _new_code() -> str:
+    abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    raw = "".join(abc[b % len(abc)] for b in os.urandom(12))
+    return f"{raw[:4]}-{raw[4:8]}-{raw[8:]}"
+
+
+def _norm_code(code: str) -> str:
+    c = re.sub(r"[^A-Z0-9]", "", code.upper())
+    return f"{c[:4]}-{c[4:8]}-{c[8:]}"
+
+
+class ResetRequest(BaseModel):
+    name: str
+    code: str
+    password: str
+
+
+class PasswordChange(BaseModel):
+    current: str
+    password: str
+
+
+@app.post("/account/recovery-code")
+def make_recovery_code():
+    """복구 코드 새로 만들기 (로그인한 사람). 한 번만 보여 준다 — 예전 코드는 못 쓴다"""
+    me = _me()
+    code = _new_code()
+    db().set_recovery(me, auth.hash_password(code))
+    return {"code": code}
+
+
+@app.get("/account/recovery")
+def recovery_status():
+    me = _me()
+    return {"has_code": bool(db().recovery_info(me).get("recovery_hash"))}
+
+
+@app.post("/auth/reset")
+def reset_password(body: ResetRequest, request: Request):
+    """비밀번호를 잊었을 때: 이름 + 복구 코드(또는 서버 주인의 초기화 코드) + 새 비밀번호 → 바꾸고 바로 로그인"""
+    if not auth.enabled():
+        raise HTTPException(400, "이 서버는 로그인 없이 써요.")
+    if _too_many(request):
+        raise HTTPException(429, "여러 번 틀려서 10분 동안 막혔어요.")
+    user = db().user_by_name(body.name.strip())
+    info = db().recovery_info(user["id"]) if user else {}
+    code = _norm_code(body.code)
+    ok_recovery = bool(info.get("recovery_hash")) and auth.check_password(code, info["recovery_hash"])
+    ok_reset = (bool(info.get("reset_hash")) and (info.get("reset_until") or 0) > time.time()
+                and auth.check_password(code, info["reset_hash"]))
+    if not user or not (ok_recovery or ok_reset):
+        _login_fails.setdefault(_client(request), []).append(time.time())
+        raise HTTPException(401, "이름이나 코드가 맞지 않아요.")
+    if len(body.password) < 6:
+        raise HTTPException(400, "새 비밀번호는 6자 이상으로 해 주세요.")
+    db().set_password(user["id"], auth.hash_password(body.password))
+    if ok_recovery:   # 복구 코드는 한 번 쓰면 끝 (설정에서 새로 만든다)
+        db().set_recovery(user["id"], None)
+    db().set_reset(user["id"], None, None)
+    return _start_login(request, db().user_by_name(user["name"]))
+
+
+@app.post("/account/password")
+def change_password(body: PasswordChange, request: Request):
+    """로그인한 채로 비밀번호 바꾸기 (지금 비밀번호 확인). 다른 기기 로그인은 끊기고 이 기기는 다시 로그인된다"""
+    me = _me()
+    user = db().user_by_name((db().get_user(me) or {}).get("name", ""))
+    if not user or not auth.check_password(body.current, user["password"]):
+        raise HTTPException(401, "지금 비밀번호가 맞지 않아요.")
+    if len(body.password) < 6:
+        raise HTTPException(400, "새 비밀번호는 6자 이상으로 해 주세요.")
+    db().set_password(me, auth.hash_password(body.password))
+    return _start_login(request, user)
+
+
+class ResetFor(BaseModel):
+    name: str
+
+
+@app.post("/admin/reset-code")
+def issue_reset_code(body: ResetFor):
+    """서버 주인이 비밀번호를 잊은 친구에게 내주는 초기화 코드 (24시간)"""
+    me = _me()
+    if me != db().first_user_id():
+        raise HTTPException(403, "서버 주인(처음 가입한 사람)만 할 수 있어요.")
+    user = db().user_by_name(body.name.strip())
+    if not user:
+        raise HTTPException(404, "그 이름의 계정이 없어요.")
+    code = _new_code()
+    db().set_reset(user["id"], auth.hash_password(code), time.time() + 86400)
+    return {"name": user["name"], "code": code, "until": time.time() + 86400}
 
 
 @app.post("/auth/logout")
@@ -2308,7 +2413,10 @@ def _migrate_load() -> dict:
 @app.get("/admin/migrate")
 def migrate_info():
     me = _me()
-    return {"owner": me == db().first_user_id()}
+    first = db().first_user_id()
+    name = (db().get_user(first) or {}).get("name", "") if first else ""
+    # 주인이 아니면 주인 계정 이름의 첫 글자만 알려 준다 (어느 계정으로 로그인해야 하는지)
+    return {"owner": me == first, "owner_hint": (name[:1] + "…") if name and me != first else ""}
 
 
 @app.post("/admin/migrate")
