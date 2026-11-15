@@ -129,6 +129,11 @@ CREATE TABLE IF NOT EXISTS friend_pairs (
     merge INTEGER NOT NULL DEFAULT 1,
     PRIMARY KEY (user_id, friend_id)
 );
+CREATE TABLE IF NOT EXISTS app_settings (
+    -- 서버 설정 (서버 주인이 앱에서 정함): 메일 보내기 계정 등
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS logins (
     -- 로그인 표 (쿠키) 의 해시
     token_hash TEXT PRIMARY KEY,
@@ -294,7 +299,8 @@ class Database:
             self._conn.commit()
         # 친구 설정 (JSON): 족보·시간표 공개, 친구 족보 합치기, 공개할 족보 항목, 친구 신청 받기
         # 비밀번호 찾기: 복구 코드(본인이 받아 둠) · 초기화 코드(서버 주인이 내줌, 24시간) 의 해시
-        for col, ddl in (("recovery_hash", "TEXT"), ("reset_hash", "TEXT"), ("reset_until", "REAL")):
+        for col, ddl in (("recovery_hash", "TEXT"), ("reset_hash", "TEXT"), ("reset_until", "REAL"),
+                         ("email", "TEXT"), ("email_pending", "TEXT"), ("email_code_hash", "TEXT"), ("email_code_until", "REAL")):
             if col not in columns:
                 self._conn.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
                 self._conn.commit()
@@ -696,6 +702,32 @@ class Database:
     def recovery_info(self, user_id: str) -> dict:
         rows = self._query("SELECT recovery_hash, reset_hash, reset_until FROM users WHERE id = ?", (user_id,))
         return dict(rows[0]) if rows else {}
+
+    def get_setting(self, key: str) -> str | None:
+        rows = self._query("SELECT value FROM app_settings WHERE key = ?", (key,))
+        return rows[0]["value"] if rows else None
+
+    def set_setting(self, key: str, value: str | None) -> None:
+        if value is None:
+            self._write("DELETE FROM app_settings WHERE key = ?", (key,))
+        else:
+            self._write("INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)", (key, value))
+
+    def email_info(self, user_id: str) -> dict:
+        rows = self._query("SELECT email, email_pending, email_code_hash, email_code_until FROM users WHERE id = ?", (user_id,))
+        return dict(rows[0]) if rows else {}
+
+    def set_email_code(self, user_id: str, pending: str | None, code_hash: str | None, until: float | None) -> None:
+        self._write("UPDATE users SET email_pending = ?, email_code_hash = ?, email_code_until = ? WHERE id = ?",
+                    (pending, code_hash, until, user_id))
+
+    def set_email(self, user_id: str, email: str | None) -> None:
+        self._write("UPDATE users SET email = ?, email_pending = NULL, email_code_hash = NULL, email_code_until = NULL WHERE id = ?",
+                    (email, user_id))
+
+    def user_by_email(self, email: str) -> dict | None:
+        rows = self._query("SELECT * FROM users WHERE lower(email) = lower(?)", (email.strip(),))
+        return rows[0] if rows else None
 
     def first_user_id(self) -> str | None:
         """서버 주인 = 맨 처음 가입한 사람"""

@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 const out = "public/icons.svg";
 const old = readFileSync(out, "utf8");
 const ids = [...old.matchAll(/<symbol id="([^"]+)"/g)].map((m) => m[1]).filter((id) => !id.startsWith("dt-"));
-for (const extra of ["plus", "magnifying-glass", "stop", "arrow-right", "check", "carrot", "arrows-clockwise", "upload-simple", "question", "chat-circle-dots", "calendar-dots", "arrow-counter-clockwise", "caret-up", "caret-down", "download-simple"]) if (!ids.includes(extra)) ids.push(extra);
+for (const extra of ["plus", "magnifying-glass", "stop", "arrow-right", "check", "carrot", "arrows-clockwise", "upload-simple", "question", "chat-circle-dots", "calendar-dots", "arrow-counter-clockwise", "caret-up", "caret-down", "download-simple", "paper-plane-tilt", "envelope-simple", "key", "lock-simple"]) if (!ids.includes(extra)) ids.push(extra);
 let symbols = ids.map((id) => {
   const file = `node_modules/@phosphor-icons/core/assets/bold/${id}-bold.svg`;
   if (!existsSync(file)) { // Phosphor에 없는 이름은 예전 모양 그대로
@@ -20,7 +20,7 @@ let symbols = ids.map((id) => {
 const DUO = ["microphone", "headphones", "notebook", "file-text", "book-open-text", "star", "target", "cards", "brain", "lightbulb", "note-pencil",
   "graduation-cap", "megaphone", "fire", "magnifying-glass", "shield-check", "calendar-check", "camera", "question", "chat-circle-dots", "chats-circle",
   "chat-teardrop-text", "clock", "timer", "trash", "clipboard-text", "check-circle", "warning-circle", "sparkle", "magic-wand", "tree-structure", "users",
-  "chalkboard-teacher", "arrow-counter-clockwise", "waveform", "books", "notepad", "house", "gear", "file-pdf", "hand-palm", "upload-simple", "arrows-clockwise", "folder-simple-plus"];
+  "chalkboard-teacher", "arrow-counter-clockwise", "waveform", "books", "notepad", "house", "gear", "file-pdf", "hand-palm", "upload-simple", "arrows-clockwise", "folder-simple-plus", "envelope-simple", "key", "lock-simple"];
 for (const id of DUO) {
   const inner = readFileSync(`node_modules/@phosphor-icons/core/assets/duotone/${id}-duotone.svg`, "utf8").replace(/^[\s\S]*?<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
   symbols.push(`<symbol id="dt-${id}" viewBox="0 0 256 256" fill="currentColor">${inner}</symbol>`);

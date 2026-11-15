@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import auth, training_log
+from . import auth, mailer, training_log
 from .config import settings
 from .db import Database
 from .dedupe import merge_concepts
@@ -219,6 +219,8 @@ def _new_code() -> str:
 
 def _norm_code(code: str) -> str:
     c = re.sub(r"[^A-Z0-9]", "", code.upper())
+    if len(c) == 6 and c.isdigit():   # 메일로 받은 6자리 인증번호
+        return c
     return f"{c[:4]}-{c[4:8]}-{c[8:]}"
 
 
@@ -255,7 +257,8 @@ def reset_password(body: ResetRequest, request: Request):
         raise HTTPException(400, "이 서버는 로그인 없이 써요.")
     if _too_many(request):
         raise HTTPException(429, "여러 번 틀려서 10분 동안 막혔어요.")
-    user = db().user_by_name(body.name.strip())
+    who = body.name.strip()
+    user = db().user_by_email(who) if "@" in who else db().user_by_name(who)   # 이름 또는 이메일
     info = db().recovery_info(user["id"]) if user else {}
     code = _norm_code(body.code)
     ok_recovery = bool(info.get("recovery_hash")) and auth.check_password(code, info["recovery_hash"])
@@ -284,6 +287,138 @@ def change_password(body: PasswordChange, request: Request):
         raise HTTPException(400, "새 비밀번호는 6자 이상으로 해 주세요.")
     db().set_password(me, auth.hash_password(body.password))
     return _start_login(request, user)
+
+
+EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[A-Za-z]{2,}$")
+_mail_sent: dict[str, list[float]] = {}
+
+
+def _mail_ok(key: str) -> bool:
+    """같은 사람·주소로 메일을 너무 자주 보내지 않게 (10분에 3번)"""
+    recent = [t for t in _mail_sent.get(key, []) if t > time.time() - 600]
+    _mail_sent[key] = recent
+    if len(recent) >= 3:
+        return False
+    recent.append(time.time())
+    return True
+
+
+def _six() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+class EmailSet(BaseModel):
+    email: str
+
+
+class EmailVerify(BaseModel):
+    code: str
+
+
+@app.get("/account/email")
+def my_email():
+    me = _me()
+    info = db().email_info(me)
+    return {"email": info.get("email") or "", "pending": info.get("email_pending") or "", "mail_ready": mailer.account(db()) is not None}
+
+
+@app.post("/account/email")
+async def start_email(body: EmailSet):
+    """이메일 등록: 그 주소로 6자리 인증번호를 보낸다 (10분)"""
+    me = _me()
+    email = body.email.strip()
+    if not EMAIL_RE.match(email):
+        raise HTTPException(400, "이메일 주소를 확인해 주세요.")
+    other = db().user_by_email(email)
+    if other and other["id"] != me:
+        raise HTTPException(409, "다른 계정에 등록된 이메일이에요.")
+    if not _mail_ok(me):
+        raise HTTPException(429, "인증번호를 너무 자주 보냈어요. 10분 뒤 다시 해 주세요.")
+    code = _six()
+    db().set_email_code(me, email, auth.hash_password(code), time.time() + 600)
+    try:
+        await asyncio.to_thread(mailer.send, db(), email, "[LUNE] 이메일 인증번호",
+                                f"LUNE 이메일 인증번호: {code}\n\n10분 안에 앱에 넣어 주세요. 직접 요청하지 않았다면 이 메일은 무시하세요.")
+    except RuntimeError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    return {"sent": email}
+
+
+@app.post("/account/email/verify")
+def verify_email(body: EmailVerify):
+    me = _me()
+    info = db().email_info(me)
+    if not info.get("email_pending") or (info.get("email_code_until") or 0) < time.time() \
+            or not auth.check_password(body.code.strip(), info.get("email_code_hash") or ""):
+        raise HTTPException(400, "인증번호가 맞지 않거나 시간이 지났어요.")
+    db().set_email(me, info["email_pending"])
+    return my_email()
+
+
+@app.delete("/account/email", status_code=204)
+def remove_email():
+    db().set_email(_me(), None)
+
+
+class ForgotRequest(BaseModel):
+    who: str   # 이름 또는 이메일
+
+
+@app.post("/auth/forgot")
+async def forgot_password(body: ForgotRequest, request: Request):
+    """비밀번호 찾기: 이름이나 이메일로 → 등록·확인된 이메일로 6자리 인증번호 (10분). 계정이 있는지는 알려 주지 않는다"""
+    if not auth.enabled():
+        raise HTTPException(400, "이 서버는 로그인 없이 써요.")
+    if _too_many(request):
+        raise HTTPException(429, "여러 번 틀려서 10분 동안 막혔어요.")
+    who = body.who.strip()
+    user = db().user_by_email(who) if "@" in who else db().user_by_name(who)
+    if mailer.account(db()) is None:
+        raise HTTPException(503, "이 서버는 아직 메일을 보낼 수 없어요. 복구 코드로 하거나 서버 주인에게 초기화 코드를 받아 주세요.")
+    if user and user.get("email") and _mail_ok("forgot:" + user["id"]):
+        code = _six()
+        db().set_reset(user["id"], auth.hash_password(code), time.time() + 600)
+        try:
+            await asyncio.to_thread(mailer.send, db(), user["email"], "[LUNE] 비밀번호 다시 만들기 인증번호",
+                                    f"{user['name']}님의 LUNE 인증번호: {code}\n\n10분 안에 앱에 넣고 새 비밀번호를 정해 주세요.\n직접 요청하지 않았다면 이 메일은 무시하세요.")
+        except RuntimeError:
+            log.exception("비밀번호 찾기 메일 실패")
+    return {"ok": True, "message": "등록된 이메일이 있으면 인증번호를 보냈어요. 메일함(스팸함도)을 확인해 주세요."}
+
+
+class MailSetting(BaseModel):
+    user: str
+    password: str
+
+
+@app.get("/admin/mail")
+def mail_setting():
+    me = _me()
+    if me != db().first_user_id():
+        raise HTTPException(403, "서버 주인만 볼 수 있어요.")
+    acc = mailer.account(db())
+    return {"user": acc[0] if acc else ""}
+
+
+@app.put("/admin/mail")
+async def set_mail(body: MailSetting):
+    """서버 주인: 메일 보내기용 Gmail 계정 + 앱 비밀번호. 저장하기 전에 자기 자신에게 시험 메일을 보낸다"""
+    me = _me()
+    if me != db().first_user_id():
+        raise HTTPException(403, "서버 주인만 할 수 있어요.")
+    if not EMAIL_RE.match(body.user.strip()):
+        raise HTTPException(400, "Gmail 주소를 확인해 주세요.")
+    old = (db().get_setting("smtp_user"), db().get_setting("smtp_password"))
+    db().set_setting("smtp_user", body.user.strip())
+    db().set_setting("smtp_password", body.password.strip())
+    try:
+        await asyncio.to_thread(mailer.send, db(), body.user.strip(), "[LUNE] 메일 보내기 설정 완료",
+                                "이 메일이 왔다면 LUNE 이 비밀번호 찾기 인증번호를 보낼 수 있어요.")
+    except RuntimeError as exc:
+        db().set_setting("smtp_user", old[0])
+        db().set_setting("smtp_password", old[1])
+        raise HTTPException(400, str(exc)) from exc
+    return {"user": body.user.strip()}
 
 
 class ResetFor(BaseModel):

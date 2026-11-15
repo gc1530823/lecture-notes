@@ -1,5 +1,6 @@
 // 시험 공부 화면: 족보 노트 · 오늘의 복습(망각 곡선) · 개인정보와 녹음 동의
 import { useSwipe } from "../lib/gesture";
+import { AccountSecurity, OwnerAccountTools } from "./Account";
 import { PREVIEW, play, setSoundOn, soundOn } from "../lib/sound";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DocumentBrief } from "../api/types";
@@ -368,7 +369,7 @@ export function PrivacyScreen() {
             <h3>계정</h3>
             <SettingRow icon="users" title={me.user.name} sub="내 강의·녹음·필기는 나만 볼 수 있어요"
               right={<button className="chip chip-default" onClick={() => void logout()}>로그아웃</button>} />
-            <SettingRow icon="chats-circle" title="친구" sub="친구 코드로 추가하면 같은 수업 족보가 저절로 합쳐져요" onClick={() => go({ name: "friends" })} />
+            <AccountSecurity />
           </section>
         )}
 
@@ -532,10 +533,12 @@ function groupNotes(notes: { who: string; text: string }[]) {
 /** 새 서버로 옮기기 (서버 주인만): 옮기기 코드를 받아 새 서버 설치 스크립트에 넣으면, 새 서버가 자료를 통째로 가져간다 */
 function MigrateServer() {
   const [owner, setOwner] = useState(false);
+  const [hint, setHint] = useState("");
   const [code, setCode] = useState<{ code: string; until: number } | null>(null);
   const [copied, setCopied] = useState(false);
-  useEffect(() => { getJSON<{ owner: boolean }>("/admin/migrate").then((r) => setOwner(r.owner)).catch(() => {}); }, []);
-  if (!owner) return null;
+  const [tools, setTools] = useState(false);
+  useEffect(() => { getJSON<{ owner: boolean; owner_hint?: string }>("/admin/migrate").then((r) => { setOwner(r.owner); setHint(r.owner_hint ?? ""); }).catch(() => {}); }, []);
+  if (!owner) return hint ? <p className="owner-hint">서버 주인 계정: {hint} (처음 가입한 계정이에요. 서버 설정은 그 계정에서 보여요)</p> : null;
   const make = async () => {
     if (!confirm("새 서버로 옮기기 코드를 만들까요? 2일 동안 쓸 수 있고, 이 코드를 아는 서버는 모든 자료를 가져갈 수 있어요.")) return;
     try { setCode(await postJSON("/admin/migrate")); } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
@@ -544,6 +547,8 @@ function MigrateServer() {
   return (
     <section className="set-group">
       <h3>서버 (주인만 보여요)</h3>
+      <SettingRow icon="envelope-simple" title="메일 · 친구 비밀번호" sub="비밀번호 찾기 메일 보내기, 친구 초기화 코드" onClick={() => setTools(!tools)} />
+      {tools && <OwnerAccountTools />}
       <SettingRow icon="arrows-clockwise" title="새 서버로 옮기기" sub="더 큰 서버를 만들 때: 계정·강의·녹음을 통째로 넘겨요" onClick={() => void make()} />
       {code && (
         <div className="migrate-code">

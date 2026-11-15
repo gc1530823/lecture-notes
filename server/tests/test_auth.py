@@ -237,3 +237,38 @@ def test_owner_reset_code_flow(invite, tmp_path):
             assert friend.post("/auth/reset", json={"name": "친구", "code": code, "password": "x123456"}).status_code == 401
         finally:
             app.state.db = old
+
+
+def test_email_verification_and_forgot_password_by_email(invite, tmp_path, monkeypatch):
+    import re as _re
+
+    from app import mailer
+    from app.db import Database
+
+    sent = []
+    monkeypatch.setattr(mailer, "send", lambda db, to, subject, text: sent.append((to, text)))
+    code_in = lambda: _re.search(r"\b(\d{6})\b", sent[-1][1]).group(1)
+    with TestClient(app) as owner, TestClient(app) as anon:
+        old = app.state.db
+        app.state.db = Database(str(tmp_path / "m.db"))
+        try:
+            owner.post("/auth/signup", json={"name": "주인", "password": "secret12", "invite": "우리반-2026"})
+            # 메일 설정 전에는 이메일 찾기를 못 쓴다
+            assert anon.post("/auth/forgot", json={"who": "주인"}).status_code == 503
+            assert owner.put("/admin/mail", json={"user": "lune.app@gmail.com", "password": "abcd efgh ijkl mnop"}).status_code == 200
+            assert owner.get("/admin/mail").json() == {"user": "lune.app@gmail.com"}
+            # 이메일 등록: 인증번호 → 확인
+            assert owner.post("/account/email", json={"email": "나@없는주소"}).status_code == 400
+            assert owner.post("/account/email", json={"email": "me@example.com"}).json() == {"sent": "me@example.com"}
+            assert sent[-1][0] == "me@example.com"
+            assert owner.post("/account/email/verify", json={"code": "000000" if code_in() != "000000" else "111111"}).status_code == 400
+            assert owner.post("/account/email/verify", json={"code": code_in()}).json()["email"] == "me@example.com"
+            # 비밀번호 찾기: 이메일(또는 이름) → 인증번호 → 새 비밀번호
+            assert anon.post("/auth/forgot", json={"who": "없는사람"}).json()["ok"] is True   # 있는지 알려 주지 않는다
+            n = len(sent)
+            anon.post("/auth/forgot", json={"who": "ME@example.com"})
+            assert len(sent) == n + 1 and sent[-1][0] == "me@example.com"
+            assert anon.post("/auth/reset", json={"name": "주인", "code": code_in(), "password": "newpass1"}).status_code == 200
+            assert anon.post("/auth/login", json={"name": "주인", "password": "newpass1"}).status_code == 200
+        finally:
+            app.state.db = old

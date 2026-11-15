@@ -17,6 +17,13 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
   const [error, setError] = useState<string | null>(null);
   const [forgot, setForgot] = useState(false);
   const [code, setCode] = useState("");
+  const [mailNote, setMailNote] = useState<string | null>(null);
+  const sendMail = async () => {
+    setError(null); setMailNote(null); setBusy(true);
+    try { setMailNote((await postJSON<{ message: string }>("/auth/forgot", { who: name })).message); }
+    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    setBusy(false);
+  };
   const [saved, setSaved] = useState<{ me: Me; code: string } | null>(null);   // 가입 직후: 복구 코드를 보여 준다
   const submit = async () => {
     setBusy(true); setError(null);
@@ -30,7 +37,8 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     setBusy(false);
   };
-  const ready = forgot ? name.trim() && code.replace(/[^A-Za-z0-9]/g, "").length >= 12 && password.length >= 6
+  const codeLen = code.replace(/[^A-Za-z0-9]/g, "").length;
+  const ready = forgot ? name.trim() && (codeLen === 6 || codeLen >= 12) && password.length >= 6
     : name.trim() && password.length >= (mode === "signup" ? 6 : 1) && (mode === "login" || invite.trim());
 
   if (saved) return (
@@ -54,7 +62,7 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
       <p className="t-caption muted">녹음하면 강의자료 위에 AI 필기가 붙어요</p>
       <form className="login-card" onSubmit={(e) => { e.preventDefault(); if (ready && !busy) void submit(); }}>
         {forgot ? (
-          <div className="forgot-head"><b>비밀번호 다시 만들기</b><small>가입할 때 받은 복구 코드, 또는 서버 주인에게 받은 초기화 코드를 넣어 주세요</small></div>
+          <div className="forgot-head"><b>비밀번호 다시 만들기</b><small>이메일로 인증번호를 받거나, 가입할 때 받은 복구 코드(또는 서버 주인에게 받은 초기화 코드)를 넣어 주세요</small></div>
         ) : (
           <SlidingTabs label="로그인 방법" value={mode} onChange={(m) => { setMode(m); setError(null); }}
             items={[["login", "로그인"], ["signup", "처음이에요"]] as const} />
@@ -64,12 +72,17 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
             <input className="input" value={invite} onChange={(e) => setInvite(e.target.value)} placeholder="친구에게 받은 코드" autoComplete="off" />
           </label>
         )}
-        <label><span>이름</span>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 민지" autoComplete="username" maxLength={20} />
+        <label><span>{forgot ? "이름 또는 이메일" : "이름"}</span>
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={forgot ? "예: 민지 또는 minji@gmail.com" : "예: 민지"}
+            autoComplete="username" maxLength={forgot ? 120 : 20} />
         </label>
         {forgot && (
-          <label><span>복구 코드</span>
-            <input className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="ABCD-EFGH-JKLM" autoComplete="off" />
+          <Button type="button" variant="secondary" icon="paper-plane-tilt" disabled={!name.trim() || busy} onClick={() => void sendMail()}>인증번호 메일로 받기</Button>
+        )}
+        {forgot && mailNote && <p className="forgot-note">{mailNote}</p>}
+        {forgot && (
+          <label><span>인증번호 또는 복구 코드</span>
+            <input className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="메일의 6자리 숫자 · ABCD-EFGH-JKLM" autoComplete="one-time-code" />
           </label>
         )}
         <label><span>{forgot ? "새 비밀번호" : "비밀번호"}</span>
