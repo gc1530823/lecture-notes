@@ -2969,6 +2969,9 @@ def a1_set(body: A1Settings, request: Request):
     cfg = json.loads(db().get_setting("a1_config") or "{}")
     for k in ("user", "fingerprint", "tenancy", "region", "key"):
         v = getattr(body, k).strip()
+        if k == "key" and "-----END" in v:   # 오라클이 키 파일 끝에 붙이는 'OCI_API_KEY' 이름표 등은 뺀다
+            end = v.index("-----END")
+            v = v[: v.index("-----", end + 8) + 5]
         if v:
             cfg[k] = v
     if body.key.strip() and "PRIVATE KEY" not in body.key:
