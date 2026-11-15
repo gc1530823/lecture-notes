@@ -613,6 +613,9 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
                       tag={n.preview ? "AI가 정리 중…" : beyond.has(n.id) ? "슬라이드에 없는 설명" : n.edited_by_user ? "직접 씀·고침" : undefined}>{n.text}</PostIt>
                     {n.id === selected && !n.preview && (
                       <div className="note-actions" onClick={(e) => e.stopPropagation()}>
+                        {/* AI 가 엉뚱한 쪽에 붙였을 때: 옆 쪽으로 한 번에 옮기기 */}
+                        {page > 1 && <button onClick={() => void place(n, page - 1)} aria-label="앞 쪽으로 옮기기"><Icon name="caret-left" size={16} />앞 쪽</button>}
+                        {page < doc.pages.length && <button onClick={() => void place(n, page + 1)} aria-label="다음 쪽으로 옮기기">다음 쪽<Icon name="caret-right" size={16} /></button>}
                         <button onClick={() => editNote(n)}><Icon name="note-pencil" size={16} />수정</button>
                         <button className="danger" onClick={() => void deleteNote(n)}><Icon name="trash" size={16} />삭제</button>
                       </div>

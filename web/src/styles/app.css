@@ -1483,3 +1483,5 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .weak-item small { font-size: 12px; color: var(--text-tertiary); }
 .weak-item p { margin: 0; white-space: pre-wrap; font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); padding-top: 6px; border-top: 1px dashed var(--border-line); }
 .weak-lapses { color: var(--ico-red); font-weight: 700; }
+.note-actions { flex-wrap: wrap; }
+.note-actions button { min-width: calc(50% - 3px); font-size: 12px; }
