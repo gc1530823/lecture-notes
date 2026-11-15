@@ -1629,3 +1629,5 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .usage-row { display: grid; grid-template-columns: 4.5em 1fr 4.5em; align-items: center; gap: 8px; font: 600 12.5px/16px var(--font-sans); color: var(--text-secondary); }
 .usage-row i { display: block; height: 8px; border-radius: 4px; background: var(--accent-primary); }
 .usage-row b { text-align: right; color: var(--text-primary); }
+.tasks-card.urgent { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent-record) 45%, transparent), var(--shadow-card); }
+.tasks-urgent { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font: 800 13px/18px var(--font-sans); color: var(--accent-record); }

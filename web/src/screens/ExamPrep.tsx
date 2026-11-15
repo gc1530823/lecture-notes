@@ -411,6 +411,9 @@ export function PrivacyScreen() {
             <SettingRow icon="calendar-check" title="마감 알림" sub="할 일 마감 하루 전 저녁 8시 · 당일 아침 8시"
               right={<Switch on={prefs.dueAlarm} onChange={(v) => { change({ dueAlarm: v }); void refreshNotices(); }} label="마감 알림" />} />
           )}
+          {!android() && (
+            <SettingRow icon="clock" title="알림" sub="복습·마감·수업 알림은 안드로이드 앱에서만 와요. 웹·아이폰에서는 홈의 '할 일' 카드에서 오늘 마감을 확인해 주세요." />
+          )}
           {android() && (
             <SettingRow icon="microphone" title="수업 시작 알림" sub="시간표의 수업 5분 전에 '녹음 준비'를 알려요"
               right={<Switch on={prefs.classAlarm} onChange={(v) => { change({ classAlarm: v }); void refreshNotices(); }} label="수업 시작 알림" />} />

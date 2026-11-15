@@ -152,8 +152,16 @@ export function TasksCard() {
   const left = tasks.filter((t) => !t.done).length;
   if (list.length === 0 && !undo) return null;
   const toggle = (t: HomeTask, done: boolean) => { kept.add(t.id); setDone(t, done); };
+  // 알림이 없는 웹·아이폰에서도 놓치지 않게: 오늘 마감·마감 지남을 맨 위에 눈에 띄게
+  const today = todayIso();
+  const urgent = tasks.filter((t) => !t.done && t.due_date && t.due_date <= today);
+  const late = urgent.filter((t) => t.due_date! < today).length;
   return (
-    <section className="banner tasks-card" aria-label="할 일">
+    <section className={`banner tasks-card${urgent.length ? " urgent" : ""}`} aria-label="할 일">
+      {urgent.length > 0 && (
+        <p className="tasks-urgent"><Icon name="warning-circle" size={15} />
+          {[urgent.length - late ? `오늘 마감 ${urgent.length - late}개` : "", late ? `마감 지남 ${late}개` : ""].filter(Boolean).join(" · ")}</p>
+      )}
       <div className="row">
         <Icon name="clipboard-text" art size={30} />
         <strong className="t-title-s grow">할 일 {left}개</strong>
