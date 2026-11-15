@@ -114,7 +114,7 @@ class MainActivity : AppCompatActivity() {
 
         if (openLink(intent)) return
         val saved = server()
-        val start = if (intent?.getStringExtra("open") == "review") "#/review" else ""
+        val start = when (intent?.getStringExtra("open")) { "review" -> "#/review"; "tasks" -> "#/tasks"; "timetable" -> "#/timetable"; else -> "" }
         if (saved == null) askServer() else web.loadUrl(appUrl(saved) + start)
     }
 
@@ -267,5 +267,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface fun cancelReminder() = runOnUiThread { ReminderReceiver.cancel(this@MainActivity) }
+
+        /** 마감·수업 알림 목록 (JSON: [{id, title, text, at(ms), open}]) — 예전 것은 지우고 새로 맞춘다 */
+        @JavascriptInterface fun setNotices(json: String) = runOnUiThread {
+            if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                askPermissions.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
+            }
+            ReminderReceiver.setNotices(this@MainActivity, json)
+        }
     }
 }

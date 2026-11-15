@@ -1,6 +1,7 @@
 // 시험 공부 화면: 족보 노트 · 오늘의 복습(망각 곡선) · 개인정보와 녹음 동의
 import { useSwipe } from "../lib/gesture";
 import { AccountSecurity } from "./Account";
+import { refreshNotices } from "../lib/notices";
 import { PREVIEW, play, setSoundOn, soundOn } from "../lib/sound";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DocumentBrief } from "../api/types";
@@ -401,6 +402,14 @@ export function PrivacyScreen() {
           {android() && (
             <SettingRow icon="clock" title="복습 알림" sub="매일 이 시각에 '오늘 복습 N장'을 알려요" right={<Segmented value={prefs.reminder} onChange={reminder}
               options={[[0, "끄기"], [19, "7시"], [21, "9시"], [23, "11시"]]} />} />
+          )}
+          {android() && (
+            <SettingRow icon="calendar-check" title="마감 알림" sub="할 일 마감 하루 전 저녁 8시 · 당일 아침 8시"
+              right={<Switch on={prefs.dueAlarm} onChange={(v) => { change({ dueAlarm: v }); void refreshNotices(); }} label="마감 알림" />} />
+          )}
+          {android() && (
+            <SettingRow icon="microphone" title="수업 시작 알림" sub="시간표의 수업 5분 전에 '녹음 준비'를 알려요"
+              right={<Switch on={prefs.classAlarm} onChange={(v) => { change({ classAlarm: v }); void refreshNotices(); }} label="수업 시작 알림" />} />
           )}
         </section>
 

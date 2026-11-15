@@ -14,6 +14,7 @@ import { courseTone } from "../lib/course";
 import { useWaves, Wave } from "../lib/wave";
 import { go } from "../router";
 import { getPrefs } from "../lib/prefs";
+import { refreshNotices } from "../lib/notices";
 import { LuneMark, LuneWordmark } from "../components/Brand";
 
 
@@ -33,6 +34,7 @@ export function relativeDay(seconds: number): string {
 
 /** 안드로이드 앱: 매일 저녁 8시 복습·시험 알림 글을 최신 숫자로 맞춰 둔다 */
 function useReminder() {
+  useEffect(() => { void refreshNotices(); }, []);   // 마감·수업 알림도 앱을 열 때마다 새로
   useEffect(() => {
     const app = android();
     if (!app?.setReminder) return;

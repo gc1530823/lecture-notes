@@ -6,10 +6,12 @@ export interface Prefs {
   vibrate: boolean;                     // 진동
   quizCount: number;                    // 퀴즈 카드 기본 장 수
   reminder: number;                     // 복습 알림 시각 (시, 0 = 끄기) · 안드로이드 앱
+  dueAlarm: boolean;                    // 할 일 마감 알림 (하루 전 저녁·당일 아침)
+  classAlarm: boolean;                  // 수업 시작 5분 전 알림
 }
 
 const KEY = "ln.prefs";
-export const DEFAULT_PREFS: Prefs = { theme: "system", text: "normal", motion: "full", vibrate: true, quizCount: 8, reminder: 20 };
+export const DEFAULT_PREFS: Prefs = { theme: "system", text: "normal", motion: "full", vibrate: true, quizCount: 8, reminder: 20, dueAlarm: true, classAlarm: true };
 
 export function getPrefs(): Prefs {
   try { return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(KEY) || "{}") }; } catch { return DEFAULT_PREFS; }

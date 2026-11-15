@@ -45,6 +45,33 @@ class ReminderReceiver : BroadcastReceiver() {
                 .setInexactRepeating(AlarmManager.RTC_WAKEUP, next.timeInMillis, AlarmManager.INTERVAL_DAY, pending(context))
         }
 
+        // 정한 시각에 한 번 뜨는 알림 (할 일 마감 하루 전·당일, 수업 시작 5분 전). 웹 화면이 앱을 열 때마다 새로 맞춘다
+        private const val NOTICES = "notices"
+
+        fun setNotices(context: Context, json: String) {
+            val alarms = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val prefs = context.getSharedPreferences(NOTICES, Context.MODE_PRIVATE)
+            val old = org.json.JSONArray(prefs.getString("list", "[]"))
+            for (i in 0 until old.length()) alarms.cancel(noticeIntent(context, old.getJSONObject(i).getInt("id")))
+            prefs.edit().putString("list", json).apply()
+            scheduleNotices(context)
+        }
+
+        fun scheduleNotices(context: Context) {
+            val alarms = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val list = org.json.JSONArray(context.getSharedPreferences(NOTICES, Context.MODE_PRIVATE).getString("list", "[]"))
+            val now = System.currentTimeMillis()
+            for (i in 0 until list.length()) {
+                val n = list.getJSONObject(i)
+                val at = n.getLong("at")
+                if (at > now) alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, noticeIntent(context, n.getInt("id")))
+            }
+        }
+
+        private fun noticeIntent(context: Context, id: Int): PendingIntent =
+            PendingIntent.getBroadcast(context, 1000 + id, Intent(context, ReminderReceiver::class.java).setAction("notice").putExtra("id", id),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+
         private fun pending(context: Context): PendingIntent =
             PendingIntent.getBroadcast(context, 7, Intent(context, ReminderReceiver::class.java).setAction("remind"),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
@@ -53,6 +80,20 @@ class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
             schedule(context)
+            scheduleNotices(context)
+            return
+        }
+        if (intent.action == "notice") {
+            val id = intent.getIntExtra("id", -1)
+            val list = org.json.JSONArray(context.getSharedPreferences(NOTICES, Context.MODE_PRIVATE).getString("list", "[]"))
+            val n = (0 until list.length()).map { list.getJSONObject(it) }.firstOrNull { it.getInt("id") == id } ?: return
+            val manager = context.getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(NotificationChannel("due", "마감·수업 알림", NotificationManager.IMPORTANCE_HIGH))
+            val open = PendingIntent.getActivity(context, 2000 + id,
+                Intent(context, MainActivity::class.java).putExtra("open", n.optString("open", "")), PendingIntent.FLAG_IMMUTABLE)
+            manager.notify(1000 + id, Notification.Builder(context, "due")
+                .setContentTitle(n.getString("title")).setContentText(n.optString("text", ""))
+                .setSmallIcon(R.drawable.ic_notify).setContentIntent(open).setAutoCancel(true).build())
             return
         }
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

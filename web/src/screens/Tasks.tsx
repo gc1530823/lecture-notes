@@ -9,6 +9,7 @@ import { courseTone } from "../lib/course";
 import SlidingTabs from "../components/SlidingTabs";
 import { TimetableEditor } from "./Timetable";
 import { back as goBack, go } from "../router";
+import { refreshNotices } from "../lib/notices";
 
 export interface HomeTask {
   id: number; title: string; instructions?: string; due_text: string | null; due_on?: string | null; due_date?: string | null;
@@ -48,6 +49,7 @@ function useTasks() {
     try {
       const r = await fetch(`${API}/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error();
+      void refreshNotices();   // 마감 알림도 바뀐 대로
     } catch { load(); }
   };
   const setDone = (t: HomeTask, done: boolean) => {
