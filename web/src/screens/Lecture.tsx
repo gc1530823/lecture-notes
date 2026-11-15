@@ -627,7 +627,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
                       </button>
                     )}
                     {player.hasAudio && !n.preview && (
-                      <button className="play-chip" onClick={(e) => { e.stopPropagation(); player.playFrom(n.start_ms); }} aria-label="이 필기 때 녹음 듣기">
+                      <button className="play-chip" onClick={(e) => { e.stopPropagation(); player.playFrom(n.start_ms, n.type === "emphasis" || n.type === "exam" ? 15 : 3); }} aria-label="이 필기 때 녹음 듣기">
                         <Icon name="play" size={14} /> {clock(n.start_ms)}
                       </button>
                     )}
@@ -655,7 +655,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         {player.open && (
           <>
             {replayLine && <p className="caption-line t-body" aria-live="polite"><Icon name="closed-captioning" size={16} /> {replayLine}</p>}
-            <PlayerBar audio={player.audio.current} onClose={() => { player.close(); setReplayLine(null); }} />
+            <PlayerBar audio={player.audio.current} speech={player.speech} onClose={() => { player.close(); setReplayLine(null); }} />
             <div className="row" style={{ gap: 8 }}>
               <Chip variant={replayFollow ? "accent" : "default"} onClick={() => setReplayFollow(!replayFollow)}>
                 {replayFollow ? "쪽 따라가기 켜짐" : "쪽 따라가기 꺼짐"}
@@ -765,7 +765,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
             {typeof sheet === "object" && "source" in sheet && sessionId && (() => {
               const n = notes.find((x) => x.id === sheet.source);
               return n ? <SourceSheet sessionId={sessionId} note={n} canPlay={player.hasAudio}
-                onPlay={() => { setSheet(null); player.playFrom(n.start_ms); }} /> : null;
+                onPlay={() => { setSheet(null); player.playFrom(n.start_ms, n.type === "emphasis" || n.type === "exam" ? 15 : 3); }} /> : null;
             })()}
             {typeof sheet === "object" && "task" in sheet && (() => {
               const t = tasks.find((x) => x.id === sheet.task);

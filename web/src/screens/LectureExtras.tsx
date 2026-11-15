@@ -241,39 +241,77 @@ export function usePlayer(sessionId: string | null, enabled: boolean) {
 
   useEffect(() => () => { audio.current?.pause(); }, []);
 
-  const playFrom = (ms: number) => {
+  const [speech, setSpeech] = useState<[number, number][]>([]);   // 말소리 구간 (초) — 무음 건너뛰기용
+  const playFrom = (ms: number, before = 3) => {
     if (!sessionId) return;
-    audio.current ??= new Audio(`${API}/sessions/${sessionId}/audio`);
+    if (!audio.current) {
+      audio.current = new Audio(`${API}/sessions/${sessionId}/audio`);
+      audio.current.playbackRate = savedRate();
+      fetch(`${API}/sessions/${sessionId}/transcript`).then((r) => r.ok ? r.json() : [])
+        .then((rows: { start_ms: number; end_ms: number }[]) => setSpeech(rows.map((r) => [r.start_ms / 1000, r.end_ms / 1000])))
+        .catch(() => {});
+    }
     const a = audio.current;
     setOpen(true);
-    // 필기는 설명이 끝날 즈음 붙으므로 조금 앞에서부터 들려준다
-    const start = Math.max(0, ms / 1000 - 3);
+    // 필기는 설명이 끝날 즈음 붙으므로 조금 앞에서부터 들려준다 (중요 표시는 더 앞에서)
+    const start = Math.max(0, ms / 1000 - before);
     const go = () => { a.currentTime = start; void a.play().catch(() => {}); };
     if (a.readyState >= 1) go(); else a.addEventListener("loadedmetadata", go, { once: true });
   };
   const close = () => { audio.current?.pause(); setOpen(false); };
-  return { hasAudio: hasAudio && enabled, open, audio, playFrom, close };
+  return { hasAudio: hasAudio && enabled, open, audio, playFrom, close, speech };
 }
 
-export function PlayerBar({ audio, onClose }: { audio: HTMLAudioElement | null; onClose: () => void }) {
+const RATES = [1, 1.2, 1.5, 2];
+function savedRate(): number { try { return Number(localStorage.getItem("ln.rate")) || 1; } catch { return 1; } }
+
+export function PlayerBar({ audio, onClose, speech = [] }: { audio: HTMLAudioElement | null; onClose: () => void; speech?: [number, number][] }) {
   const [, tick] = useState(0);
+  const [skip, setSkip] = useState(() => { try { return localStorage.getItem("ln.skip") === "1"; } catch { return false; } });
   useEffect(() => {
     if (!audio) return;
     const on = () => tick((n) => n + 1);
-    ["timeupdate", "play", "pause", "loadedmetadata"].forEach((e) => audio.addEventListener(e, on));
-    return () => ["timeupdate", "play", "pause", "loadedmetadata"].forEach((e) => audio.removeEventListener(e, on));
+    ["timeupdate", "play", "pause", "loadedmetadata", "ratechange"].forEach((e) => audio.addEventListener(e, on));
+    return () => ["timeupdate", "play", "pause", "loadedmetadata", "ratechange"].forEach((e) => audio.removeEventListener(e, on));
   }, [audio]);
+  // 무음 건너뛰기: 받아쓴 말 사이가 2초 넘게 비면 다음 말 바로 앞으로
+  useEffect(() => {
+    if (!audio || !skip || !speech.length) return;
+    const jump = () => {
+      const t = audio.currentTime;
+      if (speech.some(([s, e]) => t >= s - 0.3 && t <= e + 0.6)) return;
+      const next = speech.find(([s]) => s > t);
+      if (next && next[0] - t > 2) audio.currentTime = next[0] - 0.3;
+    };
+    audio.addEventListener("timeupdate", jump);
+    return () => audio.removeEventListener("timeupdate", jump);
+  }, [audio, skip, speech]);
   if (!audio) return null;
   const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+  const rate = audio.playbackRate || 1;
+  const nextRate = () => {
+    const r = RATES[(RATES.indexOf(rate) + 1) % RATES.length] ?? 1;
+    audio.playbackRate = r;
+    try { localStorage.setItem("ln.rate", String(r)); } catch { /* 괜찮다 */ }
+  };
+  const toggleSkip = () => { const v = !skip; setSkip(v); try { localStorage.setItem("ln.skip", v ? "1" : "0"); } catch { /* 괜찮다 */ } };
   return (
-    <div className="player row">
-      <button className="round round-soft" onClick={() => (audio.paused ? audio.play() : audio.pause())} aria-label={audio.paused ? "재생" : "일시정지"}>
-        <Icon name={audio.paused ? "play" : "pause"} />
-      </button>
-      <span className="t-caption muted">{clock(audio.currentTime * 1000)}</span>
-      <input className="grow" type="range" min={0} max={100} step={0.1} value={pct} aria-label="재생 위치"
-        onChange={(e) => { if (audio.duration) audio.currentTime = (Number(e.target.value) / 100) * audio.duration; }} />
-      <button onClick={onClose} aria-label="닫기"><Icon name="x" /></button>
+    <div className="player">
+      <div className="row">
+        <button className="round round-soft" onClick={() => (audio.paused ? audio.play() : audio.pause())} aria-label={audio.paused ? "재생" : "일시정지"}>
+          <Icon name={audio.paused ? "play" : "pause"} />
+        </button>
+        <span className="t-caption muted">{clock(audio.currentTime * 1000)}</span>
+        <input className="grow" type="range" min={0} max={100} step={0.1} value={pct} aria-label="재생 위치"
+          onChange={(e) => { if (audio.duration) audio.currentTime = (Number(e.target.value) / 100) * audio.duration; }} />
+        <button onClick={onClose} aria-label="닫기"><Icon name="x" /></button>
+      </div>
+      <div className="player-tools">
+        <button onClick={() => { audio.currentTime = Math.max(0, audio.currentTime - 10); }} aria-label="10초 뒤로">−10초</button>
+        <button onClick={() => { audio.currentTime = audio.currentTime + 10; }} aria-label="10초 앞으로">+10초</button>
+        <button className="on" onClick={nextRate} aria-label="재생 속도">{rate}배</button>
+        <button className={skip ? "on" : ""} aria-pressed={skip} onClick={toggleSkip} disabled={!speech.length}>무음 건너뛰기</button>
+      </div>
     </div>
   );
 }

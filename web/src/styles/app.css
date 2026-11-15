@@ -1470,3 +1470,9 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   background: var(--bg-card); border: 1px solid var(--border-line); font: 700 13px/16px var(--font-sans); color: var(--text-primary); }
 .home-links button > svg { color: var(--accent-primary); }
 .tabbar button { font-size: 11px; }
+/* 다시 듣기: 10초 이동 · 배속 · 무음 건너뛰기 */
+.player { display: flex; flex-direction: column; gap: 6px; }
+.player-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.player-tools button { padding: 6px 11px; border-radius: 99px; background: var(--fill-soft); font: 700 12px/16px var(--font-sans); color: var(--text-secondary); }
+.player-tools button.on { background: color-mix(in srgb, var(--accent-primary) 16%, transparent); color: var(--accent-deep); }
+.player-tools button:disabled { opacity: .5; }
