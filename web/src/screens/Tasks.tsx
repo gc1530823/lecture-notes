@@ -245,7 +245,8 @@ function TasksPane() {
                 <button key={c} className={`cal-day${c === today ? " today" : ""}${c === day ? " sel" : ""}${late ? " late" : ""}${list.length && !openList.length ? " cleared" : ""}`}
                   onClick={() => setDay(c === day ? null : c)} aria-label={`${dueLabel(c)}${list.length ? `, 할 일 ${openList.length}개` : ""}`}>
                   <span className="n">{Number(c.slice(8))}</span>
-                  <span className="dots">{list.slice(0, 3).map((t) => <i key={t.id} className={`${courseTone(t.course)}${t.done ? " done" : ""}`} />)}</span>
+                  {/* 색 점 대신 남은 개수 (색만으로 뜻을 전하지 않게) · 다 끝냈으면 체크 */}
+                  <span className="cal-count">{openList.length ? openList.length : list.length ? <Icon name="check" size={10} /> : null}</span>
                 </button>
               );
             })}

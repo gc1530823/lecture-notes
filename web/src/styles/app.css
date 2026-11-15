@@ -1141,7 +1141,8 @@ button.set-row:active { background: var(--fill-soft); }
 .set-facts { padding: 4px 16px 14px; background: var(--bg-card); border-bottom: 1px solid var(--border-line); font-size: 13px; }
 
 /* 설정 적용: 글자 크기 · 움직임 줄이기 */
-html[data-text="large"] body { zoom: 1.1; }
+html[data-text="large"] body { zoom: 1.15; }
+html[data-text="xlarge"] body { zoom: 1.3; }
 html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-motion="reduce"] *::after {
   animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 
@@ -1631,3 +1632,12 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .usage-row b { text-align: right; color: var(--text-primary); }
 .tasks-card.urgent { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent-record) 45%, transparent), var(--shadow-card); }
 .tasks-urgent { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font: 800 13px/18px var(--font-sans); color: var(--accent-record); }
+/* 어두운 화면: 흰 슬라이드가 눈부시지 않게 조금 어둡게 (형광펜·번호 표시는 그대로 보이게 슬라이드 그림만) */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .slide canvas { filter: brightness(.86) contrast(1.05); } :root:not([data-theme="light"]) .slide { background: #dcdce4; } }
+:root[data-theme="dark"] .slide canvas { filter: brightness(.86) contrast(1.05); }
+:root[data-theme="dark"] .slide { background: #dcdce4; }
+.cal-count { display: grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; font: 800 10.5px/1 var(--font-sans); }
+.cal-count:empty { visibility: hidden; }
+.cal-day:not(.cleared) .cal-count:not(:empty) { background: color-mix(in srgb, var(--accent-primary) 14%, transparent); color: var(--accent-deep); }
+.cal-day.late .cal-count { background: color-mix(in srgb, var(--accent-record) 16%, transparent); color: var(--accent-record); }
+.cal-day.cleared .cal-count { color: var(--leaf); }

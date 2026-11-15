@@ -1,7 +1,7 @@
 // 이 기기의 설정 (설정 화면). 브라우저 저장소에 두고, 앱이 켜질 때 화면에 바로 적용한다.
 export interface Prefs {
   theme: "system" | "light" | "dark";   // 화면 색
-  text: "normal" | "large";             // 글자 크기
+  text: "normal" | "large" | "xlarge";  // 글자 크기 (1 · 1.15 · 1.3배)
   motion: "full" | "reduce";            // 움직임
   vibrate: boolean;                     // 진동
   quizCount: number;                    // 퀴즈 카드 기본 장 수
