@@ -194,7 +194,11 @@ export default function Home() {
 
   const courses = [...new Set((docs ?? []).map((d) => d.course ?? "").filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko"));
   const hasLoose = (docs ?? []).some((d) => !d.course);
-  const shown = (docs ?? []).filter((d) => filter === "all" || (d.course ?? "") === filter);
+  const [showAll, setShowAll] = useState(false);
+  const matched = (docs ?? []).filter((d) => filter === "all" || (d.course ?? "") === filter);
+  // 홈에는 최근 강의 5개만, 나머지는 '전체 보기'로 (과목이 늘어도 홈이 길어지지 않게)
+  const LIMIT = 5;
+  const shown = showAll ? matched : matched.slice(0, LIMIT);
   // 전체 보기에서는 과목별로 묶어 보여 준다
   const groups: [string, DocumentBrief[]][] = filter === "all"
     ? [...courses.map((c) => [c, shown.filter((d) => d.course === c)] as [string, DocumentBrief[]]), ["", shown.filter((d) => !d.course)] as [string, DocumentBrief[]]]
@@ -216,16 +220,15 @@ export default function Home() {
         {/* 이 앱의 중심: 강의자료에 녹음을 붙인다 (지금 녹음하거나, 녹음 파일을 올리거나) */}
         <section className="record-hub" aria-label="강의 녹음">
           <button className="record-main" onClick={() => setPicker("record")} disabled={!!busy}>
-            <span className="record-ic"><Icon name="microphone" art size={34} /></span>
-            <span><b>수업 녹음 시작</b><small>들으면서 강의자료에 필기가 붙어요</small></span>
+            <span className="record-ic"><Icon name="microphone" art size={30} /></span>
+            <span className="grow"><b>수업 녹음 시작</b><small>들으면서 강의자료 쪽마다 필기가 붙어요</small></span>
+            <Icon name="caret-right" size={18} />
           </button>
-          <button className="record-main alt" onClick={() => setPicker("upload")} disabled={!!busy}>
-            <span className="record-ic"><Icon name="upload-simple" art size={34} /></span>
-            <span><b>녹음 파일 올리기</b><small>{busy ?? "이미 녹음한 수업을 정리해요"}</small></span>
-          </button>
-          <button className="record-add" onClick={() => file.current?.click()} disabled={!!busy}>
-            <Icon name="plus" size={16} /> 강의자료 올리기 <small>PDF · PPT · 한글</small>
-          </button>
+          <div className="record-sub">
+            <button onClick={() => setPicker("upload")} disabled={!!busy}><Icon name="upload-simple" size={17} />녹음 파일 올리기</button>
+            <button onClick={() => file.current?.click()} disabled={!!busy}><Icon name="plus" size={17} />강의자료 올리기</button>
+          </div>
+          {busy && <p className="record-busy"><span className="spin" /> {busy}</p>}
         </section>
         <Timetable courses={courses} onPick={pick} slot="invite" />
         <input ref={file} type="file" accept="application/pdf,.pdf,.ppt,.pptx,.key,.odp,.doc,.docx,.hwp,.hwpx" hidden
@@ -269,11 +272,16 @@ export default function Home() {
           </section>
         ))}
 
+        {matched.length > LIMIT && (
+          <button className="show-all" onClick={() => setShowAll(!showAll)}>
+            {showAll ? "접기" : `강의 ${matched.length}개 전체 보기`} <Icon name={showAll ? "caret-up" : "caret-down"} size={14} />
+          </button>
+        )}
         {/* 학기 전체로 가는 길은 가볍게 한 줄 (홈은 오늘 녹음 · D-day · 할 일 위주) */}
         <div className="home-links" role="group" aria-label="학기 전체">
-          <button onClick={() => go({ name: "semester", tab: "exams" })}><Icon name="target" size={15} />시험 준비</button>
-          <button onClick={() => go({ name: "semester", tab: "tutor" })}><Icon name="chats-circle" size={15} />AI에게 묻기</button>
-          <button onClick={() => go({ name: "semester", tab: "map" })}><Icon name="tree-structure" size={15} />개념 지도</button>
+          <button onClick={() => go({ name: "semester", tab: "exams" })}><Icon name="target" art size={26} /><span>시험 준비</span></button>
+          <button onClick={() => go({ name: "semester", tab: "tutor" })}><Icon name="chats-circle" art size={26} /><span>AI에게 묻기</span></button>
+          <button onClick={() => go({ name: "semester", tab: "map" })}><Icon name="tree-structure" art size={26} /><span>개념 지도</span></button>
         </div>
         <StreakCard />
 

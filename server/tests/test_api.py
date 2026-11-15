@@ -1157,6 +1157,15 @@ def test_renote_rebuilds_ai_notes_and_keeps_mine(client):
     ai_after = [n for n in after if n["id"] != mine["id"]]
     assert ai_after and not ai_before & {n["id"] for n in ai_after}   # AI 필기는 새로 썼다
     assert len(client.get(f"/sessions/{sid}/transcript").json()) >= 1  # 받아쓰기는 그대로 남는다
+    # 되돌리기: 다시 만들기 전 AI 필기로, 내가 쓴 필기는 그대로
+    snap = client.get(f"/sessions/{sid}/snapshot").json()
+    assert snap["notes"] == len(ai_before) and snap["now"] == len(ai_after)
+    assert client.post(f"/sessions/{sid}/undo-renote").status_code == 200
+    back = client.get(f"/sessions/{sid}/annotations").json()
+    assert {n["id"] for n in back if n["id"] != mine["id"]} == ai_before
+    assert any(n["id"] == mine["id"] for n in back)
+    assert client.get(f"/sessions/{sid}/snapshot").json() is None
+    assert client.post(f"/sessions/{sid}/undo-renote").status_code == 404
 
 
 def test_timetable_from_screenshot_then_confirm(client):

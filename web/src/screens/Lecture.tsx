@@ -65,6 +65,17 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const [askConsent, setAskConsent] = useState(false);
   const [loud, setLoud] = useState(false); // 방금 문장을 목소리 높여 말했는지 (자막 옆에 표시)
   const [photoBusy, setPhotoBusy] = useState(false);
+  // 발표 모드(설정)를 켠 사람에게만 '발표 시연' 링크를 보여 준다
+  const presenter = (() => { try { return localStorage.getItem("ln.presenter") === "1"; } catch { return false; } })();
+  // 아래 조작부 높이만큼 내용 아래에 여백을 둬서 마지막 필기가 가려지지 않게
+  const footerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = footerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => document.documentElement.style.setProperty("--footer-h", `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const photoInput = useRef<HTMLInputElement>(null);
 
   // 이벤트 처리기에서 최신 값을 읽기 위한 거울
@@ -626,8 +637,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
                     {n.id === selected && !n.preview && (
                       <div className="note-actions" onClick={(e) => e.stopPropagation()}>
                         {/* AI 가 엉뚱한 쪽에 붙였을 때: 옆 쪽으로 한 번에 옮기기 */}
-                        {page > 1 && <button onClick={() => void place(n, page - 1)} aria-label="앞 쪽으로 옮기기"><Icon name="caret-left" size={16} />앞 쪽</button>}
-                        {page < doc.pages.length && <button onClick={() => void place(n, page + 1)} aria-label="다음 쪽으로 옮기기">다음 쪽<Icon name="caret-right" size={16} /></button>}
+                        {page > 1 && <button onClick={() => void place(n, page - 1)} aria-label="이 필기를 앞 쪽으로 옮기기"><Icon name="caret-left" size={16} />앞 쪽으로</button>}
+                        {page < doc.pages.length && <button onClick={() => void place(n, page + 1)} aria-label="이 필기를 다음 쪽으로 옮기기">다음 쪽으로<Icon name="caret-right" size={16} /></button>}
                         <button onClick={() => editNote(n)}><Icon name="note-pencil" size={16} />수정</button>
                         <button className="danger" onClick={() => void deleteNote(n)}><Icon name="trash" size={16} />삭제</button>
                       </div>
@@ -666,7 +677,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
 
       {message && <div className="toast" role="status">{message}</div>}
 
-      <footer className={`bottom-bar${recording ? " rec" : ""}`}>
+      <footer ref={footerRef} className={`bottom-bar${recording ? " rec" : ""}`}>
         {player.open && (
           <>
             {replayLine && <p className="caption-line t-body" aria-live="polite"><Icon name="closed-captioning" size={16} /> {replayLine}</p>}
@@ -756,7 +767,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           )}
           <input ref={photoInput} type="file" accept="image/*" capture="environment" hidden
             onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void sendPhoto(f); }} />
-          {sessionId && phase !== "idle" && (
+          {sessionId && (recording || phase === "ending") && (
             <button className="round round-soft star-btn" onClick={starHere} aria-label="여기 중요 ⭐">
               <Icon name="star" art size={30} /><span className="tool-label">중요</span>
             </button>
@@ -766,7 +777,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               <Icon name="hand-palm" art size={30} />{confused > 0 && <span className="badge">{confused}</span>}<span className="tool-label">모르겠어요</span>
             </button>
           )}
-          {sessionId && phase !== "idle" && (
+          {sessionId && (recording || phase === "ending") && (
             <button className="round round-soft" onClick={() => setSheet("ask")} disabled={asking} aria-label="방금 뭐라고?">
               {asking ? <span className="spin" /> : <Icon name="chat-circle-dots" art size={30} />}<span className="tool-label">질문</span>
             </button>
@@ -774,15 +785,15 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           {phase === "idle" && (
             <div className="idle-lang">
               <EnglishToggle docId={docId} /><IosRecordWarning />
-              <label className="demo-file">
+              {presenter && <label className="demo-file">
                 <input type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
                   onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void start(f); }} />
                 <Icon name="play" size={12} /> 발표 시연: 녹음 파일을 실시간 강의처럼 틀기
-              </label>
+              </label>}
             </div>
           )}
-          {phase === "idle" && <button className="round round-record" onClick={startWithConsent} aria-label="녹음 시작"><Icon name="microphone" art size={46} /></button>}
-          {recording && <button className="round round-record on" onClick={() => void stop()} aria-label="강의 끝내기"><span className="stop" /></button>}
+          {phase === "idle" && <button className="round round-record" onClick={startWithConsent} aria-label="녹음 시작"><Icon name="microphone" art size={46} /><span className="tool-label rec-label">녹음 시작</span></button>}
+          {recording && <button className="round round-record on" onClick={() => void stop()} aria-label="강의 끝내기"><span className="stop" /><span className="tool-label rec-label">끝내기</span></button>}
           {phase === "ending" && <span className="round round-soft"><span className="spin" /></span>}
           {phase === "ended" && sessionId && (
             <Button icon="graduation-cap" onClick={() => go({ name: "session", docId, sessionId, tab: "study" })}>공부하기</Button>

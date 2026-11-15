@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getJSON, postJSON } from "../api/useApi";
 import SlidingTabs from "../components/SlidingTabs";
 import { Button, Icon, TopBar } from "../components/ui";
-import { back, go } from "../router";
+import { go } from "../router";
 import { Switch } from "./ExamPrep";
 import { WeekGrid, type ClassRow } from "./Timetable";
 
@@ -53,9 +53,12 @@ function FreeTogether({ name, mine, theirs }: { name: string; mine: ClassRow[]; 
     <div className="free-together">
       <b><Icon name="clock" size={16} /> {name}님과 같이 비는 시간</b>
       {slots.length ? (
-        <div className="free-chips">
-          {slots.map((f, i) => (
-            <span key={i} className="free-chip"><i>{"월화수목금"[f.weekday]}</i>{f.all ? "종일" : `${f.start}~${f.end}`}</span>
+        <div className="free-days">
+          {[0, 1, 2, 3, 4].filter((d) => slots.some((f) => f.weekday === d)).map((d) => (
+            <div key={d} className="free-day">
+              <i>{"월화수목금"[d]}</i>
+              {slots.filter((f) => f.weekday === d).map((f, j) => <span key={j} className="free-chip">{f.all ? "종일" : `${f.start}~${f.end}`}</span>)}
+            </div>
           ))}
         </div>
       ) : <small>평일 9시~6시에 같이 비는 1시간이 없어요</small>}
@@ -75,7 +78,7 @@ export function FriendsScreen() {
 
   return (
     <div className="screen friends">
-      <TopBar title="친구" onBack={() => back({ name: "home" })} />
+      <TopBar title="친구" />
       <div className="screen-body">
         <SlidingTabs label="친구 메뉴" value={tab} onChange={setTab}
           items={[["friends", `친구${data?.incoming.length ? ` · ${data.incoming.length}` : ""}`], ["jokbo", "족보"], ["privacy", "공개 설정"]] as const} />
@@ -144,26 +147,27 @@ function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: Frien
     } catch { /* 닫음 */ }
   };
 
+  const addCard = (
+    <section className="set-group add-card">
+      <h3>친구 추가</h3>
+      <div className="my-code-line">
+        <span className="grow"><small>내 친구 코드</small><b className="code">{data.me.code}</b></span>
+        <Button variant="secondary" icon="export" onClick={() => void shareCode()}>보내기</Button>
+      </div>
+      {!data.me.prefs.allow_requests && <p className="friend-msg">지금은 친구 신청을 받지 않아요 (공개 설정)</p>}
+      <div className="add-friend">
+        <input className="input" value={code} maxLength={8} placeholder="친구 코드 6자리" autoCapitalize="characters"
+          onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} aria-label="친구 코드"
+          onKeyDown={(e) => { if (e.key === "Enter" && code.length >= 6) void add(); }} />
+        <Button onClick={() => void add()} disabled={code.length < 6 || busy}>신청</Button>
+      </div>
+      {msg && <p className="friend-msg">{msg}</p>}
+    </section>
+  );
   return (
     <>
-      <section className="my-code">
-        <span className="t-caption">내 친구 코드</span>
-        <b className="code">{data.me.code}</b>
-        <span className="t-caption">{data.me.prefs.allow_requests ? "친구에게 이 코드를 알려 주세요" : "지금은 친구 신청을 받지 않아요 (공개 설정)"}</span>
-        <div className="row"><Button className="grow" variant="secondary" icon="export" onClick={() => void shareCode()}>코드 보내기</Button></div>
-      </section>
-
-      <section className="set-group">
-        <h3>친구 추가</h3>
-        <div className="add-friend">
-          <input className="input" value={code} maxLength={8} placeholder="친구 코드 6자리" autoCapitalize="characters"
-            onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} aria-label="친구 코드"
-            onKeyDown={(e) => { if (e.key === "Enter" && code.length >= 6) void add(); }} />
-          <Button onClick={() => void add()} disabled={code.length < 6 || busy}>신청</Button>
-        </div>
-        {msg && <p className="friend-msg">{msg}</p>}
-      </section>
-
+      {/* 친구가 없으면 추가부터, 있으면 받은 신청 · 내 친구가 먼저 */}
+      {data.friends.length === 0 && addCard}
       {data.incoming.length > 0 && (
         <section className="set-group">
           <h3>받은 신청 {data.incoming.length}</h3>
@@ -232,6 +236,7 @@ function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: Frien
           </div>
         ))}
       </section>
+      {data.friends.length > 0 && addCard}
 
       {table && (
         <div className="sheet-back" onClick={() => setTable(null)}>

@@ -8,7 +8,7 @@ import { Icon, TopBar } from "../components/ui";
 import { courseTone } from "../lib/course";
 import SlidingTabs from "../components/SlidingTabs";
 import { TimetableEditor } from "./Timetable";
-import { back as goBack, go } from "../router";
+import { go } from "../router";
 import { refreshNotices } from "../lib/notices";
 
 export interface HomeTask {
@@ -151,6 +151,8 @@ function TasksPane() {
   const [day, setDay] = useState<string | null>(null);
   const [open, setOpen] = useState<number | null>(null);
   const [showDone, setShowDone] = useState(false);
+  // 달력은 이번 주 한 줄로 접어 두고, 할 일 목록이 먼저 보이게 (펼치면 한 달)
+  const [calOpen, setCalOpen] = useState(false);
   const [kept] = useState(() => new Set<number>());
   const today = todayIso();
 
@@ -175,6 +177,9 @@ function TasksPane() {
   const cells: (string | null)[] = [...Array(first).fill(null),
     ...Array.from({ length: days }, (_, i) => iso(new Date(month.getFullYear(), month.getMonth(), i + 1)))];
   const shift = (n: number) => { setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1)); setDay(null); };
+  const focus = cells.indexOf(day ?? today);
+  const row = focus >= 0 ? Math.floor(focus / 7) : 0;
+  const visible = calOpen ? cells : cells.slice(row * 7, row * 7 + 7);
 
   // 목록 묶음
   const sorted = [...active].sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"));
@@ -200,7 +205,7 @@ function TasksPane() {
           </div>
           <div className="cal-grid">
             {WEEK.map((w, i) => <span key={w} className={`cal-w${i === 0 ? " sun" : i === 6 ? " sat" : ""}`}>{w}</span>)}
-            {cells.map((c, i) => {
+            {visible.map((c, i) => {
               if (!c) return <span key={`e${i}`} />;
               const list = byDay.get(c) ?? [];
               const openList = list.filter((t) => !t.done);
@@ -214,6 +219,9 @@ function TasksPane() {
               );
             })}
           </div>
+          <button className="cal-fold" onClick={() => setCalOpen(!calOpen)} aria-expanded={calOpen}>
+            {calOpen ? "이번 주만 보기" : "한 달 보기"} <Icon name={calOpen ? "caret-up" : "caret-down"} size={13} />
+          </button>
         </section>
 
         <div className="row tasks-sum">
@@ -254,7 +262,7 @@ export function ScheduleScreen({ view }: { view: "timetable" | "tasks" }) {
   const [tab, setTab] = useState(view);
   return (
     <div className="screen schedule">
-      <TopBar title="일정" onBack={() => goBack({ name: "home" })} />
+      <TopBar title="일정" />
       <div className="screen-body">
         <SlidingTabs label="일정 보기" value={tab} onChange={setTab} items={[["timetable", "시간표"], ["tasks", "할 일"]] as const} />
         <div key={tab} className="pane-in">{tab === "timetable"

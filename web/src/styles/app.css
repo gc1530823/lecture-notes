@@ -339,7 +339,7 @@ input[type="date"].input { padding: 0 var(--space-lg); }
 /* 아래 조작부 두 줄: 위는 쪽·상태, 아래는 버튼들 (버튼이 늘어 한 줄이면 쪽 넘기기를 가렸다) */
 .bottom-bar > .row { flex-wrap: wrap; justify-content: flex-end; row-gap: var(--space-sm); }
 .bottom-bar > .row > .grow { flex: 1 1 100%; display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
-.lecture .lecture-body { padding-bottom: 230px; }
+.lecture .lecture-body { padding-bottom: calc(var(--footer-h, 230px) + 20px); }
 .term-stack { bottom: 200px; }
 .toast { bottom: 210px; }
 
@@ -1072,7 +1072,7 @@ body:has(.tabbar) .screen { padding-bottom: calc(72px + env(safe-area-inset-bott
 /* 강의 화면 아래 버튼: 아이콘 아래 이름 (무슨 버튼인지 바로 알게) */
 .bottom-bar .round-soft { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 58px; height: 58px; padding: 4px 0 2px; }
 .bottom-bar .round-soft .icon { width: 26px !important; height: 26px !important; }
-.tool-label { font: 700 10px/12px var(--font-sans); color: var(--text-secondary); white-space: nowrap; letter-spacing: -.02em; }
+.tool-label { font: 700 11.5px/14px var(--font-sans); color: var(--text-secondary); white-space: nowrap; letter-spacing: -.02em; }
 .bottom-bar.rec .tool-label { color: rgb(255 255 255 / .75); }
 /* 고른 필기 아래 수정·삭제 */
 .note-actions { display: flex; gap: 6px; margin-top: 8px; animation: rise .25s both; }
@@ -1098,7 +1098,7 @@ body:has(.tabbar) .screen { padding-bottom: calc(72px + env(safe-area-inset-bott
 .record-main .record-ic .icon.art { color: #fff; }
 .record-main.alt .record-ic .icon.art { color: inherit; }
 .record-add { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; border-radius: 16px;
-  border: 1.5px dashed color-mix(in srgb, var(--accent-primary) 40%, var(--border-line)); background: transparent; color: var(--accent-primary);
+  border: 1.5px dashed color-mix(in srgb, var(--accent-primary) 55%, var(--border-line)); background: color-mix(in srgb, var(--accent-primary) 5%, transparent); color: var(--accent-primary);
   font: 700 14px/20px var(--font-sans); cursor: pointer; }
 .record-add small { color: var(--text-tertiary); font-weight: 500; }
 .record-hub.two { margin-top: 2px; }
@@ -1183,7 +1183,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .note-sub { color: color-mix(in srgb, var(--text-note) 72%, transparent); }
 .note-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .note-chips span { padding: 3px 9px; border-radius: 99px; font: 700 12.5px/18px var(--font-sans); letter-spacing: -.01em;
-  color: color-mix(in srgb, var(--ink) 70%, var(--text-note)); background: color-mix(in srgb, #fff 55%, transparent);
+  color: color-mix(in srgb, var(--ink) 70%, var(--text-note)); background: color-mix(in srgb, var(--bg-card) 55%, transparent);
   border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent); }
 .note-outro { font: 600 13px/20px var(--font-sans); padding: 7px 9px; border-radius: 8px; background: color-mix(in srgb, #fff 45%, transparent); }
 .note-due { background: color-mix(in srgb, var(--ink) 18%, transparent); color: inherit; font-weight: 800; padding: 0 3px; border-radius: 4px; }
@@ -1352,12 +1352,13 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .tt-block:active { filter: brightness(.95); }
 .tt-block b { font: 700 11.5px/14px var(--font-sans); letter-spacing: -.03em; word-break: keep-all; overflow-wrap: anywhere;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.tt-block small { font: 500 10px/12px var(--font-sans); opacity: .72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt-block small { font: 500 10.5px/13px var(--font-sans); opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tt-block.live { box-shadow: 0 0 0 2px var(--accent-record) inset; }
 .tt-c0 { --tt: #f4c7c3; } .tt-c1 { --tt: #f7dfa0; } .tt-c2 { --tt: #c5e3c0; } .tt-c3 { --tt: #b9dfe2; }
 .tt-c4 { --tt: #d8cdf3; } .tt-c5 { --tt: #f5cba8; } .tt-c6 { --tt: #c3d3f1; } .tt-c7 { --tt: #ebcfe6; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tt-block { filter: saturate(.9) brightness(.92); } }
-:root[data-theme="dark"] .tt-block { filter: saturate(.9) brightness(.92); }
+/* 어두운 화면: 과목색을 어둡게 채우고 글자를 밝은 과목색으로 (밝은 파스텔이 튀지 않게) */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tt-block { background: color-mix(in srgb, var(--tt) 26%, var(--bg-card)); color: color-mix(in srgb, var(--tt) 75%, #fff); } }
+:root[data-theme="dark"] .tt-block { background: color-mix(in srgb, var(--tt) 26%, var(--bg-card)); color: color-mix(in srgb, var(--tt) 75%, #fff); }
 .tt-block.live { box-shadow: 0 0 0 2px #fff inset, 0 2px 10px color-mix(in srgb, var(--accent-primary) 45%, transparent); }
 .tt-block.live::after { content: "지금"; position: absolute; right: 3px; bottom: 3px; padding: 1px 5px; border-radius: 99px; background: var(--accent-record); color: #fff; font: 800 9px/13px var(--font-sans); }
 
@@ -1543,3 +1544,47 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .cut-banner b { display: block; font: 700 14px/20px var(--font-sans); }
 .cut-banner small { display: block; margin: 2px 0 10px; font: 400 12px/18px var(--font-sans); color: var(--text-secondary); }
 .cut-banner .row { gap: 6px; flex-wrap: wrap; }
+
+/* 디자인 검토 반영: 누르는 곳 44px, 녹음 버튼에 글 */
+.pager button { min-width: 44px; min-height: 44px; display: grid; place-items: center; }
+.round-record { position: relative; }
+.rec-label { position: absolute; top: calc(100% + 3px); left: 50%; transform: translateX(-50%); white-space: nowrap; color: var(--text-secondary); }
+.round-record.on .rec-label { color: var(--accent-record); }
+.note-actions button { min-height: 40px; }
+.note-actions .danger { flex: 0 0 auto; padding-inline: 12px; margin-left: 10px; }   /* 삭제는 수정과 떨어뜨려 잘못 누르지 않게 */
+
+/* 홈 녹음 영역: 녹음 시작 하나만 크게, 나머지 둘은 한 줄 보조 버튼 */
+.record-hub { display: flex; flex-direction: column; gap: 8px; }
+.record-main { flex-direction: row; align-items: center; gap: 14px; padding: 14px 16px; }
+.record-main .grow { min-width: 0; }
+.record-sub { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.record-sub button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 46px; border-radius: 14px;
+  background: var(--bg-card); box-shadow: var(--shadow-card); color: var(--text-primary); font: 700 13.5px/18px var(--font-sans); }
+.record-sub button svg { color: var(--accent-primary); }
+.record-sub button:active { transform: scale(.96); }
+.record-busy { display: flex; align-items: center; gap: 8px; margin: 2px 4px; font: 500 13px/18px var(--font-sans); color: var(--text-secondary); }
+.show-all { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 44px; margin-top: 4px;
+  border-radius: 14px; color: var(--accent-primary); font: 700 13.5px/18px var(--font-sans); background: color-mix(in srgb, var(--accent-primary) 7%, transparent); }
+/* 학기 전체 링크: 필터 칩처럼 보이지 않게 아이콘 카드 세 개 */
+.home-links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; overflow: visible; }
+.home-links button { flex-direction: column; justify-content: center; gap: 4px; min-height: 72px; padding: 10px 6px; border-radius: 16px;
+  border: 0; box-shadow: var(--shadow-card); font: 700 12.5px/16px var(--font-sans); }
+.renote-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 10px; }
+.renote-undo { display: inline-flex; align-items: center; gap: 8px; font: 500 12.5px/18px var(--font-sans); color: var(--text-secondary); }
+.renote-undo.warn { color: var(--note-exam-ink); font-weight: 700; }
+/* 시작하기: 끝낸 단계는 한 줄로 작게 */
+.first-steps li.done button { padding-block: 4px; }
+.first-steps li.done button small { display: none; }
+.first-steps li.done .fs-num { width: 20px; height: 20px; }
+.qz-kinds-line { margin: 0; font: 500 12.5px/18px var(--font-sans); color: var(--text-secondary); text-align: center; }
+/* 친구 추가: 내 코드는 한 줄로 (큰 카드가 화면 1/3을 차지하지 않게) */
+.my-code-line { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 10px; border-radius: 16px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 14%, var(--bg-card)), var(--bg-card)); }
+.my-code-line small { display: block; font: 600 11.5px/16px var(--font-sans); color: var(--text-secondary); }
+.my-code-line .code { display: block; font: 800 24px/30px var(--font-sans); letter-spacing: .14em; color: var(--accent-deep); }
+.cal-fold { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 36px; margin-top: 4px; color: var(--text-secondary); font: 700 12.5px/16px var(--font-sans); }
+/* 같이 비는 시간: 요일마다 한 줄 */
+.free-days { display: grid; gap: 6px; margin-top: 8px; }
+.free-day { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.free-day > i { font-style: normal; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ico-green); color: #fff; font: 800 12px/1 var(--font-sans); flex: none; }
+.free-day .free-chip { padding: 5px 10px; }

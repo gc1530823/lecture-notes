@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 // 강의 다시 보기: 필기 → 정리 → 공부 → 용어 (공부하는 순서대로)
 import type { Annotation, DocumentDetail, GlossaryTerm, SummaryResponse } from "../api/types";
-import { postJSON, useApi } from "../api/useApi";
+import { getJSON, postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, NoteSection, PostIt, TermCard, TopBar } from "../components/ui";
 import { back, go } from "../router";
 import { NotesPdf, StudyNotePdf } from "./LectureExtras";
@@ -23,8 +23,8 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
         <SlidingTabs label="강의 보기" items={TABS} value={tab as (typeof TABS)[number][0]} onChange={(key) => go({ name: "session", docId, sessionId, tab: key })} />
         {tab === "notes" && doc && (
           <>
-            <Button icon={doc.kind === "notebook" ? "notebook" : "file-pdf"}
-              onClick={() => go({ name: "lecture", docId, sessionId })}>{doc.kind === "meeting" ? "회의 노트로 보기" : doc.kind === "notebook" ? "노트로 보기" : "강의자료 위에서 보기"}</Button>
+            <Button variant="secondary" icon={doc.kind === "notebook" ? "notebook" : "file-pdf"}
+              onClick={() => go({ name: "lecture", docId, sessionId })}>{doc.kind === "meeting" ? "회의 노트로 보기" : doc.kind === "notebook" ? "노트로 보기" : "슬라이드에서 보기"}</Button>
             <Renote sessionId={sessionId} />
             <Notes doc={doc} sessionId={sessionId} />
           </>
@@ -200,17 +200,33 @@ function Minutes({ sessionId }: { sessionId: string }) {
 /** 필기 다시 만들기: AI 필기만 지우고 받아쓰기로 새로 쓴다 (내가 쓰거나 고친 필기·사진·질문은 그대로) */
 function Renote({ sessionId }: { sessionId: string }) {
   const [busy, setBusy] = useState(false);
+  const [snap, setSnap] = useState<{ notes: number; now: number } | null>(null);
+  useEffect(() => { getJSON<typeof snap>(`/sessions/${sessionId}/snapshot`).then(setSnap).catch(() => {}); }, [sessionId]);
   const run = async () => {
-    if (!confirm("AI 필기를 처음부터 다시 만들까요?\n내가 쓰거나 고친 필기, 사진, 질문은 그대로 남아요. 요약과 퀴즈도 새로 만들어져요. (1~3분)")) return;
+    if (!confirm("AI 필기를 처음부터 다시 만들까요?\n내가 쓰거나 고친 필기, 사진, 질문은 그대로 남아요. 지금 AI 필기는 보관해 두니 마음에 안 들면 되돌릴 수 있어요. (1~3분)")) return;
     setBusy(true);
     try {
       await postJSON(`/sessions/${sessionId}/renote`);
       window.location.hash = `#/doc/${encodeURIComponent(location.hash.split("/")[2] ?? "")}/lecture/${sessionId}`;
     } catch (e) { alert(e instanceof Error ? e.message : String(e)); setBusy(false); }
   };
+  const undo = async () => {
+    if (!confirm(`다시 만들기 전 AI 필기 ${snap!.notes}개로 되돌릴까요? 지금 AI 필기 ${snap!.now}개는 지워져요. 내가 쓴 필기는 그대로예요.`)) return;
+    setBusy(true);
+    try { await postJSON(`/sessions/${sessionId}/undo-renote`); window.location.reload(); }
+    catch (e) { alert(e instanceof Error ? e.message : String(e)); setBusy(false); }
+  };
   return (
-    <button className="soft-link" onClick={() => void run()} disabled={busy}>
-      <Icon name="arrows-clockwise" size={14} /> {busy ? "다시 만드는 중…" : "AI 필기 다시 만들기"}
-    </button>
+    <div className="renote-row">
+      <button className="soft-link" onClick={() => void run()} disabled={busy}>
+        <Icon name="arrows-clockwise" size={14} /> {busy ? "바꾸는 중…" : "AI 필기 다시 만들기"}
+      </button>
+      {snap && (
+        <span className={`renote-undo${snap.now < snap.notes * 0.9 ? " warn" : ""}`}>
+          다시 만든 필기 {snap.now}개 (전 {snap.notes}개)
+          <button className="chip chip-accent" onClick={() => void undo()} disabled={busy}><Icon name="arrow-counter-clockwise" size={13} /> 되돌리기</button>
+        </span>
+      )}
+    </div>
   );
 }

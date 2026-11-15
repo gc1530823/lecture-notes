@@ -5,7 +5,7 @@
   --bg-card: #ffffff;
   --text-primary: #1d1b2e;
   --text-secondary: #5d5b72;
-  --text-tertiary: #9b99ad;
+  --text-tertiary: #6e6c84;   /* 읽혀야 하는 보조 글: 바탕 위 4.5:1 이상 */
   --text-on-accent: #ffffff;
   --text-note: #211f1c;
   --accent-primary: #6b5cf6;
@@ -29,19 +29,19 @@
   --shadow-note: 0 4px 8px rgb(0 0 0 / 0.10);
 
   --note-explanation-paper: #ffed94;
-  --note-explanation-ink: #d99e00;
+  --note-explanation-ink: #7a5800;
   --note-example-paper: #c2f0cc;
-  --note-example-ink: #219e54;
+  --note-example-ink: #14693a;
   --note-emphasis-paper: #ffd6a8;
-  --note-emphasis-ink: #ed7312;
+  --note-emphasis-ink: #9a4205;
   --note-exam-paper: #ffbfcc;
-  --note-exam-ink: #e02e54;
+  --note-exam-ink: #a8183a;
   --note-notice-paper: #d9d1ff;
-  --note-notice-ink: #6b54e6;
+  --note-notice-ink: #5340d0;
   --note-tip-paper: #c7ebff;
-  --note-tip-ink: #0d85cc;
+  --note-tip-ink: #0a6aa8;
   --note-qa-paper: #fbd9f5;
-  --note-qa-ink: #bf389e;
+  --note-qa-ink: #a02c84;
 
 
   --space-xs: 4px;
@@ -68,7 +68,7 @@
     --bg-card: #1c1c2e;
     --text-primary: #f2f1fa;
     --text-secondary: #adabc4;
-    --text-tertiary: #6f6d88;
+    --text-tertiary: #8f8da8;
     --text-on-accent: #ffffff;
     --accent-primary: #8b7fff;
     --accent-record: #ff5e61;
@@ -85,6 +85,15 @@
     --blk5: #6b1d3d; --blk5-ink: #ffd3e2;
     --blk6: #0f4d41; --blk6-ink: #c6f0e6;
     --blk7: #2b3a49; --blk7-ink: #d9e2ec;
+    /* 어두운 화면의 필기: 밝은 포스트잇이 눈부시지 않게 어두운 종이 + 밝은 글자 */
+    --text-note: #ecebf5;
+    --note-explanation-paper: #3a3420; --note-explanation-ink: #ffd75e;
+    --note-example-paper: #1e3829; --note-example-ink: #6fdc98;
+    --note-emphasis-paper: #3d2b1c; --note-emphasis-ink: #ffad66;
+    --note-exam-paper: #3e1f2a; --note-exam-ink: #ff8aa3;
+    --note-notice-paper: #2b2750; --note-notice-ink: #b3a6ff;
+    --note-tip-paper: #1b3346; --note-tip-ink: #7cc8f5;
+    --note-qa-paper: #392140; --note-qa-ink: #f19ad9;
     color-scheme: dark;
   }
 }
@@ -93,7 +102,7 @@
     --bg-card: #1c1c2e;
     --text-primary: #f2f1fa;
     --text-secondary: #adabc4;
-    --text-tertiary: #6f6d88;
+    --text-tertiary: #8f8da8;
     --text-on-accent: #ffffff;
     --accent-primary: #8b7fff;
     --accent-record: #ff5e61;
@@ -110,6 +119,15 @@
     --blk5: #6b1d3d; --blk5-ink: #ffd3e2;
     --blk6: #0f4d41; --blk6-ink: #c6f0e6;
     --blk7: #2b3a49; --blk7-ink: #d9e2ec;
+    /* 어두운 화면의 필기: 밝은 포스트잇이 눈부시지 않게 어두운 종이 + 밝은 글자 */
+    --text-note: #ecebf5;
+    --note-explanation-paper: #3a3420; --note-explanation-ink: #ffd75e;
+    --note-example-paper: #1e3829; --note-example-ink: #6fdc98;
+    --note-emphasis-paper: #3d2b1c; --note-emphasis-ink: #ffad66;
+    --note-exam-paper: #3e1f2a; --note-exam-ink: #ff8aa3;
+    --note-notice-paper: #2b2750; --note-notice-ink: #b3a6ff;
+    --note-tip-paper: #1b3346; --note-tip-ink: #7cc8f5;
+    --note-qa-paper: #392140; --note-qa-ink: #f19ad9;
     color-scheme: dark;
 }
 

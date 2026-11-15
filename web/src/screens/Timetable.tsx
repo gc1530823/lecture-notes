@@ -98,7 +98,7 @@ export function Timetable({ onPick, slot = "top" }: { courses?: string[]; onPick
             <b>{today.length ? "오늘 수업은 끝났어요" : "오늘은 수업이 없어요"}</b>
             <small>{today.length ? "오늘 배운 걸 복습해 볼까요?" : "푹 쉬거나 복습해요"}</small>
           </span>
-          <span className="tt-btn">시간표</span>
+          <span className="tt-btn">시간표 보기</span>
         </button>
       )}
     </section>
@@ -347,7 +347,7 @@ export function WeekGrid({ rows, onPick }: { rows: ClassRow[]; onPick: (course: 
   const courses = [...new Set([...rows].sort((a, b) => a.weekday - b.weekday || a.start.localeCompare(b.start)).map((r) => r.course))];
   const colorOf = (course: string) => courses.indexOf(course) % 8;
   const cols = { gridTemplateColumns: `30px repeat(${days}, 1fr)` };
-  const label = (h: number) => (h > 12 ? h - 12 : h); // 1시·2시… (표에서는 짧게)
+  const label = (h: number) => h; // 24시간 (같이 비는 시간 15:30처럼 한 가지로)
   return (
     <div className="tt-grid" role="table" aria-label="이번 주 시간표">
       <div className="tt-head" style={cols} role="row">

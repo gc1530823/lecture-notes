@@ -840,6 +840,25 @@ async def renote_session(session_id: str, background: BackgroundTasks):
     return db().get_session(session_id)
 
 
+@app.get("/sessions/{session_id}/snapshot")
+def note_snapshot(session_id: str):
+    """다시 만들기 전 필기가 남아 있으면: 그때 필기 수와 지금 필기 수 (되돌리기 버튼에 쓴다)"""
+    _session_or_404(session_id)
+    return db().snapshot_info(session_id)
+
+
+@app.post("/sessions/{session_id}/undo-renote")
+def undo_renote(session_id: str):
+    """필기 다시 만들기·다시 받아쓰기를 되돌린다: 그 전의 AI 필기·받아쓰기·요약으로 (내가 쓰거나 고친 필기는 그대로)"""
+    session = _session_or_404(session_id)
+    if session["status"] in ("recording", "transcribing", "processing"):
+        raise HTTPException(409, "지금 정리하는 중이에요. 끝난 뒤에 되돌려 주세요.")
+    if not db().restore_snapshot(session_id):
+        raise HTTPException(404, "되돌릴 예전 필기가 없어요.")
+    db().set_session_status(session_id, "done")
+    return db().get_session(session_id)
+
+
 @app.post("/sessions/{session_id}/retry")
 async def retry_session(session_id: str, background: BackgroundTasks):
     """정리 실패한 강의를 다시: 받아쓴 글이 없으면 저장된 녹음부터, 있으면 필기·요약만 다시"""

@@ -10,7 +10,7 @@ import SlidingTabs from "../components/SlidingTabs";
 import { useSwipe } from "../lib/gesture";
 
 // 공부 탭은 세 가지만: 퀴즈(AI가 내고 채점) · 외우기(플래시카드 + 빈칸) · 질문하기(헷갈린 곳 + AI 튜터)
-const KINDS = [["quiz", "퀴즈"], ["memorize", "외우기"], ["ask", "질문하기"]] as const;
+const KINDS = [["quiz", "퀴즈"], ["memorize", "외우기"], ["ask", "AI 튜터"]] as const;
 type Kind = (typeof KINDS)[number][0];
 
 export default function Study({ sessionId }: { sessionId: string }) {

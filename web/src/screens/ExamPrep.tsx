@@ -160,6 +160,10 @@ const GRADE_BUTTONS = [["again", "몰랐어요", "record"], ["hard", "어렵게 
 
 /** 오늘의 복습: 틀린 것은 10분 뒤 다시, 맞힌 것은 1일 → 3일 → 점점 길게 */
 export function ReviewScreen() {
+  // 사용법 안내는 처음 세 번만 (그 뒤엔 자리만 차지한다)
+  const [guideLeft] = useState(() => {
+    try { const n = Number(localStorage.getItem("ln.reviewGuide") ?? 0); localStorage.setItem("ln.reviewGuide", String(n + 1)); return n < 3; } catch { return true; }
+  });
   const [today, setToday] = useState<ReviewToday | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flipped, setFlipped] = useState(false);
@@ -192,7 +196,7 @@ export function ReviewScreen() {
   useSwipe(cardRef, { onLeft: () => void answer("again"), onRight: () => void answer("good"), enabled: flipped && !busy, bind: `${card?.card_key}-${flipped}` });
   return (
     <div className="screen">
-      <TopBar title="오늘의 복습" onBack={() => back({ name: "home" })} />
+      <TopBar title="오늘의 복습" />
       <div className="screen-body">
         {error && <Empty icon="warning-circle">{error}</Empty>}
         {!today && !error && <p className="muted">카드를 모으는 중…</p>}
@@ -210,7 +214,7 @@ export function ReviewScreen() {
         )}
         {card && (
           <>
-            {done === 0 && !flipped && (
+            {done === 0 && !flipped && guideLeft && (
               <ol className="review-guide">
                 <li>질문의 답을 머릿속으로 떠올려 보고</li>
                 <li>카드를 눌러 답을 확인한 뒤</li>
@@ -361,6 +365,7 @@ export function PrivacyScreen() {
     if (h === 0) app?.cancelReminder?.(); else app?.setReminder?.("오늘 배운 것, 복습할 시간이에요", "눌러서 바로 복습하기", h, 0);
   };
 
+  const [presenter, setPresenter] = useState(() => { try { return localStorage.getItem("ln.presenter") === "1"; } catch { return false; } });
   return (
     <div className="screen settings">
       <TopBar title="설정" onBack={() => back({ name: "home" })} />
@@ -368,8 +373,7 @@ export function PrivacyScreen() {
         {me?.auth && me.user && (
           <section className="set-group">
             <h3>계정</h3>
-            <SettingRow icon="users" title={me.user.name} sub="내 강의·녹음·필기는 나만 볼 수 있어요"
-              right={<button className="chip chip-default" onClick={() => void logout()}>로그아웃</button>} />
+            <SettingRow icon="users" title={me.user.name} sub="내 강의·녹음·필기는 나만 볼 수 있어요" />
             <AccountSecurity />
           </section>
         )}
@@ -429,7 +433,11 @@ export function PrivacyScreen() {
           <SettingRow icon="sparkle" title="LUNE · AI 강의 노트" sub="Listen. Learn. Remember." />
           <SettingRow icon="graduation-cap" title="처음 안내 다시 보기" onClick={() => go({ name: "intro" })} />
           {android() && <SettingRow icon="gear" title="서버 주소 바꾸기" sub="다른 LUNE 서버에 연결해요" onClick={() => android()?.changeServer()} />}
+          <SettingRow icon="chalkboard-teacher" title="발표 모드" sub="강의 화면에 '녹음 파일을 실시간 강의처럼 틀기'를 보여 줘요"
+            right={<Switch on={presenter} onChange={(v) => { try { localStorage.setItem("ln.presenter", v ? "1" : "0"); } catch { /* 괜찮다 */ } setPresenter(v); }} label="발표 모드" />} />
         </section>
+        {/* 로그아웃은 맨 아래 (설정을 열자마자 잘못 누르지 않게, 누르면 한 번 더 묻는다) */}
+        {me?.auth && me.user && <Button block variant="secondary" onClick={() => void logout()}>로그아웃</Button>}
         {me?.auth && <p className="admin-link"><a href="#/admin">관리자</a></p>}
       </div>
     </div>

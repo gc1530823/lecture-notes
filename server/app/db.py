@@ -81,6 +81,12 @@ CREATE TABLE IF NOT EXISTS annotations (
     pending INTEGER NOT NULL DEFAULT 0,
     created_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS note_snapshots (
+    -- 필기 다시 만들기·다시 받아쓰기 전의 AI 필기·받아쓰기·요약 (되돌리기용, 강의마다 마지막 하나)
+    session_id TEXT PRIMARY KEY,
+    created_at REAL NOT NULL,
+    data TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS photos (
     -- 칠판·화이트보드 사진: 찍은 쪽, 그 사진으로 만든 필기
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -252,6 +258,10 @@ CREATE TABLE IF NOT EXISTS page_notes (
 );
 """
 
+
+# AI 가 쓴 필기 (사람이 쓰거나 고친 것, 질문, 사진 필기는 아님)
+AI_NOTE = "edited_by_user = 0 AND type != 'qa' AND id NOT IN (SELECT annotation_id FROM photos WHERE annotation_id IS NOT NULL)"
+SNAPSHOT_TABLES = ("transcript_segments", "summaries", "page_notes", "study_sets", "glossary", "quiz_sets")
 
 class Database:
     def __init__(self, path: str):
@@ -476,8 +486,9 @@ class Database:
         사람이 쓰거나 고친 필기, 사진 필기, 질문(qa)은 남긴다. 노트 수업이면 주제 쪽을 첫 쪽만 남기고 다시 나눈다."""
         segments = self.get_segments(session_id)
         with self._lock, self._conn:
-            self._conn.execute("""DELETE FROM annotations WHERE session_id = ? AND edited_by_user = 0 AND type != 'qa'
-                                  AND id NOT IN (SELECT annotation_id FROM photos WHERE annotation_id IS NOT NULL)""", (session_id,))
+            if not notebook:   # 노트 수업은 쪽을 다시 나누므로 되돌릴 수 없다
+                self._snapshot(session_id)
+            self._conn.execute(f"DELETE FROM annotations WHERE session_id = ? AND {AI_NOTE}", (session_id,))
             for table in ("transcript_segments", "summaries", "page_notes", "study_sets", "glossary", "quiz_sets"):
                 self._conn.execute(f"DELETE FROM {table} WHERE session_id = ?", (session_id,))
             if notebook:
@@ -493,11 +504,51 @@ class Database:
                     self._conn.execute("UPDATE documents SET page_count = 1 WHERE id = ?", (doc_id,))
         return segments
 
+    def _snapshot(self, session_id: str) -> None:
+        """지우기 직전의 AI 필기와 받아쓰기·요약을 통째로 남긴다 (lock 안에서 부른다)"""
+        def rows(sql: str) -> list[dict]:
+            cur = self._conn.execute(sql, (session_id,))
+            cols = [c[0] for c in cur.description]
+            return [dict(zip(cols, r)) for r in cur.fetchall()]
+        data = {"annotations": rows(f"SELECT * FROM annotations WHERE session_id = ? AND {AI_NOTE}")}
+        for table in SNAPSHOT_TABLES:
+            data[table] = rows(f"SELECT * FROM {table} WHERE session_id = ?")
+        if not data["annotations"] and not data["transcript_segments"]:
+            return
+        self._conn.execute("INSERT OR REPLACE INTO note_snapshots (session_id, created_at, data) VALUES (?, ?, ?)",
+                           (session_id, time.time(), json.dumps(data, ensure_ascii=False)))
+
+    def snapshot_info(self, session_id: str) -> dict | None:
+        rows = self._query("SELECT created_at, data FROM note_snapshots WHERE session_id = ?", (session_id,))
+        if not rows:
+            return None
+        data = json.loads(rows[0]["data"])
+        now = self._query(f"SELECT COUNT(*) AS n FROM annotations WHERE session_id = ? AND {AI_NOTE}", (session_id,))[0]["n"]
+        return {"at": rows[0]["created_at"], "notes": len(data["annotations"]), "now": now}
+
+    def restore_snapshot(self, session_id: str) -> bool:
+        """되돌리기: 지금의 AI 필기·받아쓰기·요약을 지우고 저장해 둔 것을 다시 넣는다. 내가 쓰거나 고친 필기는 건드리지 않는다"""
+        rows = self._query("SELECT data FROM note_snapshots WHERE session_id = ?", (session_id,))
+        if not rows:
+            return False
+        data = json.loads(rows[0]["data"])
+        with self._lock, self._conn:
+            self._conn.execute(f"DELETE FROM annotations WHERE session_id = ? AND {AI_NOTE}", (session_id,))
+            for table in SNAPSHOT_TABLES:
+                self._conn.execute(f"DELETE FROM {table} WHERE session_id = ?", (session_id,))
+            for table, items in data.items():
+                for item in items:
+                    cols = list(item)
+                    self._conn.execute(f"INSERT OR REPLACE INTO {table} ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+                                       [item[c] for c in cols])
+            self._conn.execute("DELETE FROM note_snapshots WHERE session_id = ?", (session_id,))
+        return True
+
     def delete_session(self, session_id: str) -> None:
         """강의 하나와 그 강의에서 나온 것(받아쓰기·필기·요약·퀴즈·표시)을 지운다"""
         with self._lock, self._conn:
             for table in ("annotations", "transcript_segments", "tasks", "summaries", "page_notes", "study_sets", "glossary",
-                          "feedback", "marks", "photos", "quiz_sets"):
+                          "feedback", "marks", "photos", "quiz_sets", "note_snapshots"):
                 self._conn.execute(f"DELETE FROM {table} WHERE session_id = ?", (session_id,))
             self._conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
 
