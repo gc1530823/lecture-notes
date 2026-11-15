@@ -224,6 +224,11 @@ def _split_audio(path: str, out_dir: str) -> list[str]:
     return sorted(os.path.join(out_dir, n) for n in os.listdir(out_dir) if n.startswith("part"))
 
 
+def _latin_lines(segments) -> int:
+    """한글 없이 로마자만 있는 줄 수 (한국어 강의에서 Whisper 가 영어·로마자로 새어 버린 줄)"""
+    return sum(1 for s in segments if not re.search(r"[가-힣]", s.text) and len(re.findall(r"[A-Za-z]", s.text)) >= 5)
+
+
 # 받아쓰기 모델 한도가 차면 바꿔 쓸 짝 (둘 다 무료, 한도는 따로)
 OTHER_WHISPER = {"whisper-large-v3": "whisper-large-v3-turbo", "whisper-large-v3-turbo": "whisper-large-v3"}
 
@@ -324,6 +329,11 @@ class GroqTranscriber:
                         segments = self._request(os.path.basename(part), data, hint, settings.groq_whisper_model, patient, language)
                     if language is None and segments:
                         language = getattr(self, "detected", None)
+                        if language == "ko" and _latin_lines(segments) >= 2:
+                            # 첫 조각은 언어를 스스로 정하느라 중간에 영어로 새기도 한다 ("It is a manual…", "JAAKIN")
+                            log.warning("첫 조각에 영어로 샌 줄이 있어 한국어로 다시 받아씁니다")
+                            segments = self._request(os.path.basename(part), data, hint, settings.groq_whisper_model,
+                                                     patient, "ko")
                 except SpeechLimit:
                     raise
                 except LLMError as exc:

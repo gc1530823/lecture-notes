@@ -266,3 +266,30 @@ def test_text_model_switches_to_spare_free_model_on_rate_limit(api_key):
     llm = GroqLLM(transport=httpx.MockTransport(handler))
     out = asyncio.run(llm._chat("s", "p", {"type": "object"}, 1024))
     assert out == {"title": "날짜 함수"} and asked == ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+
+
+def test_first_chunk_leaking_into_english_is_redone_in_korean(monkeypatch, tmp_path):
+    """첫 조각은 언어를 스스로 정하다 중간에 영어·로마자로 샌다 → 한국어로 잡히면 그 조각을 한국어로 다시"""
+    from app import groq as g
+
+    part = tmp_path / "part000.mp3"
+    part.write_bytes(b"x" * 5000)
+    monkeypatch.setattr(g, "_split_audio", lambda path, out: [str(part)])
+    seen = []
+
+    def handler(request):
+        korean = b'name="language"\r\n\r\nko' in request.content
+        seen.append(korean)
+        if korean:
+            return httpx.Response(200, json={"language": "korean", "segments": [
+                {"start": 0, "end": 5, "text": "LENGTH 는 바이트 수를 돌려줘요.", "no_speech_prob": 0.0},
+                {"start": 5, "end": 9, "text": "CHAR_LENGTH 는 글자 수예요.", "no_speech_prob": 0.0}]})
+        return httpx.Response(200, json={"language": "korean", "segments": [
+            {"start": 0, "end": 5, "text": "LENGTH 는 바이트 수를 돌려줘요.", "no_speech_prob": 0.0},
+            {"start": 5, "end": 7, "text": "It is a manual that I have not used before", "no_speech_prob": 0.0},
+            {"start": 7, "end": 9, "text": "NOVAN CONVALIDEMKCHO", "no_speech_prob": 0.0}]})
+
+    t = g.GroqTranscriber(transport=httpx.MockTransport(handler))
+    out = t.transcribe("lecture.m4a")
+    assert seen == [False, True] and all("manual" not in s.text for s in out)
+    assert g._latin_lines([g.Segment(0, 1, "SELECT 문으로 조회해요"), g.Segment(0, 1, "JAAKIN")]) == 1
