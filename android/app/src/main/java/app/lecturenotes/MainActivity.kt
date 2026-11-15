@@ -60,6 +60,8 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 지난번에 올리지 못한 녹음(연결이 끊겨 빠진 곳이 있던 강의)이 있으면 올린다
+        Thread { LocalRecording.sync(applicationContext) }.apply { name = "rec-sync"; start() }
         web = WebView(this)
         setContentView(web)
         web.settings.apply {

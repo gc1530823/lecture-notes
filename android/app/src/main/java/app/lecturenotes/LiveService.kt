@@ -65,6 +65,7 @@ class LiveService : Service() {
     private val audioBacklog = ArrayDeque<ByteString>()
     private val textBacklog = ArrayDeque<String>()
     private var lastPage = 1
+    private var local: LocalRecording? = null   // 폰 안에 남기는 전체 녹음 (연결이 끊겨도 빠지지 않게)
 
     // 폰 안 받아쓰기 (모델이 있으면). 없으면 서버가 받아쓰고, 그동안 모델을 받아 둔다
     @Volatile private var device: DeviceStt? = null
@@ -83,6 +84,7 @@ class LiveService : Service() {
         if (running != null && url == target) return START_STICKY
         url = target
         running = this
+        local = LocalRecording.parse(target)?.let { (_, sid) -> LocalRecording(this, sid) }
         startForegroundNotice()
         acquireWakeLock()
         // 폰 받아쓰기 모델을 읽는 데 1~2초 걸려 화면을 멈추지 않게 따로 돌린다. 준비되는 순간부터 폰이 받아쓴다
@@ -216,6 +218,7 @@ class LiveService : Service() {
                         emit("""{"type":"level","v":${peak / 32768f}}""")
                     }
                     queueAudio(buffer.copyOf(n).toByteString())
+                    local?.append(buffer, n)
                     device?.let { hear(it, buffer, n) }
                 }
             }
@@ -256,6 +259,15 @@ class LiveService : Service() {
         // 마지막 필기를 받을 시간을 웹앱이 이미 기다렸으므로 바로 닫는다
         socket?.close(1000, "끝")
         socket = null
+        // 폰에 모아 둔 녹음: 서버가 다 받았는지 보고, 빠진 곳이 있으면 전체 녹음을 올린다 (인터넷이 없으면 다음에 앱을 열 때)
+        LocalRecording.parse(url)?.let { (base, _) ->
+            local?.finish(base)
+            local = null
+            val ctx = applicationContext
+            Thread {
+                if (LocalRecording.sync(ctx) > 0) emit(notice("연결이 끊겼던 부분까지 전체 녹음을 올렸어요. 처음부터 다시 정리해요."))
+            }.apply { name = "rec-sync"; start() }
+        }
         wakeLock?.let { if (it.isHeld) it.release() }
         running = null
         stopForeground(STOP_FOREGROUND_REMOVE)
