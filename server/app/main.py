@@ -5,6 +5,7 @@ import contextlib
 import datetime
 import hashlib
 import json
+import math
 import logging
 import os
 import re
@@ -674,9 +675,62 @@ def list_documents():
 
 
 @app.delete("/documents/{doc_id}", status_code=204)
-def delete_document(doc_id: str):
+def delete_document(doc_id: str, purge: bool = False):
+    """지우기: 휴지통에 넣고 7일 뒤 완전히 지운다. purge=true 면 바로 완전히 (내 자료 모두 지우기)"""
     if db().get_document(doc_id) is None:
         raise HTTPException(404, "강의자료가 없습니다.")
+    if purge:
+        _purge_document(doc_id)
+    else:
+        db().trash_document(doc_id)
+
+
+TRASH_DAYS = 7
+
+
+@app.get("/trash")
+def list_trash():
+    for doc_id in db().expired_trash(TRASH_DAYS):
+        _purge_document(doc_id)
+    now = time.time()
+    return [{**d, "days_left": max(0, math.ceil(TRASH_DAYS - (now - d["deleted_at"]) / 86400))} for d in db().list_trash()]
+
+
+@app.post("/trash/{doc_id}/restore")
+def restore_trash(doc_id: str):
+    if db().get_document(doc_id, trashed=True) is None:
+        raise HTTPException(404, "휴지통에 없는 자료예요.")
+    db().trash_document(doc_id, restore=True)
+    return {"restored": doc_id}
+
+
+@app.delete("/trash/{doc_id}", status_code=204)
+def purge_trash(doc_id: str):
+    if db().get_document(doc_id, trashed=True) is None:
+        raise HTTPException(404, "휴지통에 없는 자료예요.")
+    _purge_document(doc_id)
+
+
+class AccountDelete(BaseModel):
+    password: str
+
+
+@app.post("/account/delete")
+def delete_account(body: AccountDelete):
+    """계정 삭제: 비밀번호를 한 번 더 받고, 강의자료·녹음·필기·시간표·친구·로그인을 모두 지운다 (되돌릴 수 없음)"""
+    me = _me()
+    user = db().user_by_name((db().get_user(me) or {}).get("name", ""))
+    if not user or not auth.check_password(body.password, user["password"]):
+        raise HTTPException(401, "비밀번호가 맞지 않아요.")
+    for doc_id in db().owned_documents(me):
+        _purge_document(doc_id)
+    db().delete_user(me)
+    res = JSONResponse({"deleted": True})
+    res.delete_cookie(auth.COOKIE, path="/")
+    return res
+
+
+def _purge_document(doc_id: str) -> None:
     sessions = db().delete_document(doc_id)
     with contextlib.suppress(FileNotFoundError):
         os.remove(_pdf_path(doc_id))
@@ -726,7 +780,7 @@ def create_session(body: SessionCreate):
 
 def _session_or_404(session_id: str) -> dict:
     session = db().get_session(session_id)
-    if session is None:
+    if session is None or db().doc_trashed(session["document_id"]):   # 휴지통에 넣은 자료의 강의는 안 보인다
         raise HTTPException(404, "강의 세션이 없습니다.")
     return session
 

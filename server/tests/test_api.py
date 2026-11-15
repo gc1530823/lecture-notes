@@ -1323,3 +1323,31 @@ def test_photo_ocr_helpers():
     m = np.zeros((10, 20), bool); m[1:3, 2:8] = 1; m[2:5, 6:9] = 1; m[7:9, 12:18] = 1
     assert sorted(ocr.components(m)) == [(2, 1, 9, 5, 19), (12, 7, 18, 9, 12)]
     assert ocr.reading_order([(50, 10, 90, 20), (0, 12, 40, 22), (0, 40, 30, 50)]) == [(0, 12, 40, 22), (50, 10, 90, 20), (0, 40, 30, 50)]
+
+
+def test_trash_keeps_deleted_documents_for_seven_days(client):
+    """지우면 휴지통으로: 목록·강의에서 사라지고, 되살리면 그대로, 7일이 지나거나 완전히 지우면 끝"""
+    from app import main as m
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    assert client.delete(f"/documents/{doc['id']}").status_code == 204
+    assert doc["id"] not in {d["id"] for d in client.get("/documents").json()}
+    assert client.get(f"/sessions/{sid}/annotations").status_code == 404
+    trash = {t["id"]: t for t in client.get("/trash").json()}
+    assert trash[doc["id"]]["days_left"] == 7
+    assert client.post(f"/trash/{doc['id']}/restore").status_code == 200
+    assert doc["id"] in {d["id"] for d in client.get("/documents").json()}
+    assert client.get(f"/sessions/{sid}/annotations").status_code == 200
+    # 완전히 지우기 (휴지통에서) · 바로 지우기(purge)
+    client.delete(f"/documents/{doc['id']}")
+    assert client.delete(f"/trash/{doc['id']}").status_code == 204
+    assert doc["id"] not in {t["id"] for t in client.get("/trash").json()}
+    other = upload(client)
+    client.delete(f"/documents/{other['id']}?purge=true")
+    assert other["id"] not in {t["id"] for t in client.get("/trash").json()}
+    # 7일 지난 것은 휴지통을 볼 때 지워진다
+    old = upload(client)
+    client.delete(f"/documents/{old['id']}")
+    m.db().trash_document(old["id"])
+    m.db()._write("UPDATE documents SET deleted_at = ? WHERE id = ?", (time.time() - 8 * 86400, old["id"]))
+    assert old["id"] not in {t["id"] for t in client.get("/trash").json()}

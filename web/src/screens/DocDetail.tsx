@@ -43,7 +43,7 @@ export default function DocDetail({ docId }: { docId: string }) {
   };
 
   const remove = async () => {
-    if (!confirm("이 강의자료와 지난 강의 필기를 모두 지울까요? 되돌릴 수 없어요.")) return;
+    if (!confirm("이 강의자료를 휴지통으로 옮길까요? 7일 안에는 설정 › 휴지통에서 되살릴 수 있어요.")) return;
     const res = await fetch(`${API}/documents/${docId}`, { method: "DELETE" });
     if (res.ok) go({ name: "home" }); else alert("지우지 못했어요");
   };
@@ -57,7 +57,7 @@ export default function DocDetail({ docId }: { docId: string }) {
             {menu && <>
               <div className="top-menu-bg" onClick={() => setMenu(false)} />
               <div className="top-menu-list" role="menu">
-                <button role="menuitem" className="danger" onClick={() => { setMenu(false); void remove(); }}><Icon name="trash" size={16} /> 강의자료와 강의 모두 지우기</button>
+                <button role="menuitem" className="danger" onClick={() => { setMenu(false); void remove(); }}><Icon name="trash" size={16} /> 휴지통으로 옮기기</button>
               </div>
             </>}
           </div>

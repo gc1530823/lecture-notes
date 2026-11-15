@@ -1,6 +1,6 @@
 // 시험 공부 화면: 족보 노트 · 오늘의 복습(망각 곡선) · 개인정보와 녹음 동의
 import { useSwipe } from "../lib/gesture";
-import { AccountSecurity } from "./Account";
+import { AccountSecurity, DeleteAccount, TrashPanel } from "./Account";
 import { refreshNotices } from "../lib/notices";
 import { PREVIEW, play, setSoundOn, soundOn } from "../lib/sound";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -348,7 +348,7 @@ export function PrivacyScreen() {
   const wipe = async () => {
     if (!docs?.length || !confirm(`강의자료 ${docs.length}개와 그 녹음·필기·복습 기록을 모두 지울까요? 되돌릴 수 없어요.`)) return;
     setBusy(true);
-    for (const d of docs) await fetch(`${API}/documents/${d.id}`, { method: "DELETE" }).catch(() => {});
+    for (const d of docs) await fetch(`${API}/documents/${d.id}?purge=true`, { method: "DELETE" }).catch(() => {});
     try { localStorage.removeItem("ln.consent"); } catch { /* 괜찮다 */ }
     await reload();
     setBusy(false);
@@ -426,6 +426,8 @@ export function PrivacyScreen() {
             onClick={() => { try { localStorage.removeItem("ln.consent"); } catch { /* 괜찮다 */ } alert("다음 녹음 때 다시 물어볼게요."); }} />
           <SettingRow icon="trash" danger title={busy ? "지우는 중…" : "내 자료 모두 지우기"} sub={docs?.length ? `강의자료 ${docs.length}개와 녹음·필기·복습 기록` : "지울 자료가 없어요"}
             onClick={busy || !docs?.length ? undefined : () => void wipe()} />
+          <TrashPanel />
+          {me?.auth && me.user && <DeleteAccount />}
         </section>
 
         <section className="set-group">

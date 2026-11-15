@@ -140,3 +140,63 @@ export function OwnerAccountTools() {
     </div>
   );
 }
+
+type TrashItem = { id: string; title: string; course?: string; days_left: number };
+
+/** 설정 › 휴지통: 지운 강의자료를 7일 동안 되살리기 */
+export function TrashPanel() {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<TrashItem[] | null>(null);
+  const load = () => { getJSON<TrashItem[]>("/trash").then(setItems).catch(() => setItems([])); };
+  useEffect(load, []);
+  const restore = async (t: TrashItem) => { await postJSON(`/trash/${t.id}/restore`).catch(() => {}); load(); };
+  const purge = async (t: TrashItem) => {
+    if (!confirm(`'${t.title}'을(를) 완전히 지울까요? 녹음·필기도 함께 지워지고 되돌릴 수 없어요.`)) return;
+    await fetch(`${API}/trash/${t.id}`, { method: "DELETE" }).catch(() => {}); load();
+  };
+  return (
+    <>
+      <Row icon="trash" title="휴지통" open={open} onClick={() => setOpen(!open)}
+        sub={items?.length ? `${items.length}개 · 지운 뒤 7일 동안 되살릴 수 있어요` : "비어 있어요 · 지운 강의자료는 7일 동안 여기 있어요"} />
+      {open && (
+        <div className="set-panel">
+          {!items?.length && <p className="t-caption muted" style={{ margin: 0 }}>휴지통이 비어 있어요.</p>}
+          {items?.map((t) => (
+            <div key={t.id} className="trash-row">
+              <span className="grow"><b>{t.title}</b><small>{t.days_left}일 뒤 완전히 지워져요{t.course ? ` · ${t.course}` : ""}</small></span>
+              <button className="chip chip-accent" onClick={() => void restore(t)}>되살리기</button>
+              <button className="chip chip-default danger" onClick={() => void purge(t)}>지우기</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** 설정 › 계정 삭제: 비밀번호를 한 번 더 받고 모든 자료와 계정을 지운다 */
+export function DeleteAccount() {
+  const [open, setOpen] = useState(false);
+  const [pw, setPw] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    if (!confirm("정말 계정을 지울까요? 강의자료·녹음·필기·시간표·친구가 모두 지워지고 되돌릴 수 없어요.")) return;
+    setBusy(true); setMsg(null);
+    try { await postJSON("/account/delete", { password: pw }); window.location.hash = "#/"; window.location.reload(); }
+    catch (e) { setMsg(e instanceof Error ? e.message : String(e)); setBusy(false); }
+  };
+  return (
+    <>
+      <Row icon="warning-circle" title="계정 삭제" sub="계정과 모든 자료를 완전히 지워요" open={open} onClick={() => setOpen(!open)} />
+      {open && (
+        <div className="set-panel">
+          <p className="set-warn">강의자료·녹음·필기·복습 기록·시간표·친구가 모두 지워지고 되돌릴 수 없어요. 친구 족보에 합쳐졌던 내 필기도 사라져요.</p>
+          <input className="input" type="password" placeholder="비밀번호 확인" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} />
+          <Button variant="record" disabled={!pw || busy} onClick={() => void run()}>{busy ? "지우는 중…" : "계정 삭제"}</Button>
+          {msg && <p className="set-msg">{msg}</p>}
+        </div>
+      )}
+    </>
+  );
+}

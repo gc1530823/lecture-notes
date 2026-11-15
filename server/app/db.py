@@ -330,6 +330,11 @@ class Database:
             if col not in columns:
                 self._conn.execute(f"ALTER TABLE tasks ADD COLUMN {col} {ddl}")
                 self._conn.commit()
+        # deleted_at: 휴지통에 넣은 때 (7일 뒤 완전히 지운다). NULL 이면 살아 있는 자료
+        columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(documents)")}
+        if "deleted_at" not in columns:
+            self._conn.execute("ALTER TABLE documents ADD COLUMN deleted_at REAL")
+            self._conn.commit()
         # owner: 누구 자료인지 (친구들과 함께 쓸 때). 혼자 쓸 때·예전 자료는 '' (첫 가입자가 가져간다)
         for table in ("documents", "classes", "exams"):
             columns = {r["name"] for r in self._conn.execute(f"PRAGMA table_info({table})")}
@@ -427,6 +432,7 @@ class Database:
         like = f"%{query}%"
         user = CURRENT_USER.get()
         own, mine = (" AND d.owner = ?", (user,)) if user is not None else ("", ())
+        own = " AND d.deleted_at IS NULL" + own
         out = []
         out += [{**r, "kind": "note"} for r in self._query(
             """SELECT a.text, a.type AS note_type, a.start_ms, p.page_no, s.id AS session_id, d.id AS doc_id, d.title, d.course, s.started_at
@@ -471,8 +477,8 @@ class Database:
     def list_documents(self) -> list[dict]:
         """강의자료 목록 (최근 것부터)과 각 자료의 강의 목록"""
         user = CURRENT_USER.get()
-        docs = self._query("SELECT id, title, page_count, created_at, kind, course FROM documents"
-                           + (" WHERE owner = ?" if user is not None else "") + " ORDER BY created_at DESC",
+        docs = self._query("SELECT id, title, page_count, created_at, kind, course FROM documents WHERE deleted_at IS NULL"
+                           + (" AND owner = ?" if user is not None else "") + " ORDER BY created_at DESC",
                            (user,) if user is not None else ())
         for doc in docs:
             doc["sessions"] = self._query(
@@ -571,9 +577,40 @@ class Database:
             self._conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
         return sessions
 
-    def get_document(self, doc_id: str) -> dict | None:
+    def trash_document(self, doc_id: str, restore: bool = False) -> None:
+        self._write("UPDATE documents SET deleted_at = ? WHERE id = ?", (None if restore else time.time(), doc_id))
+
+    def doc_trashed(self, doc_id: str) -> bool:
+        rows = self._query("SELECT deleted_at FROM documents WHERE id = ?", (doc_id,))
+        return bool(rows) and rows[0]["deleted_at"] is not None
+
+    def list_trash(self) -> list[dict]:
+        user = CURRENT_USER.get()
+        return self._query("SELECT id, title, kind, course, deleted_at FROM documents WHERE deleted_at IS NOT NULL"
+                           + (" AND owner = ?" if user is not None else "") + " ORDER BY deleted_at DESC",
+                           (user,) if user is not None else ())
+
+    def expired_trash(self, days: float = 7) -> list[str]:
+        return [r["id"] for r in self._query("SELECT id FROM documents WHERE deleted_at IS NOT NULL AND deleted_at < ?",
+                                              (time.time() - days * 86400,))]
+
+    def owned_documents(self, user_id: str) -> list[str]:
+        return [r["id"] for r in self._query("SELECT id FROM documents WHERE owner = ?", (user_id,))]
+
+    def delete_user(self, user_id: str) -> None:
+        """계정 삭제: 강의자료는 먼저 지운 뒤 부른다. 시간표·시험·친구·로그인·설정까지 지운다"""
+        with self._lock, self._conn:
+            for table in ("classes", "exams"):
+                self._conn.execute(f"DELETE FROM {table} WHERE owner = ?", (user_id,))
+            for table in ("friends", "friend_pairs"):
+                self._conn.execute(f"DELETE FROM {table} WHERE user_id = ? OR friend_id = ?", (user_id, user_id))
+            self._conn.execute("DELETE FROM logins WHERE user_id = ?", (user_id,))
+            self._conn.execute("DELETE FROM app_settings WHERE key LIKE ?", (f"%:{user_id}",))
+            self._conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+    def get_document(self, doc_id: str, trashed: bool = False) -> dict | None:
         docs = self._query("SELECT * FROM documents WHERE id = ?", (doc_id,))
-        if not docs or not _mine(docs[0]["owner"]):
+        if not docs or not _mine(docs[0]["owner"]) or (docs[0].get("deleted_at") is not None) != trashed:
             return None
         doc = docs[0]
         doc["keywords"] = json.loads(doc["keywords"])
@@ -1001,6 +1038,7 @@ class Database:
         if document_id:
             return self._query("SELECT * FROM reviews WHERE document_id = ?", (document_id,))
         where, args = _owner_clause("d.owner")
+        where = (where + " AND " if where else " WHERE ") + "d.deleted_at IS NULL"
         return self._query("SELECT r.* FROM reviews r JOIN documents d ON d.id = r.document_id" + where, args)
 
     def save_card(self, card: dict) -> None:

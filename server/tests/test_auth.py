@@ -394,3 +394,27 @@ def test_signup_takes_email_and_verifies_it(invite, monkeypatch):
         d.__exit__(None, None, None)
     finally:
         c.__exit__(None, None, None)
+
+
+def test_delete_account_removes_everything(invite):
+    """계정 삭제: 비밀번호를 확인하고 자료·친구·로그인을 지운다. 같은 이름으로 다시 가입할 수 있다"""
+    import io
+
+    import pymupdf
+    a, a_name = person("지움")
+    b, _ = person("남음")
+    try:
+        b.post("/friends", json={"code": a.get("/friends").json()["me"]["code"]})
+        pdf = pymupdf.open(); pdf.new_page().insert_text((72, 72), "test"); data = pdf.tobytes()
+        a.post("/documents", files={"file": ("x.pdf", io.BytesIO(data), "application/pdf")})
+        assert a.post("/account/delete", json={"password": "wrong"}).status_code == 401
+        assert a.post("/account/delete", json={"password": "secret12"}).json() == {"deleted": True}
+        assert a.get("/documents").status_code == 401           # 로그인도 끊겼다
+        assert b.get("/friends").json()["outgoing"] == []        # 친구 신청도 사라짐
+        again = TestClient(app); again.__enter__()
+        assert again.post("/auth/signup", json={"name": a_name, "password": "secret12", "invite": "우리반-2026"}).status_code == 200
+        assert again.get("/documents").json() == []
+        again.__exit__(None, None, None)
+    finally:
+        for x in (a, b):
+            x.__exit__(None, None, None)
