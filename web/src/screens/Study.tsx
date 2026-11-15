@@ -1,5 +1,6 @@
 // 강의 화면의 정리·공부·용어 탭 내용 (Session.tsx)
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { go } from "../router";
 import type { ClozeItem, Concept, Flashcard, MindNode, StudyResponse, SummaryResponse, TutorReply } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, TermCard } from "../components/ui";
@@ -212,10 +213,20 @@ function Cloze({ sessionId }: { sessionId: string }) {
   );
 }
 
+type Scope = "lecture" | "course" | "all";
+const SCOPES: [Scope, string, string][] = [
+  ["lecture", "이 강의", "오늘 강의 내용(슬라이드 · 교수님 설명 · 필기)으로만 답해요"],
+  ["course", "이 과목", "같은 과목의 모든 강의에서 가까운 부분을 찾아 답해요"],
+  ["all", "학기 전체", "지금까지 들은 모든 강의에서 찾아 답해요"],
+];
+
+/** AI 튜터 (하나로): 범위만 골라서 묻는다 — 이 강의 · 이 과목 · 학기 전체 */
 function Tutor({ sessionId }: { sessionId: string }) {
-  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string; pages?: number[] }[]>([]);
+  type Src = { doc_id: string; doc_title: string; session_id: string; page_no: number };
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string; pages?: number[]; sources?: Src[]; scope?: Scope }[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [scope, setScope] = useState<Scope>("lecture");
 
   const send = async (text: string) => {
     if (!text.trim() || busy) return;
@@ -224,9 +235,9 @@ function Tutor({ sessionId }: { sessionId: string }) {
     setInput("");
     setBusy(true);
     try {
-      const reply = await postJSON<TutorReply>(`/sessions/${sessionId}/tutor`,
-        { messages: next.map(({ role, content }) => ({ role, content })) });
-      setMessages([...next, { role: "assistant", content: reply.answer, pages: reply.pages }]);
+      const reply = await postJSON<TutorReply & { sources?: Src[] }>(`/sessions/${sessionId}/tutor`,
+        { scope, messages: next.map(({ role, content }) => ({ role, content })) });
+      setMessages([...next, { role: "assistant", content: reply.answer, pages: reply.pages, sources: reply.sources, scope }]);
     } catch (e) {
       setMessages([...next, { role: "assistant", content: `답하지 못했어요: ${e instanceof Error ? e.message : e}` }]);
     } finally {
@@ -236,7 +247,12 @@ function Tutor({ sessionId }: { sessionId: string }) {
 
   return (
     <>
-      <p className="t-caption muted">오늘 강의 내용(슬라이드 · 교수님 설명 · 필기)으로만 답해요</p>
+      <div className="tutor-scope" role="radiogroup" aria-label="물어볼 범위">
+        {SCOPES.map(([k, label]) => (
+          <button key={k} role="radio" aria-checked={scope === k} className={scope === k ? "on" : ""} onClick={() => setScope(k)}>{label}</button>
+        ))}
+      </div>
+      <p className="t-caption muted">{SCOPES.find(([k]) => k === scope)![2]}</p>
       {messages.length === 0 && (
         <div className="scroll-x" style={{ flexWrap: "wrap" }}>
           {["오늘 강의 핵심이 뭐야?", "시험에 나올 만한 거 알려줘", "제일 어려운 개념 쉽게 설명해 줘"].map((q) => (
@@ -249,6 +265,13 @@ function Tutor({ sessionId }: { sessionId: string }) {
           <div key={i} className={`bubble ${m.role === "user" ? "bubble-me" : "bubble-ai"}`}>
             {m.content}
             {m.pages?.length ? <div className="t-caption faint" style={{ marginTop: 6 }}>근거: {m.pages.join(", ")}쪽</div> : null}
+            {m.sources?.length ? (
+              <div className="scroll-x" style={{ flexWrap: "wrap", marginTop: 8 }}>
+                {m.sources.map((src, j) => (
+                  <Chip key={j} variant="default" onClick={() => go({ name: "lecture", docId: src.doc_id, sessionId: src.session_id })}>{src.doc_title} {src.page_no}쪽</Chip>
+                ))}
+              </div>
+            ) : null}
           </div>
         ))}
         {busy && <div className="bubble bubble-ai muted">생각하는 중…</div>}

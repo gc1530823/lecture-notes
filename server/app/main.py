@@ -1428,11 +1428,19 @@ class TutorMessage(BaseModel):
 
 class TutorRequest(BaseModel):
     messages: list[TutorMessage]
+    scope: str = "lecture"     # AI 튜터 범위: lecture(이 강의) · course(이 과목의 모든 강의) · all(학기 전체)
+    course: str | None = None  # 학기 튜터에서 과목만
 
 
 @app.post("/sessions/{session_id}/tutor")
 async def tutor(session_id: str, body: TutorRequest):
-    """AI 튜터: 질문과 가까운 쪽들의 슬라이드·설명·필기를 근거로 답한다. 대화 기록은 앱이 들고 있다가 보낸다."""
+    """AI 튜터: 질문과 가까운 쪽들의 슬라이드·설명·필기를 근거로 답한다. 대화 기록은 앱이 들고 있다가 보낸다.
+    scope 로 범위를 넓힐 수 있다: course = 이 강의자료 과목의 모든 강의, all = 학기 전체"""
+    if body.scope in ("course", "all"):
+        session = _session_or_404(session_id)
+        doc = db().get_document(session["document_id"])
+        course = (doc.get("course") or "") if body.scope == "course" else None
+        return await _semester_answer(body, course=course, only_doc=doc["id"] if body.scope == "course" and not course else None)
     messages = [m.model_dump() for m in body.messages if m.content.strip()][-10:]
     if not messages or messages[-1]["role"] != "user":
         raise HTTPException(400, "질문이 없어요.")
@@ -2014,7 +2022,8 @@ def _lectures() -> list[dict]:
     out = []
     for doc in db().list_documents():
         for s in doc["sessions"]:
-            out.append({"doc_id": doc["id"], "doc_title": doc["title"], "session_id": s["id"], "started_at": s["started_at"]})
+            out.append({"doc_id": doc["id"], "doc_title": doc["title"], "session_id": s["id"], "started_at": s["started_at"],
+                        "course": doc.get("course") or ""})
     return out
 
 
@@ -2026,12 +2035,18 @@ def semester_concepts():
 
 @app.post("/semester/tutor")
 async def semester_tutor(body: TutorRequest):
-    """여러 강의를 넘나드는 질문 ("3주차랑 7주차 차이가 뭐야?"): 모든 강의의 쪽 중에서 가까운 것만 근거로"""
+    """여러 강의를 넘나드는 질문 ("3주차랑 7주차 차이가 뭐야?"): 모든 강의의 쪽 중에서 가까운 것만 근거로. course 를 주면 그 과목만"""
+    return await _semester_answer(body, course=(body.course or "").strip() or None)
+
+
+async def _semester_answer(body: TutorRequest, course: str | None = None, only_doc: str | None = None):
     messages = [m.model_dump() for m in body.messages if m.content.strip()][-10:]
     if not messages or messages[-1]["role"] != "user":
         raise HTTPException(400, "질문이 없어요.")
     chunks = []
     for lec in _lectures():
+        if (course and lec.get("course") != course) or (only_doc and lec["doc_id"] != only_doc):
+            continue
         _, material, _ = _study_inputs(lec["session_id"])
         chunks += [{**p, "doc_title": lec["doc_title"], "doc_id": lec["doc_id"], "session_id": lec["session_id"]} for p in material]
     if not chunks:

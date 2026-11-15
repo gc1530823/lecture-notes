@@ -1485,3 +1485,6 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .weak-lapses { color: var(--ico-red); font-weight: 700; }
 .note-actions { flex-wrap: wrap; }
 .note-actions button { min-width: calc(50% - 3px); font-size: 12px; }
+.tutor-scope { display: inline-flex; padding: 3px; gap: 2px; border-radius: 12px; background: var(--fill-soft); align-self: flex-start; }
+.tutor-scope button { padding: 7px 13px; border-radius: 9px; font: 700 13px/16px var(--font-sans); color: var(--text-secondary); }
+.tutor-scope button.on { background: var(--bg-card); color: var(--accent-deep); box-shadow: 0 1px 3px rgb(0 0 0 / .12); }

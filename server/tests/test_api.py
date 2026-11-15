@@ -551,6 +551,11 @@ def test_study_tools_flashcards_concepts_mindmap_cloze_and_tutor(client):
     res = client.post(f"/sessions/{sid}/tutor", json={"messages": [{"role": "user", "content": "경사하강법이 뭐야?"}]})
     assert res.status_code == 200 and res.json()["answer"] and res.json()["pages"] == [1]
     assert client.get(f"/sessions/{sid}/study/nope").status_code == 404
+    # 범위 넓히기: 이 과목 · 학기 전체 (한 채팅창에서)
+    for scope in ("course", "all"):
+        wide = client.post(f"/sessions/{sid}/tutor", json={"scope": scope, "messages": [{"role": "user", "content": "경사하강법이 뭐야?"}]})
+        assert wide.status_code == 200, wide.text
+        assert wide.json()["answer"] and "sources" in wide.json()
 
 
 def test_live_glossary_pops_new_terms_once(client):
