@@ -213,11 +213,14 @@ def _wav_bytes(audio: np.ndarray) -> bytes:
 
 
 def _split_audio(path: str, out_dir: str) -> list[str]:
-    subprocess.run(
+    r = subprocess.run(
         ["ffmpeg", "-loglevel", "error", "-y", "-i", path, "-ac", "1", "-ar", "16000", "-c:a", "libmp3lame",
          "-b:a", "32k", "-f", "segment", "-segment_time", str(CHUNK_SECONDS), os.path.join(out_dir, "part%03d.mp3")],
-        check=True,
+        capture_output=True,
     )
+    if r.returncode:   # 왜 실패했는지 남긴다 (-9 = 메모리 부족으로 꺼짐, 'No space' = 디스크 가득)
+        why = "메모리 부족으로 꺼짐" if r.returncode in (-9, 137) else (r.stderr or b"").decode(errors="replace").strip()[-200:]
+        raise RuntimeError(f"ffmpeg 실패 (코드 {r.returncode}): {why}")
     return sorted(os.path.join(out_dir, n) for n in os.listdir(out_dir) if n.startswith("part"))
 
 
