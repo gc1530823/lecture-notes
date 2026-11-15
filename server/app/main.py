@@ -480,6 +480,8 @@ class SessionCreate(BaseModel):
 
 class TaskUpdate(BaseModel):
     done: bool | None = None
+    checked: bool | None = None   # 'AI가 찾음' 과제를 사람이 맞다고 확인
+    title: str | None = None      # 과제 이름 고치기 (확인도 된다)
     due_on: str | None = None  # "YYYY-MM-DD", "" = 직접 정한 마감일 지우기
 
 
@@ -1827,7 +1829,16 @@ def update_task(task_id: int, body: TaskUpdate):
         task = db().set_task_due(task_id, body.due_on)
     if body.done is not None:
         task = db().set_task_done(task_id, body.done)
+    if body.checked or (body.title and body.title.strip()):
+        task = db().check_task(task_id, (body.title or "").strip()[:200] or None)
     return task
+
+
+@app.delete("/tasks/{task_id}", status_code=204)
+def delete_task(task_id: int):
+    """AI 가 잘못 찾은 과제 지우기"""
+    _task_or_404(task_id)
+    db().delete_task(task_id)
 
 
 @app.post("/tasks/{task_id}/draft")

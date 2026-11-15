@@ -326,7 +326,8 @@ class Database:
                 self._conn.commit()
         # due_on: 사람이 고친 마감일 (YYYY-MM-DD), done_at: 끝낸 때 (할 일 달력)
         columns = {r["name"] for r in self._conn.execute("PRAGMA table_info(tasks)")}
-        for col, ddl in (("due_on", "TEXT"), ("done_at", "REAL")):
+        # checked: 사람이 확인한 과제 (AI 가 강의에서 찾은 것은 0 → 'AI가 찾음' 표시)
+        for col, ddl in (("due_on", "TEXT"), ("done_at", "REAL"), ("checked", "INTEGER NOT NULL DEFAULT 0")):
             if col not in columns:
                 self._conn.execute(f"ALTER TABLE tasks ADD COLUMN {col} {ddl}")
                 self._conn.commit()
@@ -1083,7 +1084,7 @@ class Database:
 
     def get_task(self, task_id: int) -> dict | None:
         rows = self._query(
-            """SELECT t.id, t.session_id, p.page_no, t.kind, t.title, t.instructions, t.due_text, t.done, t.draft, t.due_on, t.done_at
+            """SELECT t.id, t.session_id, p.page_no, t.kind, t.title, t.instructions, t.due_text, t.done, t.draft, t.due_on, t.done_at, t.checked
                FROM tasks t LEFT JOIN pages p ON p.id = t.page_id WHERE t.id = ?""",
             (task_id,),
         )
@@ -1091,7 +1092,7 @@ class Database:
 
     def list_tasks(self, session_id: str) -> list[dict]:
         rows = self._query(
-            """SELECT t.id, t.session_id, p.page_no, t.kind, t.title, t.instructions, t.due_text, t.done, t.draft, t.due_on, t.done_at
+            """SELECT t.id, t.session_id, p.page_no, t.kind, t.title, t.instructions, t.due_text, t.done, t.draft, t.due_on, t.done_at, t.checked
                FROM tasks t LEFT JOIN pages p ON p.id = t.page_id WHERE t.session_id = ? ORDER BY t.id""",
             (session_id,),
         )
@@ -1102,8 +1103,19 @@ class Database:
         return self.get_task(task_id)
 
     def set_task_due(self, task_id: int, due_on: str | None) -> dict | None:
-        self._write("UPDATE tasks SET due_on = ? WHERE id = ?", (due_on or None, task_id))
+        self._write("UPDATE tasks SET due_on = ?, checked = 1 WHERE id = ?", (due_on or None, task_id))
         return self.get_task(task_id)
+
+    def check_task(self, task_id: int, title: str | None = None) -> dict | None:
+        """사람이 확인함 (제목을 고치면 그것도)"""
+        if title:
+            self._write("UPDATE tasks SET title = ?, checked = 1 WHERE id = ?", (title, task_id))
+        else:
+            self._write("UPDATE tasks SET checked = 1 WHERE id = ?", (task_id,))
+        return self.get_task(task_id)
+
+    def delete_task(self, task_id: int) -> None:
+        self._write("DELETE FROM tasks WHERE id = ?", (task_id,))
 
     def save_task_draft(self, task_id: int, draft: dict) -> dict | None:
         self._write("UPDATE tasks SET draft = ? WHERE id = ?", (json.dumps(draft, ensure_ascii=False), task_id))
@@ -1174,5 +1186,6 @@ def _annotation(row: dict) -> dict:
 
 def _task(row: dict) -> dict:
     row["done"] = bool(row["done"])
+    row["checked"] = bool(row.get("checked"))
     row["draft"] = json.loads(row["draft"]) if row["draft"] else None
     return row

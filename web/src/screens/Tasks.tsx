@@ -13,7 +13,7 @@ import { refreshNotices } from "../lib/notices";
 
 export interface HomeTask {
   id: number; title: string; instructions?: string; due_text: string | null; due_on?: string | null; due_date?: string | null;
-  done: boolean; kind: string; doc_id: string; doc_title: string; course: string; session_id: string;
+  done: boolean; kind: string; doc_id: string; doc_title: string; course: string; session_id: string; checked?: boolean;
 }
 
 const API = import.meta.env.VITE_API_URL ?? "";
@@ -63,10 +63,20 @@ function useTasks() {
     } else setUndo(null);
   };
   const setDue = (t: HomeTask, due: string) => {
-    setTasks((list) => list && list.map((x) => (x.id === t.id ? { ...x, due_on: due || null, due_date: due || null } : x)));
+    setTasks((list) => list && list.map((x) => (x.id === t.id ? { ...x, due_on: due || null, due_date: due || null, checked: true } : x)));
     void patch(t.id, { due_on: due }).then(() => { if (!due) load(); }); // 지우면 강의에서 들은 날짜로 돌아간다
   };
-  return { tasks, setDone, setDue, undo, load };
+  // AI 가 찾은 과제 확인: 맞아요 / 이름 고치기 / 지우기
+  const check = (t: HomeTask, title?: string) => {
+    setTasks((list) => list && list.map((x) => (x.id === t.id ? { ...x, checked: true, title: title || x.title } : x)));
+    void patch(t.id, title ? { title } : { checked: true });
+  };
+  const remove = (t: HomeTask) => {
+    if (!confirm(`'${t.title}'을(를) 할 일에서 지울까요? AI가 잘못 찾은 과제일 때 지워 주세요.`)) return;
+    setTasks((list) => list && list.filter((x) => x.id !== t.id));
+    void fetch(`${API}/tasks/${t.id}`, { method: "DELETE" });
+  };
+  return { tasks, setDone, setDue, undo, load, check, remove };
 }
 
 function UndoBar({ task, onUndo }: { task: HomeTask | null; onUndo: (t: HomeTask) => void }) {
@@ -80,10 +90,13 @@ function UndoBar({ task, onUndo }: { task: HomeTask | null; onUndo: (t: HomeTask
   );
 }
 
-function TaskRow({ t, onDone, onDue, open, onOpen }: {
+function TaskRow({ t, onDone, onDue, open, onOpen, onCheck, onRemove }: {
   t: HomeTask; onDone: (t: HomeTask, done: boolean) => void; onDue?: (t: HomeTask, due: string) => void; open?: boolean; onOpen?: () => void;
+  onCheck?: (t: HomeTask, title?: string) => void; onRemove?: (t: HomeTask) => void;
 }) {
   const d = t.done ? null : dday(t.due_date);
+  const [name, setName] = useState(t.title);
+  const ai = !t.checked && !t.done;
   return (
     <div className={`task-item${t.done ? " done" : ""}${open ? " open" : ""}`}>
       <div className="task-line">
@@ -92,7 +105,7 @@ function TaskRow({ t, onDone, onDue, open, onOpen }: {
           <Icon name="check" size={14} />
         </button>
         <button className="grow task-main" onClick={onOpen ?? (() => go({ name: "lecture", docId: t.doc_id, sessionId: t.session_id }))}>
-          <span className="task-title">{t.title}</span>
+          <span className="task-title">{t.title}{ai && <em className="ai-found">AI가 찾음</em>}</span>
           <span className="task-meta">
             <i className={`task-dot ${courseTone(t.course)}`} />{t.course || t.doc_title}
             {t.due_text ? ` · ${t.due_text}` : ""}
@@ -103,6 +116,16 @@ function TaskRow({ t, onDone, onDue, open, onOpen }: {
       {open && (
         <div className="task-more">
           {t.instructions && <p>{t.instructions}</p>}
+          {ai && onCheck && (
+            <div className="ai-check">
+              <small>강의에서 AI가 찾은 과제예요. 맞는지 한 번 확인해 주세요.</small>
+              <div className="row">
+                <input className="input grow" value={name} onChange={(e) => setName(e.target.value)} aria-label="과제 이름" />
+                <button className="chip chip-accent" onClick={() => onCheck(t, name.trim() !== t.title ? name.trim() : undefined)}>{name.trim() !== t.title ? "고쳐서 저장" : "맞아요"}</button>
+                {onRemove && <button className="chip chip-default danger" onClick={() => onRemove(t)}>지우기</button>}
+              </div>
+            </div>
+          )}
           {onDue && (
             <label className="task-due">
               <Icon name="calendar-dots" size={16} />
@@ -146,7 +169,7 @@ const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
 
 /** 할 일 화면: 달력 + 목록 + 끝낸 일 */
 function TasksPane() {
-  const { tasks, setDone, setDue, undo } = useTasks();
+  const { tasks, setDone, setDue, undo, check, remove } = useTasks();
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [day, setDay] = useState<string | null>(null);
   const [open, setOpen] = useState<number | null>(null);
@@ -235,7 +258,7 @@ function TasksPane() {
         {groups.map(([label, list]) => list.length > 0 && (
           <section key={label} className="task-group">
             {!day && <h3 className={label === "마감 지남" ? "late" : ""}>{label} <span>{list.length}</span></h3>}
-            {list.map((t) => <TaskRow key={t.id} t={t} onDone={toggle} onDue={setDue} open={open === t.id} onOpen={() => setOpen(open === t.id ? null : t.id)} />)}
+            {list.map((t) => <TaskRow key={t.id} t={t} onDone={toggle} onDue={setDue} open={open === t.id} onOpen={() => setOpen(open === t.id ? null : t.id)} onCheck={check} onRemove={remove} />)}
           </section>
         ))}
 

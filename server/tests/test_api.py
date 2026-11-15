@@ -163,6 +163,10 @@ def test_task_is_detected_and_drafted(client):
     home = client.get("/tasks").json()[0]
     assert home["due_date"] and len(home["due_date"]) == 10  # '다음 주 금요일까지' → 날짜
     assert client.patch(f"/tasks/{task['id']}", json={"done": True}).json()["done"] is True
+    # AI 가 찾은 과제: 확인 전에는 checked=False, 이름을 고치면 확인됨, 잘못 찾았으면 지운다
+    assert home["checked"] is False
+    fixed = client.patch(f"/tasks/{task['id']}", json={"title": "경사하강법 구현 과제"}).json()
+    assert fixed["title"] == "경사하강법 구현 과제" and fixed["checked"] is True
     # 잘못 체크했으면 되돌린다, 마감일은 직접 고칠 수 있다
     assert client.patch(f"/tasks/{task['id']}", json={"done": False}).json()["done"] is False
     assert client.patch(f"/tasks/{task['id']}", json={"due_on": "2030-01-02"}).json()["due_on"] == "2030-01-02"
@@ -170,6 +174,8 @@ def test_task_is_detected_and_drafted(client):
     assert client.patch(f"/tasks/{task['id']}", json={"due_on": "내일"}).status_code == 422
     assert len(client.get(f"/sessions/{session['id']}/tasks").json()) == 1
     assert client.post("/tasks/9999/draft").status_code == 404
+    assert client.delete(f"/tasks/{task['id']}").status_code == 204
+    assert all(t["id"] != task["id"] for t in client.get("/tasks").json())
 
 
 def test_instant_preview_arrives_before_ai_note_and_is_resolved(client):

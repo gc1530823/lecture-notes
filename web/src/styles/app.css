@@ -1610,3 +1610,10 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .trash-row b { display: block; font: 700 13.5px/19px var(--font-sans); }
 .trash-row small { display: block; font: 400 12px/16px var(--font-sans); color: var(--text-secondary); }
 .chip.danger { color: var(--accent-record); }
+/* AI 가 찾은 과제 */
+.ai-found { margin-left: 6px; padding: 1px 6px; border-radius: 99px; font: 700 10.5px/15px var(--font-sans); font-style: normal; vertical-align: 1px;
+  color: var(--accent-deep); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); }
+.ai-check { display: grid; gap: 6px; padding: 10px; border-radius: 12px; background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-card)); }
+.ai-check small { font: 400 12px/17px var(--font-sans); color: var(--text-secondary); }
+.ai-check .row { gap: 6px; }
+.ai-check .input { min-width: 0; padding-block: 8px; font-size: 13.5px; }
