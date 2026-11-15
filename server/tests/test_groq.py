@@ -236,3 +236,13 @@ def test_speech_switches_to_the_other_free_whisper_model_before_waiting():
     out = t.transcribe(np.zeros(16000, dtype=np.float32), "", patient=False)
     assert [s.text for s in out] == ["다른 모델이 받아썼어요."]
     assert asked == ["whisper-large-v3-turbo", "whisper-large-v3"]
+
+
+def test_foreign_noise_and_credits_are_dropped_from_korean_lectures():
+    from app.stt import foreign_noise, is_hallucination
+    assert foreign_noise("Le premier outil que nous allons utiliser est le outil de soncatch.", "ko")
+    assert foreign_noise("Les numéros sont connectés et les numéros sont sélectionnés.", "ko")
+    assert not foreign_noise("SELECT name FROM student WHERE age > 20", "ko")     # SQL 은 그대로
+    assert not foreign_noise("hello sql 나오는데", "ko")
+    assert not foreign_noise("Le premier outil que nous allons utiliser", "fr")  # 프랑스어 강의면 그대로
+    assert is_hallucination("〔Captioning provided by the Amara.org community", "")

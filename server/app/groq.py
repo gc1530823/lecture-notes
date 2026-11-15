@@ -25,7 +25,7 @@ from . import training_log
 from .config import settings
 from .llm import BOARD_SYSTEM, TIMETABLE_SYSTEM, FIX_SPEECH_SCHEMA, FIX_SPEECH_SYSTEM, LLMError, _fix_speech_prompt
 from .ollama_llm import OllamaLLM
-from .stt import PROMPT_LEAD, Segment, is_hallucination, split_sentences
+from .stt import PROMPT_LEAD, Segment, foreign_noise, is_hallucination, split_sentences
 
 log = logging.getLogger(__name__)
 
@@ -279,6 +279,9 @@ class GroqTranscriber:
             text = s.get("text", "").strip()
             if not text:
                 continue
+            if foreign_noise(text, language or self.detected):
+                log.info("받아쓰기 버림 (한국어 강의에 끼어든 외국어): %r", text[:80])
+                continue
             if is_hallucination(text, hint, s.get("no_speech_prob", 0.0), s.get("compression_ratio", 1.0), s.get("avg_logprob")):
                 log.info("받아쓰기 버림 (지어낸 말로 봄): %r 없음=%.2f 압축=%.2f 확신=%s", text[:80], s.get("no_speech_prob", 0.0),
                          s.get("compression_ratio", 1.0), s.get("avg_logprob"))
@@ -305,6 +308,11 @@ class GroqTranscriber:
                     continue
                 try:
                     segments = self._request(os.path.basename(part), data, hint, settings.groq_whisper_model, patient, language)
+                    if language is None and getattr(self, "detected", None) not in (None, "ko", "en"):
+                        # 첫 조각이 조용하면 엉뚱한 언어(프랑스어 등)로 잡기도 한다 → 한국어로 다시
+                        log.warning("받아쓰기 언어를 %s 로 잡음 → 한국어로 다시", self.detected)
+                        language = "ko"
+                        segments = self._request(os.path.basename(part), data, hint, settings.groq_whisper_model, patient, language)
                     if language is None and segments:
                         language = getattr(self, "detected", None)
                 except SpeechLimit:

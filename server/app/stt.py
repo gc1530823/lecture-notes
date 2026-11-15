@@ -50,7 +50,20 @@ def is_hallucination(text: str, hint: str, no_speech: float = 0.0, compression: 
     hint_words = set(re.findall(r"[A-Za-z가-힣]{2,}", hint.lower()))
     if len(words) >= 4 and hint_words and sum(w in hint_words for w in words) / len(words) >= 0.8:
         return True
+    if CREDITS.search(text):
+        return True
     return text.strip().lower() in {"you", "thank you.", "thanks for watching!", "시청해 주셔서 감사합니다."}
+
+
+# Whisper 가 조용한 곳에서 지어내는 자막 제작 문구
+CREDITS = re.compile(r"amara\.org|captioning|subtitles? by|자막 (제공|제작)|시청해 주셔서|구독과 좋아요|MBC 뉴스", re.I)
+# 한국어 강의에 끼어든 유럽 말 (악센트 글자나 흔한 낱말이 있고 한글이 없는 문장). SQL·영어 낱말은 그대로 둔다
+EUROPEAN = re.compile(r"[À-ÖØ-öø-ÿ]|\b(le|la|les|des|est|une|que|nous|pour|und|der|die|das|ist|el|los|las|por|para|una)\b", re.I)
+
+
+def foreign_noise(text: str, language: str | None) -> bool:
+    """한국어 강의(language='ko')에서 한글 없이 유럽 말로 된 문장은 Whisper 가 지어낸 것으로 본다"""
+    return language == "ko" and not re.search(r"[가-힣]", text) and len(EUROPEAN.findall(text)) >= 2
 
 
 def split_sentences(segments: list["Segment"]) -> list["Segment"]:

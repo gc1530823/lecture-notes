@@ -166,11 +166,17 @@ class LiveSession:
             speech = " ".join(s["text"] for s in self.db.get_segments(self.session_id) if s["page_no"] == page["page_no"])
             if not speech:
                 return
-            try:
-                title = (await self.llm.title_topic(speech))[:40] or f"{page['page_no']}쪽"
-            except Exception:
-                log.exception("노트 제목 만들기 실패")
-                title = speech.split(".")[0][:20]
+            title = ""
+            # 긴 녹음 파일을 한꺼번에 정리하면 제목 요청이 몰려 사용량 한도에 걸린다 → 조금씩 기다렸다 다시
+            for wait in (0, 8, 25, 60):
+                await asyncio.sleep(wait)
+                try:
+                    title = (await self.llm.title_topic(speech))[:40].strip()
+                    break
+                except Exception:
+                    log.warning("노트 제목 만들기 실패 (%s초 뒤 다시)", wait)
+            if not title:
+                title = f"{page['page_no']}번 주제"   # 교수님 말을 그대로 제목으로 쓰지 않는다
             self.db.set_page_text(page["id"], title)
             page["text"] = title
             await self.send({"type": "page_title", "page": page["page_no"], "title": title})
