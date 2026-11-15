@@ -123,7 +123,7 @@ case "$MIGRATE_CODE" in
       chown -R lune:lune /var/lib/lune
       echo "data moved from $MIGRATE_FROM"
     else
-      echo "MOVE FAILED: check the move code (it works for 2 hours)"
+      echo "MOVE FAILED: check the move code (it works for 2 days)"
     fi ;;
 esac
 

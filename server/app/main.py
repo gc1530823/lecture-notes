@@ -2255,7 +2255,20 @@ def friend_timetable(other: str):
 
 
 # 서버 옮기기: 서버 주인이 '옮기기 코드'를 받아 새 서버의 설치 스크립트에 넣으면, 새 서버가 이 서버의 자료를 통째로 가져간다
-_migrate: dict = {}
+# 코드는 파일에 둔다 (서버가 1시간마다 업데이트로 다시 켜져도 남게). 새 서버 자리가 날 때까지 오래 걸릴 수 있어 2일 동안 쓴다
+MIGRATE_DAYS = 2
+
+
+def _migrate_file() -> str:
+    return os.path.join(os.path.dirname(os.path.abspath(settings.upload_dir)), "migrate-code.json")
+
+
+def _migrate_load() -> dict:
+    try:
+        with open(_migrate_file(), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
 
 
 @app.get("/admin/migrate")
@@ -2266,14 +2279,17 @@ def migrate_info():
 
 @app.post("/admin/migrate")
 def migrate_code():
-    """옮기기 코드 (2시간 동안 쓸 수 있다). 서버 주인만"""
+    """옮기기 코드 (2일 동안 쓸 수 있다). 서버 주인만"""
     me = _me()
     if me != db().first_user_id():
         raise HTTPException(403, "서버 주인(처음 가입한 사람)만 할 수 있어요.")
     code = secrets.token_urlsafe(18)
-    _migrate.clear()
-    _migrate.update(code=code, until=time.time() + 7200)
-    return {"code": code, "until": _migrate["until"]}
+    saved = {"code": code, "until": time.time() + MIGRATE_DAYS * 86400}
+    os.makedirs(os.path.dirname(_migrate_file()), exist_ok=True)
+    with open(_migrate_file(), "w", encoding="utf-8") as f:
+        json.dump(saved, f)
+    os.chmod(_migrate_file(), 0o600)
+    return saved
 
 
 @app.get("/migrate/export")
@@ -2282,7 +2298,8 @@ def migrate_export(code: str, background: BackgroundTasks):
     import tarfile
     import tempfile
 
-    if not _migrate or time.time() > _migrate["until"] or not secrets.compare_digest(code, _migrate["code"]):
+    saved = _migrate_load()
+    if not saved or time.time() > saved.get("until", 0) or not secrets.compare_digest(code, saved.get("code", "")):
         raise HTTPException(403, "옮기기 코드가 맞지 않거나 시간이 지났어요.")
     tmp = tempfile.mkdtemp(prefix="lune-migrate-")
     db_copy = os.path.join(tmp, "lune.db")

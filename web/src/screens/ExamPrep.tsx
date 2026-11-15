@@ -537,7 +537,7 @@ function MigrateServer() {
   useEffect(() => { getJSON<{ owner: boolean }>("/admin/migrate").then((r) => setOwner(r.owner)).catch(() => {}); }, []);
   if (!owner) return null;
   const make = async () => {
-    if (!confirm("새 서버로 옮기기 코드를 만들까요? 2시간 동안 쓸 수 있고, 이 코드를 아는 서버는 모든 자료를 가져갈 수 있어요.")) return;
+    if (!confirm("새 서버로 옮기기 코드를 만들까요? 2일 동안 쓸 수 있고, 이 코드를 아는 서버는 모든 자료를 가져갈 수 있어요.")) return;
     try { setCode(await postJSON("/admin/migrate")); } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
   };
   const copy = async () => { try { await navigator.clipboard.writeText(code!.code); setCopied(true); } catch { /* 길게 눌러 복사 */ } };
@@ -547,7 +547,7 @@ function MigrateServer() {
       <SettingRow icon="arrows-clockwise" title="새 서버로 옮기기" sub="더 큰 서버를 만들 때: 계정·강의·녹음을 통째로 넘겨요" onClick={() => void make()} />
       {code && (
         <div className="migrate-code">
-          <small>옮기기 코드 · {new Date(code.until * 1000).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" })}까지</small>
+          <small>옮기기 코드 · {new Date(code.until * 1000).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}까지</small>
           <code>{code.code}</code>
           <button className="chip chip-accent" onClick={() => void copy()}>{copied ? "복사했어요" : "복사"}</button>
           <small>새 서버 설치 스크립트의 MIGRATE_CODE 에 붙여 넣으세요. 옮기는 동안에는 앱에 새로 녹음하지 마세요.</small>
