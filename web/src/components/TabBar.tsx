@@ -13,14 +13,13 @@ function useFriendAsks() {
   return n;
 }
 
-/** 아래 탭: 홈 · 일정 · 복습 · 친구 · 찾기 */
+/** 아래 탭: 홈 · 일정 · 복습 · 친구 (찾기는 홈 맨 위 검색창) */
 export default function TabBar({ current }: { current: "home" | "review" | "tasks" | "friends" | "search" | "more" }) {
   // 설정은 홈 오른쪽 위 내 이름 동그라미에서 (탭은 다섯 개로)
   const tabs = [["home", "house", "홈", () => go({ name: "home" })],
     ["tasks", "calendar-dots", "일정", () => go({ name: "timetable" })],
     ["review", "cards", "복습", () => go({ name: "review" })],
-    ["friends", "users", "친구", () => go({ name: "friends" })],
-    ["search", "magnifying-glass", "찾기", () => go({ name: "search" })]] as const;
+    ["friends", "users", "친구", () => go({ name: "friends" })]] as const;
   const asks = useFriendAsks();
   return (
     <nav className="tabbar" aria-label="아래 탭">

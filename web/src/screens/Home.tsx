@@ -169,6 +169,11 @@ export default function Home() {
   return (
     <div className="screen">
       <HomeHead />
+      <div className="home-search-wrap">
+        <button className="home-search" onClick={() => go({ name: "search" })}>
+          <Icon name="magnifying-glass" size={17} /><span>모든 강의에서 찾기 · 필기, 교수님 말, 용어</span>
+        </button>
+      </div>
       <div className="screen-body">
         <Timetable courses={courses} onPick={pick} />
 
@@ -193,6 +198,9 @@ export default function Home() {
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadAudio(f); }} />
         <input ref={audioToDoc} type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f && target.current) uploadToDoc(target.current, f); }} />
+
+        <ExamBanner />
+        <TasksCard />
 
         <h2 className="section-title">내 강의</h2>
         {courses.length > 0 && (
@@ -224,15 +232,12 @@ export default function Home() {
           </section>
         ))}
 
-        <h2 className="section-title">공부 · 시험</h2>
-        <div className="tiles">
-          <Tile icon="users" title="친구와 족보" sub="같은 수업 족보 합치기" onClick={() => go({ name: "friends" })} />
-          <Tile icon="target" title="시험 준비" sub="D-day · 족보 노트" onClick={() => go({ name: "semester", tab: "exams" })} />
-          <Tile icon="chats-circle" title="AI에게 묻기" sub="모든 강의에서" onClick={() => go({ name: "semester", tab: "tutor" })} />
-          <Tile icon="tree-structure" title="학기 전체" sub="개념 지도" onClick={() => go({ name: "semester", tab: "map" })} />
+        {/* 학기 전체로 가는 길은 가볍게 한 줄 (홈은 오늘 녹음 · D-day · 할 일 위주) */}
+        <div className="home-links" role="group" aria-label="학기 전체">
+          <button onClick={() => go({ name: "semester", tab: "exams" })}><Icon name="target" size={15} />시험 준비</button>
+          <button onClick={() => go({ name: "semester", tab: "tutor" })}><Icon name="chats-circle" size={15} />AI에게 묻기</button>
+          <button onClick={() => go({ name: "semester", tab: "map" })}><Icon name="tree-structure" size={15} />개념 지도</button>
         </div>
-        <ExamBanner />
-        <TasksCard />
         <StreakCard />
 
         {picker && (
@@ -246,9 +251,7 @@ export default function Home() {
                 <ListItem key={d.id} icon={d.kind === "notebook" ? "notebook" : "file-pdf"} title={d.title} subtitle={subtitleOf(d)} onClick={() => choose(d.id)} />
               ))}
               <ListItem icon="note-pencil" title="강의자료 없이" subtitle="주제가 바뀔 때마다 노트를 나눠서 정리해요" onClick={() => choose(null)} />
-              {picker === "record" && (
-                <ListItem icon="users" title="회의 기록" subtitle="결정·할 일·일정을 회의록으로" onClick={() => { setPicker(null); void newNotebook("meeting", true); }} />
-              )}
+
             </div>
           </>
         )}
@@ -258,14 +261,6 @@ export default function Home() {
 }
 
 /** 보라 배너: 인사 + 오늘의 복습 (참고 디자인의 "오늘도 수고했어요!") */
-function Tile({ icon, title, sub, onClick }: { icon: string; title: string; sub: string; onClick: () => void }) {
-  return (
-    <button className="tile" onClick={onClick}>
-      <Icon name={icon} art size={30} />
-      <span><b>{title}</b><small>{sub}</small></span>
-    </button>
-  );
-}
 
 /** 홈 머리: 작은 로고 → 날짜 · 인사(이름) → 오늘 한 줄 요약 (수업 · 할 일) */
 function HomeHead() {

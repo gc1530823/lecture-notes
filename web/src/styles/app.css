@@ -1457,3 +1457,16 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .admin-link { text-align: center; margin: 8px 0 24px; font-size: 12px; } .admin-link a { color: var(--text-tertiary); }
 .share-courses { display: flex; flex-direction: column; gap: 8px; }
 .share-ask { gap: 12px; }
+
+/* 홈 검색창 (찾기 탭 대신) · 학기 전체로 가는 한 줄 */
+.home-search-wrap { padding: 0 20px 10px; }
+.home-search { display: flex; align-items: center; gap: 9px; width: 100%; padding: 12px 14px; border-radius: 14px; text-align: left;
+  background: color-mix(in srgb, var(--bg-card) 85%, transparent); border: 1px solid var(--border-line); color: var(--text-tertiary);
+  font: 500 13.5px/18px var(--font-sans); box-shadow: 0 1px 4px rgb(30 20 80 / .04); }
+.home-search > svg { color: var(--accent-primary); flex: none; }
+.home-search span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-links { display: flex; gap: 8px; margin: 18px 0 4px; overflow-x: auto; scrollbar-width: none; }
+.home-links button { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 9px 13px; border-radius: 99px;
+  background: var(--bg-card); border: 1px solid var(--border-line); font: 700 13px/16px var(--font-sans); color: var(--text-primary); }
+.home-links button > svg { color: var(--accent-primary); }
+.tabbar button { font-size: 11px; }
