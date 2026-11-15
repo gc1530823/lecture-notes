@@ -1357,3 +1357,11 @@ def test_trash_keeps_deleted_documents_for_seven_days(client):
     m.db().trash_document(old["id"])
     m.db()._write("UPDATE documents SET deleted_at = ? WHERE id = ?", (time.time() - 8 * 86400, old["id"]))
     assert old["id"] not in {t["id"] for t in client.get("/trash").json()}
+
+
+def test_my_usage_counts_documents_and_files(client):
+    doc = upload(client)
+    client.post("/sessions", json={"document_id": doc["id"]})
+    u = client.get("/account/usage").json()
+    assert u["documents"] >= 1 and u["lectures"] >= 1 and u["bytes"]["documents"] > 0
+    assert u["bytes"]["total"] == u["bytes"]["audio"] + u["bytes"]["documents"] + u["bytes"]["photos"]

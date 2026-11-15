@@ -713,6 +713,24 @@ def purge_trash(doc_id: str):
     _purge_document(doc_id)
 
 
+@app.get("/account/usage")
+def my_usage():
+    """내 사용량: 강의자료·강의 수, 녹음 길이, 서버에서 차지하는 크기 (녹음·자료·사진)"""
+    docs = db().list_documents()
+    sessions = [x["id"] for d in docs for x in d["sessions"]]
+    names = os.listdir(settings.upload_dir) if os.path.isdir(settings.upload_dir) else []
+    size = lambda n: os.path.getsize(os.path.join(settings.upload_dir, n)) if os.path.exists(os.path.join(settings.upload_dir, n)) else 0
+    audio = sum(size(n) for n in names if any(n.startswith(sid) or n == f"full-{sid}.wav" for sid in sessions))
+    photos = sum(size(n) for n in names if any(n.startswith(f"photo-{sid}") for sid in sessions))
+    files = sum(size(f"{d['id']}.pdf") for d in docs)
+    # 녹음 길이: 받아쓴 마지막 시각 (올린 녹음 파일도 포함)
+    ends = {r["session_id"]: r["end"] for r in db()._query("SELECT session_id, MAX(end_ms) AS end FROM transcript_segments GROUP BY session_id")}
+    minutes = sum(ends.get(sid) or 0 for sid in sessions) // 60000
+    trash = len(db().list_trash())
+    return {"documents": len(docs), "lectures": len(sessions), "recorded_minutes": minutes, "trash": trash,
+            "bytes": {"audio": audio, "documents": files, "photos": photos, "total": audio + files + photos}}
+
+
 class AccountDelete(BaseModel):
     password: str
 

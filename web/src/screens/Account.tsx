@@ -200,3 +200,34 @@ export function DeleteAccount() {
     </>
   );
 }
+
+type Usage = { documents: number; lectures: number; recorded_minutes: number; trash: number; bytes: { audio: number; documents: number; photos: number; total: number } };
+const mb = (b: number) => (b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(1)}GB` : `${Math.max(0.1, b / 1024 ** 2).toFixed(1)}MB`);
+
+/** 설정 › 내 사용량: 강의자료·강의 수, 녹음 시간, 서버에서 차지하는 크기 */
+export function UsagePanel() {
+  const [open, setOpen] = useState(false);
+  const [u, setU] = useState<Usage | null>(null);
+  useEffect(() => { getJSON<Usage>("/account/usage").then(setU).catch(() => {}); }, []);
+  const hours = u ? Math.floor(u.recorded_minutes / 60) : 0;
+  return (
+    <>
+      <Row icon="sliders-horizontal" title="내 사용량" open={open} onClick={() => setOpen(!open)}
+        sub={u ? `강의 ${u.lectures}개 · 녹음 ${hours ? `${hours}시간 ` : ""}${u.recorded_minutes % 60}분 · ${mb(u.bytes.total)}` : "불러오는 중…"} />
+      {open && u && (
+        <div className="set-panel">
+          <div className="usage-bars">
+            {([["녹음", u.bytes.audio], ["강의자료", u.bytes.documents], ["사진", u.bytes.photos]] as const).map(([k, v]) => (
+              <div key={k} className="usage-row">
+                <span>{k}</span>
+                <i style={{ width: `${u.bytes.total ? Math.max(2, (v / u.bytes.total) * 100) : 0}%` }} />
+                <b>{mb(v)}</b>
+              </div>
+            ))}
+          </div>
+          <p className="t-caption muted" style={{ margin: 0 }}>강의자료 {u.documents}개 · 강의 {u.lectures}개{u.trash ? ` · 휴지통 ${u.trash}개` : ""}. 무료 서버라 공간이 넉넉하지 않아요. 안 보는 강의자료는 지워 주세요.</p>
+        </div>
+      )}
+    </>
+  );
+}

@@ -1,6 +1,6 @@
 // 시험 공부 화면: 족보 노트 · 오늘의 복습(망각 곡선) · 개인정보와 녹음 동의
 import { useSwipe } from "../lib/gesture";
-import { AccountSecurity, DeleteAccount, TrashPanel } from "./Account";
+import { AccountSecurity, DeleteAccount, TrashPanel, UsagePanel } from "./Account";
 import { refreshNotices } from "../lib/notices";
 import { PREVIEW, play, setSoundOn, soundOn } from "../lib/sound";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -426,6 +426,7 @@ export function PrivacyScreen() {
             onClick={() => { try { localStorage.removeItem("ln.consent"); } catch { /* 괜찮다 */ } alert("다음 녹음 때 다시 물어볼게요."); }} />
           <SettingRow icon="trash" danger title={busy ? "지우는 중…" : "내 자료 모두 지우기"} sub={docs?.length ? `강의자료 ${docs.length}개와 녹음·필기·복습 기록` : "지울 자료가 없어요"}
             onClick={busy || !docs?.length ? undefined : () => void wipe()} />
+          <UsagePanel />
           <TrashPanel />
           {me?.auth && me.user && <DeleteAccount />}
         </section>

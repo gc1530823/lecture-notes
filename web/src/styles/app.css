@@ -1625,3 +1625,7 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .fold-body { padding: 0 12px 12px; }
 .free-range { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; font: 600 12.5px/16px var(--font-sans); color: var(--text-secondary); }
 .free-range select { min-height: 36px; padding: 4px 8px; border-radius: 10px; border: 1px solid var(--border-line); background: var(--bg-card); color: var(--text-primary); font: 700 13px/16px var(--font-sans); }
+.usage-bars { display: grid; gap: 6px; }
+.usage-row { display: grid; grid-template-columns: 4.5em 1fr 4.5em; align-items: center; gap: 8px; font: 600 12.5px/16px var(--font-sans); color: var(--text-secondary); }
+.usage-row i { display: block; height: 8px; border-radius: 4px; background: var(--accent-primary); }
+.usage-row b { text-align: right; color: var(--text-primary); }
