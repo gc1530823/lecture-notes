@@ -246,3 +246,23 @@ def test_foreign_noise_and_credits_are_dropped_from_korean_lectures():
     assert not foreign_noise("hello sql 나오는데", "ko")
     assert not foreign_noise("Le premier outil que nous allons utiliser", "fr")  # 프랑스어 강의면 그대로
     assert is_hallucination("〔Captioning provided by the Amara.org community", "")
+
+
+def test_text_model_switches_to_spare_free_model_on_rate_limit(api_key):
+    """글 AI 한도도 모델마다 따로: 기본 모델이 429 면 기다리지 않고 다른 무료 모델로 (긴 강의 요약이 멈추지 않게)"""
+    import asyncio
+    import json as _json
+
+    from app.groq import GroqLLM
+    asked = []
+
+    def handler(request):
+        body = _json.loads(request.content)
+        asked.append(body["model"])
+        if body["model"] == "openai/gpt-oss-120b":
+            return httpx.Response(429, headers={"retry-after": "40"}, json={"error": {"message": "rate limit"}})
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"title": "날짜 함수"}'}}]})
+
+    llm = GroqLLM(transport=httpx.MockTransport(handler))
+    out = asyncio.run(llm._chat("s", "p", {"type": "object"}, 1024))
+    assert out == {"title": "날짜 함수"} and asked == ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]

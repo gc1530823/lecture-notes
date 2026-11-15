@@ -20,6 +20,8 @@ class Settings:
     groq_api_key: str = "".join(c for c in os.getenv("GROQ_API_KEY", "") if c.isascii() and (c.isalnum() or c == "_"))
     llm_mode: str = os.getenv("LLM_MODE", "groq" if os.getenv("GROQ_API_KEY") else "ollama")
     groq_model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+    # 기본 모델이 사용량 한도에 걸리면 차례로 써 보는 무료 글 모델 (한도는 모델마다 따로)
+    groq_fallback_models: tuple = tuple(m for m in os.getenv("GROQ_FALLBACK_MODELS", "openai/gpt-oss-20b").split(",") if m)
     # 녹음 파일은 조금 느려도 더 정확한 large-v3, 실시간 조각은 빠른 turbo
     groq_whisper_model: str = os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3")
     groq_live_whisper_model: str = os.getenv("GROQ_LIVE_WHISPER_MODEL", "whisper-large-v3-turbo")

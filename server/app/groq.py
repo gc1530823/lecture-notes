@@ -97,11 +97,17 @@ class GroqLLM(OllamaLLM):
         if "gpt-oss" in settings.groq_model:
             # 생각을 짧게 해서 실시간 필기를 빠르게 한다 (강의 뒤 필기 다시 확인은 더 깊이 생각하게)
             payload["reasoning_effort"] = _EFFORT.get()
+        # 사용량 한도는 모델마다 따로다: 기본 모델이 차면 기다리기 전에 다른 무료 모델로 (긴 강의를 정리할 때 요약 단계에서 멈추지 않게)
+        spare = [m for m in settings.groq_fallback_models if m != settings.groq_model]
         for attempt in range(MAX_RETRIES):
             try:
                 response = await self.client.post("/chat/completions", json=payload, headers=_auth())
             except httpx.HTTPError as exc:
                 raise LLMError(f"Groq에 연결할 수 없습니다: {exc}") from exc
+            if response.status_code == 429 and spare:
+                log.warning("Groq %s 한도: %s 로 넘깁니다", payload["model"], spare[0])
+                payload["model"] = spare.pop(0)
+                continue
             if response.status_code == 429:
                 wait = _wait_seconds(response, attempt)
                 if self.max_wait is not None and wait > self.max_wait:
@@ -122,7 +128,7 @@ class GroqLLM(OllamaLLM):
         if not content:
             raise LLMError("Groq 응답이 비어 있습니다.")
         data = json.loads(content)
-        training_log.record(system, prompt, schema, data, f"groq:{settings.groq_model}")
+        training_log.record(system, prompt, schema, data, f"groq:{payload['model']}")
         return data
 
     async def warm_up(self) -> None:
