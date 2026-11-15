@@ -149,14 +149,21 @@ class PageIndex:
         if not self.sounds:
             return found
         words = re.findall(r"[가-힣]+", text)
-        # 띄어 쓴 영어 이름("파인드 인셋" = find_in_set): 이웃한 두세 낱말을 붙여서도 맞춰 본다
+        used: set[str] = set()
+        # 띄어 쓴 영어 이름("파인드 인셋을" = find_in_set): 이웃한 두세 낱말을 붙이고 끝의 조사를 떼어 가며 맞춰 본다
         for n in (3, 2):
             for i in range(len(words) - n + 1):
-                hit = self.sounds.get(hangul_skeleton("".join(words[i:i + n])))
-                if hit and len(hangul_skeleton("".join(words[i:i + n]))) >= 5:
-                    found[hit] += 1
+                joined = "".join(words[i:i + n])
+                for cut in (0, 1, 2):
+                    stem = joined[: len(joined) - cut] if cut else joined
+                    skeleton = hangul_skeleton(stem)
+                    hit = self.sounds.get(skeleton)
+                    if hit and len(skeleton) >= 5:
+                        found[hit] += 1
+                        used.update(words[i:i + n])
+                        break
         for word in re.findall(r"[가-힣]{3,}", text):
-            if word in self.korean:
+            if word in self.korean or word in used:
                 continue
             for cut in (0, 1, 2):  # 조사("레이트가", "디센트에서")를 떼어 가며
                 stem = word[: len(word) - cut] if cut else word
