@@ -12,3 +12,4 @@ av<16                # PyAV 16부터 faster-whisper 1.2와 맞지 않는다 (met
 
 # tests
 pytest>=8
+oci>=2.130         # 큰 무료 서버(A1) 자동 만들기 (관리자 페이지에서 켬)

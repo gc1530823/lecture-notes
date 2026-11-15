@@ -418,3 +418,54 @@ def test_delete_account_removes_everything(invite):
     finally:
         for x in (a, b):
             x.__exit__(None, None, None)
+
+
+def test_admin_a1_auto_create_retries_until_capacity(invite, monkeypatch):
+    """큰 서버 자동 만들기: 관리자만 켜고, 자리가 없으면 메시지만, 생기면 만들고 열쇠를 지운다"""
+    import oci
+
+    from app import a1retry
+    from app import main as m
+    admin = TestClient(app); admin.__enter__()
+    try:
+        if admin.get("/admin/status").json()["set"] is False:
+            admin.post("/admin/setup", json={"invite": "우리반-2026", "password": "admin-pass-1"})
+        m._login_fails.clear()
+        assert admin.post("/admin/login", json={"password": "admin-pass-1"}).status_code == 200
+        anon = TestClient(app); anon.__enter__()
+        assert anon.get("/admin/a1").status_code == 401
+        anon.__exit__(None, None, None)
+        bad = admin.put("/admin/a1", json={"init": "GROQ_API_KEY=\"PUT_GROQ_KEY_HERE\"\nMIGRATE_CODE=x"})
+        assert bad.status_code == 400
+        good = {"user": "ocid1.user.x", "fingerprint": "aa:bb", "tenancy": "ocid1.tenancy.x", "region": "ap-hyderabad-1",
+                "key": "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----", "init": "GROQ_API_KEY=\"gsk\"\nMIGRATE_CODE=\"c\""}
+        st = admin.put("/admin/a1", json=good).json()
+        assert st["configured"] and st["enabled"] and st["has_key"]
+
+        class Obj:
+            def __init__(self, **kw): self.__dict__.update(kw)
+        calls = {"n": 0}
+
+        class Compute:
+            def list_images(self, *a, **k): return Obj(data=[Obj(id="img")])
+            def launch_instance(self, details):
+                calls["n"] += 1
+                if calls["n"] == 1:
+                    raise oci.exceptions.ServiceError(500, "InternalError", {}, "Out of host capacity.")
+                return Obj(data=Obj(id="ocid1.instance.new"))
+
+        class Net:
+            def list_subnets(self, *a, **k): return Obj(data=[Obj(id="subnet")])
+
+        class Ident:
+            def list_availability_domains(self, *a, **k): return Obj(data=[Obj(name="AD-1")])
+
+        monkeypatch.setattr(a1retry, "_clients", lambda db: ({"tenancy": "t"}, Compute(), Net(), Ident()))
+        assert "빈자리" in a1retry.try_once(m.db())["message"]
+        done = a1retry.try_once(m.db())
+        assert done["done"] and done["instance"] == "ocid1.instance.new"
+        after = admin.get("/admin/a1").json()
+        assert after["done"] and not after["has_key"] and not after["has_init"]   # 열쇠는 지웠다
+        assert not a1retry.due(m.db())
+    finally:
+        admin.__exit__(None, None, None)

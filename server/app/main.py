@@ -23,7 +23,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import auth, backup, mailer, ocr, training_log
+from . import a1retry, auth, backup, mailer, ocr, training_log
 from .config import settings
 from .db import Database
 from .dedupe import merge_concepts
@@ -71,8 +71,10 @@ async def lifespan(app: FastAPI):
     if warm_up:
         asyncio.create_task(warm_up())
     backups = asyncio.create_task(_backup_loop())
+    a1 = asyncio.create_task(_a1_loop())
     yield
     backups.cancel()
+    a1.cancel()
 
 
 app = FastAPI(title="Lecture Notes MVP", lifespan=lifespan)
@@ -2926,6 +2928,68 @@ async def _backup_loop() -> None:
 class BackupSetting(BaseModel):
     token: str
     repo: str
+
+
+async def _a1_loop() -> None:
+    """큰 서버 자동 만들기: 켜 두면 2분마다 한 번 (관리자 페이지)"""
+    while True:
+        await asyncio.sleep(30)
+        try:
+            if a1retry.due(db()):
+                await asyncio.to_thread(a1retry.try_once, db())
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log.warning("큰 서버 만들기 시도 실패: %s", exc)
+            a1retry._save(db(), message=f"설정을 확인해 주세요: {str(exc)[:160]}", at=time.time())
+
+
+class A1Settings(BaseModel):
+    user: str = ""          # 오라클 API 키 '설정 파일 미리보기'의 값들
+    fingerprint: str = ""
+    tenancy: str = ""
+    region: str = ""
+    key: str = ""           # 개인 키 (.pem 내용 전체)
+    init: str = ""          # 새 서버 설치 스크립트 (lune-init.txt 내용 전체, 키 채운 것)
+    enabled: bool = True
+
+
+@app.get("/admin/a1")
+def a1_status(request: Request):
+    _admin(request)
+    cfg = json.loads(db().get_setting("a1_config") or "{}")
+    return {**a1retry.status(db()), "configured": a1retry.configured(db()), "region": cfg.get("region", ""),
+            "has_key": bool(cfg.get("key")), "has_init": bool(db().get_setting("a1_init"))}
+
+
+@app.put("/admin/a1")
+def a1_set(body: A1Settings, request: Request):
+    """빈 칸은 예전 값을 그대로 둔다 (키를 다시 안 넣고 켜고 끄기만 할 수 있게)"""
+    _admin(request)
+    cfg = json.loads(db().get_setting("a1_config") or "{}")
+    for k in ("user", "fingerprint", "tenancy", "region", "key"):
+        v = getattr(body, k).strip()
+        if v:
+            cfg[k] = v
+    if body.key.strip() and "PRIVATE KEY" not in body.key:
+        raise HTTPException(400, "개인 키는 '-----BEGIN PRIVATE KEY-----'로 시작하는 .pem 파일 내용 전체를 넣어 주세요.")
+    db().set_setting("a1_config", json.dumps(cfg))
+    if body.init.strip():
+        if "GROQ_API_KEY=" not in body.init or "PUT_" in body.init.split("MIGRATE_CODE")[0]:
+            raise HTTPException(400, "설치 스크립트에 키가 다 채워졌는지 확인해 주세요 (PUT_… 칸이 남아 있어요).")
+        db().set_setting("a1_init", body.init)
+    if body.enabled and not all(cfg.get(k) for k in ("user", "fingerprint", "tenancy", "region", "key")):
+        raise HTTPException(400, "오라클 API 키 설정 값 다섯 개를 모두 넣어 주세요.")
+    a1retry._save(db(), enabled=body.enabled, at=0, **({"message": "곧 첫 시도를 해요"} if body.enabled else {"message": "멈췄어요"}))
+    return a1_status(request)
+
+
+@app.post("/admin/a1/reset")
+def a1_reset(request: Request):
+    """만든 뒤 다시 처음부터 (새 서버를 지웠을 때)"""
+    _admin(request)
+    db().set_setting("a1_status", None)
+    return a1_status(request)
 
 
 @app.get("/admin/backup")

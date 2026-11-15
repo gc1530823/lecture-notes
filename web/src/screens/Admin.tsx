@@ -147,6 +147,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         <OwnerAccountTools />
       </section>
 
+      <A1Card />
       <BackupCard />
 
       <section className="admin-card">
@@ -213,6 +214,60 @@ function BackupCard() {
         <Button disabled={!b?.has_token || b?.running} icon="arrows-clockwise"
           onClick={() => void run(async () => { await postJSON("/admin/backup/run"); setMsg("백업을 시작했어요. 녹음이 많으면 처음에는 오래 걸려요."); load(); })}>지금 백업</Button>
       </div>
+      {msg && <p className="set-msg">{msg}</p>}
+    </section>
+  );
+}
+
+type A1 = { configured: boolean; enabled?: boolean; done?: boolean; tries?: number; message?: string; at?: number; instance?: string;
+  region: string; has_key: boolean; has_init: boolean };
+
+/** 큰 무료 서버(A1.Flex) 자동 만들기: 오라클 API 키와 설치 스크립트를 한 번 넣으면 이 서버가 2분마다 대신 시도 */
+function A1Card() {
+  const [a, setA] = useState<A1 | null>(null);
+  const [f, setF] = useState({ user: "", fingerprint: "", tenancy: "", region: "ap-hyderabad-1", key: "", init: "" });
+  const [preview, setPreview] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const load = useCallback(() => { getJSON<A1>("/admin/a1").then(setA).catch(() => {}); }, []);
+  useEffect(load, [load]);
+  useEffect(() => { if (!a?.enabled || a.done) return; const t = window.setInterval(load, 30000); return () => window.clearInterval(t); }, [a, load]);
+  // 오라클 '설정 파일 미리보기'를 통째로 붙여 넣으면 다섯 값 중 넷을 알아서 채운다
+  const parse = (text: string) => {
+    setPreview(text);
+    const pick = (k: string) => (text.match(new RegExp(`^\\s*${k}\\s*=\\s*(.+)$`, "m")) ?? [])[1]?.trim() ?? "";
+    setF((x) => ({ ...x, user: pick("user") || x.user, fingerprint: pick("fingerprint") || x.fingerprint, tenancy: pick("tenancy") || x.tenancy, region: pick("region") || x.region }));
+  };
+  const save = async (enabled: boolean) => {
+    setMsg(null);
+    try { setA(await call("/admin/a1", "PUT", { ...f, enabled })); setF((x) => ({ ...x, key: "", init: "" })); setMsg(enabled ? "켰어요. 2분마다 시도해요." : "멈췄어요."); }
+    catch (e) { setMsg(e instanceof Error ? e.message : String(e)); }
+  };
+  return (
+    <section className="admin-card">
+      <b className="admin-title"><Icon name="arrows-clockwise" size={16} /> 큰 무료 서버 자동 만들기</b>
+      <p className="t-caption muted" style={{ margin: 0 }}>오라클에 큰 서버(4코어·24GB, 무료) 자리가 날 때까지 이 서버가 2분마다 대신 시도해요. 클라우드 셸을 켜 둘 필요가 없어요. 만들면 열쇠는 지워요.</p>
+      {a && (
+        <ul className="admin-checks">
+          <li><span className={`admin-dot ${a.done ? "good" : a.enabled ? "good" : "bad"}`} />
+            {a.done ? `만들었어요 · ${a.instance ?? ""}` : a.enabled ? `시도 중 · ${a.tries ?? 0}번째` : a.configured ? "멈춤" : "꺼짐 · 아래를 채워 주세요"}</li>
+          {a.message && <li><span className="admin-dot" />{a.message}{a.at ? ` (${new Date(a.at * 1000).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" })})` : ""}</li>}
+        </ul>
+      )}
+      {!a?.done && (
+        <>
+          <p className="t-caption muted" style={{ margin: 0 }}>① 오라클 콘솔 오른쪽 위 사람 모양 → 내 프로필 → <b>API 키 → API 키 추가 → 키 쌍 생성</b> → <b>개인 키 다운로드</b> → 추가. 나오는 '구성 파일 미리보기'를 통째로 복사해 아래 첫 칸에 붙여 넣어요.</p>
+          <textarea className="input" rows={4} placeholder="[DEFAULT]&#10;user=ocid1.user…&#10;fingerprint=…&#10;tenancy=ocid1.tenancy…&#10;region=ap-hyderabad-1" value={preview} onChange={(e) => parse(e.target.value)} />
+          {f.user && <p className="t-caption muted" style={{ margin: 0 }}>읽은 값: {f.region} · 지문 {f.fingerprint.slice(0, 11)}…</p>}
+          <p className="t-caption muted" style={{ margin: 0 }}>② 내려받은 개인 키 파일(.pem)을 메모장으로 열어 전체를 붙여 넣어요.</p>
+          <textarea className="input" rows={3} placeholder={a?.has_key ? "개인 키 (바꿀 때만)" : "-----BEGIN PRIVATE KEY-----…"} value={f.key} onChange={(e) => setF({ ...f, key: e.target.value })} />
+          <p className="t-caption muted" style={{ margin: 0 }}>③ 키를 다 채운 새 서버 설치 스크립트(lune-init.txt) 전체를 붙여 넣어요.</p>
+          <textarea className="input" rows={3} placeholder={a?.has_init ? "설치 스크립트 (바꿀 때만)" : "#!/bin/bash …"} value={f.init} onChange={(e) => setF({ ...f, init: e.target.value })} />
+          <div className="row">
+            <Button onClick={() => void save(true)}>저장하고 켜기</Button>
+            {a?.enabled && <Button variant="secondary" onClick={() => void save(false)}>멈추기</Button>}
+          </div>
+        </>
+      )}
       {msg && <p className="set-msg">{msg}</p>}
     </section>
   );
