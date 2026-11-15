@@ -13,6 +13,7 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [invite, setInvite] = useState("");
+  const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [forgot, setForgot] = useState(false);
@@ -24,15 +25,25 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
     catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     setBusy(false);
   };
-  const [saved, setSaved] = useState<{ me: Me; code: string } | null>(null);   // 가입 직후: 복구 코드를 보여 준다
+  // 가입 직후: 복구 코드를 보여 주고, 이메일을 적었으면 인증번호를 확인한다
+  const [saved, setSaved] = useState<{ me: Me; code: string; email: string; status?: string } | null>(null);
+  const [six, setSix] = useState("");
+  const [verified, setVerified] = useState(false);
+  const verify = async () => {
+    setBusy(true); setError(null);
+    try { await postJSON("/account/email/verify", { code: six }); setVerified(true); }
+    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    setBusy(false);
+  };
   const submit = async () => {
     setBusy(true); setError(null);
     try {
       if (forgot) {
         onDone(await postJSON<Me>("/auth/reset", { name, code, password }));
       } else {
-        const me = await postJSON<Me & { recovery_code?: string }>(`/auth/${mode}`, { name, password, invite });
-        if (me.recovery_code) setSaved({ me, code: me.recovery_code }); else onDone(me);
+        const me = await postJSON<Me & { recovery_code?: string; email_status?: string }>(`/auth/${mode}`,
+          mode === "signup" ? { name, password, invite, email: email.trim() } : { name, password });
+        if (me.recovery_code) setSaved({ me, code: me.recovery_code, email: email.trim(), status: me.email_status }); else onDone(me);
       }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     setBusy(false);
@@ -50,6 +61,22 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
         <code className="recovery-code">{saved.code}</code>
         <Button variant="secondary" onClick={() => void navigator.clipboard?.writeText(saved.code).catch(() => {})}>복사하기</Button>
         <p className="t-caption faint" style={{ margin: 0 }}>메모장·카톡 나에게 보내기 등에 붙여 두세요. 설정에서 새로 만들 수도 있어요.</p>
+        {saved.status === "sent" && !verified && (
+          <div className="signup-mail">
+            <b>{saved.email} 로 인증번호를 보냈어요</b>
+            <small>확인해 두면 비밀번호를 잊었을 때 이 메일로 찾을 수 있어요. 메일함·스팸함을 확인해 주세요.</small>
+            <div className="row">
+              <input className="input grow" inputMode="numeric" placeholder="6자리 인증번호" value={six}
+                onChange={(e) => setSix(e.target.value.replace(/\D/g, "").slice(0, 6))} autoComplete="one-time-code" />
+              <Button disabled={six.length !== 6 || busy} onClick={() => void verify()}>확인</Button>
+            </div>
+            {error && <p className="login-error">{error}</p>}
+          </div>
+        )}
+        {verified && <p className="signup-mail ok"><b>이메일을 확인했어요.</b> 비밀번호를 잊으면 이 메일로 찾을 수 있어요.</p>}
+        {saved.status === "pending" && (
+          <p className="signup-mail"><small>{saved.email} 은 저장해 뒀어요. 지금은 메일을 보낼 수 없어서, 나중에 설정 › 이메일에서 인증해 주세요.</small></p>
+        )}
         <Button block onClick={() => onDone(saved.me)}>저장했어요, 시작하기</Button>
       </div>
     </div>
@@ -83,6 +110,11 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
         {forgot && (
           <label><span>인증번호 또는 복구 코드</span>
             <input className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="메일의 6자리 숫자 · ABCD-EFGH-JKLM" autoComplete="one-time-code" />
+          </label>
+        )}
+        {!forgot && mode === "signup" && (
+          <label><span>이메일 <small className="faint">(선택 · 비밀번호를 잊었을 때 찾는 곳)</small></span>
+            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="예: 2024142012@ptu.ac.kr" autoComplete="email" />
           </label>
         )}
         <label><span>{forgot ? "새 비밀번호" : "비밀번호"}</span>

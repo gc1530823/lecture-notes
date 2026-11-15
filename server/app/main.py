@@ -135,6 +135,7 @@ class AuthRequest(BaseModel):
     name: str
     password: str
     invite: str = ""
+    email: str = ""   # 가입할 때 (선택): 비밀번호를 잊었을 때 인증번호를 받는 곳
 
 
 _login_fails: dict[str, list[float]] = {}
@@ -195,12 +196,28 @@ def auth_signup(body: AuthRequest, request: Request):
         raise HTTPException(400, "비밀번호는 6자 이상으로 해 주세요.")
     if db().user_by_name(name):
         raise HTTPException(409, "이미 있는 이름이에요. 다른 이름이나 로그인을 해 주세요.")
+    email = body.email.strip()
+    if email and not EMAIL_RE.match(email):
+        raise HTTPException(400, "이메일 주소를 확인해 주세요.")
+    if email and db().user_by_email(email):
+        raise HTTPException(409, "다른 계정에 등록된 이메일이에요.")
     user = db().add_user(name, auth.hash_password(body.password))
     code = _new_code()   # 비밀번호를 잊었을 때 쓰는 복구 코드: 가입할 때 한 번 보여 준다
     db().set_recovery(user["id"], auth.hash_password(code))
     res = _start_login(request, user)
     body_json = json.loads(res.body)
     body_json["recovery_code"] = code
+    if email:
+        # 인증번호를 보내 확인받은 뒤에만 비밀번호 찾기에 쓴다 (주소를 잘못 적으면 남이 받게 되니까).
+        # 메일 보내기가 아직 꺼져 있으면 주소만 남겨 두고, 나중에 설정에서 인증한다
+        six = _six()
+        db().set_email_code(user["id"], email, auth.hash_password(six), time.time() + 600)
+        try:
+            mailer.send(db(), email, "[LUNE] 이메일 인증번호",
+                        f"LUNE 가입을 환영해요! 이메일 인증번호: {six}\n\n10분 안에 앱에 넣어 주세요. 직접 가입하지 않았다면 이 메일은 무시하세요.")
+            body_json["email_status"] = "sent"
+        except Exception:   # 메일 설정이 없거나 보내지 못함
+            body_json["email_status"] = "pending"
     res.body = json.dumps(body_json, ensure_ascii=False).encode()
     res.headers["content-length"] = str(len(res.body))
     return res

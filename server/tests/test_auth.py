@@ -364,3 +364,33 @@ def test_friend_sharing_is_off_until_courses_are_chosen(invite):
     finally:
         for x in (a, b):
             x.__exit__(None, None, None)
+
+
+def test_signup_takes_email_and_verifies_it(invite, monkeypatch):
+    """가입할 때 이메일을 받아 인증번호를 보낸다. 확인해야 비밀번호 찾기에 쓰이고, 메일이 꺼져 있으면 주소만 남긴다"""
+    import re as _re
+
+    from app import mailer
+    sent = []
+    monkeypatch.setattr(mailer, "send", lambda db, to, subject, text: sent.append((to, text)))
+    c = TestClient(app); c.__enter__()
+    try:
+        mail = f"u{uuid.uuid4().hex[:6]}@ptu.ac.kr"
+        res = c.post("/auth/signup", json={"name": f"메일{uuid.uuid4().hex[:5]}", "password": "secret12", "invite": "우리반-2026", "email": mail}).json()
+        assert res["email_status"] == "sent" and sent[-1][0] == mail and res["recovery_code"]
+        assert c.get("/account/email").json()["pending"] == mail
+        six = _re.search(r"(\d{6})", sent[-1][1]).group(1)
+        assert c.post("/account/email/verify", json={"code": six}).json()["email"] == mail
+        # 같은 이메일로 또 가입할 수 없다, 잘못된 주소는 거절
+        assert c.post("/auth/signup", json={"name": "다른사람x", "password": "secret12", "invite": "우리반-2026", "email": mail}).status_code == 409
+        assert c.post("/auth/signup", json={"name": "다른사람y", "password": "secret12", "invite": "우리반-2026", "email": "nope"}).status_code == 400
+
+        def broken(db, to, subject, text):
+            raise RuntimeError("메일 설정 없음")
+        monkeypatch.setattr(mailer, "send", broken)
+        d = TestClient(app); d.__enter__()
+        res = d.post("/auth/signup", json={"name": f"메일{uuid.uuid4().hex[:5]}", "password": "secret12", "invite": "우리반-2026", "email": "later@ptu.ac.kr"}).json()
+        assert res["email_status"] == "pending" and d.get("/account/email").json()["pending"] == "later@ptu.ac.kr"
+        d.__exit__(None, None, None)
+    finally:
+        c.__exit__(None, None, None)

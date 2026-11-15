@@ -1600,3 +1600,8 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .top-menu-list button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0 12px; white-space: nowrap; border-radius: 10px; font: 600 14px/18px var(--font-sans); color: var(--text-primary); }
 .top-menu-list button.danger { color: var(--accent-record); }
 .top-menu-list button:active { background: var(--fill-soft); }
+/* 가입 직후 이메일 인증 */
+.signup-mail { display: grid; gap: 6px; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-card)); margin: 0; }
+.signup-mail b { font: 700 13.5px/19px var(--font-sans); }
+.signup-mail small { font: 400 12px/17px var(--font-sans); color: var(--text-secondary); }
+.signup-mail.ok { background: color-mix(in srgb, var(--ico-green) 12%, var(--bg-card)); }
