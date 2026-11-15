@@ -2,7 +2,7 @@
 # LUNE server setup for Oracle Cloud Always Free (Ubuntu 24.04).
 # Paste this whole text into: Advanced options > Management > Paste cloud-init script.
 # Replace ONLY the text inside the quotes on the next lines. Keep the quotes.
-# Moving from an old LUNE server: put its address and the move code (Settings > Server) in MIGRATE_FROM / MIGRATE_CODE.
+# Moving from an old LUNE server: put its address and the move code (admin page: <address>/web/#/admin > Move to a new server, valid 2 days) in MIGRATE_FROM / MIGRATE_CODE.
 # Leave them as they are for a brand-new server.
 # (ASCII only: the Oracle console breaks on non-ASCII characters in this box.)
 GROQ_API_KEY="PUT_GROQ_KEY_HERE"
