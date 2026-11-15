@@ -1455,3 +1455,5 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .admin-th span:last-child { display: none; }
 .admin-msg { padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent-primary) 10%, transparent); }
 .admin-link { text-align: center; margin: 8px 0 24px; font-size: 12px; } .admin-link a { color: var(--text-tertiary); }
+.share-courses { display: flex; flex-direction: column; gap: 8px; }
+.share-ask { gap: 12px; }

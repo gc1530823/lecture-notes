@@ -12,8 +12,8 @@ interface Friend {
   id: string; name: string; status: string; mine: boolean; created_at: number;
   share?: boolean; merge?: boolean; their_jokbo?: boolean; their_timetable?: boolean;
 }
-interface Prefs { share_jokbo: boolean; share_timetable: boolean; merge_jokbo: boolean; allow_requests: boolean; items: string[] }
-interface FriendsData { me: { name: string; code: string; prefs: Prefs }; friends: Friend[]; incoming: Friend[]; outgoing: Friend[] }
+interface Prefs { share_jokbo: boolean; share_timetable: boolean; merge_jokbo: boolean; allow_requests: boolean; items: string[]; share_courses: string[] }
+interface FriendsData { me: { name: string; code: string; prefs: Prefs; courses: string[] }; friends: Friend[]; incoming: Friend[]; outgoing: Friend[] }
 interface JokboDoc { doc_id: string; title: string; course: string; friends: string[]; files: { id: number; nickname: string }[]; friend_share: boolean; friend_merge: boolean }
 
 const API = import.meta.env.VITE_API_URL ?? "";
@@ -28,6 +28,7 @@ export function FriendsScreen() {
   const [tab, setTab] = useState<Tab>("friends");
   const [data, setData] = useState<FriendsData | null>(null);
   const [error, setError] = useState("");
+  const [askShare, setAskShare] = useState<string | null>(null);   // 친구가 된 직후: 공유할 과목 고르기
   const load = useCallback(() => {
     getJSON<FriendsData>("/friends").then(setData).catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
@@ -41,17 +42,28 @@ export function FriendsScreen() {
           items={[["friends", `친구${data?.incoming.length ? ` · ${data.incoming.length}` : ""}`], ["jokbo", "족보"], ["privacy", "공개 설정"]] as const} />
         {error && <p className="muted">{error}</p>}
         <div key={tab} className="pane-in">
-        {data && tab === "friends" && <FriendsTab data={data} reload={load} onSettings={() => setTab("privacy")} />}
+        {data && tab === "friends" && <FriendsTab data={data} reload={load} onSettings={() => setTab("privacy")}
+          onBecameFriends={(name) => { if (!data.me.prefs.share_courses?.length) setAskShare(name); }} />}
         {data && tab === "jokbo" && <JokboTab prefs={data.me.prefs} onSettings={() => setTab("privacy")} />}
-        {data && tab === "privacy" && <PrivacyTab prefs={data.me.prefs} onSaved={setData} />}
+        {data && tab === "privacy" && <PrivacyTab prefs={data.me.prefs} courses={data.me.courses} onSaved={setData} />}
         </div>
       </div>
+      {data && askShare !== null && (
+        <div className="sheet-back" onClick={() => setAskShare(null)}>
+          <div className="friend-table share-ask" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="공유할 과목 고르기">
+            <b className="admin-title">{askShare}님과 친구가 됐어요</b>
+            <p className="t-caption muted" style={{ margin: 0 }}>아직 아무것도 공유하지 않아요. 족보를 함께 볼 과목만 골라 주세요. 나중에 공개 설정에서 바꿀 수 있어요.</p>
+            <ShareCourses prefs={data.me.prefs} courses={data.me.courses} onSaved={(d) => { setData(d); }} />
+            <Button block onClick={() => setAskShare(null)}>다 골랐어요</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ── 친구 ── */
-function FriendsTab({ data, reload, onSettings }: { data: FriendsData; reload: () => void; onSettings: () => void }) {
+function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: FriendsData; reload: () => void; onSettings: () => void; onBecameFriends: (name: string) => void }) {
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -63,11 +75,14 @@ function FriendsTab({ data, reload, onSettings }: { data: FriendsData; reload: (
     try {
       const r = await postJSON<{ status: string; name: string }>("/friends", { code });
       setMsg(r.status === "accepted" ? `${r.name}님과 친구가 됐어요!` : `${r.name}님에게 친구 신청을 보냈어요. 수락하면 친구가 돼요.`);
+      if (r.status === "accepted") onBecameFriends(r.name);
       setCode(""); reload();
     } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); }
     setBusy(false);
   };
-  const accept = async (f: Friend) => { await postJSON(`/friends/${f.id}/accept`).catch(() => {}); navigator.vibrate?.(15); reload(); };
+  const accept = async (f: Friend) => {
+    await postJSON(`/friends/${f.id}/accept`).catch(() => {}); navigator.vibrate?.(15); reload(); onBecameFriends(f.name);
+  };
   const remove = async (f: Friend, ask: string) => {
     if (ask && !confirm(ask)) return;
     await fetch(`${API}/friends/${f.id}`, { method: "DELETE" }).catch(() => {});
@@ -228,7 +243,7 @@ function JokboTab({ prefs, onSettings }: { prefs: Prefs; onSettings: () => void 
 }
 
 /* ── 공개 설정 ── */
-function PrivacyTab({ prefs, onSaved }: { prefs: Prefs; onSaved: (d: FriendsData) => void }) {
+function PrivacyTab({ prefs, courses, onSaved }: { prefs: Prefs; courses: string[]; onSaved: (d: FriendsData) => void }) {
   const [p, setP] = useState(prefs);
   const save = async (change: Partial<Prefs>) => {
     setP({ ...p, ...change });
@@ -244,8 +259,11 @@ function PrivacyTab({ prefs, onSaved }: { prefs: Prefs; onSaved: (d: FriendsData
   return (
     <>
       <section className="set-group">
+        <h3>족보를 공유할 과목</h3>
+        <ShareCourses prefs={p} courses={courses} onSaved={(d) => { setP(d.me.prefs); onSaved(d); }} hideTimetable />
+      </section>
+      <section className="set-group">
         <h3>친구에게 공개</h3>
-        <Row k="share_jokbo" on={p.share_jokbo} title="내 족보 공개" sub="같은 PDF 로 들은 친구의 족보에 내 표시가 합쳐져요" />
         <Row k="share_timetable" on={p.share_timetable} title="내 시간표 공개" sub="친구가 내 시간표를 볼 수 있어요" />
       </section>
       {p.share_jokbo && (
@@ -268,5 +286,36 @@ function PrivacyTab({ prefs, onSaved }: { prefs: Prefs; onSaved: (d: FriendsData
       </section>
       <p className="friend-note">친구 한 명씩 숨기거나 합치기를 끄려면 친구 탭에서 그 친구를 누르세요. 강의자료마다는 족보 탭에서 바꿀 수 있어요.</p>
     </>
+  );
+}
+
+/** 족보를 공유할 과목 고르기 (기본은 아무것도 공유 안 함) + 시간표 공개 */
+function ShareCourses({ prefs, courses, onSaved, hideTimetable }: { prefs: Prefs; courses: string[]; onSaved: (d: FriendsData) => void; hideTimetable?: boolean }) {
+  const [chosen, setChosen] = useState<string[]>(prefs.share_courses ?? []);
+  const [timetable, setTimetable] = useState(prefs.share_timetable);
+  const save = async (change: object) => { try { onSaved(await patch("/friends/settings", change)); } catch { /* 그대로 */ } };
+  const flip = (c: string) => {
+    const next = chosen.includes(c) ? chosen.filter((x) => x !== c) : [...chosen, c];
+    setChosen(next); void save({ share_courses: next });
+  };
+  return (
+    <div className="share-courses">
+      {courses.length === 0 ? (
+        <p className="friend-empty">아직 과목이 정해진 강의자료가 없어요. 강의자료 화면에서 과목을 정하면 여기에 나와요.</p>
+      ) : (
+        <div className="item-picks">
+          {courses.map((c) => (
+            <button key={c} className={`pick${chosen.includes(c) ? " on" : ""}`} aria-pressed={chosen.includes(c)} onClick={() => flip(c)}>
+              {chosen.includes(c) && <Icon name="check" size={12} />} {c}
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="friend-note">{chosen.length ? `${chosen.join(", ")} 족보가 같은 PDF 로 들은 친구와 합쳐져요.` : "지금은 어떤 족보도 공유하지 않아요."} 녹음·받아쓰기·필기 전체는 언제나 보이지 않아요.</p>
+      {!hideTimetable && (
+        <label className="set-line"><span className="grow">내 시간표도 보여 주기</span>
+          <Switch on={timetable} onChange={(v) => { setTimetable(v); void save({ share_timetable: v }); }} label="시간표 공개" /></label>
+      )}
+    </div>
   );
 }

@@ -27,8 +27,9 @@ def _owner_clause(column: str = "owner") -> tuple[str, tuple]:
 
 # 친구 설정 기본값: 모두 켜 둔다 (끄면 그것만 친구에게 안 보이거나 안 합친다)
 JOKBO_ITEMS = ("exam", "emphasis", "notice", "terms", "predicted", "confused")
-FRIEND_PREFS = {"share_jokbo": True, "share_timetable": True, "merge_jokbo": True, "allow_requests": True,
-                "items": list(JOKBO_ITEMS)}
+# 공개는 기본으로 꺼 둔다 (동의 없이 내 족보가 나가지 않게): 친구가 되면 공유할 과목을 직접 고른다
+FRIEND_PREFS = {"share_jokbo": False, "share_timetable": False, "merge_jokbo": True, "allow_requests": True,
+                "items": list(JOKBO_ITEMS), "share_courses": []}
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (

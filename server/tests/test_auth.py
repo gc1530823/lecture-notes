@@ -86,6 +86,10 @@ def test_friends_by_code_and_jokbo_merges_automatically(invite):
 
         # 같은 강의자료(같은 PDF)로 각자 들은 강의: 친구가 되기 전에는 섞이지 않는다
         doc_a, doc_b = upload(a), upload(b)
+        # 공개는 기본으로 꺼져 있다: 과목을 정하고 그 과목을 공유한다고 골라야 합쳐진다
+        for who, d in ((a, doc_a), (b, doc_b)):
+            who.patch(f"/documents/{d['id']}", json={"course": "운영체제"})
+            who.patch("/friends/settings", json={"share_courses": ["운영체제"], "share_timetable": True})
         sa = a.post("/sessions", json={"document_id": doc_a["id"]}).json()
         sb = b.post("/sessions", json={"document_id": doc_b["id"]}).json()
         b.post(f"/sessions/{sb['id']}/annotations", json={"page_no": 1, "type": "exam", "text": "경사하강법 업데이트 식"})
@@ -118,6 +122,10 @@ def test_friend_privacy_settings(invite):
         a_id = b.get("/friends").json()["incoming"][0]["id"]
         b.post(f"/friends/{a_id}/accept")
         doc_a, doc_b = upload(a), upload(b)
+        # 공개는 기본으로 꺼져 있다: 과목을 정하고 그 과목을 공유한다고 골라야 합쳐진다
+        for who, d in ((a, doc_a), (b, doc_b)):
+            who.patch(f"/documents/{d['id']}", json={"course": "운영체제"})
+            who.patch("/friends/settings", json={"share_courses": ["운영체제"], "share_timetable": True})
         a.post("/sessions", json={"document_id": doc_a["id"]})
         sb = b.post("/sessions", json={"document_id": doc_b["id"]}).json()
         b.post(f"/sessions/{sb['id']}/annotations", json={"page_no": 1, "type": "exam", "text": "손실 함수 정의"})
@@ -308,3 +316,38 @@ def test_daily_backup_to_private_dataset(invite, tmp_path, monkeypatch):
     commits.clear()
     backup.run(d, str(up))
     assert not any("uploads/a.pdf" in c for c in commits)   # 이미 올린 파일은 다시 안 올린다
+
+
+def test_friend_sharing_is_off_until_courses_are_chosen(invite):
+    a, _ = person("가람")
+    b, b_name = person("나래")
+    try:
+        b_code = b.get("/friends").json()["me"]["code"]
+        a.post("/friends", json={"code": b_code})
+        a_id = b.get("/friends").json()["incoming"][0]["id"]
+        b.post(f"/friends/{a_id}/accept")
+        b_id = a.get("/friends").json()["friends"][0]["id"]
+        doc_a, doc_b = upload(a), upload(b)
+        for who, d, course in ((a, doc_a, "운영체제"), (b, doc_b, "운영체제")):
+            who.patch(f"/documents/{d['id']}", json={"course": course})
+        sb = b.post("/sessions", json={"document_id": doc_b["id"]}).json()
+        b.post(f"/sessions/{sb['id']}/annotations", json={"page_no": 1, "type": "exam", "text": "손실 함수"})
+        b.post("/timetable", json={"course": "운영체제", "weekday": 0, "start": "09:00", "end": "10:15", "place": ""})
+        # 기본: 아무것도 공유 안 함
+        me_b = b.get("/friends").json()["me"]
+        assert me_b["prefs"]["share_jokbo"] is False and me_b["courses"] == ["운영체제"]
+        assert a.get(f"/documents/{doc_a['id']}/jokbo").json()["friends"] == []
+        assert a.get(f"/friends/{b_id}/timetable").status_code == 403
+        # 다른 과목만 공유하면 이 자료는 안 합쳐진다
+        b.patch("/friends/settings", json={"share_courses": ["데이터베이스"]})
+        assert a.get(f"/documents/{doc_a['id']}/jokbo").json()["friends"] == []
+        # 그 과목을 고르면 합쳐진다
+        b.patch("/friends/settings", json={"share_courses": ["운영체제"], "share_timetable": True})
+        assert a.get(f"/documents/{doc_a['id']}/jokbo").json()["friends"] == [b_name]
+        assert a.get(f"/friends/{b_id}/timetable").status_code == 200
+        # 모두 빼면 다시 비공개
+        b.patch("/friends/settings", json={"share_courses": []})
+        assert b.get("/friends").json()["me"]["prefs"]["share_jokbo"] is False
+    finally:
+        for x in (a, b):
+            x.__exit__(None, None, None)

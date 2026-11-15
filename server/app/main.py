@@ -2428,7 +2428,8 @@ def _friend_sheets(doc_id: str) -> list[dict]:
         try:
             for d in db().list_documents():
                 if (_fingerprint(d["id"]) == mine and db().session_ids(d["id"])
-                        and db().doc_friend_flags(d["id"])["share"]):
+                        and db().doc_friend_flags(d["id"])["share"]
+                        and (d.get("course") or "") in (theirs.get("share_courses") or [])):
                     friend = db().get_user(fid)
                     body = _share_body(_jokbo(d["id"], with_friends=False))
                     items = set(theirs.get("items") or [])
@@ -2455,6 +2456,7 @@ def _me() -> str:
 
 
 class FriendPrefsUpdate(BaseModel):
+    share_courses: list[str] | None = None   # 족보를 공유할 과목 (빈 목록 = 공유 안 함)
     share_jokbo: bool | None = None
     share_timetable: bool | None = None
     merge_jokbo: bool | None = None
@@ -2468,6 +2470,9 @@ def update_friend_settings(body: FriendPrefsUpdate):
     from .db import JOKBO_ITEMS
 
     change = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "share_courses" in change:
+        change["share_courses"] = [c.strip()[:40] for c in change["share_courses"] if c.strip()][:50]
+        change["share_jokbo"] = bool(change["share_courses"])
     if "items" in change:
         change["items"] = [i for i in JOKBO_ITEMS if i in change["items"]]
     db().set_friend_prefs(_me(), change)
@@ -2857,7 +2862,8 @@ def list_friends():
             theirs = _shares_with(r["id"], me) or {}
             r.update(db().pair(me, r["id"]), their_jokbo=bool(theirs.get("share_jokbo")),
                      their_timetable=bool(theirs.get("share_timetable")))
-    return {"me": {"name": user.get("name", ""), "code": db().friend_code(me), "prefs": user.get("prefs", {})},
+    courses = sorted({d.get("course") or "" for d in db().list_documents()} - {""})
+    return {"me": {"name": user.get("name", ""), "code": db().friend_code(me), "prefs": user.get("prefs", {}), "courses": courses},
             "friends": [r for r in rows if r["status"] == "accepted"],
             "incoming": [r for r in rows if r["status"] == "pending" and not r["mine"]],
             "outgoing": [r for r in rows if r["status"] == "pending" and r["mine"]]}
