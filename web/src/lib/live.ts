@@ -131,15 +131,8 @@ export class LiveSocket implements Live {
 
 export interface Mic { stop(): void }
 
-/** 마이크를 켜고 16kHz로 줄인 PCM 조각을 넘긴다. iPhone Safari에서 가장 안정적인 ScriptProcessor를 쓴다 */
-export async function startMicrophone(onChunk: (pcm: ArrayBuffer, level: number) => void): Promise<Mic> {
-  const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-  const ctx = new Ctx();
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-  });
-  await ctx.resume();
-  const source = ctx.createMediaStreamSource(stream);
+/** 오디오 노드 → 16kHz PCM 조각 (마이크와 시연 파일이 같이 쓴다) */
+function to16k(ctx: AudioContext, onChunk: (pcm: ArrayBuffer, level: number) => void): ScriptProcessorNode {
   const proc = ctx.createScriptProcessor(4096, 1, 1);
   const ratio = ctx.sampleRate / 16000;
   proc.onaudioprocess = (e) => {
@@ -157,6 +150,45 @@ export async function startMicrophone(onChunk: (pcm: ArrayBuffer, level: number)
     window.dispatchEvent(new CustomEvent("ln-level", { detail: peak }));
     onChunk(out.buffer, peak);
   };
+  return proc;
+}
+
+/** 발표 시연: 미리 녹음한 강의 파일을 소리 내 틀면서 실시간 강의처럼 서버로 보낸다 (교실 마이크·소음과 상관없이) */
+export async function startFileAudio(file: File, onChunk: (pcm: ArrayBuffer, level: number) => void, onEnd: () => void): Promise<Mic> {
+  const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  const ctx = new Ctx();
+  await ctx.resume();
+  const buffer = await ctx.decodeAudioData(await file.arrayBuffer());
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  const proc = to16k(ctx, onChunk);
+  source.connect(proc);
+  proc.connect(ctx.destination);
+  source.connect(ctx.destination); // 듣는 사람도 들리게
+  let stopped = false;
+  source.onended = () => { if (!stopped) onEnd(); };
+  source.start();
+  return {
+    stop() {
+      stopped = true;
+      try { source.stop(); } catch { /* 이미 끝났다 */ }
+      proc.disconnect();
+      source.disconnect();
+      ctx.close().catch(() => {});
+    },
+  };
+}
+
+/** 마이크를 켜고 16kHz로 줄인 PCM 조각을 넘긴다. iPhone Safari에서 가장 안정적인 ScriptProcessor를 쓴다 */
+export async function startMicrophone(onChunk: (pcm: ArrayBuffer, level: number) => void): Promise<Mic> {
+  const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  const ctx = new Ctx();
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+  });
+  await ctx.resume();
+  const source = ctx.createMediaStreamSource(stream);
+  const proc = to16k(ctx, onChunk);
   source.connect(proc);
   proc.connect(ctx.destination);
   return {

@@ -1535,3 +1535,5 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .next-course { font: 700 13px/18px var(--font-sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .next-row select { min-width: 0; padding-block: 8px; font-size: 13px; }
 .next-none { margin: 2px 0 0; font: 400 12px/18px var(--font-sans); color: var(--text-tertiary); }
+.demo-file { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; padding: 4px 2px; cursor: pointer;
+  font: 500 12px/16px var(--font-sans); color: var(--text-tertiary); text-decoration: underline; text-underline-offset: 3px; }

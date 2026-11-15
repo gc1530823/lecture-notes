@@ -8,7 +8,7 @@ import type { Annotation, DocumentDetail, GlossaryTerm, NoteType, Page } from ".
 import { getJSON, postJSON } from "../api/useApi";
 import { LiveWave, refreshWaves } from "../lib/wave";
 import { play, setRecording } from "../lib/sound";
-import { android, browserRecognizer, LiveSocket, NativeLive, startMicrophone, type Live, type Mic, type ServerEvent } from "../lib/live";
+import { android, browserRecognizer, LiveSocket, NativeLive, startFileAudio, startMicrophone, type Live, type Mic, type ServerEvent } from "../lib/live";
 import { clock, LectureMore, PlayerBar, TaskDetail, TaskList, usePlayer, type FullTask } from "./LectureExtras";
 import { ConsentSheet } from "./ExamPrep";
 import { loadPdf, renderPage, type PdfDoc } from "../lib/pdf";
@@ -281,12 +281,15 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   }, [banner]);
 
   // --- 녹음 ---
-  const start = async () => {
-    const app = android();
+  const start = async (demoFile?: File) => {
+    const app = demoFile ? null : android(); // 시연 파일은 앱 안에서도 웹 방식으로 보낸다
     // 마이크는 버튼을 누른 바로 그 순간에 켜야 iPhone Safari가 허락한다 (서버 응답을 기다리기 전에)
     // 안드로이드 앱 안에서는 앱이 직접 녹음한다 (화면이 꺼져도 이어진다)
     // 서버로 보내면서 폰 안에도 전부 모아 둔다 (연결이 끊겨도 녹음이 빠지지 않게 · lib/localRec.ts)
-    const micStart = app ? Promise.resolve(null) : startMicrophone((pcm) => { live.current?.sendAudio(pcm); localRec.current?.append(pcm); });
+    const send = (pcm: ArrayBuffer) => { live.current?.sendAudio(pcm); localRec.current?.append(pcm); };
+    const micStart = app ? Promise.resolve(null)
+      : demoFile ? startFileAudio(demoFile, send, () => toast("시연 파일이 끝났어요. ■ 를 눌러 강의를 끝내세요"))
+      : startMicrophone(send);
     micStart.catch(() => {}); // 실패는 아래에서 다룬다
     let id: string;
     try {
@@ -740,7 +743,16 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               {asking ? <span className="spin" /> : <Icon name="chat-circle-dots" art size={30} />}<span className="tool-label">질문</span>
             </button>
           )}
-          {phase === "idle" && <div className="idle-lang"><EnglishToggle docId={docId} /><IosRecordWarning /></div>}
+          {phase === "idle" && (
+            <div className="idle-lang">
+              <EnglishToggle docId={docId} /><IosRecordWarning />
+              <label className="demo-file">
+                <input type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void start(f); }} />
+                <Icon name="play" size={12} /> 발표 시연: 녹음 파일을 실시간 강의처럼 틀기
+              </label>
+            </div>
+          )}
           {phase === "idle" && <button className="round round-record" onClick={startWithConsent} aria-label="녹음 시작"><Icon name="microphone" art size={46} /></button>}
           {recording && <button className="round round-record on" onClick={() => void stop()} aria-label="강의 끝내기"><span className="stop" /></button>}
           {phase === "ending" && <span className="round round-soft"><span className="spin" /></span>}
