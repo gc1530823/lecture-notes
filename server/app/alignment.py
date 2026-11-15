@@ -66,6 +66,9 @@ def _stem(word: str) -> str:
 def _grams(text: str) -> Counter[str]:
     text = re.sub(r"\s+", " ", text.lower())
     grams: Counter[str] = Counter()
+    # FIND_IN_SET · DATE_ADD 같은 이름은 붙인 꼴(findinset)로도 센다: 받아쓰기는 붙여 쓰거나 한글로 적는다
+    for joined in re.findall(r"[a-z0-9]+(?:_[a-z0-9]+)+", text):
+        grams[joined.replace("_", "")] += 1
     for word in re.findall(r"[a-z0-9]+|[가-힣]+", text):
         if re.match(r"[a-z0-9]", word):
             if len(word) >= 2 and word not in EN_STOP:
@@ -145,6 +148,13 @@ class PageIndex:
         found: Counter[str] = Counter()
         if not self.sounds:
             return found
+        words = re.findall(r"[가-힣]+", text)
+        # 띄어 쓴 영어 이름("파인드 인셋" = find_in_set): 이웃한 두세 낱말을 붙여서도 맞춰 본다
+        for n in (3, 2):
+            for i in range(len(words) - n + 1):
+                hit = self.sounds.get(hangul_skeleton("".join(words[i:i + n])))
+                if hit and len(hangul_skeleton("".join(words[i:i + n]))) >= 5:
+                    found[hit] += 1
         for word in re.findall(r"[가-힣]{3,}", text):
             if word in self.korean:
                 continue

@@ -114,3 +114,11 @@ def test_pinned_page_wins_until_unpinned():
     assert est.page_no == 4
     t.pin(9)   # 없는 쪽은 무시
     assert t.pinned is None
+
+
+def test_underscore_names_match_joined_or_spoken_korean():
+    """슬라이드의 FIND_IN_SET 을 받아쓰기의 'findinset'·'파인드 인셋'과 같은 말로 본다 (실제 DB 강의에서 찾은 문제)"""
+    idx = PageIndex(["INSTR(str, substr) : 부분 문자열 위치", "FIND_IN_SET(str, strlist) : 목록에서 위치 찾기", "REPLACE(str, from, to)"])
+    for spoken in ("findinset 이라는 함수는", "파인드 인셋을 어디에 써야 되느냐가 중요한데"):
+        sims = idx.similarities(spoken)
+        assert max(range(3), key=sims.__getitem__) == 1, (spoken, sims)
