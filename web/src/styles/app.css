@@ -1537,3 +1537,9 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .next-none { margin: 2px 0 0; font: 400 12px/18px var(--font-sans); color: var(--text-tertiary); }
 .demo-file { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; padding: 4px 2px; cursor: pointer;
   font: 500 12px/16px var(--font-sans); color: var(--text-tertiary); text-decoration: underline; text-underline-offset: 3px; }
+.cut-banner { display: flex; gap: 12px; align-items: flex-start; margin: 8px 0; padding: 14px; border-radius: 16px; animation: rise .35s ease both;
+  background: color-mix(in srgb, var(--accent-record) 9%, var(--bg-card)); border: 1px solid color-mix(in srgb, var(--accent-record) 25%, transparent); }
+.cut-ic { color: var(--accent-record); flex: none; margin-top: 1px; }
+.cut-banner b { display: block; font: 700 14px/20px var(--font-sans); }
+.cut-banner small { display: block; margin: 2px 0 10px; font: 400 12px/18px var(--font-sans); color: var(--text-secondary); }
+.cut-banner .row { gap: 6px; flex-wrap: wrap; }

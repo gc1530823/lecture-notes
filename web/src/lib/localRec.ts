@@ -37,7 +37,12 @@ export class LocalRecording {
   private sid: string;
   constructor(sid: string) {
     this.sid = sid;
-    this.db = open().catch(() => null);   // 저장소를 못 쓰면(사생활 보호 창 등) 조용히 건너뛴다
+    // 저장소를 못 쓰면(사생활 보호 창 등) 조용히 건너뛴다. 끊긴 강의를 이어 녹음하면 앞서 모은 길이에 이어 센다
+    this.db = open().then(async (db) => {
+      const before = await done(db.transaction("meta").objectStore("meta").get(sid)).catch(() => undefined) as Meta | undefined;
+      if (before) this.samples += before.samples;
+      return db;
+    }).catch(() => null);
   }
 
   append(pcm: ArrayBuffer) {

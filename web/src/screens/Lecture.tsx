@@ -125,6 +125,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     return () => { alive = false; };
   }, [docId, initialSession, refresh]);
 
+  // 녹음 중에 앱·브라우저가 꺼져 '끝내기'를 못 누른 강의: 이어서 녹음하거나 여기서 끝낸다
+  const [cut, setCut] = useState<{ ms: number; native: boolean; elsewhere: boolean } | null>(null);
   // 녹음 파일로 정리 중인 강의: 끝날 때까지 필기를 다시 받아 온다
   const [serverStatus, setServerStatus] = useState<{ status: string; progress: number | null; error?: string | null; engine?: string | null } | null>(null);
   useEffect(() => {
@@ -135,6 +137,11 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
       try {
         const s = await getJSON<{ status: string; progress: number | null; error?: string | null; engine?: string | null }>(`/sessions/${initialSession}/summary`);
         if (!alive) return;
+        if (s.status === "recording") {
+          const got = await getJSON<{ ms: number; live?: boolean }>(`/sessions/${initialSession}/received`).catch(() => ({ ms: 0, live: false }));
+          const native = !!android()?.isRecording();
+          if (alive) setCut({ ms: got.ms, native, elsewhere: !native && !!got.live });
+        }
         const busy = s.status === "transcribing" || s.status === "processing";
         setServerStatus((prev) => {
           if (!busy && prev && prev.status !== s.status) setRefresh((n) => n + 1); // 막 끝났으면 마지막 필기를 한 번 더 받는다
@@ -281,7 +288,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   }, [banner]);
 
   // --- 녹음 ---
-  const start = async (demoFile?: File) => {
+  const start = async (demoFile?: File, resume?: { id: string; ms: number }) => {
     const app = demoFile ? null : android(); // 시연 파일은 앱 안에서도 웹 방식으로 보낸다
     // 마이크는 버튼을 누른 바로 그 순간에 켜야 iPhone Safari가 허락한다 (서버 응답을 기다리기 전에)
     // 안드로이드 앱 안에서는 앱이 직접 녹음한다 (화면이 꺼져도 이어진다)
@@ -293,12 +300,13 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
     micStart.catch(() => {}); // 실패는 아래에서 다룬다
     let id: string;
     try {
-      id = (await postJSON<{ id: string }>("/sessions", { document_id: docId, language: lectureLang(docId) })).id;
+      // 끊긴 강의를 이어 녹음하면 같은 강의에 붙인다 (서버가 녹음 조각과 받아쓰기 시각을 앞 조각에 이어 매긴다)
+      id = resume?.id ?? (await postJSON<{ id: string }>("/sessions", { document_id: docId, language: lectureLang(docId) })).id;
     } catch (e) {
       micStart.then((m) => m?.stop()).catch(() => {});
       return toast(e instanceof Error ? e.message : String(e));
     }
-    const began = Date.now();
+    const began = Date.now() - (resume?.ms ?? 0);
     if (!app) localRec.current = new LocalRecording(id);
     setSessionId(id);
     setStartedAt(began);
@@ -685,6 +693,26 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         {!recording && phase !== "idle" && serverStatus?.status && ["transcribing", "processing"].includes(serverStatus.status) && (
           <div className="listen-row"><span className="spin" /><span className="t-caption muted">필기를 정리하고 있어요…</span></div>
         )}
+        {!recording && phase === "ended" && sessionId && cut && (
+          <div className="cut-banner" role="alert">
+            <span className="cut-ic"><Icon name="warning-circle" size={20} /></span>
+            <div className="grow">
+              <b>{cut.native ? "앱이 아직 녹음하고 있어요" : cut.elsewhere ? "다른 기기에서 녹음하고 있어요" : "녹음이 중간에 끊겼어요"}</b>
+              <small>{cut.native ? "화면만 다시 열렸어요. 수업이 끝났으면 녹음을 끝내 주세요."
+                : cut.elsewhere ? "녹음하는 기기에서 끝내 주세요. 그 기기를 잃어버렸으면 여기서 끝내도 돼요."
+                : `${clock(cut.ms)}까지 저장돼 있어요. 수업이 아직이면 이어서 녹음해요.`}</small>
+              <div className="row">
+                {!cut.native && !cut.elsewhere && <button className="chip chip-accent" onClick={() => { const c = cut; setCut(null); void start(undefined, { id: sessionId, ms: c.ms }); }}>
+                  <Icon name="microphone" size={14} /> 이어서 녹음</button>}
+                <button className="chip chip-default" onClick={async () => {
+                  if (cut.native) android()?.stop();
+                  try { await postJSON(`/sessions/${sessionId}/end`); window.location.reload(); }
+                  catch (e) { toast(e instanceof Error ? e.message : String(e)); }
+                }}>여기서 끝내고 정리하기</button>
+              </div>
+            </div>
+          </div>
+        )}
         {!recording && sessionId && serverStatus?.status === "failed" && (
           <div className="listen-row retry-row">
             <span className="t-caption muted grow">정리하지 못했어요. 녹음은 저장돼 있어요.{serverStatus.error && <><br /><span className="retry-why">{serverStatus.error}</span></>}</span>
@@ -717,7 +745,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               </div>
             )}
             <span className="t-caption muted" style={{ display: "block" }}>
-              {recording ? `AI 필기 생성 중 · 현재 ${notebook ? `${page}번 주제` : `${page} / ${doc.pages.length}쪽`}` : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}${serverStatus.engine === "local" ? " · Groq 가 막혀 서버에서 받아쓰는 중이라 느려요" : ""}`
+              {recording ? `AI 필기 생성 중 · 현재 ${notebook ? `${page}번 주제` : `${page} / ${doc.pages.length}쪽`}` : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (cut ? "녹음이 끊긴 강의예요" : serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}${serverStatus.engine === "local" ? " · Groq 가 막혀 서버에서 받아쓰는 중이라 느려요" : ""}`
                 : serverStatus?.status === "processing" ? "필기·요약 정리 중…" : serverStatus?.status === "failed" ? "정리하지 못했어요" : "강의가 끝났어요") : "버튼을 누르면 녹음을 시작해요"}
             </span>
           </div>

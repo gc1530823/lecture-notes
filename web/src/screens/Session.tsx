@@ -34,9 +34,10 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
             <Organize sessionId={sessionId} />
             <h3 className="t-title-s section-title">내려받기</h3>
             <StudyNotePdf sessionId={sessionId} />
-            {doc.kind !== "meeting" && <StoryEntry docId={docId} sessionId={sessionId} />}
             <NotesPdf sessionId={sessionId} />
             <ExportRow sessionId={sessionId} />
+            {/* 1분 스토리는 덤: 정리 탭 맨 아래 */}
+            {doc.kind !== "meeting" && <><h3 className="t-title-s section-title">한눈에 넘겨 보기</h3><StoryEntry docId={docId} sessionId={sessionId} /></>}
           </>
         )}
         {tab === "study" && <Study sessionId={sessionId} />}

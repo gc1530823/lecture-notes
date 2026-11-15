@@ -1238,7 +1238,15 @@ def test_full_recording_replaces_gappy_live_audio(client):
     the_app.state.transcriber = Fake()
     doc = upload(client)
     s = client.post("/sessions", json={"document_id": doc["id"]}).json()
-    assert client.get(f"/sessions/{s['id']}/received").json() == {"ms": 0}
+    assert client.get(f"/sessions/{s['id']}/received").json() == {"ms": 0, "live": False}
+    # 녹음 연결이 열려 있는 동안은 '다른 기기에서 녹음 중'으로 보인다 (이어 녹음이 겹치지 않게)
+    with client.websocket_connect(f"/sessions/{s['id']}/stream"):
+        assert client.get(f"/sessions/{s['id']}/received").json()["live"] is True
+    for _ in range(50):
+        if not client.get(f"/sessions/{s['id']}/received").json()["live"]:
+            break
+        time.sleep(0.05)
+    assert client.get(f"/sessions/{s['id']}/received").json()["live"] is False
     mine = client.post(f"/sessions/{s['id']}/annotations", json={"page_no": 1, "text": "내 메모"}).json()
     buf = io.BytesIO()
     with wave.open(buf, "wb") as w:

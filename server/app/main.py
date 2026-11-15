@@ -906,6 +906,9 @@ def list_annotations(session_id: str):
     return [{**a, "photo_id": photos.get(a["id"])} for a in db().list_annotations(session_id)]
 
 
+LIVE_STREAMS: dict[str, int] = {}  # 지금 녹음 소리를 보내고 있는 연결 수 (다른 기기에서 녹음 중인지 알려고)
+
+
 @app.websocket("/sessions/{session_id}/stream")
 async def stream(ws: WebSocket, session_id: str):
     session = db().get_session(session_id)
@@ -931,6 +934,7 @@ async def stream(ws: WebSocket, session_id: str):
     offset_ms = recorded_ms(session_id)
     os.makedirs(settings.upload_dir, exist_ok=True)
     wav_path = os.path.join(settings.upload_dir, f"{session_id}-{len(parts) + 1}.wav")
+    LIVE_STREAMS[session_id] = LIVE_STREAMS.get(session_id, 0) + 1
     try:
         while True:
             message = await ws.receive()
@@ -949,6 +953,9 @@ async def stream(ws: WebSocket, session_id: str):
     except WebSocketDisconnect:
         pass
     finally:
+        LIVE_STREAMS[session_id] = LIVE_STREAMS.get(session_id, 1) - 1
+        if LIVE_STREAMS[session_id] <= 0:
+            LIVE_STREAMS.pop(session_id, None)
         tick_task.cancel()
         await live.close()
 
@@ -957,7 +964,7 @@ async def stream(ws: WebSocket, session_id: str):
 def received_audio(session_id: str):
     """서버가 받은 실시간 녹음 길이 (ms). 폰이 가진 전체 녹음과 견줘 빠진 곳이 있는지 본다"""
     _session_or_404(session_id)
-    return {"ms": recorded_ms(session_id)}
+    return {"ms": recorded_ms(session_id), "live": LIVE_STREAMS.get(session_id, 0) > 0}
 
 
 @app.post("/sessions/{session_id}/full-audio")
