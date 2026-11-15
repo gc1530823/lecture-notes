@@ -8,9 +8,15 @@ import { back, go } from "../router";
 import { Switch } from "./ExamPrep";
 import { WeekGrid, type ClassRow } from "./Timetable";
 
+/** 받침이 있으면 '을', 없으면 '를' (운영체제를 · 자료구조를 · 컴퓨터공학을) */
+const withEul = (w: string) => {
+  const c = w.charCodeAt(w.length - 1);
+  return w + (c >= 0xac00 && c <= 0xd7a3 && (c - 0xac00) % 28 ? "을" : "를");
+};
+
 interface Friend {
   id: string; name: string; status: string; mine: boolean; created_at: number;
-  share?: boolean; merge?: boolean; their_jokbo?: boolean; their_timetable?: boolean;
+  share?: boolean; merge?: boolean; their_jokbo?: boolean; their_timetable?: boolean; same_courses?: string[];
 }
 interface Prefs { share_jokbo: boolean; share_timetable: boolean; merge_jokbo: boolean; allow_requests: boolean; items: string[]; share_courses: string[] }
 interface FriendsData { me: { name: string; code: string; prefs: Prefs; courses: string[] }; friends: Friend[]; incoming: Friend[]; outgoing: Friend[] }
@@ -137,6 +143,20 @@ function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: Frien
 
       <section className="set-group">
         <h3>내 친구 {data.friends.length}</h3>
+        {data.friends.some((f) => f.same_courses?.length) && (
+          <div className="same-course">
+            {data.friends.filter((f) => f.same_courses?.length).map((f) => (
+              <div key={f.id} className="same-row">
+                <span className="avatar">{f.name.slice(0, 1)}</span>
+                <span className="grow">
+                  <b>{f.name}님도 {withEul(f.same_courses!.join(" · "))} 들어요</b>
+                  <small>{f.their_jokbo && f.merge !== false ? "족보가 내 족보에 자동으로 합쳐져요" : f.their_jokbo ? "이 친구 족보 합치기를 켜면 같이 볼 수 있어요" : "친구가 족보를 공개하면 합쳐져요"}</small>
+                </span>
+                {f.their_jokbo && f.merge === false && <button className="chip chip-accent" onClick={() => void pair(f, { merge: true })}>합치기</button>}
+              </div>
+            ))}
+          </div>
+        )}
         {data.friends.length === 0 && <p className="friend-empty">아직 친구가 없어요. 같은 수업 듣는 친구의 코드를 넣어 보세요.</p>}
         {data.friends.map((f) => (
           <div key={f.id} className={`friend-card${open === f.id ? " open" : ""}`}>
@@ -144,7 +164,7 @@ function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: Frien
               <span className="avatar">{f.name.slice(0, 1)}</span>
               <span className="grow set-text">
                 <b>{f.name}</b>
-                <small>{[f.their_timetable ? "시간표 공개" : "시간표 비공개", f.their_jokbo ? "족보 공개" : "족보 비공개",
+                <small>{[f.same_courses?.length ? `같이 듣는 과목 ${f.same_courses.length}` : "", f.their_timetable ? "시간표 공개" : "시간표 비공개", f.their_jokbo ? "족보 공개" : "족보 비공개",
                   f.share === false ? "내 것 숨김" : ""].filter(Boolean).join(" · ")}</small>
               </span>
               <Icon name={open === f.id ? "caret-up" : "caret-down"} size={14} />

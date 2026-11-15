@@ -1510,3 +1510,8 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
   background: var(--fill-soft); color: var(--text-secondary); }
 .first-steps li.now .fs-num { background: var(--accent-primary); color: var(--text-on-accent); }
 .first-steps li.done .fs-num { background: var(--ico-green); color: #fff; }
+.same-course { display: grid; gap: 8px; margin-bottom: 10px; }
+.same-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; animation: rise .35s ease both;
+  background: color-mix(in srgb, var(--ico-green) 10%, var(--bg-card)); border: 1px solid color-mix(in srgb, var(--ico-green) 25%, transparent); }
+.same-row b { display: block; font: 700 14px/20px var(--font-sans); }
+.same-row small { display: block; font: 400 12px/17px var(--font-sans); color: var(--text-secondary); }

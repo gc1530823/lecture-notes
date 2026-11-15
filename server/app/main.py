@@ -2438,6 +2438,22 @@ def _shares_with(owner: str, viewer: str) -> dict | None:
     return (db().get_user(owner) or {}).get("prefs")
 
 
+
+def _course_key(name: str) -> str:
+    return re.sub(r"[\s()\[\]·\-_]", "", name or "").lower()
+
+
+def _visible_courses(owner: str, prefs: dict) -> set[str]:
+    """친구가 나에게 보여 주는 과목만 (족보로 공개한 과목 + 공개한 시간표의 과목). 비공개면 아무것도 모른다."""
+    seen = set(prefs.get("share_courses") or []) if prefs.get("share_jokbo") else set()
+    if prefs.get("share_timetable"):
+        token = auth.CURRENT_USER.set(owner)
+        try:
+            seen |= {c["course"] for c in db().list_classes()}
+        finally:
+            auth.CURRENT_USER.reset(token)
+    return {_course_key(c) for c in seen if c}
+
 def _friend_sheets(doc_id: str) -> list[dict]:
     """친구 족보 자동으로: 친구가 같은 강의자료(같은 PDF)로 들은 강의가 있으면 파일을 주고받지 않아도 합친다.
     족보에 들어가는 것 중 친구가 공개한 항목만 쓰고, 녹음·받아쓰기는 보지 않는다.
@@ -2889,12 +2905,14 @@ def list_friends():
     me = _me()
     rows = db().friend_rows(me)
     user = db().get_user(me) or {}
+    courses = sorted({d.get("course") or "" for d in db().list_documents()} - {""})
+    mine = {_course_key(c): c for c in [c["course"] for c in db().list_classes()] + courses}  # 강의자료 이름을 먼저
     for r in rows:
         if r["status"] == "accepted":
             theirs = _shares_with(r["id"], me) or {}
             r.update(db().pair(me, r["id"]), their_jokbo=bool(theirs.get("share_jokbo")),
                      their_timetable=bool(theirs.get("share_timetable")))
-    courses = sorted({d.get("course") or "" for d in db().list_documents()} - {""})
+            r["same_courses"] = sorted({mine[k] for k in _visible_courses(r["id"], theirs) if k in mine})
     return {"me": {"name": user.get("name", ""), "code": db().friend_code(me), "prefs": user.get("prefs", {}), "courses": courses},
             "friends": [r for r in rows if r["status"] == "accepted"],
             "incoming": [r for r in rows if r["status"] == "pending" and not r["mine"]],

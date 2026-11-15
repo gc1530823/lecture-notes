@@ -134,6 +134,13 @@ def test_friend_privacy_settings(invite):
 
         # 처음엔 모두 공개 · 합치기
         assert jokbo() == [b_name]
+        # 같은 과목 듣는 친구 (띄어쓰기가 달라도 같은 과목)
+        a.post("/timetable", json={"course": "운영 체제", "weekday": 1, "start": "09:00", "end": "10:15", "place": ""})
+        assert a.get("/friends").json()["friends"][0]["same_courses"] == ["운영체제"]
+        # 친구가 아무것도 공개하지 않으면 같은 과목인지도 알 수 없다
+        b.patch("/friends/settings", json={"share_courses": [], "share_timetable": False})
+        assert a.get("/friends").json()["friends"][0]["same_courses"] == []
+        b.patch("/friends/settings", json={"share_courses": ["운영체제"], "share_timetable": True})
         assert a.get(f"/friends/{b_id}/timetable").json()["classes"][0]["course"] == "운영체제"
         assert a.get("/friends/jokbo").json()["docs"][0]["friends"] == [b_name]
 
