@@ -1252,3 +1252,21 @@ def test_full_recording_replaces_gappy_live_audio(client):
     assert any(n["text"] == "내 메모" for n in client.get(f"/sessions/{s['id']}/annotations").json()) and mine["id"]
     assert client.get(f"/sessions/{s['id']}/audio").status_code == 200
     assert client.post(f"/sessions/{s['id']}/full-audio", files={"file": ("x.wav", b"x", "audio/wav")}).status_code == 400
+
+
+def test_timetable_next_doc_auto_and_picked(client):
+    client.post("/timetable", json={"course": "자료구조", "weekday": 2, "start": "10:30", "end": "11:45"})
+    old, new = upload(client), upload(client)
+    for d in (old, new):
+        client.patch(f"/documents/{d['id']}", json={"course": "자료구조"})
+    # 고르지 않으면 아직 녹음 안 한 가장 새 자료
+    nxt = client.get("/timetable/next").json()["자료구조"]
+    assert nxt["auto"] is True and nxt["doc_id"] in (old["id"], new["id"])
+    picked = client.put("/timetable/next", json={"course": "자료구조", "doc_id": old["id"]}).json()["자료구조"]
+    assert picked == {"doc_id": old["id"], "title": old["title"], "auto": False}
+    assert client.put("/timetable/next", json={"course": "자료구조", "doc_id": "nope"}).status_code == 404
+    # 연결을 풀면 다시 자동, 둘 다 녹음하면 연결할 자료가 없다
+    client.put("/timetable/next", json={"course": "자료구조", "doc_id": None})
+    for d in (old, new):
+        client.post("/sessions", json={"document_id": d["id"]})
+    assert "자료구조" not in client.get("/timetable/next").json()

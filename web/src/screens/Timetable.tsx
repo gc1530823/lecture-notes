@@ -34,7 +34,11 @@ const CHANGED = "ln-timetable-changed";
 export function Timetable({ onPick, slot = "top" }: { courses?: string[]; onPick: (course: string) => void; slot?: "top" | "invite" }) {
   const [rows, setRows] = useState<ClassRow[] | null>(null);
   const [, tick] = useState(0);
-  const load = useCallback(() => { getJSON<ClassRow[]>("/timetable").then(setRows).catch(() => setRows(null)); }, []);
+  const [next, setNext] = useState<NextMap>({});
+  const load = useCallback(() => {
+    getJSON<ClassRow[]>("/timetable").then(setRows).catch(() => setRows(null));
+    getJSON<NextMap>("/timetable/next").then(setNext).catch(() => {});
+  }, []);
   useEffect(load, [load]);
   useEffect(() => { window.addEventListener(CHANGED, load); return () => window.removeEventListener(CHANGED, load); }, [load]);
   useEffect(() => { const t = window.setInterval(() => tick((n) => n + 1), 60000); return () => window.clearInterval(t); }, []);
@@ -73,6 +77,13 @@ export function Timetable({ onPick, slot = "top" }: { courses?: string[]; onPick
           <span className="list-item-chev"><Icon name="caret-right" size={18} /></span>
         </button>
       )}
+      {now && next[now.row.course] && (
+        <button className="tt-ready" onClick={() => go({ name: "lecture", docId: next[now.row.course].doc_id })}>
+          <span className="tt-ready-dot"><Icon name="microphone" size={16} /></span>
+          <span className="grow"><b>녹음 시작</b><small>{next[now.row.course].title}</small></span>
+          <Icon name="caret-right" size={14} />
+        </button>
+      )}
       {now ? (
         // 지금·다음 수업 카드가 있으면 오늘 수업은 한 줄로만 (같은 것을 두 번 보여 주지 않게)
         <button className="tt-link" onClick={open}>
@@ -95,6 +106,49 @@ export function Timetable({ onPick, slot = "top" }: { courses?: string[]; onPick
 }
 
 /** 시간표 화면 ('일정' 탭): 이번 주 표 · 캡처로 넣기 · 직접 넣기 · 지우기 */
+type NextMap = Record<string, { doc_id: string; title: string; auto: boolean }>;
+
+/** 강의자료 미리 연결: 과목마다 다음 수업에 쓸 자료를 골라 두면, 수업 시간에 홈에서 바로 녹음한다 */
+function NextDocs({ courses }: { courses: string[] }) {
+  const [next, setNext] = useState<NextMap>({});
+  const [docs, setDocs] = useState<{ id: string; title: string; course?: string }[]>([]);
+  useEffect(() => {
+    getJSON<NextMap>("/timetable/next").then(setNext).catch(() => {});
+    getJSON<typeof docs>("/documents").then(setDocs).catch(() => {});
+  }, []);
+  const withDocs = courses.filter((c) => docs.some((d) => (d.course || "") === c));
+  const without = courses.filter((c) => !withDocs.includes(c));
+  const pick = async (course: string, docId: string) => {
+    const r = await fetch((import.meta.env.VITE_API_URL ?? "") + "/timetable/next", {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ course, doc_id: docId || null }) });
+    if (r.ok) { setNext(await r.json()); window.dispatchEvent(new Event(CHANGED)); }
+  };
+  return (
+    <section className="next-docs" aria-label="다음 수업 자료">
+      <b>다음 수업 자료</b>
+      <small>골라 두면 수업 시간에 홈에서 바로 녹음해요</small>
+      {withDocs.map((c) => {
+        const mine = docs.filter((d) => (d.course || "") === c);
+        const cur = next[c];
+        return (
+          <label key={c} className={`next-row ${courseTone(c)}`}>
+            <i />
+            <span className="next-course">{c}</span>
+            <select className="input" value={cur && !cur.auto ? cur.doc_id : ""} onChange={(e) => void pick(c, e.target.value)} aria-label={`${c} 다음 수업 자료`}>
+              <option value="">{cur?.auto ? `자동: ${cur.title}` : "자동 (새로 올린 자료)"}</option>
+              {mine.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
+            </select>
+          </label>
+        );
+      })}
+      {without.length > 0 && (
+        <p className="next-none">{withDocs.length ? "자료 없는 과목: " : "아직 시간표 과목과 같은 이름의 강의자료가 없어요: "}{without.join(" · ")}
+          <br />강의자료를 올릴 때 과목을 같은 이름으로 고르면 여기서 연결돼요.</p>
+      )}
+    </section>
+  );
+}
+
 export function TimetableEditor({ onPick }: { onPick: (course: string) => void }) {
   const [rows, setRows] = useState<ClassRow[] | null>(null);
   const [adding, setAdding] = useState(false);
@@ -128,6 +182,7 @@ export function TimetableEditor({ onPick }: { onPick: (course: string) => void }
       {rows.length > 0 ? <WeekGrid rows={rows} onPick={onPick} /> : (
         <p className="tasks-empty">아직 시간표가 없어요. 에타·학교 시간표를 캡처해서 넣어 보세요.</p>
       )}
+      {rows.length > 0 && <NextDocs courses={[...new Set(rows.map((r) => r.course))]} />}
       <ImportFromImage hasRows={rows.length > 0} onSaved={changed} />
       <button className="tt-fold" onClick={() => setAdding(!adding)} aria-expanded={adding}>
         <Icon name="plus" size={16} /><span className="grow">한 과목씩 직접 넣기 · 빼기</span><Icon name={adding ? "caret-up" : "caret-down"} size={14} />

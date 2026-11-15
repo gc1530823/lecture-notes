@@ -2144,6 +2144,47 @@ def list_timetable():
     return db().list_classes()
 
 
+class NextDoc(BaseModel):
+    course: str
+    doc_id: str | None = None
+
+
+def _next_key() -> str:
+    return f"next_docs:{auth.CURRENT_USER.get() or ''}"
+
+
+@app.get("/timetable/next")
+def next_docs():
+    """과목마다 다음 수업에 쓸 강의자료 (미리 연결). 고른 게 없으면 그 과목에서 아직 녹음 안 한 가장 새 자료를 쓴다."""
+    picked: dict = json.loads(db().get_setting(_next_key()) or "{}")
+    docs = db().list_documents()
+    by_id = {d["id"]: d for d in docs}
+    out = {}
+    for course in {c["course"] for c in db().list_classes()}:
+        doc = by_id.get(picked.get(course, ""))
+        auto = False
+        if doc is None:
+            fresh = [d for d in docs if (d.get("course") or "") == course and not d.get("sessions")]
+            doc = max(fresh, key=lambda d: d.get("created_at") or 0, default=None)
+            auto = doc is not None
+        if doc:
+            out[course] = {"doc_id": doc["id"], "title": doc["title"], "auto": auto}
+    return out
+
+
+@app.put("/timetable/next")
+def set_next_doc(body: NextDoc):
+    picked: dict = json.loads(db().get_setting(_next_key()) or "{}")
+    if body.doc_id:
+        if db().get_document(body.doc_id) is None:
+            raise HTTPException(404, "강의자료가 없습니다.")
+        picked[body.course] = body.doc_id
+    else:
+        picked.pop(body.course, None)
+    db().set_setting(_next_key(), json.dumps(picked, ensure_ascii=False))
+    return next_docs()
+
+
 def add_timetable_check(body: ClassCreate) -> None:
     clock = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
     if not body.course.strip():

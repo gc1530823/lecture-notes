@@ -1522,3 +1522,16 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .free-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 5px; border-radius: 999px; background: var(--bg-card);
   font: 600 12px/16px var(--font-sans); color: var(--text-primary); border: 1px solid var(--border); }
 .free-chip i { font-style: normal; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--ico-green); color: #fff; font-size: 11px; }
+.tt-ready { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 8px; padding: 12px 14px; border-radius: 16px; text-align: left;
+  background: var(--accent-record); color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, var(--accent-record) 30%, transparent); animation: rise .35s ease both; }
+.tt-ready b { display: block; font: 800 15px/20px var(--font-sans); }
+.tt-ready small { display: block; font: 500 12px/17px var(--font-sans); opacity: .9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-ready-dot { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: rgb(255 255 255 / .22); flex: none; }
+.next-docs { display: grid; gap: 8px; padding: 14px; border-radius: 18px; background: var(--bg-card); border: 1px solid var(--border); }
+.next-docs > b { font: 800 15px/20px var(--font-sans); }
+.next-docs > small { margin-top: -6px; font: 400 12px/17px var(--font-sans); color: var(--text-secondary); }
+.next-row { display: grid; grid-template-columns: 8px minmax(0, 6.5em) 1fr; align-items: center; gap: 10px; }
+.next-row > i { width: 8px; height: 26px; border-radius: 4px; background: var(--blk, var(--accent-primary)); }
+.next-course { font: 700 13px/18px var(--font-sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.next-row select { min-width: 0; padding-block: 8px; font-size: 13px; }
+.next-none { margin: 2px 0 0; font: 400 12px/18px var(--font-sans); color: var(--text-tertiary); }
