@@ -154,7 +154,7 @@ interface ReviewCard {
 }
 interface ReviewToday { cards: ReviewCard[]; due: number; new: number; total: number; next_due_at: number | null }
 
-const SOURCE_LABEL: Record<string, string> = { confused: "수업 중 헷갈렸던 곳", exam: "시험 예상 문제", flashcard: "플래시카드" };
+const SOURCE_LABEL: Record<string, string> = { quiz: "퀴즈에서 틀린 문제", confused: "수업 중 헷갈렸던 곳", exam: "시험 예상 문제", flashcard: "플래시카드" };
 const GRADE_BUTTONS = [["again", "몰랐어요", "record"], ["hard", "어렵게 기억", "secondary"], ["good", "기억났어요", "secondary"], ["easy", "바로 알았어요", "primary"]] as const;
 
 /** 오늘의 복습: 틀린 것은 10분 뒤 다시, 맞힌 것은 1일 → 3일 → 점점 길게 */

@@ -3,6 +3,7 @@ import DocDetail from "./screens/DocDetail";
 import { ScheduleScreen } from "./screens/Tasks";
 import { FriendsScreen } from "./screens/Friends";
 import { AdminScreen } from "./screens/Admin";
+import { WeakScreen } from "./screens/Weak";
 import ExamMap from "./screens/ExamMap";
 import { JokboScreen, PrivacyScreen, ReviewScreen } from "./screens/ExamPrep";
 import Home from "./screens/Home";
@@ -61,6 +62,7 @@ function screen(route: ReturnType<typeof useRoute>) {
     case "exam": return <ExamMap docId={route.docId} />;
     case "jokbo": return <JokboScreen docId={route.docId} />;
     case "quiz": return <QuizScreen docId={route.docId} />;
+    case "weak": return <WeakScreen docId={route.docId} />;
     case "review": return <ReviewScreen />;
     case "privacy": return <PrivacyScreen />;
     case "semester": return <Semester tab={route.tab} />;

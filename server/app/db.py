@@ -938,6 +938,10 @@ class Database:
                        ON CONFLICT(card_key) DO UPDATE SET front = excluded.front, back = excluded.back, page_no = excluded.page_no""",
                     (key, document_id, source, front, back, page_no, time.time()))
 
+    def due_now_if_new(self, key: str) -> None:
+        """틀린 퀴즈 문제처럼 바로 다시 봐야 하는 카드: 아직 일정이 없으면 지금 복습할 카드로"""
+        self._write("UPDATE reviews SET due_at = ? WHERE card_key = ? AND due_at IS NULL", (time.time(), key))
+
     def get_card(self, key: str) -> dict | None:
         rows = self._query("SELECT * FROM reviews WHERE card_key = ?", (key,))
         return rows[0] if rows else None

@@ -1212,6 +1212,17 @@ class GradeRequest(BaseModel):
     answer: str
 
 
+@app.get("/documents/{doc_id}/weak")
+def weak_notes(doc_id: str):
+    """약점 노트: 퀴즈에서 틀린 문제 + 수업 중 '모르겠어요' + 복습에서 자주 틀린 카드 (많이 틀린 것부터)"""
+    if db().get_document(doc_id) is None:
+        raise HTTPException(404, "강의자료가 없습니다.")
+    _sync_cards(doc_id)
+    cards = [c for c in db().list_cards(doc_id) if c["source"] in ("quiz", "confused") or c["lapses"] > 0]
+    cards.sort(key=lambda c: (-c["lapses"], c["source"] != "quiz", c["page_no"] or 0))
+    return [{k: c[k] for k in ("card_key", "source", "front", "back", "page_no", "lapses", "reps")} for c in cards]
+
+
 @app.post("/quiz-sets/{set_id}/grade")
 async def grade_quiz_answer(set_id: int, body: GradeRequest):
     row = db().get_quiz_set(set_id)
@@ -1233,6 +1244,12 @@ async def grade_quiz_answer(set_id: int, body: GradeRequest):
             raise HTTPException(502, "AI가 채점하지 못했어요. 다시 보내 주세요.")
     data["answers"].append({**result, "given": body.answer})
     db().save_quiz_set(set_id, data)
+    # 오답 노트: 틀리거나 반만 맞은 문제는 복습 카드로 (잊기 곡선대로 다시 나온다)
+    if result["verdict"] != "correct" and q.get("question"):
+        key = card_key("quiz", q["question"])
+        back = f"정답: {q.get('answer', '')}" + (f"\n\n{q['explanation']}" if q.get("explanation") else "") + f"\n\n내가 쓴 답: {body.answer}"
+        db().upsert_card(key, row["document_id"], "quiz", q["question"], back, q.get("page_no"))
+        db().due_now_if_new(key)
     return _public_set(set_id, data)["questions"][body.index] | {"done": len(data["answers"]) == len(data["questions"])}
 
 
@@ -1932,7 +1949,7 @@ def _sync_cards(doc_id: str) -> list[dict]:
     return missing
 
 
-SOURCE_ORDER = {"confused": 0, "exam": 1, "flashcard": 2}
+SOURCE_ORDER = {"quiz": 0, "confused": 1, "exam": 2, "flashcard": 3}
 
 
 def _after(seconds: float) -> str:

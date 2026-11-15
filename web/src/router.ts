@@ -15,6 +15,7 @@ export type Route =
   | { name: "lecture"; docId: string; sessionId?: string }
   | { name: "jokbo"; docId: string }
   | { name: "quiz"; docId: string }
+  | { name: "weak"; docId: string }
   | { name: "review" }
   | { name: "privacy" }
   | { name: "semester"; tab: string }
@@ -36,6 +37,7 @@ export function parse(hash: string): Route {
   if (parts[0] === "friends") return { name: "friends" };
   if (parts[0] === "semester") return { name: "semester", tab: parts[1] ?? "map" };
   if (parts[0] === "doc" && parts[1] && parts[2] === "quiz") return { name: "quiz", docId: parts[1] };
+  if (parts[0] === "doc" && parts[1] && parts[2] === "weak") return { name: "weak", docId: parts[1] };
   if (parts[0] === "doc" && parts[1] && parts[2] === "jokbo") return { name: "jokbo", docId: parts[1] };
   if (parts[0] === "doc" && parts[1] && parts[2] === "lecture") return { name: "lecture", docId: parts[1], sessionId: parts[3] };
   if (parts[0] === "doc" && parts[1] && parts[2] === "session" && parts[3])
@@ -52,6 +54,7 @@ export function href(route: Route): string {
     case "exam": return `#/doc/${route.docId}/exam`;
     case "jokbo": return `#/doc/${route.docId}/jokbo`;
     case "quiz": return `#/doc/${route.docId}/quiz`;
+    case "weak": return `#/doc/${route.docId}/weak`;
     case "review": return "#/review";
     case "privacy": return "#/privacy";
     case "search": return "#/search";

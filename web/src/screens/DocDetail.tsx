@@ -97,6 +97,8 @@ export default function DocDetail({ docId }: { docId: string }) {
                   onClick={() => go({ name: "jokbo", docId })} />
                 <ListItem icon="brain" title="AI 퀴즈" subtitle="AI 가 이 자료와 강의를 공부하고 문제를 내요 · 바로 채점"
                   onClick={() => go({ name: "quiz", docId })} />
+                <ListItem icon="target" title="약점 노트" subtitle="퀴즈에서 틀린 문제 · 수업 중 헷갈린 곳 · 복습에서 자주 틀린 것"
+                  onClick={() => go({ name: "weak", docId })} />
                 <button className="link-row" onClick={() => { window.location.href = `${API}/documents/${docId}/anki.txt`; }}>
                   <Icon name="export" size={16} /> Anki 로 내보내기
                 </button>

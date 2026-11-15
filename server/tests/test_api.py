@@ -1071,6 +1071,12 @@ def test_ai_quiz_set_asks_and_grades(client):
     assert again.status_code == 409
     state = client.get(f"/quiz-sets/{qs['id']}").json()
     assert state["answered"] == len(types) and state["score"] == 2.5
+    # 오답 노트: 틀린 문제(OX)와 반만 맞은 문제(서술)는 바로 복습 카드가 되고 약점 노트에 모인다
+    weak = client.get(f"/documents/{doc['id']}/weak").json()
+    quiz_cards = [w for w in weak if w["source"] == "quiz"]
+    assert len(quiz_cards) == 2 and all("정답:" in w["back"] and "내가 쓴 답:" in w["back"] for w in quiz_cards)
+    today = client.get("/review/today", params={"document_id": doc["id"]}).json()
+    assert {c["front"] for c in today["cards"] if c["source"] == "quiz" and not c["new"]} == {w["front"] for w in quiz_cards}
 
 
 def test_retry_failed_session(client):
