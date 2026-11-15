@@ -30,6 +30,39 @@ const patch = (path: string, body: object) =>
 
 type Tab = "friends" | "jokbo" | "privacy";
 
+const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+const toClock = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+/** 같이 비는 시간 (공강): 평일 9시~18시에서 둘 다 수업이 없는 1시간 이상 */
+function freeTogether(a: { weekday: number; start: string; end: string }[], b: typeof a, from = 9 * 60, to = 18 * 60) {
+  const out: { weekday: number; start: string; end: string; all: boolean }[] = [];
+  for (let d = 0; d < 5; d++) {
+    const busy = [...a, ...b].filter((c) => c.weekday === d).map((c) => [toMin(c.start), toMin(c.end)]).sort((x, y) => x[0] - y[0]);
+    let t = from;
+    for (const [s, e] of [...busy, [to, to]]) {
+      if (Math.min(s, to) - t >= 60) out.push({ weekday: d, start: toClock(t), end: toClock(Math.min(s, to)), all: !busy.length });
+      t = Math.max(t, e);
+    }
+  }
+  return out;
+}
+
+function FreeTogether({ name, mine, theirs }: { name: string; mine: ClassRow[]; theirs: ClassRow[] }) {
+  const slots = freeTogether(mine, theirs);
+  return (
+    <div className="free-together">
+      <b><Icon name="clock" size={16} /> {name}님과 같이 비는 시간</b>
+      {slots.length ? (
+        <div className="free-chips">
+          {slots.map((f, i) => (
+            <span key={i} className="free-chip"><i>{"월화수목금"[f.weekday]}</i>{f.all ? "종일" : `${f.start}~${f.end}`}</span>
+          ))}
+        </div>
+      ) : <small>평일 9시~6시에 같이 비는 1시간이 없어요</small>}
+    </div>
+  );
+}
+
 export function FriendsScreen() {
   const [tab, setTab] = useState<Tab>("friends");
   const [data, setData] = useState<FriendsData | null>(null);
@@ -74,7 +107,7 @@ function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: Frien
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
-  const [table, setTable] = useState<{ name: string; classes: ClassRow[] } | null>(null);
+  const [table, setTable] = useState<{ name: string; classes: ClassRow[]; mine?: ClassRow[] } | null>(null);
 
   const add = async () => {
     setMsg(""); setBusy(true);
@@ -96,7 +129,11 @@ function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: Frien
   };
   const pair = async (f: Friend, change: object) => { await patch(`/friends/${f.id}/settings`, change).catch(() => {}); reload(); };
   const showTable = async (f: Friend) => {
-    try { setTable(await getJSON(`/friends/${f.id}/timetable`)); }
+    try {
+      const [theirs, mine] = await Promise.all([getJSON<{ name: string; classes: ClassRow[] }>(`/friends/${f.id}/timetable`),
+        getJSON<ClassRow[]>("/timetable").catch(() => [] as ClassRow[])]);
+      setTable({ ...theirs, mine });
+    }
     catch (e) { setMsg(e instanceof Error ? e.message : String(e)); }
   };
   const shareCode = async () => {
@@ -203,6 +240,7 @@ function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: Frien
               <button className="top-bar-back" onClick={() => setTable(null)} aria-label="닫기"><Icon name="x" /></button></div>
             {table.classes.length ? (
               <>
+                {table.mine?.length ? <FreeTogether name={table.name} mine={table.mine} theirs={table.classes} /> : null}
                 <WeekGrid rows={table.classes.map((c, i) => ({ ...c, id: i }))} onPick={() => {}} />
                 <ul className="friend-classes">
                   {table.classes.map((c, i) => <li key={i}><b>{"월화수목금토일"[c.weekday]}</b> {c.start}~{c.end} · {c.course}{c.place ? ` (${c.place})` : ""}</li>)}
