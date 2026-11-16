@@ -46,6 +46,20 @@ class Batch:
     previews: list[dict] = field(default_factory=list)
 
 
+def _grams(text: str) -> set[str]:
+    t = re.sub(r"[^0-9a-z가-힣]", "", text.lower())
+    return {t[i:i + 2] for i in range(len(t) - 1)}
+
+
+def near_duplicate(a: str, b: str, limit: float = 0.5) -> bool:
+    """두 필기가 거의 같은 말인지 (글자 두 개씩 묶은 조각이 얼마나 겹치는지). 실제 강의 필기로 맞춘 기준 0.5"""
+    x, y = _grams(a), _grams(b)
+    if not x or not y:
+        return False
+    common = len(x & y)
+    return max(common / len(x | y), 0.8 * common / min(len(x), len(y))) >= limit
+
+
 def _term_key(term: str) -> str:
     """"SGD (확률적 경사하강법)"과 "sgd"를 같은 용어로 본다."""
     return re.sub(r"\s+|\(.*?\)", "", term).lower()
@@ -245,10 +259,21 @@ class LiveSession:
         if self._worker is None or self._worker.done():
             self._worker = asyncio.create_task(self._drain())
 
+    # 녹음 파일 정리(patient): 기다릴 수 있으니 AI 한도에 걸려도 말을 그대로 필기로 남기지 않고 기다렸다 다시 한다.
+    # 실시간 수업은 지금 바로 보여야 하니 실패하면 임시 필기(교수님 말)를 남긴다.
+    patient = False
+    RETRY_WAITS = (30, 60, 120, 240, 480)
+
     async def _drain(self) -> None:
         while self._queue:
             batch = self._queue.pop(0)
             ok = await self._annotate(batch)
+            for wait in self.RETRY_WAITS if self.patient else ():
+                if ok:
+                    break
+                log.warning("필기 AI 실패: %d초 뒤 다시 (녹음 파일 정리)", wait)
+                await asyncio.sleep(wait)
+                ok = await self._annotate(batch)
             await self._resolve_previews(batch, keep=not ok)
 
     def _send_preview(self, batch: Batch) -> None:
@@ -320,6 +345,11 @@ class LiveSession:
             text = tidy(str(item.get("text", "")))  # "시험에 꼭 나온다" 같은 말은 빼고 내용만 (꼬리표가 보여 줌)
             if not text or item.get("type") not in ANNOTATION_TYPES:
                 continue
+            same_page = by_page.get(item.get("page_no")) or (candidates[0] if len(candidates) == 1 else None)
+            if same_page and item["type"] in ("explanation", "example", "tip") and any(
+                    near_duplicate(text, e["text"]) for e in same_page["existing"]):
+                # 같은 쪽에 거의 같은 필기가 이미 있다 (교수님이 같은 걸 여러 번 설명할 때 필기가 쌓이지 않게). 시험·강조는 남긴다
+                continue
             chosen = by_page.get(item.get("page_no"))
             if len(candidates) == 1:
                 chosen = candidates[0]
@@ -337,6 +367,7 @@ class LiveSession:
                 batch.start_ms,
                 pending=pending,
             )
+            target["existing"].append(annotation)
             # 쪽 추정이 흔들렸던 필기는 확신을 낮게 남겨 화면에 "확인 필요"로 보인다 (후보 여럿 중 AI가 고른 경우)
             confidence = batch.estimate.confidence if len(candidates) > 1 else max(batch.estimate.confidence, 0.8)
             if confidence < 1:

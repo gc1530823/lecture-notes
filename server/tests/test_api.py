@@ -1395,3 +1395,45 @@ def test_resume_unfinished_after_restart(client):
     s = client.get(f"/sessions/{lost}/summary").json()
     assert s["status"] == "failed" and "다시 정리하기" in s["error"]
     assert not m.app.state.db.get_setting(f"resumed:{sid}")
+
+
+def test_near_duplicate_notes_on_same_page_are_skipped():
+    """같은 쪽에 거의 같은 필기는 다시 붙이지 않는다 (실제 강의에서 FIND_IN_SET 설명이 16개 쌓였던 것)"""
+    from app.live_session import near_duplicate
+    assert near_duplicate("FIND_IN_SET(str, list): 쉼표 구분 문자열 목록에서 정확히 일치하는 위치 반환",
+                          "FIND_IN_SET(검색어, 리스트): 쉼표로 구분된 문자열 목록에서 정확히 일치하는 위치 반환, INSTR는 단일 문자열에서 부분 문자열 위치")
+    assert not near_duplicate("FIND_IN_SET: 인수 NULL이면 NULL 반환, 찾지 못하면 0 반환", "RPAD: 오른쪽을 패딩 문자로 채워 길이를 맞춤")
+    assert not near_duplicate("", "아무거나")
+
+
+def test_file_lecture_waits_for_ai_instead_of_keeping_raw_speech(monkeypatch):
+    """녹음 파일 정리는 AI 한도에 걸리면 기다렸다 다시 한다 (말을 그대로 필기로 남기지 않게). 실시간은 바로 임시 필기"""
+    import asyncio
+
+    from app import live_session as ls
+    calls = {"n": 0}
+
+    async def fake_annotate(self, batch):
+        calls["n"] += 1
+        return calls["n"] >= 3
+
+    kept = []
+
+    async def fake_resolve(self, batch, keep):
+        kept.append(keep)
+
+    async def no_sleep(_s):
+        return None
+    monkeypatch.setattr(ls.LiveSession, "_annotate", fake_annotate)
+    monkeypatch.setattr(ls.LiveSession, "_resolve_previews", fake_resolve)
+    monkeypatch.setattr(ls.asyncio, "sleep", no_sleep)
+    s = ls.LiveSession.__new__(ls.LiveSession)
+    s._queue = [object()]
+    s.patient = True
+    asyncio.run(s._drain())
+    assert calls["n"] == 3 and kept == [False]
+    calls["n"] = 0; kept.clear()
+    s._queue = [object()]
+    s.patient = False
+    asyncio.run(s._drain())
+    assert calls["n"] == 1 and kept == [True]

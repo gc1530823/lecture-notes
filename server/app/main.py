@@ -882,6 +882,7 @@ async def _process_audio(session_id: str, document_id: str, path: str) -> None:
 
     # 실시간 강의와 같은 파이프라인에 받아쓰기를 차례로 흘려 넣는다
     live = LiveSession(db(), app.state.llm, db().get_session(session_id), discard)
+    live.patient = True   # 녹음 파일은 기다릴 수 있다: AI 한도에 걸려도 말을 그대로 필기로 남기지 않고 기다렸다 다시
     for seg in segments:
         await live.handle({"type": "transcript_final", "text": seg.text, "start_ms": seg.start_ms, "end_ms": seg.end_ms})
     await live.close()
@@ -944,6 +945,7 @@ async def _renote(session_id: str, document_id: str, segments: list[dict]) -> No
 
     try:
         live = LiveSession(db(), app.state.llm, db().get_session(session_id), discard)
+        live.patient = True   # 다시 만들기도 기다릴 수 있다
         last_page = None
         for seg in segments:
             if seg.get("page_no") and seg["page_no"] != last_page:
