@@ -5,6 +5,7 @@ import { Button, Icon } from "../components/ui";
 import { courseTone } from "../lib/course";
 import { go } from "../router";
 import { useSwipe } from "../lib/swipe";
+import { shareTimetable } from "../lib/native";
 import { haptic } from "../lib/haptic";
 import { askYes } from "../components/Dialog";
 import { Skeleton } from "../lib/motion";
@@ -40,7 +41,7 @@ export function Timetable({ onPick, slot = "top" }: { courses?: string[]; onPick
   const [, tick] = useState(0);
   const [next, setNext] = useState<NextMap>({});
   const load = useCallback(() => {
-    getJSON<ClassRow[]>("/timetable").then(setRows).catch(() => setRows(null));
+    getJSON<ClassRow[]>("/timetable").then((r) => { setRows(r); shareTimetable(r); }).catch(() => setRows(null));
     getJSON<NextMap>("/timetable/next").then(setNext).catch(() => {});
   }, []);
   useEffect(load, [load]);
@@ -159,7 +160,7 @@ export function TimetableEditor({ onPick }: { onPick: (course: string) => void }
   const [form, setForm] = useState({ course: "", weekday: todayIndex(), start: "09:00", end: "10:15", place: "" });
   const [error, setError] = useState("");
   const [courses, setCourses] = useState<string[]>([]);
-  const load = useCallback(() => { getJSON<ClassRow[]>("/timetable").then(setRows).catch(() => setRows([])); }, []);
+  const load = useCallback(() => { getJSON<ClassRow[]>("/timetable").then((r) => { setRows(r); shareTimetable(r); }).catch(() => setRows([])); }, []);
   useEffect(load, [load]);
   useEffect(() => {
     getJSON<{ course?: string }[]>("/documents").then((d) => setCourses([...new Set(d.map((x) => x.course || "").filter(Boolean))])).catch(() => {});

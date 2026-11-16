@@ -257,6 +257,24 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface fun keepScreenOn(on: Boolean) = runOnUiThread { web.keepScreenOn = on }
 
+        /** 홈 화면 위젯용 시간표 (웹이 시간표를 불러올 때마다 넘겨준다) */
+        @JavascriptInterface fun saveTimetable(json: String) {
+            prefs.edit().putString("timetable", json).apply()
+            NextClassWidget.refresh(applicationContext)
+        }
+
+        /** 위 상태바 · 아래 버튼 줄 색을 웹 화면 색에 맞춘다 (밝은/어두운 화면, 화면마다 다른 바탕) */
+        @JavascriptInterface fun statusBar(color: String, light: Boolean) = runOnUiThread {
+            try {
+                val c = android.graphics.Color.parseColor(color)
+                window.statusBarColor = c
+                window.navigationBarColor = c
+                val bars = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+                bars.isAppearanceLightStatusBars = light
+                bars.isAppearanceLightNavigationBars = light
+            } catch (e: Exception) { /* 잘못된 색은 무시 */ }
+        }
+
         /** 매일 hour:minute에 띄울 복습·시험 알림 글 (앱을 열 때마다 웹 화면이 최신 숫자로 바꾼다) */
         @JavascriptInterface fun setReminder(title: String, text: String, hour: Int, minute: Int) = runOnUiThread {
             if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS)

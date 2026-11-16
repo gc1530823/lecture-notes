@@ -1,0 +1,10 @@
+<resources>
+    <!-- 어두운 화면: 위 상태바·아래 버튼 줄도 앱과 같은 어두운 색 (밝은 띠가 튀지 않게) -->
+    <color name="paper">#121220</color>
+    <color name="card">#1C1C2E</color>
+    <color name="soft">#26253C</color>
+    <color name="ink">#F2F1FA</color>
+    <color name="ink2">#ADABC4</color>
+    <color name="accent">#8B7FFF</color>
+    <bool name="light_bars">false</bool>
+</resources>
