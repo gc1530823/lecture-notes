@@ -17,6 +17,7 @@ import { go } from "../router";
 import { getPrefs } from "../lib/prefs";
 import { refreshNotices } from "../lib/notices";
 import { LuneMark, LuneWordmark } from "../components/Brand";
+import { askText, tell } from "../components/Dialog";
 
 
 export function subtitleOf(doc: DocumentBrief): string {
@@ -114,7 +115,7 @@ export default function Home() {
       await reload();
       go({ name: "doc", docId: data.id });
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      tell(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(null);
     }
@@ -132,11 +133,11 @@ export default function Home() {
     xhr.upload.onprogress = (e) => { if (e.lengthComputable) setBusy(`녹음 올리는 중 ${Math.round((e.loaded / e.total) * 100)}%`); };
     xhr.onload = () => {
       setBusy(null);
-      if (xhr.status >= 300) { alert(`올리지 못했어요 (${xhr.status})`); return; }
+      if (xhr.status >= 300) { tell(`올리지 못했어요 (${xhr.status})`); return; }
       const made = JSON.parse(xhr.responseText) as { document_id: string; session_id: string };
       go({ name: "lecture", docId: made.document_id, sessionId: made.session_id });
     };
-    xhr.onerror = () => { setBusy(null); alert("올리지 못했어요. 인터넷 연결을 확인해 주세요."); };
+    xhr.onerror = () => { setBusy(null); tell("올리지 못했어요. 인터넷 연결을 확인해 주세요."); };
     setBusy("녹음 올리는 중…");
     xhr.send(form);
   };
@@ -152,11 +153,11 @@ export default function Home() {
     xhr.upload.onprogress = (e) => { if (e.lengthComputable) setBusy(`녹음 올리는 중 ${Math.round((e.loaded / e.total) * 100)}%`); };
     xhr.onload = () => {
       setBusy(null);
-      if (xhr.status >= 300) { alert(`올리지 못했어요 (${xhr.status})`); return; }
+      if (xhr.status >= 300) { tell(`올리지 못했어요 (${xhr.status})`); return; }
       const made = JSON.parse(xhr.responseText) as { id: string };
       go({ name: "lecture", docId, sessionId: made.id });
     };
-    xhr.onerror = () => { setBusy(null); alert("올리지 못했어요. 인터넷 연결을 확인해 주세요."); };
+    xhr.onerror = () => { setBusy(null); tell("올리지 못했어요. 인터넷 연결을 확인해 주세요."); };
     setBusy("녹음 올리는 중…");
     xhr.send(form);
   };
@@ -179,14 +180,14 @@ export default function Home() {
   };
 
   const newNotebook = async (kind: "notebook" | "meeting" = "notebook", startNow = false) => {
-    const title = prompt(kind === "meeting" ? "회의 이름" : "수업 이름", kind === "meeting" ? "팀 회의" : "새 노트 수업");
+    const title = await askText(kind === "meeting" ? "회의 이름" : "수업 이름", kind === "meeting" ? "팀 회의" : "새 노트 수업");
     if (title === null) return;
     setBusy("노트를 만드는 중…");
     try {
       const doc = await postJSON<{ id: string }>("/documents/notebook", { title, kind, course: filter !== "all" ? filter : "" });
       go(startNow ? { name: "lecture", docId: doc.id } : { name: "doc", docId: doc.id });
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      tell(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(null);
     }

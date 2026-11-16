@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getJSON, postJSON } from "../api/useApi";
 import { Button, Icon } from "../components/ui";
+import { askYes } from "../components/Dialog";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 type Open = "email" | "password" | "recovery" | null;
@@ -151,7 +152,7 @@ export function TrashPanel() {
   useEffect(load, []);
   const restore = async (t: TrashItem) => { await postJSON(`/trash/${t.id}/restore`).catch(() => {}); load(); };
   const purge = async (t: TrashItem) => {
-    if (!confirm(`'${t.title}'을(를) 완전히 지울까요? 녹음·필기도 함께 지워지고 되돌릴 수 없어요.`)) return;
+    if (!await askYes(`'${t.title}'을(를) 완전히 지울까요? 녹음·필기도 함께 지워지고 되돌릴 수 없어요.`)) return;
     await fetch(`${API}/trash/${t.id}`, { method: "DELETE" }).catch(() => {}); load();
   };
   return (
@@ -181,7 +182,7 @@ export function DeleteAccount() {
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const run = async () => {
-    if (!confirm("정말 계정을 지울까요? 강의자료·녹음·필기·시간표·친구가 모두 지워지고 되돌릴 수 없어요.")) return;
+    if (!await askYes("정말 계정을 지울까요? 강의자료·녹음·필기·시간표·친구가 모두 지워지고 되돌릴 수 없어요.")) return;
     setBusy(true); setMsg(null);
     try { await postJSON("/account/delete", { password: pw }); window.location.hash = "#/"; window.location.reload(); }
     catch (e) { setMsg(e instanceof Error ? e.message : String(e)); setBusy(false); }

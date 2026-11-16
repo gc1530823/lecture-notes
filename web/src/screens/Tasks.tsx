@@ -5,11 +5,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getJSON } from "../api/useApi";
 import { Icon, TopBar } from "../components/ui";
+import { useSwipe } from "../lib/swipe";
+import { haptic } from "../lib/haptic";
 import { courseTone } from "../lib/course";
 import SlidingTabs from "../components/SlidingTabs";
 import { TimetableEditor } from "./Timetable";
 import { go } from "../router";
 import { refreshNotices } from "../lib/notices";
+import { askYes } from "../components/Dialog";
+import { Skeleton } from "../lib/motion";
 
 export interface HomeTask {
   id: number; title: string; instructions?: string; due_text: string | null; due_on?: string | null; due_date?: string | null;
@@ -71,8 +75,8 @@ function useTasks() {
     setTasks((list) => list && list.map((x) => (x.id === t.id ? { ...x, checked: true, title: title || x.title } : x)));
     void patch(t.id, title ? { title } : { checked: true });
   };
-  const remove = (t: HomeTask) => {
-    if (!confirm(`'${t.title}'을(를) 할 일에서 지울까요? AI가 잘못 찾은 과제일 때 지워 주세요.`)) return;
+  const remove = async (t: HomeTask) => {
+    if (!await askYes(`'${t.title}'을(를) 할 일에서 지울까요? AI가 잘못 찾은 과제일 때 지워 주세요.`)) return;
     setTasks((list) => list && list.filter((x) => x.id !== t.id));
     void fetch(`${API}/tasks/${t.id}`, { method: "DELETE" });
   };
@@ -194,7 +198,7 @@ function TasksPane() {
   }, [tasks]);
 
   if (!tasks) return (
-    <p className="muted">불러오는 중…</p>
+    <Skeleton />
   );
 
   const toggle = (t: HomeTask, done: boolean) => { kept.add(t.id); setDone(t, done); };
@@ -292,12 +296,14 @@ function TasksPane() {
 /** '일정' 탭: 시간표 · 할 일 (아래 탭 하나로 묶었다) */
 export function ScheduleScreen({ view }: { view: "timetable" | "tasks" }) {
   const [tab, setTab] = useState(view);
+  // 좌우로 밀어 시간표 ↔ 할 일 (시간표 칸 안에서 밀면 주가 넘어간다)
+  const swipe = useSwipe(() => { if (tab === "timetable") { setTab("tasks"); haptic("light"); } }, () => { if (tab === "tasks") { setTab("timetable"); haptic("light"); } });
   return (
     <div className="screen schedule">
       <TopBar title="일정" />
       <div className="screen-body">
-        <SlidingTabs label="일정 보기" value={tab} onChange={setTab} items={[["timetable", "시간표"], ["tasks", "할 일"]] as const} />
-        <div key={tab} className="pane-in">{tab === "timetable"
+        <SlidingTabs label="일정 보기" value={tab} onChange={setTab} items={[["timetable", <><Icon name="calendar-dots" size={18} />시간표</>], ["tasks", <><Icon name="check-circle" size={18} />할 일</>]] as const} />
+        <div key={tab} className={`pane-in ${tab === "tasks" ? "from-right" : "from-left"}`} {...swipe}>{tab === "timetable"
           ? <TimetableEditor onPick={(course) => { try { localStorage.setItem("ln.course", course); } catch { /* 괜찮다 */ } go({ name: "home" }); }} />
           : <TasksPane />}</div>
       </div>

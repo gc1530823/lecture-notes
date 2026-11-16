@@ -8,6 +8,7 @@ import { ConfusedPane } from "./ExamPrep";
 import QuizCards from "./QuizCards";
 import SlidingTabs from "../components/SlidingTabs";
 import { useSwipe } from "../lib/gesture";
+import { Skeleton } from "../lib/motion";
 
 // 공부 탭은 세 가지만: 퀴즈(AI가 내고 채점) · 외우기(플래시카드 + 빈칸) · 질문하기(헷갈린 곳 + AI 튜터)
 const KINDS = [["quiz", "퀴즈"], ["memorize", "외우기"], ["ask", "AI 튜터"]] as const;
@@ -89,7 +90,7 @@ function AIStudy<T>({ sessionId, kind, render }: { sessionId: string; kind: stri
   };
 
   if (error) return <Empty icon="warning-circle">{error}</Empty>;
-  if (!state) return <p className="muted">불러오는 중…</p>;
+  if (!state) return <Skeleton />;
   if (state.status === "building")
     return <Empty icon="sparkle">AI가 만드는 중이에요{state.total ? ` · ${state.done}/${state.total}쪽` : "…"}</Empty>;
   if (state.status !== "ready" || state.body === null)
@@ -166,7 +167,7 @@ function MindMap({ root }: { root: MindNode }) {
 function SummaryPane({ sessionId }: { sessionId: string }) {
   const { data } = useApi<SummaryResponse>(`/sessions/${sessionId}/summary`);
   const { data: terms } = useApi<{ term: string }[]>(`/sessions/${sessionId}/glossary`);
-  if (!data) return <p className="muted">불러오는 중…</p>;
+  if (!data) return <Skeleton />;
   const s = data.summary;
   if (!s) return <Empty icon="clock">강의가 끝나면 요약이 만들어져요</Empty>;
   return (
@@ -194,7 +195,7 @@ function SummaryPane({ sessionId }: { sessionId: string }) {
 function Cloze({ sessionId }: { sessionId: string }) {
   const { data } = useApi<StudyResponse<ClozeItem[]>>(`/sessions/${sessionId}/study/cloze`);
   const [shown, setShown] = useState<Set<number>>(new Set());
-  if (!data) return <p className="muted">불러오는 중…</p>;
+  if (!data) return <Skeleton />;
   const items = data.body ?? [];
   if (items.length === 0) return <Empty icon="brain">빈칸으로 낼 문장이 아직 없어요</Empty>;
   return (

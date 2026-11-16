@@ -14,6 +14,8 @@ import { ConsentSheet } from "./ExamPrep";
 import { loadPdf, renderPage, type PdfDoc } from "../lib/pdf";
 import { Button, Chip, Icon, NOTE_LABEL, PostIt, TermCard, TopBar } from "../components/ui";
 import { back as goBack, go } from "../router";
+import { askYes, tell } from "../components/Dialog";
+import { Skeleton } from "../lib/motion";
 
 const FOLLOW_CONFIDENCE = 0.6;
 const MANUAL_PAUSE_MS = 20_000;
@@ -531,7 +533,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
 
   const editNote = (note: Note) => { if (!note.preview) setSheet({ edit: note.id }); };
   const deleteNote = async (note: Note) => {
-    if (!confirm("이 필기를 지울까요?")) return;
+    if (!await askYes("이 필기를 지울까요?")) return;
     try {
       await fetch(`${import.meta.env.VITE_API_URL ?? ""}/annotations/${note.id}`, { method: "DELETE" });
       setNotes((n) => n.filter((x) => x.id !== note.id));
@@ -567,7 +569,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
 
   // --- 그리기 ---
   if (error) return <div className="screen"><TopBar title="강의" onBack={() => goBack({ name: "doc", docId })} /><p className="screen-body muted">{error}</p></div>;
-  if (!doc) return <div className="screen"><TopBar title="불러오는 중…" onBack={() => goBack({ name: "doc", docId })} /></div>;
+  if (!doc) return <div className="screen"><TopBar title="" onBack={() => goBack({ name: "doc", docId })} /><div className="screen-body"><Skeleton lines={5} /></div></div>;
 
   const recording = phase === "recording";
   const notebook = doc.kind === "notebook" || doc.kind === "meeting";
@@ -576,8 +578,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const pending = notes.filter((n) => n.pending);
   const pageInfo = doc.pages[page - 1];
 
-  const back = () => {
-    if (recording && !confirm("녹음을 멈추고 나갈까요?")) return;
+  const back = async () => {
+    if (recording && !await askYes("녹음을 멈추고 나갈까요?")) return;
     // 뒤로 = 들어온 화면으로 (끝난 강의에서 필기 화면으로 '앞으로' 보내면 두 화면 사이를 끝없이 오가서 홈으로 못 갔다)
     goBack({ name: "doc", docId });
   };
@@ -735,7 +737,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
             <span className="t-caption muted grow">정리하지 못했어요. 녹음은 저장돼 있어요.{serverStatus.error && <><br /><span className="retry-why">{serverStatus.error}</span></>}</span>
             <button className="chip chip-accent" onClick={async () => {
               try { await postJSON(`/sessions/${sessionId}/retry`); window.location.reload(); }
-              catch (e) { alert(e instanceof Error ? e.message : String(e)); }
+              catch (e) { tell(e instanceof Error ? e.message : String(e)); }
             }}>다시 정리하기</button>
           </div>
         )}
@@ -1088,7 +1090,7 @@ function SourceSheet({ sessionId, note, canPlay, onPlay }: { sessionId: string; 
       <h3 className="t-title-m">근거 보기</h3>
       <PostIt type={note.type}>{note.text}</PostIt>
       <span className="t-caption muted">이 필기 무렵 교수님이 한 말 {note.edited_by_user ? "· 직접 쓰거나 고친 필기예요" : ""}</span>
-      {!segments && <p className="muted">불러오는 중…</p>}
+      {!segments && <Skeleton />}
       {segments && near.length === 0 && <p className="muted">이 무렵 받아쓴 말이 없어요.</p>}
       <div className="source-list">
         {near.map((s, i) => (

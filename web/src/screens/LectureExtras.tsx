@@ -4,6 +4,7 @@ import { PdfViewer } from "../components/PdfViewer";
 import { getJSON, postJSON } from "../api/useApi";
 import type { Task } from "../lib/live";
 import { Button, Chip, Icon } from "../components/ui";
+import { askYes, tell } from "../components/Dialog";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -198,21 +199,21 @@ export function StudyNotePdf({ sessionId }: { sessionId: string }) {
 export function LectureMore({ sessionId, onDeleted }: { sessionId: string; onDeleted: () => void }) {
   const [busy, setBusy] = useState(false);
   const remove = async () => {
-    if (!confirm("이 강의를 지울까요? 녹음, 받아쓰기, 필기, 요약, 퀴즈가 모두 지워져요. 강의자료(PDF)는 남아요. 되돌릴 수 없어요.")) return;
+    if (!await askYes("이 강의를 지울까요? 녹음, 받아쓰기, 필기, 요약, 퀴즈가 모두 지워져요. 강의자료(PDF)는 남아요. 되돌릴 수 없어요.")) return;
     setBusy(true);
     try {
       const res = await fetch(`${API}/sessions/${sessionId}`, { method: "DELETE" });
       if (!res.ok && res.status !== 204) throw new Error("지우지 못했어요");
       onDeleted();
-    } catch (e) { alert(e instanceof Error ? e.message : String(e)); setBusy(false); }
+    } catch (e) { tell(e instanceof Error ? e.message : String(e)); setBusy(false); }
   };
   const redo = async () => {
-    if (!confirm("녹음부터 다시 받아쓸까요? AI 필기·요약도 새로 만들어요. 내가 쓴 필기는 남아요.")) return;
+    if (!await askYes("녹음부터 다시 받아쓸까요? AI 필기·요약도 새로 만들어요. 내가 쓴 필기는 남아요.")) return;
     setBusy(true);
     try {
       await postJSON(`/sessions/${sessionId}/retranscribe`);
       window.location.reload();
-    } catch (e) { alert(e instanceof Error ? e.message : String(e)); setBusy(false); }
+    } catch (e) { tell(e instanceof Error ? e.message : String(e)); setBusy(false); }
   };
   return (
     <>

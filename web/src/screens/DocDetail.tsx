@@ -10,6 +10,7 @@ import { getJSON } from "../api/useApi";
 import { useEffect } from "react";
 import { back, go } from "../router";
 import { subtitleOf } from "./Home";
+import { askText, askYes, tell } from "../components/Dialog";
 
 const STATUS: Record<string, string> = { recording: "녹음 중", transcribing: "받아쓰는 중", processing: "정리 중", done: "정리 끝", failed: "정리 실패" };
 const API = import.meta.env.VITE_API_URL ?? "";
@@ -34,18 +35,18 @@ export default function DocDetail({ docId }: { docId: string }) {
     xhr.upload.onprogress = (e) => { if (e.lengthComputable) setUpload(`올리는 중… ${Math.round((e.loaded / e.total) * 100)}%`); };
     xhr.onload = () => {
       setUpload(null);
-      if (xhr.status >= 300) return alert(`올리지 못했어요 (${xhr.status})`);
+      if (xhr.status >= 300) return tell(`올리지 못했어요 (${xhr.status})`);
       go({ name: "lecture", docId, sessionId: JSON.parse(xhr.responseText).id });
     };
-    xhr.onerror = () => { setUpload(null); alert("올리지 못했어요. 인터넷 연결을 확인해 주세요."); };
+    xhr.onerror = () => { setUpload(null); tell("올리지 못했어요. 인터넷 연결을 확인해 주세요."); };
     setUpload("올리는 중…");
     xhr.send(form);
   };
 
   const remove = async () => {
-    if (!confirm("이 강의자료를 휴지통으로 옮길까요? 7일 안에는 설정 › 휴지통에서 되살릴 수 있어요.")) return;
+    if (!await askYes("이 강의자료를 휴지통으로 옮길까요? 7일 안에는 설정 › 휴지통에서 되살릴 수 있어요.")) return;
     const res = await fetch(`${API}/documents/${docId}`, { method: "DELETE" });
-    if (res.ok) go({ name: "home" }); else alert("지우지 못했어요");
+    if (res.ok) go({ name: "home" }); else tell("지우지 못했어요");
   };
 
   return (
@@ -70,7 +71,7 @@ export default function DocDetail({ docId }: { docId: string }) {
             <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
               <span className="t-caption muted grow">{subtitleOf(doc)}</span>
               <Chip variant="accent" onClick={async () => {
-                const course = prompt("과목 이름 (비우면 과목 없음)", doc.course ?? "");
+                const course = await askText("과목 이름 (비우면 과목 없음)", doc.course ?? "");
                 if (course === null) return;
                 await fetch(`${API}/documents/${docId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ course }) });
                 reloadDocs();

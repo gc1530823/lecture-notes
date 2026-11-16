@@ -7,6 +7,8 @@ import { Button, Icon, TopBar } from "../components/ui";
 import { go } from "../router";
 import { Switch } from "./ExamPrep";
 import { WeekGrid, type ClassRow } from "./Timetable";
+import { askYes } from "../components/Dialog";
+import { Skeleton } from "../lib/motion";
 
 /** 받침이 있으면 '을', 없으면 '를' (운영체제를 · 자료구조를 · 컴퓨터공학을) */
 const withEul = (w: string) => {
@@ -147,7 +149,7 @@ function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: Frien
     await postJSON(`/friends/${f.id}/accept`).catch(() => {}); navigator.vibrate?.(15); reload(); onBecameFriends(f.name);
   };
   const remove = async (f: Friend, ask: string) => {
-    if (ask && !confirm(ask)) return;
+    if (ask && !await askYes(ask)) return;
     await fetch(`${API}/friends/${f.id}`, { method: "DELETE" }).catch(() => {});
     setOpen(null); reload();
   };
@@ -287,7 +289,7 @@ function JokboTab({ prefs, onSettings }: { prefs: Prefs; onSettings: () => void 
   useEffect(load, [load]);
   const flag = async (d: JokboDoc, change: object) => { await patch(`/documents/${d.doc_id}/friends`, change).catch(() => {}); load(); };
   const dropFile = async (id: number, who: string) => {
-    if (!confirm(`${who}에게 받은 족보 파일을 뺄까요?`)) return;
+    if (!await askYes(`${who}에게 받은 족보 파일을 뺄까요?`)) return;
     await fetch(`${API}/shared/${id}`, { method: "DELETE" }).catch(() => {});
     load();
   };
@@ -299,7 +301,7 @@ function JokboTab({ prefs, onSettings }: { prefs: Prefs; onSettings: () => void 
         {!prefs.merge_jokbo && " 지금 친구 족보 합치기를 꺼 뒀어요."}
         {(!prefs.share_jokbo || !prefs.merge_jokbo) && <button className="link" onClick={onSettings}> 공개 설정 바꾸기</button>}
       </p>
-      {!docs && <p className="muted">불러오는 중…</p>}
+      {!docs && <Skeleton />}
       {docs && docs.length === 0 && <p className="friend-empty">아직 녹음한 강의가 없어요.</p>}
       {docs?.map((d) => (
         <section key={d.doc_id} className="jokbo-doc">

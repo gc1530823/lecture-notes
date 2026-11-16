@@ -4,6 +4,10 @@ import { getJSON, postJSON } from "../api/useApi";
 import { Button, Icon } from "../components/ui";
 import { courseTone } from "../lib/course";
 import { go } from "../router";
+import { useSwipe } from "../lib/swipe";
+import { haptic } from "../lib/haptic";
+import { askYes } from "../components/Dialog";
+import { Skeleton } from "../lib/motion";
 
 export interface ClassRow { id: number; course: string; weekday: number; start: string; end: string; place: string }
 
@@ -171,11 +175,11 @@ export function TimetableEditor({ onPick }: { onPick: (course: string) => void }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
   const remove = async (r: ClassRow) => {
-    if (!confirm(`${DAYS[r.weekday]}요일 ${r.start} ${r.course}을(를) 시간표에서 뺄까요?`)) return;
+    if (!await askYes(`${DAYS[r.weekday]}요일 ${r.start} ${r.course}을(를) 시간표에서 뺄까요?`)) return;
     await fetch((import.meta.env.VITE_API_URL ?? "") + `/timetable/${r.id}`, { method: "DELETE" });
     changed();
   };
-  if (!rows) return <p className="muted">불러오는 중…</p>;
+  if (!rows) return <Skeleton />;
 
   return (
     <div className="tt-screen">
@@ -357,17 +361,20 @@ export function WeekGrid({ rows, onPick, dated = false }: { rows: ClassRow[]; on
   const mid = dateOf(3);
   const busy = new Set(rows.map((r) => r.weekday));
   const showNow = thisWeek && today < days && nowMin >= from * 60 && nowMin <= to * 60;
+  const [dir, setDir] = useState<"" | "next" | "prev">("");
+  const move = (by: number) => { setDir(by > 0 ? "next" : "prev"); setWeek((w) => (by === 0 ? 0 : w + by)); haptic("light"); };
+  const swipe = useSwipe(() => move(1), () => move(-1), "week");
   return (
-    <div className="tt-wrap">
+    <div className="tt-wrap" {...(dated ? { ...swipe, "data-swipe": "week" } : {})}>
       {dated && (
         <>
           <div className="tt-nav">
-            <button className="tt-arrow" onClick={() => setWeek(week - 1)} aria-label="지난주"><Icon name="caret-left" size={18} /></button>
+            <button className="tt-arrow" onClick={() => move(-1)} aria-label="지난주"><Icon name="caret-left" size={18} /></button>
             <b className="tt-month">{mid.getFullYear()}년 {mid.getMonth() + 1}월</b>
-            <button className={`tt-today-btn${thisWeek ? " on" : ""}`} onClick={() => setWeek(0)} disabled={thisWeek}>오늘</button>
-            <button className="tt-arrow" onClick={() => setWeek(week + 1)} aria-label="다음 주"><Icon name="caret-right" size={18} /></button>
+            <button className={`tt-today-btn${thisWeek ? " on" : ""}`} onClick={() => { setDir(week > 0 ? "prev" : "next"); setWeek(0); haptic("light"); }} disabled={thisWeek}>오늘</button>
+            <button className="tt-arrow" onClick={() => move(1)} aria-label="다음 주"><Icon name="caret-right" size={18} /></button>
           </div>
-          <div className="tt-dates" style={{ gridTemplateColumns: `repeat(${days}, 1fr)` }}>
+          <div key={week} className={`tt-dates ${dir}`} style={{ gridTemplateColumns: `repeat(${days}, 1fr)` }}>
             {DAYS.slice(0, days).map((d, i) => (
               <span key={d} className={`tt-date${i === today ? " today" : ""}`}>
                 <small>{d}</small><b>{dateOf(i).getDate()}</b>

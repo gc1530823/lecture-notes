@@ -5,6 +5,7 @@ import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { Button, Chip, Empty, Icon, ListItem, TopBar } from "../components/ui";
 import { back, go } from "../router";
+import { askYes, tell } from "../components/Dialog";
 
 interface Occurrence { doc_id: string; doc_title: string; session_id: string; page_no: number | null; start_ms: number; started_at: number }
 interface Node { id: string; term: string; definition: string; occurrences: Occurrence[]; docs: string[]; count: number; links: number }
@@ -211,10 +212,10 @@ function Exams() {
       await reload();
       setOpen(e.id);
       setForm({ title: "중간고사", date: "", docs: [] });
-    } catch (err) { alert(err instanceof Error ? err.message : String(err)); }
+    } catch (err) { tell(err instanceof Error ? err.message : String(err)); }
   };
   const remove = async (id: number) => {
-    if (!confirm("이 시험 계획을 지울까요?")) return;
+    if (!await askYes("이 시험 계획을 지울까요?")) return;
     await fetch(`${import.meta.env.VITE_API_URL ?? ""}/exams/${id}`, { method: "DELETE" });
     setOpen(null);
     await reload();

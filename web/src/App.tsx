@@ -18,13 +18,13 @@ import TabBar from "./components/TabBar";
 import Login, { type Me } from "./screens/Login";
 import { useEffect, useState } from "react";
 import { getJSON } from "./api/useApi";
+import { DialogHost } from "./components/Dialog";
 
 export default function App() {
   // 관리자 페이지는 사용자 로그인과 따로 (관리자 비밀번호)
   const [hash, setHash] = useState(window.location.hash);
   useEffect(() => { const on = () => setHash(window.location.hash); window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
-  if (hash.startsWith("#/admin")) return <AdminScreen />;
-  return <UserApp />;
+  return <>{hash.startsWith("#/admin") ? <AdminScreen /> : <UserApp />}<DialogHost /></>;
 }
 
 function UserApp() {

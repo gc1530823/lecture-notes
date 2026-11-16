@@ -972,13 +972,14 @@ body:has(.tabbar) .screen { padding-bottom: calc(72px + env(safe-area-inset-bott
 .grade-label small { font: 500 11px/14px var(--font-sans); opacity: .75; }
 
 /* ── 움직임 더하기: 미끄러지는 탭 · 밀어 넘기는 카드 · 넘어가는 배너 ── */
-.slide-tabs { position: relative; display: flex; gap: 2px; padding: 4px; border-radius: 16px; background: var(--fill-soft); overflow: hidden; }
+.slide-tabs { position: relative; display: flex; gap: 2px; padding: 4px; border-radius: 18px; background: var(--bg-card); box-shadow: var(--shadow-card); overflow: hidden; }
 .slide-tabs.scroll { overflow-x: auto; scrollbar-width: none; }
 .slide-tabs.scroll::-webkit-scrollbar { display: none; }
-.slide-tabs button { position: relative; z-index: 1; flex: 1 0 auto; padding: 9px 14px; border: 0; border-radius: 12px; background: none; color: var(--text-secondary); font: 600 14px/20px var(--font-sans); white-space: nowrap; cursor: pointer; transition: color .25s; }
+.slide-tabs button { position: relative; z-index: 1; flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 14px; border: 0; border-radius: 12px; background: none; color: var(--text-secondary); font: 600 14px/20px var(--font-sans); white-space: nowrap; cursor: pointer; transition: color .25s; }
 .slide-tabs:not(.scroll) button { flex: 1 1 0; }
-.slide-tabs button.on { color: var(--accent-primary); font-weight: 700; }
-.slide-pill { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; border-radius: 12px; background: var(--bg-card); box-shadow: 0 2px 8px rgb(60 50 140 / .12);
+.slide-tabs button.on { color: var(--text-on-accent); font-weight: 700; }
+.slide-pill { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; border-radius: 14px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 82%, #a78bfa), var(--accent-primary)); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 35%, transparent);
   transition: transform .42s cubic-bezier(.3,1.35,.5,1), width .42s cubic-bezier(.3,1.35,.5,1); }
 
 .swipe-card { touch-action: pan-y; user-select: none; will-change: transform; }
@@ -1672,3 +1673,25 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .cal-day:not(.cleared) .cal-count:not(:empty) { background: color-mix(in srgb, var(--accent-primary) 14%, transparent); color: var(--accent-deep); }
 .cal-day.late .cal-count { background: color-mix(in srgb, var(--accent-record) 16%, transparent); color: var(--accent-record); }
 .cal-day.cleared .cal-count { color: var(--leaf); }
+
+/* ── 확인 시트 · 짧은 알림 (브라우저 기본 창 대신) ── */
+.sheet-grip { align-self: center; width: 40px; height: 5px; border-radius: 99px; background: var(--border-line); margin: -8px 0 4px; }
+.ask-sheet { gap: 10px; padding-top: 18px; }
+.ask-title { font: 800 18px/25px var(--font-sans); letter-spacing: -.02em; color: var(--text-primary); white-space: pre-line; }
+.ask-body { margin: 0; font: 500 14px/21px var(--font-sans); color: var(--text-secondary); white-space: pre-line; }
+.ask-sheet .input { margin-top: 4px; }
+.ask-buttons { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-top: 8px; }
+.ask-buttons .btn { min-height: 50px; }
+.btn-danger { background: var(--accent-record); color: #fff; }
+.toasts { position: fixed; left: 0; right: 0; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+.toast-pill { max-width: calc(100% - 40px); padding: 11px 18px; border-radius: 16px; background: color-mix(in srgb, var(--text-primary) 92%, transparent); color: var(--bg-paper);
+  font: 600 13.5px/19px var(--font-sans); box-shadow: 0 8px 24px rgb(20 10 60 / .25); backdrop-filter: blur(8px); animation: toast-in .35s var(--ease-bounce) both; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(12px) scale(.96); } }
+/* 주 넘기기 · 탭 밀기: 넘긴 쪽에서 들어온다 */
+.tt-dates.next { animation: slide-from-right .32s var(--ease-out); }
+.tt-dates.prev { animation: slide-from-left .32s var(--ease-out); }
+.schedule .pane-in.from-right { animation: slide-from-right .3s var(--ease-out); }
+.schedule .pane-in.from-left { animation: slide-from-left .3s var(--ease-out); }
+@keyframes slide-from-right { from { opacity: 0; transform: translateX(28px); } }
+@keyframes slide-from-left { from { opacity: 0; transform: translateX(-28px); } }
+@media (prefers-reduced-motion: reduce) { .tt-dates.next, .tt-dates.prev, .schedule .pane-in.from-right, .schedule .pane-in.from-left { animation: none; } }

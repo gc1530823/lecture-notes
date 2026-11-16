@@ -10,6 +10,8 @@ import { Button, Chip, Empty, Icon, PostIt, TermCard, TopBar } from "../componen
 import { android } from "../lib/live";
 import { getPrefs, setPrefs, type Prefs } from "../lib/prefs";
 import { back, go } from "../router";
+import { askText, askYes, tell } from "../components/Dialog";
+import { Skeleton } from "../lib/motion";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -346,7 +348,7 @@ export function PrivacyScreen() {
   const change = (c: Partial<Prefs>) => setP(setPrefs(c));
 
   const wipe = async () => {
-    if (!docs?.length || !confirm(`강의자료 ${docs.length}개와 그 녹음·필기·복습 기록을 모두 지울까요? 되돌릴 수 없어요.`)) return;
+    if (!docs?.length || !await askYes(`강의자료 ${docs.length}개와 그 녹음·필기·복습 기록을 모두 지울까요? 되돌릴 수 없어요.`)) return;
     setBusy(true);
     for (const d of docs) await fetch(`${API}/documents/${d.id}?purge=true`, { method: "DELETE" }).catch(() => {});
     try { localStorage.removeItem("ln.consent"); } catch { /* 괜찮다 */ }
@@ -354,7 +356,7 @@ export function PrivacyScreen() {
     setBusy(false);
   };
   const logout = async () => {
-    if (!confirm("로그아웃할까요? 자료는 서버에 그대로 있어요.")) return;
+    if (!await askYes("로그아웃할까요? 자료는 서버에 그대로 있어요.")) return;
     await postJSON("/auth/logout").catch(() => {});
     window.location.hash = "#/";
     window.location.reload();
@@ -426,7 +428,7 @@ export function PrivacyScreen() {
           <SettingRow icon="question" title="내 녹음과 자료는 어디로 가나요?" sub={showFacts ? undefined : "받아쓰기 · AI · 저장 위치 보기"} onClick={() => setShowFacts((v) => !v)} />
           {showFacts && <div className="set-facts"><PrivacyFacts info={info} /></div>}
           <SettingRow icon="arrow-counter-clockwise" title="녹음 동의 다시 받기" sub="다음 녹음 때 안내를 다시 보여 줘요"
-            onClick={() => { try { localStorage.removeItem("ln.consent"); } catch { /* 괜찮다 */ } alert("다음 녹음 때 다시 물어볼게요."); }} />
+            onClick={() => { try { localStorage.removeItem("ln.consent"); } catch { /* 괜찮다 */ } tell("다음 녹음 때 다시 물어볼게요."); }} />
           <SettingRow icon="trash" danger title={busy ? "지우는 중…" : "내 자료 모두 지우기"} sub={docs?.length ? `강의자료 ${docs.length}개와 녹음·필기·복습 기록` : "지울 자료가 없어요"}
             onClick={busy || !docs?.length ? undefined : () => void wipe()} />
           <UsagePanel />
@@ -461,11 +463,11 @@ export function ConfusedPane({ sessionId }: { sessionId: string }) {
     try {
       const m = await postJSON<NonNullable<typeof marks>[number]>(`/marks/${id}/explain`);
       setMarks((all) => all?.map((x) => (x.id === id ? m : x)) ?? null);
-    } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { tell(e instanceof Error ? e.message : String(e)); }
     setBusy(null);
   };
 
-  if (!marks) return <p className="muted">불러오는 중…</p>;
+  if (!marks) return <Skeleton />;
   if (marks.length === 0) return <Empty icon="hand-palm">수업 중 "모르겠어요"를 누른 곳이 여기에 모여요</Empty>;
   return (
     <>
@@ -490,9 +492,9 @@ function ShareBox({ docId, friends }: { docId: string; friends: string[] }) {
   const [busy, setBusy] = useState(false);
 
   const exportFile = async () => {
-    const nickname = prompt("친구에게 보일 내 이름", "") ?? "";
+    const nickname = await askText("친구에게 보일 내 이름", "") ?? "";
     const res = await fetch(`${API}/documents/${docId}/share?nickname=${encodeURIComponent(nickname)}`);
-    if (!res.ok) return alert("족보 파일을 만들지 못했어요");
+    if (!res.ok) return tell("족보 파일을 만들지 못했어요");
     const data = await res.json();
     const name = `${data.title} 족보${nickname ? ` (${nickname})` : ""}.json`;
     const app = android();
@@ -507,14 +509,14 @@ function ShareBox({ docId, friends }: { docId: string; friends: string[] }) {
     setBusy(true);
     try {
       const share = JSON.parse(await file.text());
-      const nickname = prompt("이 족보를 보낸 친구 이름", share.nickname || "친구") ?? "친구";
+      const nickname = await askText("이 족보를 보낸 친구 이름", share.nickname || "친구") ?? "친구";
       const res = await fetch(`${API}/documents/${docId}/shared`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nickname, share }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body?.detail ?? "합치지 못했어요");
       window.location.reload();
-    } catch (e) { alert(e instanceof Error ? e.message : "족보 파일을 읽지 못했어요"); }
+    } catch (e) { tell(e instanceof Error ? e.message : "족보 파일을 읽지 못했어요"); }
     setBusy(false);
   };
 

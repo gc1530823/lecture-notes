@@ -9,6 +9,7 @@ import Study, { ConceptExplain, Organize } from "./Study";
 import { StoryEntry } from "./Story";
 import { Skeleton } from "../lib/motion";
 import SlidingTabs from "../components/SlidingTabs";
+import { askYes, tell } from "../components/Dialog";
 
 const TABS = [["notes", "필기"], ["organize", "정리"], ["study", "공부"], ["glossary", "용어"]] as const;
 
@@ -144,7 +145,7 @@ function ExportRow({ sessionId }: { sessionId: string }) {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2500);
-    } catch { alert("복사하지 못했어요. Markdown 받기를 써 주세요."); }
+    } catch { tell("복사하지 못했어요. Markdown 받기를 써 주세요."); }
   };
   return (
     <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
@@ -203,18 +204,18 @@ function Renote({ sessionId }: { sessionId: string }) {
   const [snap, setSnap] = useState<{ notes: number; now: number } | null>(null);
   useEffect(() => { getJSON<typeof snap>(`/sessions/${sessionId}/snapshot`).then(setSnap).catch(() => {}); }, [sessionId]);
   const run = async () => {
-    if (!confirm("AI 필기를 처음부터 다시 만들까요?\n내가 쓰거나 고친 필기, 사진, 질문은 그대로 남아요. 지금 AI 필기는 보관해 두니 마음에 안 들면 되돌릴 수 있어요. (1~3분)")) return;
+    if (!await askYes("AI 필기를 처음부터 다시 만들까요?\n내가 쓰거나 고친 필기, 사진, 질문은 그대로 남아요. 지금 AI 필기는 보관해 두니 마음에 안 들면 되돌릴 수 있어요. (1~3분)")) return;
     setBusy(true);
     try {
       await postJSON(`/sessions/${sessionId}/renote`);
       window.location.hash = `#/doc/${encodeURIComponent(location.hash.split("/")[2] ?? "")}/lecture/${sessionId}`;
-    } catch (e) { alert(e instanceof Error ? e.message : String(e)); setBusy(false); }
+    } catch (e) { tell(e instanceof Error ? e.message : String(e)); setBusy(false); }
   };
   const undo = async () => {
-    if (!confirm(`다시 만들기 전 AI 필기 ${snap!.notes}개로 되돌릴까요? 지금 AI 필기 ${snap!.now}개는 지워져요. 내가 쓴 필기는 그대로예요.`)) return;
+    if (!await askYes(`다시 만들기 전 AI 필기 ${snap!.notes}개로 되돌릴까요? 지금 AI 필기 ${snap!.now}개는 지워져요. 내가 쓴 필기는 그대로예요.`)) return;
     setBusy(true);
     try { await postJSON(`/sessions/${sessionId}/undo-renote`); window.location.reload(); }
-    catch (e) { alert(e instanceof Error ? e.message : String(e)); setBusy(false); }
+    catch (e) { tell(e instanceof Error ? e.message : String(e)); setBusy(false); }
   };
   return (
     <div className="renote-row">

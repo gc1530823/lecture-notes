@@ -5,6 +5,8 @@ import { getJSON, postJSON } from "../api/useApi";
 import { Button, Icon } from "../components/ui";
 import { LuneMark } from "../components/Brand";
 import { OwnerAccountTools } from "./Account";
+import { askYes } from "../components/Dialog";
+import { Skeleton } from "../lib/motion";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -35,7 +37,7 @@ export function AdminScreen() {
         <a className="chip chip-default" href="#/">앱으로</a>
       </header>
       <div className="screen-body">
-        {!status && <p className="muted">불러오는 중…</p>}
+        {!status && <Skeleton />}
         {status && !status.logged_in && <AdminGate status={status} onDone={load} />}
         {status?.logged_in && <AdminDashboard onLogout={load} />}
       </div>
@@ -88,7 +90,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   useEffect(load, [load]);
   const run = async (fn: () => Promise<void>) => { setMsg(null); try { await fn(); } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); } };
   if (error) return <p className="muted">{error}</p>;
-  if (!data) return <p className="muted">불러오는 중…</p>;
+  if (!data) return <Skeleton />;
   const s = data.server, ai = data.ai;
   const ok = (good: boolean) => <span className={`admin-dot ${good ? "good" : "bad"}`} />;
   return (
@@ -125,7 +127,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               <span><b>{u.name}</b></span><span>{day(u.created_at)}</span><span>{u.docs} · {u.lectures}</span><span>{u.has_email ? "있음" : "-"}</span>
               <span className="admin-actions">
                 <button className="chip chip-default" onClick={() => void run(async () => setReset(await postJSON("/admin/reset-code", { name: u.name })))}>초기화 코드</button>
-                <button className="chip chip-default" onClick={() => void run(async () => { if (!confirm(`${u.name}님의 모든 기기 로그인을 끊을까요?`)) return; await postJSON(`/admin/users/${u.id}/logout`); setMsg(`${u.name}님 로그인을 끊었어요.`); })}>로그인 끊기</button>
+                <button className="chip chip-default" onClick={() => void run(async () => { if (!await askYes(`${u.name}님의 모든 기기 로그인을 끊을까요?`)) return; await postJSON(`/admin/users/${u.id}/logout`); setMsg(`${u.name}님 로그인을 끊었어요.`); })}>로그인 끊기</button>
               </span>
             </div>
           ))}
@@ -160,7 +162,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             <button className="chip chip-accent" onClick={() => void navigator.clipboard?.writeText(migrate.code).catch(() => {})}>복사</button>
           </div>
         ) : (
-          <Button variant="secondary" onClick={() => void run(async () => { if (!confirm("옮기기 코드를 만들까요? 이 코드를 아는 서버는 모든 자료를 가져갈 수 있어요.")) return; setMigrate(await postJSON("/admin/migrate")); })}>옮기기 코드 만들기</Button>
+          <Button variant="secondary" onClick={() => void run(async () => { if (!await askYes("옮기기 코드를 만들까요? 이 코드를 아는 서버는 모든 자료를 가져갈 수 있어요.")) return; setMigrate(await postJSON("/admin/migrate")); })}>옮기기 코드 만들기</Button>
         )}
       </section>
 
