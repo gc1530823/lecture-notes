@@ -16,9 +16,10 @@ import Session from "./screens/Session";
 import { href, useRoute } from "./router";
 import TabBar from "./components/TabBar";
 import Login, { type Me } from "./screens/Login";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getJSON } from "./api/useApi";
 import { DialogHost } from "./components/Dialog";
+import { PullRefresh } from "./components/PullRefresh";
 
 export default function App() {
   // 관리자 페이지는 사용자 로그인과 따로 (관리자 비밀번호)
@@ -44,11 +45,15 @@ function UserApp() {
 
 function Routed() {
   const route = useRoute();
+  // 당겨서 새로고침: 지금 화면을 새로 그려서 자료를 다시 불러온다 (녹음 화면은 빼고)
+  const [nonce, setNonce] = useState(0);
+  const refresh = useCallback(() => setNonce((n) => n + 1), []);
   // 화면이 바뀔 때마다 새로 그려 들어오는 모션을 준다 (styles/app.css 의 .route)
   const tab = route.name === "home" ? "home" : route.name === "review" ? "review" : route.name === "search" ? "search" : route.name === "tasks" || route.name === "timetable" ? "tasks" : route.name === "friends" ? "friends" : route.name === "privacy" ? "more" : null;
   return (
     <>
-      <div className="route" key={href(route)}>{screen(route)}</div>
+      <PullRefresh enabled={route.name !== "lecture" && route.name !== "intro"} onRefresh={refresh} />
+      <div className="route" key={`${href(route)}#${nonce}`}>{screen(route)}</div>
       {tab && <TabBar current={tab} />}
     </>
   );

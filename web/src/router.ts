@@ -72,10 +72,13 @@ export function href(route: Route): string {
 // 같은 화면 안에서 탭만 바꾸는 것은 기록을 쌓지 않는다 (뒤로 가기가 탭을 되감지 않게)
 const stack: string[] = [window.location.hash || "#/"];
 let replacing = false;
+// 방금 이동이 '뒤로'였는지 (위 뒤로 버튼 · 안드로이드 뒤로 버튼 · 밀어서 뒤로): 화면 전환 방향을 깊이 대신 이것으로 정한다
+let wentBack = false;
 window.addEventListener("hashchange", () => {
   const h = window.location.hash || "#/";
+  wentBack = false;
   if (replacing) { stack[stack.length - 1] = h; replacing = false; return; }
-  if (stack.length > 1 && stack[stack.length - 2] === h) stack.pop();
+  if (stack.length > 1 && stack[stack.length - 2] === h) { stack.pop(); wentBack = true; }
   else stack.push(h);
 });
 
@@ -117,7 +120,10 @@ export function useRoute(): Route {
       const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
       // 같은 화면 안에서 탭만 바뀌는 것은 전환 없이
       if (!startTransition || still || (next.name === current.name && depth(next) === 2 && next.name !== "lecture")) { apply(); current = next; return; }
-      document.documentElement.dataset.nav = depth(next) < depth(current) ? "back" : depth(next) > depth(current) ? "forward" : "same";
+      // 아래 탭끼리(홈 · 일정 · 복습 · 친구)는 옆으로 밀지 않고 서서히, 그 밖에는 들어가면 오른쪽에서 · 돌아오면 왼쪽에서
+      const TAB = ["home", "review", "search", "tasks", "timetable", "friends", "privacy"];
+      const tabs = TAB.includes(next.name) && TAB.includes(current.name);
+      document.documentElement.dataset.nav = tabs ? "same" : wentBack || depth(next) < depth(current) ? "back" : "forward";
       current = next;
       startTransition(apply);
     };

@@ -1695,3 +1695,10 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 @keyframes slide-from-right { from { opacity: 0; transform: translateX(28px); } }
 @keyframes slide-from-left { from { opacity: 0; transform: translateX(-28px); } }
 @media (prefers-reduced-motion: reduce) { .tt-dates.next, .tt-dates.prev, .schedule .pane-in.from-right, .schedule .pane-in.from-left { animation: none; } }
+/* 당겨서 새로고침 */
+.pull-refresh { position: fixed; top: calc(8px + env(safe-area-inset-top)); left: 50%; z-index: 40; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--bg-card); color: var(--text-tertiary); box-shadow: 0 4px 16px rgb(40 30 120 / .18); transition: color .15s, background-color .15s; pointer-events: none; }
+.pull-refresh > span { display: grid; place-items: center; }
+.pull-refresh.ready { color: var(--text-on-accent); background: var(--accent-primary); }
+.pull-refresh.spinning > span { animation: spin .7s linear infinite; }
+html, body { overscroll-behavior-y: contain; }   /* 브라우저 자체 당겨서 새로고침 대신 우리 것을 쓴다 */
