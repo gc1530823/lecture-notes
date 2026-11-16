@@ -4,7 +4,7 @@
 // 체크해도 바로 사라지지 않는다: 줄이 그어진 채 남고, 아래 '되돌리기'로 언제든 다시 살릴 수 있다.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getJSON } from "../api/useApi";
-import { Icon, TopBar } from "../components/ui";
+import { Empty, Icon, TopBar } from "../components/ui";
 import { useSwipe } from "../lib/swipe";
 import { haptic } from "../lib/haptic";
 import { courseTone } from "../lib/course";
@@ -260,13 +260,17 @@ function TasksPane() {
           </button>
         </section>
 
-        <div className="row tasks-sum">
-          <strong className="grow">{day ? dueLabel(day) : `남은 할 일 ${left}개`}</strong>
+        {(day || tasks.length > 0) && <div className="row tasks-sum">
+          <strong className="grow">{day ? dueLabel(day) : left ? `남은 할 일 ${left}개` : "할 일"}</strong>
           {day && <button className="chip chip-default" onClick={() => setDay(null)}>전체 보기</button>}
-        </div>
+        </div>}
 
         {groups.every(([, l]) => l.length === 0) && (
-          <p className="tasks-empty">{day ? "이날 마감인 할 일이 없어요" : tasks.length ? "남은 할 일이 없어요. 잘했어요!" : "강의에서 과제·공지를 들으면 여기에 모여요"}</p>
+          day || tasks.length ? <p className="tasks-empty">{day ? "이날 마감인 할 일이 없어요" : "남은 할 일이 없어요. 잘했어요!"}</p> : (
+            <Empty icon="check-circle" action={{ label: "수업 녹음하러 가기", icon: "microphone", onClick: () => go({ name: "home" }) }}>
+              <strong className="t-title-s">할 일이 저절로 모여요</strong><br />교수님이 수업에서 과제·시험·공지를 말하면 AI가 찾아서 마감일과 함께 여기에 넣어 둬요
+            </Empty>
+          )
         )}
         {groups.map(([label, list]) => list.length > 0 && (
           <section key={label} className="task-group">

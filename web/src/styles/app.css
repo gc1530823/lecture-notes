@@ -1702,3 +1702,4 @@ html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-mo
 .pull-refresh.ready { color: var(--text-on-accent); background: var(--accent-primary); }
 .pull-refresh.spinning > span { animation: spin .7s linear infinite; }
 html, body { overscroll-behavior-y: contain; }   /* 브라우저 자체 당겨서 새로고침 대신 우리 것을 쓴다 */
+.empty-action { margin-top: 14px; min-height: 46px; padding: 0 22px; border-radius: 99px; font-size: 15px; }

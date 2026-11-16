@@ -296,6 +296,9 @@ export default function Home() {
               {(docs ?? []).filter((d) => d.kind !== "meeting").map((d) => (
                 <ListItem key={d.id} icon={d.kind === "notebook" ? "notebook" : "file-pdf"} title={d.title} subtitle={subtitleOf(d)} onClick={() => choose(d.id)} />
               ))}
+              {picker === "record" && (
+                <ListItem icon="upload-simple" title="강의자료 먼저 올리기" subtitle="PDF · PPT · 한글 파일을 올리고 그 위에서 녹음해요" onClick={() => { setPicker(null); file.current?.click(); }} />
+              )}
               <ListItem icon="note-pencil" title="강의자료 없이" subtitle="주제가 바뀔 때마다 노트를 나눠서 정리해요" onClick={() => choose(null)} />
 
             </div>

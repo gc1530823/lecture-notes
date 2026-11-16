@@ -114,7 +114,7 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
         )}
         {!forgot && mode === "signup" && (
           <label><span>이메일 <small className="faint">(선택 · 비밀번호를 잊었을 때 찾는 곳)</small></span>
-            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="예: 2024142012@ptu.ac.kr" autoComplete="email" />
+            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="예: minji@school.ac.kr" autoComplete="email" />
           </label>
         )}
         <label><span>{forgot ? "새 비밀번호" : "비밀번호"}</span>

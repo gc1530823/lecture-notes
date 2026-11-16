@@ -50,7 +50,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const [now, setNow] = useState(Date.now());
   const [, setEstimate] = useState<number | null>(null);
   const [autoFollow, setAutoFollow] = useState(true);
-  const [caption, setCaption] = useState("듣고 있어요…");
+  const [caption, setCaption] = useState("교수님 말이 여기에 글로 떠요");
   const [perk, setPerk] = useState(false);
   const [toastTerms, setToastTerms] = useState<GlossaryTerm[]>([]);
   const [banner, setBanner] = useState<{ icon: string; title: string; text: string; task?: number } | null>(null);
@@ -343,7 +343,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
       // 마이크 소리를 직접 못 받는 브라우저: 내장 음성 인식으로 대신한다
       const rec = browserRecognizer(
         (text, s, e) => socket.send({ type: "transcript_final", text, start_ms: s, end_ms: e }),
-        (interim) => setCaption(interim || "듣고 있어요…"),
+        (interim) => setCaption(interim || "교수님 말이 여기에 글로 떠요"),
         () => { toast("마이크·음성 인식 권한을 허용해 주세요"); void stop(false); },
         began,
       );
@@ -764,7 +764,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               </div>
             )}
             <span className="t-caption muted" style={{ display: "block" }}>
-              {recording ? `AI 필기 생성 중 · 현재 ${notebook ? `${page}번 주제` : `${page} / ${doc.pages.length}쪽`}` : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (cut ? "녹음이 끊긴 강의예요" : serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}${serverStatus.engine === "local" ? " · Groq 가 막혀 서버에서 받아쓰는 중이라 느려요" : ""}`
+              {recording ? (notebook ? `AI 필기 생성 중 · ${page}번 주제` : "AI 필기 생성 중") : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (cut ? "녹음이 끊긴 강의예요" : serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}${serverStatus.engine === "local" ? " · Groq 가 막혀 서버에서 받아쓰는 중이라 느려요" : ""}`
                 : serverStatus?.status === "processing" ? "필기·요약 정리 중…" : serverStatus?.status === "failed" ? "정리하지 못했어요" : "강의가 끝났어요") : "버튼을 누르면 녹음을 시작해요"}
             </span>
           </div>

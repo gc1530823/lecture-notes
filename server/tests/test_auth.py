@@ -375,7 +375,7 @@ def test_signup_takes_email_and_verifies_it(invite, monkeypatch):
     monkeypatch.setattr(mailer, "send", lambda db, to, subject, text: sent.append((to, text)))
     c = TestClient(app); c.__enter__()
     try:
-        mail = f"u{uuid.uuid4().hex[:6]}@ptu.ac.kr"
+        mail = f"u{uuid.uuid4().hex[:6]}@school.ac.kr"
         res = c.post("/auth/signup", json={"name": f"메일{uuid.uuid4().hex[:5]}", "password": "secret12", "invite": "우리반-2026", "email": mail}).json()
         assert res["email_status"] == "sent" and sent[-1][0] == mail and res["recovery_code"]
         assert c.get("/account/email").json()["pending"] == mail
@@ -389,8 +389,8 @@ def test_signup_takes_email_and_verifies_it(invite, monkeypatch):
             raise RuntimeError("메일 설정 없음")
         monkeypatch.setattr(mailer, "send", broken)
         d = TestClient(app); d.__enter__()
-        res = d.post("/auth/signup", json={"name": f"메일{uuid.uuid4().hex[:5]}", "password": "secret12", "invite": "우리반-2026", "email": "later@ptu.ac.kr"}).json()
-        assert res["email_status"] == "pending" and d.get("/account/email").json()["pending"] == "later@ptu.ac.kr"
+        res = d.post("/auth/signup", json={"name": f"메일{uuid.uuid4().hex[:5]}", "password": "secret12", "invite": "우리반-2026", "email": "later@school.ac.kr"}).json()
+        assert res["email_status"] == "pending" and d.get("/account/email").json()["pending"] == "later@school.ac.kr"
         d.__exit__(None, None, None)
     finally:
         c.__exit__(None, None, None)

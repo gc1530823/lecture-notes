@@ -203,7 +203,7 @@ export function ReviewScreen() {
         {error && <Empty icon="warning-circle">{error}</Empty>}
         {!today && !error && <p className="muted">카드를 모으는 중…</p>}
         {today && today.total === 0 && (
-          <Empty icon="cards">
+          <Empty icon="cards" action={{ label: "강의 보러 가기", icon: "notebook", onClick: () => go({ name: "home" }) }}>
             <strong className="t-title-s">아직 복습할 카드가 없어요</strong><br />
             강의 뒤 공부하기 › 플래시카드를 만들거나, 수업 중 "모르겠어요"를 누르거나, 시험 예상 문제를 만들면 여기에 모여요.
           </Empty>

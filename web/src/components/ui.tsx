@@ -159,8 +159,15 @@ export function NoteSection({ number, title, highlight, lines }: { number: numbe
 }
 
 /** 빈 화면: 그 내용에 맞는 3D 사물 그림 + 안내 글 */
-export function Empty({ icon, children }: { icon: string; children: ReactNode; mood?: string }) {
-  return <div className="empty"><span className="empty-art"><Icon name={icon} art size={96} /></span><div>{children}</div></div>;
+export function Empty({ icon, children, action }: { icon: string; children: ReactNode; mood?: string; action?: { label: string; onClick: () => void; icon?: string } }) {
+  return (
+    <div className="empty">
+      <span className="empty-art"><Icon name={icon} art size={96} /></span>
+      <div>{children}</div>
+      {/* 빈 화면에서 끝나지 않게: 다음에 할 일 하나 */}
+      {action && <button className="btn btn-primary empty-action" onClick={action.onClick}>{action.icon && <Icon name={action.icon} size={18} />}{action.label}</button>}
+    </div>
+  );
 }
 
 /** 접어 두는 칸: 제목 줄을 누르면 펼친다 (펼치기 전에는 안의 것을 불러오지 않는다) */
