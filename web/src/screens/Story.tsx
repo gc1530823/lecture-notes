@@ -228,7 +228,7 @@ export function StreakCard() {
         <div className="level" aria-label={`레벨 ${data.level}`}>
           <span className="level-name">Lv.{data.level} {data.level_name}</span>
           <span className="level-bar"><i style={{ width: `${data.next_at ? Math.round(100 * ((data.carrots ?? 0) - (data.level_from ?? 0)) / (data.next_at - (data.level_from ?? 0))) : 100}%` }} /></span>
-          <span className="level-next">{data.next_at ? <>레벨 업까지 <b>🔥 {data.next_at - (data.carrots ?? 0)}개</b></> : <b>최고 레벨!</b>}</span>
+          <span className="level-next">{data.next_at ? <>레벨 업까지 <span className="level-left">불꽃 {data.next_at - (data.carrots ?? 0)}개</span></> : <span className="level-left">최고 레벨!</span>}</span>
         </div>
       )}
     </div>

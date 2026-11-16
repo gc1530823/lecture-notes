@@ -1755,9 +1755,9 @@ html, body { overscroll-behavior-y: contain; }   /* 브라우저 자체 당겨�
 .streak-sub { display: block; margin-top: 3px; font: 600 13px/18px var(--font-sans); color: var(--text-secondary); }
 .streak-sub.lit { color: var(--ico-orange); }
 .level-next { grid-column: 1 / -1; font: 500 12.5px/17px var(--font-sans); color: var(--text-secondary); }
-.level-next b { margin-left: 2px; padding: 1px 8px; border-radius: 99px; background: color-mix(in srgb, var(--ico-orange) 14%, var(--bg-card)); color: color-mix(in srgb, var(--ico-orange) 80%, #000); font-weight: 700; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .level-next b { color: var(--ico-orange); } }
-:root[data-theme="dark"] .level-next b { color: var(--ico-orange); }
+.level-next .level-left { margin-left: 2px; padding: 1px 8px; border-radius: 99px; background: color-mix(in srgb, var(--ico-orange) 14%, var(--bg-card)); color: color-mix(in srgb, var(--ico-orange) 80%, #000); font-weight: 700; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .level-next .level-left { color: var(--ico-orange); } }
+:root[data-theme="dark"] .level-next .level-left { color: var(--ico-orange); }
 .tt-link-chips { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
 .tt-link-done { font: 500 12.5px/18px var(--font-sans); color: var(--text-secondary); }
 
