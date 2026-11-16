@@ -241,7 +241,8 @@ class LiveSession:
         self.batch.estimate = estimate
         self.batch.texts.append(f"(목소리 높임) {text}" if loud else text)
 
-        if sum(len(t) for t in self.batch.texts) >= settings.min_chars_per_call:
+        # 녹음 파일(patient)은 빨리 뜰 필요가 없으니 5배씩 모아 부른다 (AI 무료 하루 한도: 145분 강의가 수백 번 부르던 것을 줄임)
+        if sum(len(t) for t in self.batch.texts) >= settings.min_chars_per_call * (5 if self.patient else 1):
             self._schedule_flush()
 
     def _schedule_flush(self) -> None:

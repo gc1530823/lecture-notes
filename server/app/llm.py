@@ -556,7 +556,8 @@ def _annotation_prompt(candidates: list[dict], transcript: str, existing_tasks: 
     parts = []
     for page in candidates:
         block_lines = "\n".join(f"[{b['id']}] {b['text']}" for b in page["blocks"]) or "(텍스트 없음)"
-        existing_lines = "\n".join(f"- ({a['type']}) {a['text']}" for a in page["existing"]) or "(없음)"
+        # 이미 쓴 필기는 최근 10개 · 100자까지만 (한 쪽에 필기가 많을 때 매번 전부 보내 한도를 빨리 쓰지 않게)
+        existing_lines = "\n".join(f"- ({a['type']}) {a['text'][:100]}" for a in page["existing"][-10:]) or "(없음)"
         parts.append(
             f'<slide page_no="{page["page_no"]}">\n<blocks>\n{block_lines}\n</blocks>\n'
             f"<existing_notes>\n{existing_lines}\n</existing_notes>\n</slide>"
