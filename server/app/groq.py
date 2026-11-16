@@ -52,6 +52,23 @@ def _wait_seconds(response: httpx.Response, attempt: int) -> float:
         return min(2 ** attempt, 30)
 
 
+def _limit_wait(response: httpx.Response) -> float:
+    """한도가 언제 풀리는지 (초): retry-after 머리글, 없으면 오류 글의 'try again in 7m12.5s'"""
+    try:
+        return float(response.headers.get("retry-after", ""))
+    except ValueError:
+        pass
+    m = re.search(r"try again in\s+(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:([\d.]+)s)?", response.text)
+    if m and any(m.groups()):
+        h, mi, sec = (float(x) if x else 0 for x in m.groups())
+        return h * 3600 + mi * 60 + sec
+    return 30.0
+
+
+# 글 AI로 쓸 수 있는 무료 모델 (JSON 형식을 지켜 답하는 것만): 한도가 모델마다 따로라 차례로 돌려 쓴다
+TEXT_MODEL_PATTERN = r"gpt-oss|kimi-k2|llama-4-(scout|maverick)"
+
+
 def _auth() -> dict:
     if not settings.groq_api_key:
         raise LLMError("GROQ_API_KEY가 없습니다.")
@@ -86,6 +103,27 @@ class GroqLLM(OllamaLLM):
         finally:
             _EFFORT.reset(token)
 
+    # 모델마다 한도가 풀리는 시각 (모든 요청이 함께 본다): 하루 한도가 찬 모델을 매번 먼저 두드려 시간을 버리지 않게
+    _cooldown: dict[str, float] = {}
+    _text_cache: list[str] | None = None
+
+    async def _text_models(self) -> list[str]:
+        """정해 둔 모델 → 예비 모델 → Groq 에 지금 있는 다른 무료 글 모델 순서"""
+        if GroqLLM._text_cache is None:
+            found: list[str] = []
+            try:
+                response = await self.client.get("/models", headers=_auth())
+                ids = [m.get("id", "") for m in response.json().get("data", [])] if response.status_code < 400 else []
+                found = sorted(i for i in ids if re.search(TEXT_MODEL_PATTERN, i, re.I) and not re.search(r"guard|safeguard", i, re.I))
+            except (httpx.HTTPError, ValueError, AttributeError):
+                pass
+            GroqLLM._text_cache = found
+        return list(dict.fromkeys([settings.groq_model, *settings.groq_fallback_models, *GroqLLM._text_cache]))
+
+    def _ready(self, models: list[str]) -> list[str]:
+        now = time.time()
+        return [m for m in models if GroqLLM._cooldown.get(m, 0) <= now]
+
     async def _chat(self, system: str, prompt: str, schema: dict, context_tokens: int,
                     temperature: float = 0.2) -> dict:
         payload = {
@@ -94,27 +132,37 @@ class GroqLLM(OllamaLLM):
             "response_format": {"type": "json_schema", "json_schema": {"name": "result", "schema": schema}},
             "temperature": temperature,
         }
-        if "gpt-oss" in settings.groq_model:
-            # 생각을 짧게 해서 실시간 필기를 빠르게 한다 (강의 뒤 필기 다시 확인은 더 깊이 생각하게)
-            payload["reasoning_effort"] = _EFFORT.get()
-        # 사용량 한도는 모델마다 따로다: 기본 모델이 차면 기다리기 전에 다른 무료 모델로 (긴 강의를 정리할 때 요약 단계에서 멈추지 않게)
-        spare = [m for m in settings.groq_fallback_models if m != settings.groq_model]
-        for attempt in range(MAX_RETRIES):
+        models = await self._text_models()
+        for attempt in range(MAX_RETRIES + len(models)):
+            ready = self._ready(models)
+            if not ready:
+                # 모든 모델이 한도: 가장 먼저 풀리는 때까지 (한 번에 최대 60초씩) 기다린다
+                wait = max(1.0, min(GroqLLM._cooldown.get(m, 0) for m in models) - time.time())
+                if self.max_wait is not None and wait > self.max_wait:
+                    # 역할 나누기(hybrid): 오래 기다려야 하는 한도(하루 한도 등)면 기다리지 않고 우리 AI에게 넘긴다
+                    raise GroqLimit(f"Groq 사용량 한도 ({wait:.0f}초 뒤 풀림)", wait)
+                log.warning("Groq 글 모델이 모두 한도: %.0f초 기다립니다", min(wait, 60))
+                await asyncio.sleep(min(wait, 60))
+                continue
+            payload["model"] = ready[0]
+            payload.pop("reasoning_effort", None)
+            if "gpt-oss" in payload["model"]:
+                # 생각을 짧게 해서 실시간 필기를 빠르게 한다 (강의 뒤 필기 다시 확인은 더 깊이 생각하게)
+                payload["reasoning_effort"] = _EFFORT.get()
             try:
                 response = await self.client.post("/chat/completions", json=payload, headers=_auth())
             except httpx.HTTPError as exc:
                 raise LLMError(f"Groq에 연결할 수 없습니다: {exc}") from exc
-            if response.status_code == 429 and spare:
-                log.warning("Groq %s 한도: %s 로 넘깁니다", payload["model"], spare[0])
-                payload["model"] = spare.pop(0)
-                continue
             if response.status_code == 429:
-                wait = _wait_seconds(response, attempt)
-                if self.max_wait is not None and wait > self.max_wait:
-                    # 역할 나누기(hybrid): 오래 기다려야 하는 한도(하루 한도 등)면 기다리지 않고 우리 AI에게 넘긴다
-                    raise GroqLimit(f"Groq 사용량 한도 ({wait:.0f}초 뒤 풀림)", wait)
-                log.warning("Groq 사용량 한도: %.0f초 기다립니다", wait)
-                await asyncio.sleep(wait)
+                wait = _limit_wait(response)
+                GroqLLM._cooldown[payload["model"]] = time.time() + wait
+                log.warning("Groq %s 한도 (%.0f초 뒤 풀림): 다른 모델로", payload["model"], wait)
+                continue
+            if response.status_code in (400, 404) and payload["model"] != settings.groq_model and (
+                    "json_schema" in response.text or "response_format" in response.text or "model" in response.text):
+                # 예비 모델이 이 형식을 못 쓰거나 없어졌다: 하루 동안 빼 둔다
+                GroqLLM._cooldown[payload["model"]] = time.time() + 86400
+                log.warning("Groq %s 를 글 AI 로 쓸 수 없어 뺍니다: %s", payload["model"], response.text[:120])
                 continue
             break
         if response.status_code == 401:

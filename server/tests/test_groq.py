@@ -293,3 +293,40 @@ def test_first_chunk_leaking_into_english_is_redone_in_korean(monkeypatch, tmp_p
     out = t.transcribe("lecture.m4a")
     assert seen == [False, True] and all("manual" not in s.text for s in out)
     assert g._latin_lines([g.Segment(0, 1, "SELECT 문으로 조회해요"), g.Segment(0, 1, "JAAKIN")]) == 1
+
+
+def test_rate_limited_model_is_remembered_and_more_free_models_are_used(api_key):
+    """한도가 찬 모델은 풀릴 때까지 건너뛴다 (매번 먼저 두드려 시간을 버리지 않게) · Groq 에 있는 다른 무료 글 모델도 차례로"""
+    import asyncio
+    import json as _json
+
+    from app import groq as g
+    asked = []
+
+    def handler(request):
+        if request.url.path.endswith("/models"):
+            return httpx.Response(200, json={"data": [{"id": i} for i in [
+                "openai/gpt-oss-120b", "openai/gpt-oss-20b", "moonshotai/kimi-k2-instruct-0905", "whisper-large-v3", "llama-guard-4-12b"]]})
+        body = _json.loads(request.content)
+        asked.append(body["model"])
+        if body["model"] == "openai/gpt-oss-120b":
+            return httpx.Response(429, json={"error": {"message": "Rate limit reached on tokens per day (TPD). Please try again in 7m12.5s."}})
+        if body["model"] == "openai/gpt-oss-20b":
+            return httpx.Response(429, headers={"retry-after": "600"}, json={"error": {"message": "rate limit"}})
+        assert "reasoning_effort" not in body   # gpt-oss 가 아닌 모델에는 생각 길이를 보내지 않는다
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"ok": 1}'}}]})
+
+    llm = g.GroqLLM(transport=httpx.MockTransport(handler))
+    assert asyncio.run(llm._chat("s", "p", {"type": "object"}, 1024)) == {"ok": 1}
+    assert asked == ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "moonshotai/kimi-k2-instruct-0905"]
+    assert 420 < g.GroqLLM._cooldown["openai/gpt-oss-120b"] - __import__("time").time() <= 433
+    asked.clear()
+    assert asyncio.run(llm._chat("s", "p", {"type": "object"}, 1024)) == {"ok": 1}
+    assert asked == ["moonshotai/kimi-k2-instruct-0905"]                  # 다음 요청은 바로 쓸 수 있는 모델로
+    llm.max_wait = 30
+    g.GroqLLM._cooldown["moonshotai/kimi-k2-instruct-0905"] = __import__("time").time() + 300
+    try:
+        asyncio.run(llm._chat("s", "p", {"type": "object"}, 1024))
+        raise AssertionError("모두 한도면 GroqLimit")
+    except g.GroqLimit as exc:
+        assert exc.wait > 30

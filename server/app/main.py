@@ -3168,6 +3168,11 @@ async def diag_ai():
                 ids = [m.get("id", "") for m in r.json().get("data", [])]
                 out["vision_models"] = [i for i in ids if re.search(r"vision|llama-4|scout|maverick|[-_]vl|pixtral|gemma-3", i, re.I)]
                 out["whisper_models"] = [i for i in ids if "whisper" in i]
+                from .groq import TEXT_MODEL_PATTERN, GroqLLM
+                now = time.time()
+                out["text_models"] = list(dict.fromkeys([settings.groq_model, *settings.groq_fallback_models,
+                                                         *[i for i in ids if re.search(TEXT_MODEL_PATTERN, i, re.I) and "guard" not in i]]))
+                out["text_limited"] = {m: round(t - now) for m, t in GroqLLM._cooldown.items() if t > now}
             else:
                 out["groq_error"] = r.text[:200]
         except Exception as exc:
