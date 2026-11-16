@@ -366,7 +366,7 @@ export function WeekGrid({ rows, onPick }: { rows: ClassRow[]; onPick: (course: 
               return (
                 <button key={r.id} className={`tt-block tt-c${colorOf(r.course)}${live?.id === r.id ? " live" : ""}`}
                   onClick={() => onPick(r.course)}
-                  style={{ top: ((minutes(r.start) - from * 60) / 60) * hour, height: Math.max(20, h), animationDelay: `${day * 50 + i * 40}ms` }}
+                  style={{ top: ((minutes(r.start) - from * 60) / 60) * hour, height: Math.max(20, h - 3), animationDelay: `${day * 50 + i * 40}ms` }}
                   aria-label={`${d}요일 ${r.start}~${r.end} ${r.course}${r.place ? ` ${r.place}` : ""}`}>
                   <b>{r.course}</b>
                   {r.place && h > 40 && <small>{r.place}</small>}
