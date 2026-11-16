@@ -69,6 +69,8 @@ export function Timetable({ onPick, slot = "top" }: { courses?: string[]; onPick
 
   const now = currentClass(rows);
   const today = rows.filter((r) => r.weekday === todayIndex());
+  // 지금·다음 수업 뒤에 남은 오늘 수업만 (이미 끝난 수업은 보여 줄 필요 없다)
+  const later = now ? today.filter((r) => r.id !== now.row.id && r.start > now.row.start).sort((a, b) => a.start.localeCompare(b.start)) : [];
   return (
     <section className="timetable" aria-label="시간표">
       {now && (
@@ -93,7 +95,13 @@ export function Timetable({ onPick, slot = "top" }: { courses?: string[]; onPick
         // 지금·다음 수업 카드가 있으면 오늘 수업은 한 줄로만 (같은 것을 두 번 보여 주지 않게)
         <button className="tt-link" onClick={open}>
           <Icon name="calendar-dots" size={15} />
-          <span className="grow">오늘 수업 {today.length}개{today.length > 1 ? ` · ${today.filter((r) => r.id !== now.row.id).map((r) => `${r.course} ${r.start}`).join(" · ")}` : ""}</span>
+          <b className="tt-link-n">{later.length ? "이따가" : `오늘 ${today.length}개`}</b>
+          <span className="grow tt-link-chips">
+            {!later.length && <span className="tt-link-done">오늘 마지막 수업이에요</span>}
+            {later.map((r) => (
+              <span key={r.id} className={`tt-link-chip ${courseTone(r.course)}`}><i />{r.course}<em>{r.start}</em></span>
+            ))}
+          </span>
           <span className="tt-link-go">시간표 <Icon name="caret-right" size={12} /></span>
         </button>
       ) : (
@@ -130,8 +138,10 @@ function NextDocs({ courses }: { courses: string[] }) {
   };
   return (
     <section className="next-docs" aria-label="다음 수업 자료">
-      <b>다음 수업 자료</b>
-      <small>골라 두면 수업 시간에 홈에서 바로 녹음해요</small>
+      <div className="next-head">
+        <span className="next-ic"><Icon name="microphone" size={18} /></span>
+        <span className="grow"><b>다음 수업 자료</b><small>골라 두면 수업 시간에 홈에서 바로 녹음해요</small></span>
+      </div>
       {withDocs.map((c) => {
         const mine = docs.filter((d) => (d.course || "") === c);
         const cur = next[c];
@@ -147,8 +157,13 @@ function NextDocs({ courses }: { courses: string[] }) {
         );
       })}
       {without.length > 0 && (
-        <p className="next-none">{withDocs.length ? "자료 없는 과목: " : "아직 시간표 과목과 같은 이름의 강의자료가 없어요: "}{without.join(" · ")}
-          <br />강의자료를 올릴 때 과목을 같은 이름으로 고르면 여기서 연결돼요.</p>
+        <div className="next-missing">
+          <span className="next-missing-label">{withDocs.length ? "자료 없는 과목" : "아직 연결된 자료가 없어요"} <em>{without.length}</em></span>
+          <div className="next-chips">
+            {without.map((c) => <span key={c} className={`next-chip ${courseTone(c)}`}><i />{c}</span>)}
+          </div>
+          <p className="next-tip"><Icon name="lightbulb" size={15} /><span>강의자료를 올릴 때 <b>과목</b>을 시간표와 같은 이름으로 고르면 자동으로 연결돼요</span></p>
+        </div>
       )}
     </section>
   );
@@ -188,10 +203,26 @@ export function TimetableEditor({ onPick }: { onPick: (course: string) => void }
         <p className="tasks-empty">아직 시간표가 없어요. 에타·학교 시간표를 캡처해서 넣어 보세요.</p>
       )}
       {rows.length > 0 && <NextDocs courses={[...new Set(rows.map((r) => r.course))]} />}
-      <ImportFromImage hasRows={rows.length > 0} onSaved={changed} />
-      <button className="tt-fold" onClick={() => setAdding(!adding)} aria-expanded={adding}>
-        <Icon name="plus" size={16} /><span className="grow">한 과목씩 직접 넣기 · 빼기</span><Icon name={adding ? "caret-up" : "caret-down"} size={14} />
-      </button>
+      {rows.length > 0 ? (
+        <section className="tt-tools" aria-label="시간표 고치기">
+          <b className="tt-tools-title">시간표 고치기</b>
+          <div className="tt-tools-grid">
+            <ImportFromImage hasRows onSaved={changed} compact />
+            <button className={`tt-tile${adding ? " on" : ""}`} onClick={() => setAdding(!adding)} aria-expanded={adding}>
+              <span className="tt-tile-ic edit"><Icon name="note-pencil" size={20} /></span>
+              <b>직접 고치기</b>
+              <small>한 과목씩 넣기 · 빼기</small>
+            </button>
+          </div>
+        </section>
+      ) : (
+        <>
+          <ImportFromImage hasRows={false} onSaved={changed} />
+          <button className="tt-fold" onClick={() => setAdding(!adding)} aria-expanded={adding}>
+            <Icon name="plus" size={16} /><span className="grow">한 과목씩 직접 넣기</span><Icon name={adding ? "caret-up" : "caret-down"} size={14} />
+          </button>
+        </>
+      )}
       {adding && (
         <div className="timetable-edit">
           {DAYS.map((day, i) => {
@@ -254,7 +285,7 @@ async function asPng(file: File): Promise<Blob> {
 }
 
 /** 시간표 캡처로 넣기: 에브리타임·학교 포털 캡처를 AI가 읽고 → 사람이 확인·고친 뒤 → 한 번에 저장 */
-function ImportFromImage({ hasRows, onSaved }: { hasRows: boolean; onSaved: () => void }) {
+function ImportFromImage({ hasRows, onSaved, compact = false }: { hasRows: boolean; onSaved: () => void; compact?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<"idle" | "reading" | "check" | "saving">("idle");
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -285,9 +316,16 @@ function ImportFromImage({ hasRows, onSaved }: { hasRows: boolean; onSaved: () =
   const edit = (i: number, change: Partial<Draft>) => setDrafts((d) => d.map((x, j) => (j === i ? { ...x, ...change } : x)));
 
   return (
-    <div className="tt-import">
+    <div className={`tt-import${state === "check" || state === "saving" ? " open" : ""}`}>
       <input ref={input} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void read(f); }} />
-      {state !== "check" && state !== "saving" && (
+      {compact && state !== "check" && state !== "saving" && (
+        <button className="tt-tile" onClick={() => input.current?.click()} disabled={state === "reading"}>
+          <span className="tt-tile-ic shot">{state === "reading" ? <span className="spin" aria-hidden /> : <Icon name="camera" size={20} />}</span>
+          <b>{state === "reading" ? "읽는 중…" : "캡처로 넣기"}</b>
+          <small>{state === "reading" ? "10초쯤 걸려요" : "에타 · 포털 시간표 사진"}</small>
+        </button>
+      )}
+      {!compact && state !== "check" && state !== "saving" && (
         <button className="tt-shot" onClick={() => input.current?.click()} disabled={state === "reading"}>
           <span className="tt-shot-ic"><Icon name="camera" art size={26} /></span>
           <span className="grow">

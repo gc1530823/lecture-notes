@@ -214,7 +214,7 @@ export function StreakCard() {
       <div className="row carrots-top">
         <span>
           <b><Count to={data.streak} /><small>일째</small></b>
-          <span className="list-item-sub">{data.today ? "오늘 불꽃 켰어요" : data.streak > 0 ? "오늘도 하면 불꽃 하나" : `최고 ${data.best}일`}</span>
+          <span className={`streak-sub${data.today ? " lit" : ""}`}>{data.today ? "오늘 불꽃 켰어요 🔥" : data.streak > 0 ? "오늘도 공부하면 불꽃 하나 더" : `최고 기록 ${data.best}일`}</span>
         </span>
         <span className="carrot-row" aria-label="이번 주 불꽃">
           {data.week.map((d, i) => (
@@ -228,7 +228,7 @@ export function StreakCard() {
         <div className="level" aria-label={`레벨 ${data.level}`}>
           <span className="level-name">Lv.{data.level} {data.level_name}</span>
           <span className="level-bar"><i style={{ width: `${data.next_at ? Math.round(100 * ((data.carrots ?? 0) - (data.level_from ?? 0)) / (data.next_at - (data.level_from ?? 0))) : 100}%` }} /></span>
-          <span className="level-next t-caption">{data.next_at ? `불꽃 ${data.next_at - (data.carrots ?? 0)}개 더 모으면 레벨 업` : "최고 레벨!"}</span>
+          <span className="level-next">{data.next_at ? <>레벨 업까지 <b>🔥 {data.next_at - (data.carrots ?? 0)}개</b></> : <b>최고 레벨!</b>}</span>
         </div>
       )}
     </div>

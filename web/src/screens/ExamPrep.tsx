@@ -223,9 +223,10 @@ export function ReviewScreen() {
                 <li>얼마나 기억났는지 고르면, 잊어버릴 때쯤 다시 보여 줘요</li>
               </ol>
             )}
-            <p className="t-caption muted" style={{ textAlign: "center" }}>
-              남은 카드 {today!.cards.length}장 · {card.title}{card.page_no ? ` ${card.page_no}쪽` : ""}
-            </p>
+            <div className="review-meta">
+              <span className="review-left"><Icon name="cards" size={14} />{today!.cards.length}장 남음</span>
+              <span className="review-src"><Icon name="file-text" size={14} /><span className="review-src-t">{card.title}</span>{card.page_no ? <em>{card.page_no}쪽</em> : null}</span>
+            </div>
             <button ref={cardRef} key={`${card.card_key}-${flipped}`} className={`flashcard swipe-card ${flipped ? "flip-in" : "card-in"}`} data-flipped={flipped} onClick={() => setFlipped(!flipped)} aria-live="polite">
               <Chip variant="accent">{card.new ? "새 카드 · " : card.lapses ? `${card.lapses}번 틀림 · ` : ""}{SOURCE_LABEL[card.source] ?? card.source}</Chip>
               {flipped && <span className="review-q t-caption">Q. {card.front}</span>}
