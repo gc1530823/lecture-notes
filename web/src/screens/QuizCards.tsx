@@ -108,7 +108,7 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
             ) : (
               <>
                 <strong className="t-title-m">{scopeLabel} AI가 먼저 공부하고<br />시험 문제 카드를 만들어요</strong>
-                <p className="qz-kinds-line">객관식 · OX · 빈칸 · 단답 · 서술을 섞어서 내요</p>
+                <div className="meta-chips center">{["객관식", "OX", "빈칸", "단답", "서술"].map((k) => <span key={k} className="meta-chip">{k}</span>)}</div>
                 <span className="t-caption muted">카드에서 바로 답하면 AI가 채점하고 뒤집어서 해설을 보여 줘요</span>
                 <div className="qz-counts">{COUNTS.map((n) => <button key={n} className={n === count ? "on" : ""} onClick={() => setCount(n)}>{n}장</button>)}</div>
               </>

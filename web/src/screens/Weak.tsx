@@ -1,7 +1,7 @@
 // 약점 노트: 이 자료에서 퀴즈에 틀린 문제 · 수업 중 '모르겠어요' · 복습에서 자주 틀린 카드를 한곳에 (많이 틀린 것부터)
 import { useEffect, useState } from "react";
 import { getJSON } from "../api/useApi";
-import { Button, Chip, Empty, TopBar } from "../components/ui";
+import { Button, Chip, Empty, Hint, TopBar } from "../components/ui";
 import { back, go } from "../router";
 import { Skeleton } from "../lib/motion";
 
@@ -16,7 +16,7 @@ export function WeakScreen({ docId }: { docId: string }) {
     <div className="screen weak">
       <TopBar title="약점 노트" onBack={() => back({ name: "doc", docId })} />
       <div className="screen-body">
-        <p className="t-caption muted" style={{ margin: "0 4px 12px" }}>퀴즈에서 틀린 문제와 수업 중 헷갈린 곳이에요. 복습에서 맞힐 때까지 다시 나와요.</p>
+        <Hint icon="target">퀴즈에서 틀린 문제와 수업 중 헷갈린 곳이에요. 복습에서 맞힐 때까지 다시 나와요.</Hint>
         {!items && <Skeleton />}
         {items && items.length === 0 && (
           <Empty icon="check-circle"><strong className="t-title-s">아직 약점이 없어요</strong><br />AI 퀴즈를 풀어 보거나 수업 중 '모르겠어요'를 누르면 여기에 모여요.</Empty>

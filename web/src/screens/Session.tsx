@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 // 강의 다시 보기: 필기 → 정리 → 공부 → 용어 (공부하는 순서대로)
 import type { Annotation, DocumentDetail, GlossaryTerm, SummaryResponse } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
-import { Button, Chip, Empty, Fold, Icon, NoteSection, PostIt, TermCard, TopBar } from "../components/ui";
+import { Button, Chip, Empty, Fold, Hint, Icon, NoteSection, PostIt, TermCard, TopBar } from "../components/ui";
 import { back, go } from "../router";
 import { NotesPdf, StudyNotePdf } from "./LectureExtras";
 import Study, { ConceptExplain, Organize } from "./Study";
@@ -93,7 +93,7 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
           {[review.fixed ? `${review.fixed}개 고침` : "", review.moved ? `${review.moved}개 쪽 옮김` : "", review.deleted ? `${review.deleted}개 지움` : "", review.added ? `${review.added}개 더함` : ""].filter(Boolean).map((t) => ` · ${t}`).join("")}</p>
       )}
       {beyond?.ratio ? (
-        <p className="t-caption muted">교수님 설명의 {Math.round(beyond.ratio * 100)}%는 슬라이드에 없던 내용이에요</p>
+        <Hint icon="sparkle">교수님 설명의 <b>{Math.round(beyond.ratio * 100)}%</b>는 슬라이드에 없던 내용이에요</Hint>
       ) : null}
       {pages.map((p) => {
         const mine = notes.filter((n) => n.page_no === p.page_no && !n.pending);
@@ -129,7 +129,7 @@ function Glossary({ sessionId }: { sessionId: string }) {
   if (terms.length === 0) return <Empty icon="book-open-text">수업 중에 잡힌 전문용어가 없어요</Empty>;
   return (
     <>
-      <p className="t-caption muted">수업 중에 나온 용어 {terms.length}개 · 나온 순서</p>
+      <div className="meta-chips"><span className="meta-chip strong">용어 {terms.length}개</span><span className="meta-chip">수업에 나온 순서</span></div>
       {terms.map((t) => <TermCard key={t.id} term={t.term} page={t.page_no} definition={t.definition} />)}
     </>
   );

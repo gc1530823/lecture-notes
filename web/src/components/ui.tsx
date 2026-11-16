@@ -68,7 +68,34 @@ export function Chip({ variant = "default", children, onClick }: { variant?: Chi
   );
 }
 
-export function ListItem({ icon, title, subtitle, onClick, index, tone, art }: { icon: string; title: string; subtitle?: string; onClick?: () => void; index?: number; tone?: string; art?: ReactNode }) {
+/** 화면 맨 위 안내: 회색 작은 글 대신 💡 연보라 상자 */
+export function Hint({ children, icon = "lightbulb" }: { children: ReactNode; icon?: string }) {
+  return <p className="hint"><Icon name={icon} size={16} /><span>{children}</span></p>;
+}
+
+// 근거 한 줄을 칩으로: 무엇인지 아이콘 + 짧은 말 + 숫자 (시험 예상 지도 · 족보)
+const REASON: [RegExp, string, string, (m: RegExpMatchArray) => string][] = [
+  [/시험에 나온다고 함 (\d+)번/, "fire", "hot", (m) => `시험 언급 ${m[1]}번`],
+  [/시험 필기 (\d+)개/, "star", "exam", (m) => `시험 필기 ${m[1]}`],
+  [/강조 (\d+)번/, "megaphone", "em", (m) => `강조 ${m[1]}번`],
+  [/수업 중 질문 (\d+)개/, "question", "qa", (m) => `질문 ${m[1]}`],
+  [/목소리 높여 말함 (\d+)번/, "speaker-high", "em", (m) => `목소리 높임 ${m[1]}`],
+  [/설명 (.+)/, "clock", "time", (m) => m[1]],
+  [/강의 (\d+)번에서 다룸/, "arrows-clockwise", "time", (m) => `강의 ${m[1]}번`],
+];
+export function ReasonChips({ reasons }: { reasons: string[] }) {
+  if (!reasons.length) return <span className="reason-chips"><span className="reason-chip">언급 적음</span></span>;
+  return (
+    <span className="reason-chips">
+      {reasons.map((r) => {
+        const hit = REASON.map(([re, icon, tone, label]) => { const m = r.match(re); return m ? { icon, tone, text: label(m) } : null; }).find(Boolean);
+        return <span key={r} className={`reason-chip ${hit?.tone ?? ""}`}>{hit && <Icon name={hit.icon} size={12} />}{hit?.text ?? r}</span>;
+      })}
+    </span>
+  );
+}
+
+export function ListItem({ icon, title, subtitle, onClick, index, tone, art }: { icon: string; title: string; subtitle?: ReactNode; onClick?: () => void; index?: number; tone?: string; art?: ReactNode }) {
   // index: 목록에서 몇 번째인지 → 차례로 올라오는 모션의 늦춤
   const style = index === undefined ? undefined : { animationDelay: `${Math.min(index, 8) * 45}ms` } as CSSProperties;
   const inner = (

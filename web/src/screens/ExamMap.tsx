@@ -1,7 +1,7 @@
 // 5 시험 예상 지도: 쪽마다 진하기 = 교수님이 시험·강조를 말한 정도
 import type { ExamMap as ExamMapData } from "../api/types";
 import { useApi } from "../api/useApi";
-import { Empty, ListItem, TopBar } from "../components/ui";
+import { Empty, Hint, ListItem, ReasonChips, TopBar } from "../components/ui";
 import { back } from "../router";
 
 export default function ExamMap({ docId }: { docId: string }) {
@@ -15,7 +15,7 @@ export default function ExamMap({ docId }: { docId: string }) {
         {data && data.lectures === 0 && <Empty icon="target">강의를 한 번 이상 녹음하면 지도가 생겨요</Empty>}
         {data && data.lectures > 0 && (
           <>
-            <p className="t-caption muted">강의 {data.lectures}번 · 교수님이 강조한 쪽일수록 진해요</p>
+            <Hint icon="fire">강의 <b>{data.lectures}번</b>을 모았어요 · 교수님이 강조한 쪽일수록 <b>진한 색</b>이에요</Hint>
             <div className="heat-grid" role="list">
               {data.pages.map((p) => (
                 <div key={p.page_no} role="listitem" className="heat-cell" data-i={p.page_no} title={p.reasons.join(", ") || "언급 적음"}
@@ -33,7 +33,7 @@ export default function ExamMap({ docId }: { docId: string }) {
             {data.top.length === 0 && <p className="muted">아직 두드러진 쪽이 없어요.</p>}
             {data.top.map((no) => {
               const p = data.pages.find((x) => x.page_no === no);
-              return <ListItem key={no} icon="fire" title={`${no}쪽`} subtitle={p?.reasons.join(" · ")} />;
+              return <ListItem key={no} icon="fire" title={`${no}쪽`} subtitle={<ReasonChips reasons={p?.reasons ?? []} />} />;
             })}
           </>
         )}

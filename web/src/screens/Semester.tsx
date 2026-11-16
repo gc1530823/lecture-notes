@@ -3,7 +3,7 @@ import SlidingTabs from "../components/SlidingTabs";
 import { useEffect, useMemo, useState } from "react";
 import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
-import { Button, Chip, Empty, Icon, ListItem, TopBar } from "../components/ui";
+import { Button, Chip, Empty, Hint, Icon, ListItem, TopBar } from "../components/ui";
 import { back, go } from "../router";
 import { askYes, tell } from "../components/Dialog";
 
@@ -92,7 +92,7 @@ function ConceptMap() {
 
   return (
     <>
-      <p className="t-caption muted">용어 {data.nodes.length}개 · 함께 설명됐거나 뜻에 서로 나오면 이어요. 누르면 그 강의 그 순간으로 갈 수 있어요.</p>
+      <Hint icon="tree-structure">용어 <b>{data.nodes.length}개</b> · 함께 설명됐거나 뜻에 서로 나오면 이어요. 누르면 그 강의 그 순간으로 갈 수 있어요.</Hint>
       <div className="scroll-x" style={{ flexWrap: "wrap" }}>
         {docs.map((d) => <span key={d} className="chip chip-default"><span className="dot" style={{ background: docColor(d) }} /> {titles.get(d)}</span>)}
       </div>
@@ -162,7 +162,7 @@ function SemesterTutor() {
   };
   return (
     <>
-      <p className="t-caption muted">지금까지 들은 모든 강의(슬라이드·교수님 설명·필기)에서 가까운 부분을 찾아 답해요</p>
+      <Hint icon="chats-circle">지금까지 들은 모든 강의(슬라이드·교수님 설명·필기)에서 가까운 부분을 찾아 답해요</Hint>
       {messages.length === 0 && (
         <div className="scroll-x" style={{ flexWrap: "wrap" }}>
           {["지금까지 배운 것 한 번에 정리해 줘", "앞 강의랑 이번 강의가 어떻게 이어져?", "시험 범위에서 제일 중요한 개념 3개는?"].map((q) => (

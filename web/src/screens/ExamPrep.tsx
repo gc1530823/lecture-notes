@@ -6,7 +6,7 @@ import { PREVIEW, play, setSoundOn, soundOn } from "../lib/sound";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
-import { Button, Chip, Empty, Icon, PostIt, TermCard, TopBar } from "../components/ui";
+import { Button, Chip, Empty, Hint, Icon, PostIt, ReasonChips, TermCard, TopBar } from "../components/ui";
 import { android } from "../lib/live";
 import { getPrefs, setPrefs, type Prefs } from "../lib/prefs";
 import { back, go } from "../router";
@@ -44,7 +44,7 @@ export function JokboScreen({ docId }: { docId: string }) {
         {data && data.lectures > 0 && (
           <>
             <header className="jokbo-head">
-              <span className="t-caption muted">강의 {data.lectures}번 모아 보기 · AI가 새로 쓰지 않고 수업에서 나온 것만 모았어요</span>
+              <div className="meta-chips"><span className="meta-chip strong">강의 {data.lectures}번 모음</span><span className="meta-chip">AI가 지어내지 않고 수업에서 나온 것만</span></div>
               <h1 className="t-title-l">{data.title}</h1>
             </header>
 
@@ -77,7 +77,7 @@ export function JokboScreen({ docId }: { docId: string }) {
                   <div key={p.page_no} className="jokbo-page">
                     <strong className="t-title-s">{p.page_no}쪽{p.title ? ` · ${p.title}` : ""}</strong>
                     {p.summary && <p className="t-body">{p.summary}</p>}
-                    <p className="t-caption muted">{p.reasons.join(" · ")}</p>
+                    <ReasonChips reasons={p.reasons} />
                   </div>
                 ))}
               </Section>
@@ -119,7 +119,7 @@ export function JokboScreen({ docId }: { docId: string }) {
               </Section>
             )}
             {data.predicted.length === 0 && (
-              <p className="t-caption muted no-print">예상 문제는 시험 예상 지도에서 "예상 문제 만들기"를 누르면 여기에 같이 나와요.</p>
+              <div className="no-print"><Hint>시험 예상 지도에서 <b>예상 문제 만들기</b>를 누르면 예상 문제도 여기에 같이 나와요</Hint></div>
             )}
 
             {data.notice.length > 0 && (
