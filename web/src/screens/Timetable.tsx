@@ -179,7 +179,7 @@ export function TimetableEditor({ onPick }: { onPick: (course: string) => void }
 
   return (
     <div className="tt-screen">
-      {rows.length > 0 ? <WeekGrid rows={rows} onPick={onPick} /> : (
+      {rows.length > 0 ? <><WeekGrid rows={rows} onPick={onPick} dated /><NextClassCard rows={rows} onPick={onPick} /></> : (
         <p className="tasks-empty">아직 시간표가 없어요. 에타·학교 시간표를 캡처해서 넣어 보세요.</p>
       )}
       {rows.length > 0 && <NextDocs courses={[...new Set(rows.map((r) => r.course))]} />}
@@ -329,53 +329,116 @@ function ImportFromImage({ hasRows, onSaved }: { hasRows: boolean; onSaved: () =
   );
 }
 
+const short = (clock: string) => clock.replace(/^0/, "");   // 09:00 → 9:00 (좁은 칸에 시간이 한 줄로 들어가게)
 const minutes = (clock: string) => Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3, 5));
 
-/** 이번 주 시간표: 요일 칸마다 과목 블록. 오늘 칸에는 지금 시각 선 */
-export function WeekGrid({ rows, onPick }: { rows: ClassRow[]; onPick: (course: string) => void }) {
+/** 이번 주 시간표: 위에 주 넘기기와 날짜 띠, 아래에 요일 칸마다 과목 블록. 지금 시각은 보라 선과 '지금' 알약 */
+export function WeekGrid({ rows, onPick, dated = false }: { rows: ClassRow[]; onPick: (course: string) => void; dated?: boolean }) {
+  const [week, setWeek] = useState(0);   // 0 = 이번 주, -1 = 지난주 … (수업은 매주 같고 날짜만 바뀐다)
   const days = Math.max(5, ...rows.map((r) => r.weekday + 1));
   // 보통 9시~6시를 보여 주고, 그보다 이르거나 늦은 수업이 있으면 넓힌다
   const from = Math.min(9, Math.floor(Math.min(...rows.map((r) => minutes(r.start))) / 60));
   const to = Math.max(18, Math.ceil(Math.max(...rows.map((r) => minutes(r.end))) / 60));
   const hours = Math.max(1, to - from);
-  const hour = 54; // 한 시간 높이(px): 과목 이름이 두세 줄 들어가게
-  const today = todayIndex();
+  const hour = 58; // 한 시간 높이(px): 과목 이름 · 장소 · 시간이 들어가게
+  const thisWeek = week === 0;
+  const today = thisWeek ? todayIndex() : -1;
   const nowMin = minutes(clockOf());
   const now = currentClass(rows);
-  const live = now?.live ? now.row : null;   // 지금 하는 수업만 표시 (다음 수업은 아님)
-  // 과목마다 다른 색: 나온 순서대로 8가지 파스텔을 돌려 쓴다 (겹치지 않게)
+  const live = thisWeek && now?.live ? now.row : null;
+  // 과목마다 다른 색: 나온 순서대로 8가지를 돌려 쓴다 (겹치지 않게)
   const courses = [...new Set([...rows].sort((a, b) => a.weekday - b.weekday || a.start.localeCompare(b.start)).map((r) => r.course))];
   const colorOf = (course: string) => courses.indexOf(course) % 8;
-  const cols = { gridTemplateColumns: `30px repeat(${days}, 1fr)` };
-  const label = (h: number) => h; // 24시간 (같이 비는 시간 15:30처럼 한 가지로)
+  const cols = { gridTemplateColumns: `28px repeat(${days}, 1fr)` };
+  const monday = new Date();
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(monday.getDate() - todayIndex() + week * 7);
+  const dateOf = (i: number) => { const d = new Date(monday); d.setDate(monday.getDate() + i); return d; };
+  const mid = dateOf(3);
+  const busy = new Set(rows.map((r) => r.weekday));
+  const showNow = thisWeek && today < days && nowMin >= from * 60 && nowMin <= to * 60;
   return (
-    <div className="tt-grid" role="table" aria-label="이번 주 시간표">
-      <div className="tt-head" style={cols} role="row">
-        <span />
-        {DAYS.slice(0, days).map((d, i) => <span key={d} role="columnheader" className={i === today ? "today" : ""}>{d}</span>)}
-      </div>
-      <div className="tt-body" style={{ ...cols, height: hours * hour, "--hour": `${hour}px` } as React.CSSProperties}>
-        <div className="tt-hours">
-          {Array.from({ length: hours }, (_, i) => <span key={i} style={{ height: hour }}>{label(from + i)}</span>)}
-        </div>
-        {DAYS.slice(0, days).map((d, day) => (
-          <div key={d} className={`tt-col${day === today ? " today" : ""}`}>
-            {day === today && nowMin >= from * 60 && nowMin <= to * 60 && <span className="tt-now" style={{ top: ((nowMin - from * 60) / 60) * hour }} />}
-            {rows.filter((r) => r.weekday === day).map((r, i) => {
-              const h = ((minutes(r.end) - minutes(r.start)) / 60) * hour;
-              return (
-                <button key={r.id} className={`tt-block tt-c${colorOf(r.course)}${live?.id === r.id ? " live" : ""}`}
-                  onClick={() => onPick(r.course)}
-                  style={{ top: ((minutes(r.start) - from * 60) / 60) * hour, height: Math.max(20, h - 3), animationDelay: `${day * 50 + i * 40}ms` }}
-                  aria-label={`${d}요일 ${r.start}~${r.end} ${r.course}${r.place ? ` ${r.place}` : ""}`}>
-                  <b>{r.course}</b>
-                  {r.place && h > 40 && <small>{r.place}</small>}
-                </button>
-              );
-            })}
+    <div className="tt-wrap">
+      {dated && (
+        <>
+          <div className="tt-nav">
+            <button className="tt-arrow" onClick={() => setWeek(week - 1)} aria-label="지난주"><Icon name="caret-left" size={18} /></button>
+            <b className="tt-month">{mid.getFullYear()}년 {mid.getMonth() + 1}월</b>
+            <button className={`tt-today-btn${thisWeek ? " on" : ""}`} onClick={() => setWeek(0)} disabled={thisWeek}>오늘</button>
+            <button className="tt-arrow" onClick={() => setWeek(week + 1)} aria-label="다음 주"><Icon name="caret-right" size={18} /></button>
           </div>
-        ))}
+          <div className="tt-dates" style={{ gridTemplateColumns: `repeat(${days}, 1fr)` }}>
+            {DAYS.slice(0, days).map((d, i) => (
+              <span key={d} className={`tt-date${i === today ? " today" : ""}`}>
+                <small>{d}</small><b>{dateOf(i).getDate()}</b>
+                <i className={busy.has(i) ? "dot" : ""} />
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+      <div className="tt-grid" role="table" aria-label="이번 주 시간표">
+        {!dated && (
+          <div className="tt-head" style={cols} role="row">
+            <span />
+            {DAYS.slice(0, days).map((d, i) => <span key={d} role="columnheader" className={i === today ? "today" : ""}>{d}</span>)}
+          </div>
+        )}
+        <div className="tt-body" style={{ ...cols, height: hours * hour, "--hour": `${hour}px` } as React.CSSProperties}>
+          <div className="tt-hours">
+            {Array.from({ length: hours }, (_, i) => <span key={i} style={{ height: hour }}>{String(from + i).padStart(2, "0")}</span>)}
+          </div>
+          {DAYS.slice(0, days).map((d, day) => (
+            <div key={d} className={`tt-col${day === today ? " today" : ""}`}>
+              {rows.filter((r) => r.weekday === day).map((r, i) => {
+                const h = ((minutes(r.end) - minutes(r.start)) / 60) * hour;
+                return (
+                  <button key={r.id} className={`tt-block tt-c${colorOf(r.course)}${live?.id === r.id ? " live" : ""}`}
+                    onClick={() => onPick(r.course)}
+                    style={{ top: ((minutes(r.start) - from * 60) / 60) * hour, height: Math.max(22, h - 2), animationDelay: `${day * 50 + i * 40}ms` }}
+                    aria-label={`${d}요일 ${r.start}~${r.end} ${r.course}${r.place ? ` ${r.place}` : ""}`}>
+                    <b>{r.course}</b>
+                    {r.place && h > 44 && <small>{r.place}</small>}
+                    {h > 70 && <small className="tt-time">{short(r.start)}–{short(r.end)}</small>}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+          {showNow && (
+            <div className="tt-now" style={{ top: ((nowMin - from * 60) / 60) * hour }} aria-hidden>
+              <span>지금</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+/** 시간표 아래 '다음 수업' 카드: 지금 하는 수업, 없으면 오늘 · 다음 날들 가운데 가장 가까운 수업 */
+export function NextClassCard({ rows, onPick }: { rows: ClassRow[]; onPick: (course: string) => void }) {
+  const now = currentClass(rows);
+  let found: { row: ClassRow; when: string; live: boolean } | null = now
+    ? { row: now.row, when: `오늘 ${now.row.start}`, live: now.live } : null;
+  if (!found && rows.length) {
+    const t = todayIndex();
+    for (let k = 1; k <= 7 && !found; k++) {
+      const day = (t + k) % 7;
+      const first = rows.filter((r) => r.weekday === day).sort((a, b) => a.start.localeCompare(b.start))[0];
+      if (first) found = { row: first, when: `${k === 1 ? "내일" : `${DAYS[day]}요일`} ${first.start}`, live: false };
+    }
+  }
+  if (!found) return null;
+  return (
+    <button className="tt-next" onClick={() => onPick(found!.row.course)}>
+      <span className="tt-next-ic"><Icon name="calendar-dots" size={24} /></span>
+      <span className="grow">
+        <small>{found.live ? "지금 수업" : "다음 수업"}</small>
+        <b>{found.row.course}</b>
+        <span>{found.when}{found.row.place ? ` · ${found.row.place}` : ""}</span>
+      </span>
+      <Icon name="caret-right" size={18} />
+    </button>
   );
 }
