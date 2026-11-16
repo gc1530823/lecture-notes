@@ -7,7 +7,7 @@ import { android } from "../lib/live";
 import { Empty, Icon, ListItem } from "../components/ui";
 import { ExamBanner } from "./Semester";
 import { Timetable } from "./Timetable";
-import { StreakCard } from "./Story";
+import { StreakBadge } from "./Story";
 import { TasksCard } from "./Tasks";
 import { IosInstallHint } from "../components/IosHint";
 import { Skeleton } from "../lib/motion";
@@ -284,7 +284,6 @@ export default function Home() {
           <button onClick={() => go({ name: "semester", tab: "tutor" })}><Icon name="chats-circle" art size={26} /><span>AI에게 묻기</span></button>
           <button onClick={() => go({ name: "semester", tab: "map" })}><Icon name="tree-structure" art size={26} /><span>개념 지도</span></button>
         </div>
-        <StreakCard />
 
         {picker && (
           <>
@@ -336,7 +335,10 @@ function HomeHead() {
     <header className="home-head">
       <div className="home-top">
         <span className="home-brand"><LuneMark size={22} /><LuneWordmark height={12} gradient /></span>
-        <button className="home-me" onClick={() => go({ name: "privacy" })} aria-label="설정"><Icon name="gear" size={18} /></button>
+        <span className="home-top-right">
+          <StreakBadge />
+          <button className="home-me" onClick={() => go({ name: "privacy" })} aria-label="설정"><Icon name="gear" size={18} /></button>
+        </span>
       </div>
       <div className="home-hello">
         <span className="home-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>

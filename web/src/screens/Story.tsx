@@ -2,6 +2,7 @@
 // 스토리: 강의 하나를 1분 안에 넘겨 보는 카드 묶음 (시험·강조·목소리 높인 순간·막힌 곳·과제·새 용어). 눌러서 그 순간 녹음을 듣는다.
 // 흐름: 1분 단위 막대. 진할수록 중요한 구간(시험 언급·필기·모르겠다·목소리). 눌러서 그 시각으로.
 // 서버가 규칙만으로 만든다 (AI 호출 없음).
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getJSON } from "../api/useApi";
 import { Button, Icon } from "../components/ui";
@@ -201,6 +202,55 @@ interface Streak { streak: number; best: number; today: boolean; week: { date: s
 
 function Carrot() {
   return <span className="carrot"><Icon name="fire" art size={24} /></span>;
+}
+
+/** 홈 맨 위 작은 불꽃 알약: 🔥 연속 일수. 오늘 했으면 켜지고, 누르면 이번 주 · 레벨 시트 (매일 눈에 띄되 자리는 차지하지 않게) */
+export function StreakBadge() {
+  const [data, setData] = useState<Streak | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { getJSON<Streak>(`/streak?tz=${-new Date().getTimezoneOffset()}`).then(setData).catch(() => setData(null)); }, []);
+  if (!data) return null;
+  const names = ["일", "월", "화", "수", "목", "금", "토"];
+  const pct = data.next_at ? Math.round(100 * ((data.carrots ?? 0) - (data.level_from ?? 0)) / (data.next_at - (data.level_from ?? 0))) : 100;
+  return (
+    <>
+      <button className={`streak-pill${data.today ? " lit" : ""}`} onClick={() => setOpen(true)} aria-label={`연속 공부 ${data.streak}일${data.today ? " · 오늘 불꽃 켬" : " · 오늘 아직"}`}>
+        <Icon name="fire" size={17} /><b>{data.streak}</b>
+      </button>
+      {open && createPortal(
+        <>
+          <div className="sheet-bg" onClick={() => setOpen(false)} />
+          <div className="sheet streak-sheet" role="dialog" aria-modal="true" aria-label="연속 공부">
+            <span className="sheet-grip" aria-hidden />
+            <div className={`streak-hero${data.today ? " lit" : ""}`}>
+              <span className="streak-flame"><Icon name="fire" art size={56} /></span>
+              <b><Count to={data.streak} />일 연속</b>
+              <small>{data.today ? "오늘 불꽃을 켰어요" : data.streak > 0 ? "오늘도 공부하면 이어져요" : `최고 기록 ${data.best}일`}</small>
+            </div>
+            <div className="streak-week" aria-label="이번 주 불꽃">
+              {data.week.map((d, i) => (
+                <span key={d.date} className={`${d.done ? "done" : ""}${i === data.week.length - 1 ? " today" : ""}`}>
+                  <Carrot /><small>{names[new Date(d.date + "T00:00:00").getDay()]}</small>
+                </span>
+              ))}
+            </div>
+            {data.level_name && (
+              <div className="streak-level">
+                <span className="streak-lv">Lv.{data.level}</span>
+                <span className="grow"><b>{data.level_name}</b><span className="level-bar"><i style={{ width: `${pct}%` }} /></span></span>
+                <span className="streak-next"><Icon name="fire" size={13} />{data.next_at ? data.next_at - (data.carrots ?? 0) : "MAX"}</span>
+              </div>
+            )}
+            <div className="streak-how">
+              <span><Icon name="microphone" size={16} />강의 녹음</span>
+              <span><Icon name="cards" size={16} />복습</span>
+              <span><Icon name="brain" size={16} />퀴즈</span>
+              <small>하루에 하나만 해도 불꽃 하나</small>
+            </div>
+          </div>
+        </>, document.body)}
+    </>
+  );
 }
 
 /** 연속 공부: 강의를 듣거나 복습한 날마다 불꽃 하나 (며칠째 이어 가는지), 불꽃이 모이면 레벨 업 */
