@@ -1,0 +1,470 @@
+INFO:     Started server process [2619]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:42058 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42074 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42074 - "POST /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42074 - "POST /sessions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48240 - "WebSocket /sessions/aa7bf044923a45ae97bfc40b0b693a0d/stream" [accepted]
+INFO:     connection open
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+INFO:app.ollama_llm:Ollama 모델 준비됨: qwen3:4b
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:50662 - "POST /sessions/aa7bf044923a45ae97bfc40b0b693a0d/end HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:app.main:필기 다시 확인: {'checked': 4, 'fixed': 0, 'moved': 0, 'deleted': 0, 'added': 2}
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/tasks HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:50662 - "POST /tasks/1/draft HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "POST /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50662 - "GET /sessions/aa7bf044923a45ae97bfc40b0b693a0d/notes-pdf HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "POST /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "POST /sessions/from-audio HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:app.stt:Whisper 모델 준비 중: small
+INFO:httpx2:HTTP Request: GET https://huggingface.co/api/agent-harnesses "HTTP/1.1 200 OK"
+INFO:httpx2:HTTP Request: GET https://huggingface.co/api/models/Systran/faster-whisper-small/revision/main "HTTP/1.1 200 OK"
+INFO:httpx2:HTTP Request: GET https://huggingface.co/api/models/Systran/faster-whisper-small/tree/536b0662742c02347bc0e980a01041f333bce120?recursive=true&expand=false "HTTP/1.1 200 OK"
+INFO:httpx2:HTTP Request: HEAD https://huggingface.co/Systran/faster-whisper-small/resolve/536b0662742c02347bc0e980a01041f333bce120/config.json "HTTP/1.1 307 Temporary Redirect"
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+INFO:httpx2:HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Systran/faster-whisper-small/536b0662742c02347bc0e980a01041f333bce120/config.json?%2FSystran%2Ffaster-whisper-small%2Fresolve%2F536b0662742c02347bc0e980a01041f333bce120%2Fconfig.json=&etag=%22e5047537059bd8f182d9ca64c470201585015187%22 "HTTP/1.1 200 OK"
+INFO:httpx2:HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Systran/faster-whisper-small/536b0662742c02347bc0e980a01041f333bce120/config.json?%2FSystran%2Ffaster-whisper-small%2Fresolve%2F536b0662742c02347bc0e980a01041f333bce120%2Fconfig.json=&etag=%22e5047537059bd8f182d9ca64c470201585015187%22 "HTTP/1.1 200 OK"
+INFO:httpx2:HTTP Request: HEAD https://huggingface.co/Systran/faster-whisper-small/resolve/536b0662742c02347bc0e980a01041f333bce120/tokenizer.json "HTTP/1.1 307 Temporary Redirect"
+INFO:httpx2:HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Systran/faster-whisper-small/536b0662742c02347bc0e980a01041f333bce120/tokenizer.json?%2FSystran%2Ffaster-whisper-small%2Fresolve%2F536b0662742c02347bc0e980a01041f333bce120%2Ftokenizer.json=&etag=%227818adb6de9fa3064d3ff81226fdd675be1f6344%22 "HTTP/1.1 200 OK"
+INFO:httpx2:HTTP Request: HEAD https://huggingface.co/Systran/faster-whisper-small/resolve/536b0662742c02347bc0e980a01041f333bce120/vocabulary.txt "HTTP/1.1 307 Temporary Redirect"
+INFO:httpx2:HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Systran/faster-whisper-small/536b0662742c02347bc0e980a01041f333bce120/tokenizer.json?%2FSystran%2Ffaster-whisper-small%2Fresolve%2F536b0662742c02347bc0e980a01041f333bce120%2Ftokenizer.json=&etag=%227818adb6de9fa3064d3ff81226fdd675be1f6344%22 "HTTP/1.1 200 OK"
+INFO:httpx2:HTTP Request: GET https://huggingface.co/api/models/Systran/faster-whisper-small/xet-read-token/536b0662742c02347bc0e980a01041f333bce120 "HTTP/1.1 200 OK"
+INFO:httpx2:HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/Systran/faster-whisper-small/536b0662742c02347bc0e980a01041f333bce120/vocabulary.txt?%2FSystran%2Ffaster-whisper-small%2Fresolve%2F536b0662742c02347bc0e980a01041f333bce120%2Fvocabulary.txt=&etag=%22c9074644d9d1205686f16d411564729461324b75%22 "HTTP/1.1 200 OK"
+INFO:httpx2:HTTP Request: GET https://huggingface.co/api/resolve-cache/models/Systran/faster-whisper-small/536b0662742c02347bc0e980a01041f333bce120/vocabulary.txt?%2FSystran%2Ffaster-whisper-small%2Fresolve%2F536b0662742c02347bc0e980a01041f333bce120%2Fvocabulary.txt=&etag=%22c9074644d9d1205686f16d411564729461324b75%22 "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:faster_whisper:Processing audio with duration 01:26.485
+[0;93m2026-11-17 13:51:40.589922801 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:faster_whisper:VAD filter removed 00:00.000 of audio
+INFO:faster_whisper:Detected language 'ko' with probability 1.00
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:app.main:필기 다시 확인: {'checked': 3, 'fixed': 0, 'moved': 0, 'deleted': 0, 'added': 0}
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/transcript HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/annotations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47238 - "GET /sessions/45a587a686ee4b849e6a0cfce378007e/tasks HTTP/1.1" 200 OK
