@@ -1437,3 +1437,35 @@ def test_file_lecture_waits_for_ai_instead_of_keeping_raw_speech(monkeypatch):
     s.patient = False
     asyncio.run(s._drain())
     assert calls["n"] == 1 and kept == [True]
+
+
+def test_summary_waits_for_ai_limit_and_reuses_done_pages(client, monkeypatch):
+    """요약이 AI 한도에 걸리면 실패로 끝내지 않고 기다렸다 다시 하고, 이미 만든 쪽 요약은 다시 부르지 않는다"""
+    import asyncio
+
+    from app import main as m
+    from app.llm import LLMError
+    from app.ollama_llm import OllamaLLM
+
+    doc = upload(client)
+    sid = client.post("/sessions", json={"document_id": doc["id"]}).json()["id"]
+    with client.websocket_connect(f"/sessions/{sid}/stream") as ws:
+        ws.send_json({"type": "page_view", "page": 1})
+        ws.send_json({"type": "transcript_final", "text": "학습률이 너무 크면 발산해요. 이거 시험에 꼭 나와요.", "start_ms": 0, "end_ms": 3000})
+        receive_annotation(ws)
+    real = m.app.state.llm.summarize
+    calls = {"n": 0}
+
+    async def flaky(*a, **k):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise LLMError("Groq 오류 (429): rate limit")
+        return await real(*a, **k)
+
+    async def no_sleep(_s):
+        return None
+    monkeypatch.setattr(m.app.state.llm, "summarize", flaky)
+    monkeypatch.setattr(m.asyncio, "sleep", no_sleep)
+    asyncio.run(m._summarize(sid, doc["id"]))
+    assert calls["n"] == 3 and client.get(f"/sessions/{sid}/summary").json()["status"] == "done"
+    assert isinstance(OllamaLLM._page_cache, dict)

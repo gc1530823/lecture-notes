@@ -1207,16 +1207,26 @@ async def _review_notes(session_id: str, document_id: str) -> None:
         app.state.progress.pop(session_id, None)
 
 
+SUMMARY_WAITS = (300, 600, 1200, 1800, 3600)
+
+
 async def _summarize(session_id: str, document_id: str) -> None:
     await _refine_transcript(session_id, document_id)
     await _review_notes(session_id, document_id)
     pages = db().list_pages(document_id)
-    try:
-        body = await app.state.llm.summarize(pages, db().get_segments(session_id), db().list_annotations(session_id))
-    except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError) as exc:
-        log.exception("요약·퀴즈 생성 실패")
-        db().set_session_status(session_id, "failed", _why("필기·요약", exc))
-        return
+    # AI 무료 한도에 걸리면 바로 실패로 끝내지 않고 기다렸다 다시 (쪽 요약은 기억해 두어 이어서 한다). 긴 강의 요약이 한도에 걸려 멈추던 것
+    for wait in (*SUMMARY_WAITS, None):
+        try:
+            body = await app.state.llm.summarize(pages, db().get_segments(session_id), db().list_annotations(session_id))
+            break
+        except (anthropic.APIStatusError, anthropic.APIConnectionError, LLMError, json.JSONDecodeError) as exc:
+            limited = "429" in str(exc) or "한도" in str(exc)
+            if wait is None or not limited:
+                log.exception("요약·퀴즈 생성 실패")
+                db().set_session_status(session_id, "failed", _why("필기·요약", exc))
+                return
+            log.warning("요약: AI 한도, %d분 뒤 다시", wait // 60)
+            await asyncio.sleep(wait)
     body["quiz"] = [q for q in body["quiz"] if 0 <= q["answer_index"] < len(q["choices"])]
     body["tips"] = []
     if settings.enable_web_tips:

@@ -4,6 +4,7 @@ Ollama의 /api/chat에 JSON 스키마를 format으로 넘기면 그 형식대로
 프롬프트와 스키마는 Claude 모드와 같은 것을 쓴다.
 """
 
+import hashlib
 import json
 import logging
 import re
@@ -237,6 +238,8 @@ class OllamaLLM:
             raise LLMError("모델이 초안 대신 빈 틀만 만들었어요. 다시 눌러 주세요.")
         return data
 
+    _page_cache: dict[str, dict] = {}
+
     async def summarize(self, pages: list[dict], segments: list[dict], annotations: list[dict]) -> dict:
         """작은 모델은 요약·퀴즈 전체를 한 번에 시키면 지시문을 그대로 베껴 쓴다("2~3문장 핵심 요약", "옵션1").
         그래서 페이지마다 요약 + 퀴즈 한 문항을 따로 받고, 전체 요약은 페이지 요약으로 마지막에 만든다."""
@@ -246,8 +249,18 @@ class OllamaLLM:
             if not speech:
                 continue
             notes = [a for a in annotations if a["page_no"] == page["page_no"] and not a["pending"]]
-            data = await self._chat_checked(PAGE_SUMMARY_SYSTEM, _organize_prompt(page, speech, notes),
-                                            PAGE_SUMMARY_SCHEMA, 8192, _page_summary_ok)
+            prompt = _organize_prompt(page, speech, notes)
+            # 이미 만든 쪽 요약은 기억한다: 한도에 걸려 중간에 멈췄다 다시 할 때 처음부터 다시 부르지 않게
+            key = hashlib.sha1(prompt.encode()).hexdigest()
+            cache = OllamaLLM._page_cache
+            if key in cache:
+                data = cache[key]
+            else:
+                data = await self._chat_checked(PAGE_SUMMARY_SYSTEM, prompt, PAGE_SUMMARY_SCHEMA, 8192, _page_summary_ok)
+                if data is not None:
+                    cache[key] = data
+                    while len(cache) > 400:
+                        cache.pop(next(iter(cache)))
             if data is None:
                 continue
             quiz = data.get("quiz") if _quiz_ok(data.get("quiz")) else None
