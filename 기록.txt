@@ -1,0 +1,6 @@
+서버: {'ok': True, 'llm_mode': 'groq', 'model': 'openai/gpt-oss-120b', 'stt_mode': 'groq'}
+강의자료: slides (6쪽)
+녹음 파일: 7.6MB
+  [     0초] 정리: transcribing
+  [     6초] 정리: failed
+받아쓰기 0문장 · 필기 0개 (보류함 0개) · 과제 0개 · 요약 failed
