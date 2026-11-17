@@ -99,22 +99,27 @@ def try_once(db) -> dict:
     if st.get("instance"):
         return _grow(db, st, compute)
     tenancy = config["tenancy"]
-    ad = identity.list_availability_domains(tenancy).data[0].name
-    subnet = next(iter(network.list_subnets(tenancy).data), None)
-    if subnet is None:
-        return _save(db, message="서브넷을 찾지 못했어요 (오라클 콘솔에서 VCN을 먼저 만들어야 해요)", at=time.time())
-    images = compute.list_images(tenancy, operating_system="Canonical Ubuntu", operating_system_version="24.04",
-                                 shape=SHAPE, sort_by="TIMECREATED", sort_order="DESC").data
-    if not images:
-        return _save(db, message="우분투 24.04 이미지를 찾지 못했어요", at=time.time())
+    # 위치 · 서브넷 · 이미지는 한 번 알아내면 기억한다 (2분마다 매번 물어 오라클이 '너무 잦다'고 막지 않게)
+    ids = st.get("ids") or {}
+    if not all(ids.get(k) for k in ("ad", "subnet", "image")):
+        ad = identity.list_availability_domains(tenancy).data[0].name
+        subnet = next(iter(network.list_subnets(tenancy).data), None)
+        if subnet is None:
+            return _save(db, message="서브넷을 찾지 못했어요 (오라클 콘솔에서 VCN을 먼저 만들어야 해요)", at=time.time())
+        images = compute.list_images(tenancy, operating_system="Canonical Ubuntu", operating_system_version="24.04",
+                                     shape=SHAPE, sort_by="TIMECREATED", sort_order="DESC").data
+        if not images:
+            return _save(db, message="우분투 24.04 이미지를 찾지 못했어요", at=time.time())
+        ids = {"ad": ad, "subnet": subnet.id, "image": images[0].id}
+        st = _save(db, ids=ids)
     tries = st.get("tries", 0) + 1
     last = None
     for ocpus, mem in SIZES:
         details = oci.core.models.LaunchInstanceDetails(
-            compartment_id=tenancy, availability_domain=ad, display_name=NAME, shape=SHAPE,
+            compartment_id=tenancy, availability_domain=ids["ad"], display_name=NAME, shape=SHAPE,
             shape_config=oci.core.models.LaunchInstanceShapeConfigDetails(ocpus=ocpus, memory_in_gbs=mem),
-            source_details=oci.core.models.InstanceSourceViaImageDetails(image_id=images[0].id),
-            create_vnic_details=oci.core.models.CreateVnicDetails(subnet_id=subnet.id, assign_public_ip=True),
+            source_details=oci.core.models.InstanceSourceViaImageDetails(image_id=ids["image"]),
+            create_vnic_details=oci.core.models.CreateVnicDetails(subnet_id=ids["subnet"], assign_public_ip=True),
             metadata={"user_data": base64.b64encode((db.get_setting("a1_init") or "").encode()).decode()})
         try:
             inst = compute.launch_instance(details).data
@@ -129,9 +134,16 @@ def try_once(db) -> dict:
                            message="큰 서버를 만들었어요! 15분쯤 뒤 설치가 끝나요.", at=time.time())
         return _save(db, tries=tries, instance=inst.id, ocpus=ocpus, created_at=time.time(),
                      message=f"{ocpus}코어·{mem}GB로 먼저 만들었어요! 15분쯤 뒤 설치가 끝나요. 자리가 나면 더 키워요.", at=time.time())
+    if last is not None and last.code == "TooManyRequests":
+        # 오라클이 '너무 잦다': 10분 쉬었다 (due 가 rest_until 을 본다)
+        return _save(db, tries=tries, message=_capacity_msg(last) + " · 10분 뒤 다시", at=time.time(), rest_until=time.time() + 600)
+    if last is not None and last.code in ("NotAuthorizedOrNotFound", "InvalidParameter"):
+        # 기억해 둔 서브넷·이미지가 바뀌었을 수 있다 → 다음엔 다시 알아낸다
+        _save(db, ids=None)
     return _save(db, tries=tries, message=_capacity_msg(last), at=time.time())
 
 
 def due(db, every: float = 120) -> bool:
     st = status(db)
-    return bool(st.get("enabled")) and not st.get("done") and configured(db) and time.time() - st.get("at", 0) >= every
+    return (bool(st.get("enabled")) and not st.get("done") and configured(db) and time.time() - st.get("at", 0) >= every
+            and time.time() >= st.get("rest_until", 0))

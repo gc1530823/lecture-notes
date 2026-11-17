@@ -484,3 +484,48 @@ def test_admin_a1_auto_create_retries_until_capacity(invite, monkeypatch):
         assert not a1retry.due(m.db())
     finally:
         admin.__exit__(None, None, None)
+
+
+def test_a1_remembers_ids_and_rests_when_oracle_says_too_many(invite, monkeypatch):
+    """큰 서버 자동 만들기: 위치·서브넷·이미지는 한 번만 묻고, 오라클이 '너무 잦다'면 10분 쉰다"""
+    import json as _json
+    import time as _time
+
+    import oci
+
+    from app import a1retry
+    from app import main as m
+    d = m.db()
+    d.set_setting("a1_config", _json.dumps({"user": "u", "fingerprint": "f", "tenancy": "t", "region": "r", "key": "k"}))
+    d.set_setting("a1_init", "x")
+    d.set_setting("a1_status", _json.dumps({"enabled": True}))
+    seen = {"images": 0}
+
+    class Obj:
+        def __init__(self, **kw): self.__dict__.update(kw)
+
+    class Compute:
+        def list_images(self, *a, **k):
+            seen["images"] += 1
+            return Obj(data=[Obj(id="img")])
+        def launch_instance(self, details):
+            raise oci.exceptions.ServiceError(500, "InternalError", {}, "Out of host capacity.")
+
+    class Net:
+        def list_subnets(self, *a, **k): return Obj(data=[Obj(id="subnet")])
+
+    class Ident:
+        def list_availability_domains(self, *a, **k): return Obj(data=[Obj(name="AD-1")])
+
+    monkeypatch.setattr(a1retry, "_clients", lambda db: ({"tenancy": "t"}, Compute(), Net(), Ident()))
+    a1retry.try_once(d); a1retry.try_once(d)
+    assert seen["images"] == 1 and a1retry.status(d)["ids"]["image"] == "img"
+
+    def busy(details):
+        raise oci.exceptions.ServiceError(429, "TooManyRequests", {}, "Too many requests")
+    monkeypatch.setattr(Compute, "launch_instance", lambda self, details: busy(details))
+    st = a1retry.try_once(d)
+    assert "10분" in st["message"] and st["rest_until"] > _time.time() + 500
+    d.set_setting("a1_status", _json.dumps({**a1retry.status(d), "at": 0}))
+    assert not a1retry.due(d)     # 쉬는 동안은 시도하지 않는다
+    d.set_setting("a1_status", None); d.set_setting("a1_config", None); d.set_setting("a1_init", None)
