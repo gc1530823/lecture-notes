@@ -1,0 +1,11 @@
+받아쓰기 정확도 (공식 자막과 비교, 앞 15분)
+- 자막 단어 2508개 · 우리 받아쓰기 단어 0개
+- 단어 오류율(WER) 100.0% → 정확도 약 0.0%
+- 슬라이드 용어 중 자막에 나온 53개 가운데 0개를 맞게 받아씀 (0%)
+  놓친 용어: about, allow, assume, assumption, assumptions, available, average, before, called, chapter, could, course, design, distribution, estimate
+- 자막 앞부분: the following content is provided under a creative commons license your support will help mit opencourseware continue to offer high quality educational resources for free
+- 받아쓰기 앞부분: 
+
+쪽 추적 (영상 화면과 강의자료를 그림으로 맞춘 정답과 비교)
+- 영상 장면 450개 중 슬라이드가 확실히 보인 장면 30개 (7%)
+- 슬라이드가 보인 시간에 받아쓴 문장이 없어 채점하지 못했어요
