@@ -58,8 +58,6 @@
   --font-sans: "Noto Sans KR", system-ui, -apple-system, sans-serif;
   /* 숫자·영문 제목: 시간표의 큰 숫자처럼 또렷하게 (한글은 Noto Sans KR로 넘어간다) */
   --font-display: "Noto Sans KR", system-ui, -apple-system, sans-serif;
-  /* 편집 디자인용 명조: 큰 날짜·쪽 번호·리드 문단에만 (본문은 고딕 그대로) */
-  --font-serif: "Noto Serif KR", "Nanum Myeongjo", "AppleMyungjo", serif;
   color-scheme: light dark;
 }
 

@@ -243,7 +243,7 @@ export default function Home() {
         <ExamBanner />
         <TasksCard />
 
-        <h2 className="section-title folio">내 강의{docs && <small>{String(docs.length).padStart(2, "0")}</small>}</h2>
+        <h2 className="section-title">내 강의</h2>
         {courses.length > 0 && (
           <div className="picks" role="group" aria-label="과목">
             <button className={`pick${filter === "all" ? " on" : ""}`} aria-pressed={filter === "all"} onClick={() => pick("all")}>전체</button>
@@ -326,8 +326,7 @@ function HomeHead() {
       due: tasks.filter((t) => !t.done && t.due_date && t.due_date <= iso).length,
     }));
   }, []);
-  const now = new Date();
-  const h = now.getHours();
+  const h = new Date().getHours();
   const hello = h < 5 ? "늦은 밤이에요" : h < 11 ? "좋은 아침이에요" : h < 17 ? "좋은 오후예요" : h < 22 ? "좋은 저녁이에요" : "오늘도 수고했어요";
   // 오늘 한 줄: 수업·마감이 있으면 그 수, 없으면 가벼운 한마디 (아래 카드와 같은 말을 되풀이하지 않게)
   const line = sum && ([sum.classes ? `오늘 수업 ${sum.classes}개` : "", sum.due ? `마감 할 일 ${sum.due}개` : ""].filter(Boolean).join(" · ")
@@ -341,16 +340,11 @@ function HomeHead() {
           <button className="home-me" onClick={() => go({ name: "privacy" })} aria-label="설정"><Icon name="gear" size={18} /></button>
         </span>
       </div>
-      {/* 마스트헤드: 잡지 표지처럼 오늘 날짜를 크게, 인사와 오늘 한 줄은 옆 칸에 작게 (비대칭) */}
-      <div className="masthead">
-        <span className="mast-day" aria-hidden="true">{String(now.getDate()).padStart(2, "0")}</span>
-        <div className="mast-side">
-          <span className="mast-meta">{now.getMonth() + 1}월 · {now.toLocaleDateString("ko-KR", { weekday: "long" })}</span>
-          <h1>{hello}{name ? <>, {name}님</> : ""}</h1>
-          {line && <p>{line}</p>}
-        </div>
+      <div className="home-hello">
+        <span className="home-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>
+        <h1>{hello}{name ? <>, <em>{name}</em>님</> : ""}</h1>
+        {line && <p>{line}</p>}
       </div>
-      <div className="mast-rule"><span>LUNE 강의 노트</span><span>{now.getFullYear()}.{String(now.getMonth() + 1).padStart(2, "0")}.{String(now.getDate()).padStart(2, "0")}</span></div>
     </header>
   );
 }
