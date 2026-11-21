@@ -93,24 +93,28 @@ export default function DocDetail({ docId }: { docId: string }) {
             <input ref={audioInput} type="file" accept="audio/*,.m4a,.mp3,.wav" hidden
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) sendAudio(f); }} />
 
-            <h2 className="t-title-s section-title">강의 {doc.sessions.length}개</h2>
+            <h2 className="t-title-s section-title folio">강의<small>{String(doc.sessions.length).padStart(2, "0")}</small></h2>
             {doc.sessions.length === 0 && <p className="muted">아직 녹음한 강의가 없어요. 위에서 녹음을 시작하거나 올려 주세요.</p>}
+            <div className="ruled-list">
             {doc.sessions.map((s, i) => (
               <ListItem key={s.id} icon="headphones" tone={courseTone(doc.course)} art={waves[s.id]?.w ? <Wave data={waves[s.id]} /> : undefined}
                 title={new Date(s.started_at * 1000).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit" })}
                 subtitle={`${doc.sessions.length - i}번째 강의 · ${STATUS[s.status] ?? s.status}`}
                 onClick={() => go(s.status === "failed" ? { name: "lecture", docId, sessionId: s.id } : { name: "session", docId, sessionId: s.id, tab: "notes" })} />
             ))}
+            </div>
 
             {doc.kind !== "meeting" && doc.sessions.length > 0 && (
               <>
-                <h2 className="t-title-s section-title">시험 준비 <span className="t-caption faint">이 자료의 모든 강의로</span></h2>
+                <h2 className="t-title-s section-title folio">시험 준비<span className="folio-note">이 자료의 모든 강의로</span></h2>
+                <div className="group-list">
                 <ListItem icon="star" title="족보 노트" subtitle="시험에 나온다고 한 것 · 유력한 쪽 · 헷갈린 것 · 예상 문제를 한 장에"
                   onClick={() => go({ name: "jokbo", docId })} />
                 <ListItem icon="brain" title="AI 퀴즈" subtitle="AI 가 이 자료와 강의를 공부하고 문제를 내요 · 바로 채점"
                   onClick={() => go({ name: "quiz", docId })} />
                 <ListItem icon="target" title="약점 노트" subtitle="퀴즈에서 틀린 문제 · 수업 중 헷갈린 곳 · 복습에서 자주 틀린 것"
                   onClick={() => go({ name: "weak", docId })} />
+                </div>
                 <button className="link-row" onClick={() => { window.location.href = `${API}/documents/${docId}/anki.txt`; }}>
                   <Icon name="export" size={16} /> Anki 로 내보내기
                 </button>

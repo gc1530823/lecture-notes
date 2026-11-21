@@ -100,8 +100,9 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
         const heading = (p.text || p.blocks[0]?.text || "").split("\n")[0].slice(0, 40);
         return (
           <section key={p.id} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <h2 className="t-title-s section-title">{p.page_no}쪽 {heading && <span className="muted">· {heading}</span>}</h2>
-            {pageSummary.get(p.page_no) && <p className="t-body muted">{pageSummary.get(p.page_no)}</p>}
+            {/* 지면 번호처럼: 쪽 번호를 크게, 제목은 옆에. 쪽 요약은 리드 문단 */}
+            <h2 className="page-folio"><span className="pf-no">{String(p.page_no).padStart(2, "0")}</span><span className="pf-t"><small>{p.page_no}쪽</small>{heading}</span></h2>
+            {pageSummary.get(p.page_no) && <p className="page-lead">{pageSummary.get(p.page_no)}</p>}
             <div className="postit-grid">
               {mine.map((n, i) => (
                 <PostIt key={n.id} type={n.type} number={i + 1} photo={n.photo_id ? `${import.meta.env.VITE_API_URL ?? ""}/photos/${n.photo_id}` : null} tag={beyondIds.has(n.id) ? "슬라이드에 없음" : undefined}>{n.text}</PostIt>
@@ -116,9 +117,9 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
 
 function Overview({ text, title = "한눈에 보는 강의" }: { text: string; title?: string }) {
   return (
-    <div className="banner">
-      <strong className="t-title-s">{title}</strong>
-      <p className="t-body">{text}</p>
+    <div className="lead-block">
+      <span className="lead-label">{title}</span>
+      <p className="lead-text">{text}</p>
     </div>
   );
 }
