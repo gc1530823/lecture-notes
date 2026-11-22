@@ -13,7 +13,7 @@ export function LuneMark({ size = 40, className = "" }: { size?: number; classNa
     <svg className={`lune-mark ${className}`} width={size} height={size} viewBox="0 0 512 512" aria-hidden="true">
       <defs>
         <linearGradient id={`bg${id}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#4A3AD9" /><stop offset=".55" stopColor="#6B5CF6" /><stop offset="1" stopColor="#9C8CFF" />
+          <stop offset="0" stopColor="#4352E8" /><stop offset=".55" stopColor="#5B6CFF" /><stop offset="1" stopColor="#8F9BFF" />
         </linearGradient>
         <radialGradient id={`gl${id}`} cx=".25" cy=".12" r=".7">
           <stop offset="0" stopColor="#fff" stopOpacity=".18" /><stop offset="1" stopColor="#fff" stopOpacity="0" />
@@ -35,7 +35,7 @@ export function LuneWordmark({ height = 22, className = "", gradient = false }: 
         <defs>
           <linearGradient id="lune-word-g" x1="0" x2="1" y1="0" y2="0">
             <stop offset="0" stopColor="var(--accent-primary)" />
-            <stop offset="1" stopColor="#c46ae8" />
+            <stop offset="1" stopColor="#8f9bff" />
           </linearGradient>
         </defs>
       )}

@@ -78,3 +78,31 @@
 /* 할 일 카드: 분홍 테두리 대신 옅은 분홍 바탕 */
 .tasks-card.urgent { background: color-mix(in srgb, var(--pastel-pink) 60%, var(--bg-card)); box-shadow: none; }
 .home-brand { font-family: var(--font-serif); }
+
+/* ── 조화 다듬기: 파스텔 칸 위 글자는 같은 색 계열의 진한 색(톤온톤) ── */
+.record-sub > :nth-child(1) { color: #8a3f1c; } .record-sub > :nth-child(2) { color: #1d6b47; }
+.record-sub > * svg { color: inherit; }
+.tt-invite b { color: #5e4500; } .tt-invite small { color: #7a6420; }
+.tt-invite .btn, .tt-invite button:last-child { background: #1f1d1a; color: #fff; box-shadow: none; }
+.tasks-card.urgent { background: var(--bg-card); box-shadow: 0 0 0 1px var(--border-line), var(--shadow-card); border-left: 4px solid #ff8a80; }
+.home-brand { color: var(--text-primary); }
+.home-brand .lune-word { filter: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .record-sub > *, :root:not([data-theme="light"]) .tt-invite b, :root:not([data-theme="light"]) .tt-invite small { color: var(--text-primary); } }
+:root[data-theme="dark"] .record-sub > *, :root[data-theme="dark"] .tt-invite b, :root[data-theme="dark"] .tt-invite small { color: var(--text-primary); }
+
+/* ── 모션 ── */
+/* 녹음 카드의 마이크가 숨 쉬듯 */
+.record-main .record-ic { position: relative; }
+.record-main .record-ic::after { content: ""; position: absolute; inset: -4px; border-radius: inherit; border: 2px solid rgb(255 255 255 / .55); animation: lune-breathe 2.4s ease-out infinite; pointer-events: none; }
+@keyframes lune-breathe { 0% { transform: scale(.9); opacity: .9; } 100% { transform: scale(1.35); opacity: 0; } }
+/* 탭을 바꾸면 알약이 톡 튀어나옴 */
+.tabbar button.on svg, .tabbar button.on .icon { animation: lune-pop .45s cubic-bezier(.2,1.6,.3,1); }
+@keyframes lune-pop { from { transform: scale(.6); } }
+/* 파스텔 칸은 누를 때 말랑하게 */
+.record-sub > *, .tt-invite, .list-item, .tile { transition: transform .35s cubic-bezier(.2,1.5,.3,1), box-shadow .2s; }
+.record-sub > *:active, .tt-invite:active { transform: scale(.95); }
+/* 목록 아이콘 칸이 순서대로 살짝 튀며 등장 */
+.list-item .list-item-icon { animation: lune-icon .6s cubic-bezier(.2,1.6,.3,1) both; animation-delay: .15s; }
+@keyframes lune-icon { from { transform: scale(.4) rotate(-12deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .record-main .record-ic::after, .tabbar button.on svg, .list-item .list-item-icon { animation: none; } }
+.record-sub > * .icon, .record-sub > * svg { color: currentColor !important; }

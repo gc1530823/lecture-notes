@@ -334,7 +334,7 @@ function HomeHead() {
   return (
     <header className="home-head">
       <div className="home-top">
-        <span className="home-brand"><LuneMark size={22} /><LuneWordmark height={12} gradient /></span>
+        <span className="home-brand"><LuneMark size={22} /><LuneWordmark height={12} /></span>
         <span className="home-top-right">
           <StreakBadge />
           <button className="home-me" onClick={() => go({ name: "privacy" })} aria-label="설정"><Icon name="gear" size={18} /></button>
