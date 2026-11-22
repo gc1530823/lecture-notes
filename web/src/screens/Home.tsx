@@ -1,6 +1,5 @@
 // 1 자료 목록 (Figma "03 디자인 / 1 자료 목록")
 import { useEffect, useRef, useState } from "react";
-import { Moon, moonName, moonNext, moonPhase } from "../components/Moon";
 import { EnglishToggle, lectureLang, setLectureLang } from "../components/EnglishToggle";
 import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
@@ -17,7 +16,6 @@ import { useWaves, Wave } from "../lib/wave";
 import { go } from "../router";
 import { getPrefs } from "../lib/prefs";
 import { refreshNotices } from "../lib/notices";
-import { LuneMark, LuneWordmark } from "../components/Brand";
 import { askText, tell } from "../components/Dialog";
 
 
@@ -197,6 +195,7 @@ export default function Home() {
   const courses = [...new Set((docs ?? []).map((d) => d.course ?? "").filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko"));
   const hasLoose = (docs ?? []).some((d) => !d.course);
   const [showAll, setShowAll] = useState(false);
+  const [going, setGoing] = useState(false);  // 녹음 버튼을 누르면 동그라미가 커지며 파형이 생긴 뒤 시트가 열린다
   const matched = (docs ?? []).filter((d) => filter === "all" || (d.course ?? "") === filter);
   // 홈에는 최근 강의 5개만, 나머지는 '전체 보기'로 (과목이 늘어도 홈이 길어지지 않게)
   const LIMIT = 5;
@@ -220,19 +219,31 @@ export default function Home() {
 
         {docs && <FirstSteps docs={docs} onDoc={() => file.current?.click()} onRecord={() => setPicker("record")} />}
         {/* 이 앱의 중심: 강의자료에 녹음을 붙인다 (지금 녹음하거나, 녹음 파일을 올리거나) */}
-        <section className="record-hub" aria-label="강의 녹음">
-          <button className="record-main" onClick={() => setPicker("record")} disabled={!!busy}>
-            <span className="record-ic"><Icon name="microphone" art size={30} /></span>
-            <span className="grow"><b>수업 녹음 시작</b><small>들으면서 강의자료 쪽마다 필기가 붙어요</small></span>
-            <Icon name="caret-right" size={18} />
-          </button>
-          <div className="record-sub">
-            <button onClick={() => setPicker("upload")} disabled={!!busy}><Icon name="upload-simple" size={17} />녹음 파일 올리기</button>
-            <button onClick={() => file.current?.click()} disabled={!!busy}><Icon name="plus" size={17} />강의자료 올리기</button>
+        <section className={`rec-stage${going ? " go" : ""}`} aria-label="강의 녹음">
+          <div className="rec-copy">
+            <span className="ed-kicker">Record</span>
+            <h2>수업 녹음</h2>
+            <p>들으면서 강의자료<br />쪽마다 필기가 붙어요</p>
+            <div className="rec-links">
+              <button onClick={() => setPicker("upload")} disabled={!!busy}>녹음 파일 올리기 <Icon name="arrow-right" size={14} /></button>
+              <button onClick={() => file.current?.click()} disabled={!!busy}>강의자료 올리기 <Icon name="arrow-right" size={14} /></button>
+            </div>
           </div>
+          <button className="rec-disc" disabled={!!busy} aria-label="수업 녹음 시작"
+            onClick={() => { if (going) return; setGoing(true); navigator.vibrate?.(10); window.setTimeout(() => { setGoing(false); setPicker("record"); }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 520); }}>
+            <svg className="rec-rings" viewBox="0 0 200 200" aria-hidden="true">
+              <path className="r1" d="M100 14c40 0 82 26 86 70s-30 96-84 100S14 150 14 100 58 14 100 14z" />
+              <path className="r2" d="M100 24c44 2 74 34 74 76s-34 78-76 76-74-36-74-78 32-76 76-74z" />
+            </svg>
+            <span className="rec-core">
+              <span className="rec-wave">{[0, 1, 2, 3, 4, 5, 6].map((k) => <i key={k} style={{ animationDelay: `${k * -0.13}s` }} />)}</span>
+              <Icon name="microphone" size={30} />
+            </span>
+            <span className="rec-cta">탭해서 시작</span>
+          </button>
           {busy && <p className="record-busy"><span className="spin" /> {busy}</p>}
         </section>
-        <Timetable courses={courses} onPick={pick} slot="invite" />
+
         <input ref={file} type="file" accept="application/pdf,.pdf,.ppt,.pptx,.key,.odp,.doc,.docx,.hwp,.hwpx" hidden
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
         <input ref={audio} type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
@@ -240,9 +251,10 @@ export default function Home() {
         <input ref={audioToDoc} type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f && target.current) uploadToDoc(target.current, f); }} />
 
-        <IosInstallHint />
-        <ExamBanner />
         <TasksCard />
+        <ExamBanner />
+        <Timetable courses={courses} onPick={pick} slot="invite" />
+        <IosInstallHint />
 
         <h2 className="section-title">내 강의</h2>
         {courses.length > 0 && (
@@ -335,19 +347,15 @@ function HomeHead() {
   return (
     <header className="home-head">
       <div className="home-top">
-        <span className="home-brand"><LuneMark size={22} /><LuneWordmark height={12} /></span>
+        <span className="home-brand ed-brand" aria-label="LUNE">Lune<i>.</i></span>
         <span className="home-top-right">
           <StreakBadge />
           <button className="home-me" onClick={() => go({ name: "privacy" })} aria-label="설정"><Icon name="gear" size={18} /></button>
         </span>
       </div>
-      <div className="home-sky" aria-label={`오늘 밤 달: ${moonName(moonPhase())}`}>
-        <Moon size={78} />
-        <span><b>{moonName(moonPhase())}</b>{moonNext(moonPhase())}</span>
-      </div>
       <div className="home-hello">
-        <span className="home-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>
-        <h1>{hello}{name ? <>, <em>{name}</em>님</> : ""}</h1>
+        <span className="home-date ed-meta">{new Date().toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()} <b>{String(new Date().getMonth() + 1).padStart(2, "0")}.{String(new Date().getDate()).padStart(2, "0")}</b></span>
+        <h1>{hello}{name ? <>,<br /><em>{name}</em>님</> : ""}</h1>
         {line && <p>{line}</p>}
       </div>
     </header>

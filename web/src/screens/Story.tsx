@@ -3,7 +3,6 @@
 // 흐름: 1분 단위 막대. 진할수록 중요한 구간(시험 언급·필기·모르겠다·목소리). 눌러서 그 시각으로.
 // 서버가 규칙만으로 만든다 (AI 호출 없음).
 import { createPortal } from "react-dom";
-import { Moon } from "../components/Moon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getJSON } from "../api/useApi";
 import { Button, Icon } from "../components/ui";
@@ -215,8 +214,8 @@ export function StreakBadge() {
   const pct = data.next_at ? Math.round(100 * ((data.carrots ?? 0) - (data.level_from ?? 0)) / (data.next_at - (data.level_from ?? 0))) : 100;
   return (
     <>
-      <button className={`streak-pill${data.today ? " lit" : ""}`} onClick={() => setOpen(true)} aria-label={`연속 공부 ${data.streak}일${data.today ? ", 오늘 달이 찼어요" : ", 오늘 아직"}`}>
-        <Moon size={18} phase={Math.min(data.streak, 14) / 28 || 0.03} /><b>{data.streak}</b>
+      <button className={`streak-pill${data.today ? " lit" : ""}`} onClick={() => setOpen(true)} aria-label={`연속 공부 ${data.streak}일${data.today ? ", 오늘 불꽃 켬" : ", 오늘 아직"}`}>
+        <Icon name="fire" size={17} /><b>{data.streak}</b>
       </button>
       {open && createPortal(
         <>
@@ -224,11 +223,11 @@ export function StreakBadge() {
           <div className="sheet streak-sheet" role="dialog" aria-modal="true" aria-label="연속 공부">
             <span className="sheet-grip" aria-hidden />
             <div className={`streak-hero${data.today ? " lit" : ""}`}>
-              <span className="streak-flame"><Moon size={64} phase={Math.min(data.streak, 14) / 28 || 0.03} /></span>
+              <span className="streak-flame"><Icon name="fire" art size={56} /></span>
               <b><Count to={data.streak} />일 연속</b>
-              <small>{data.today ? "오늘 달이 한 칸 찼어요" : data.streak > 0 ? "오늘도 공부하면 이어져요" : `최고 기록 ${data.best}일`}</small>
+              <small>{data.today ? "오늘 불꽃을 켰어요" : data.streak > 0 ? "오늘도 공부하면 이어져요" : `최고 기록 ${data.best}일`}</small>
             </div>
-            <div className="streak-week" aria-label="이번 주 기록">
+            <div className="streak-week" aria-label="이번 주 불꽃">
               {data.week.map((d, i) => (
                 <span key={d.date} className={`${d.done ? "done" : ""}${i === data.week.length - 1 ? " today" : ""}`}>
                   <Carrot /><small>{names[new Date(d.date + "T00:00:00").getDay()]}</small>
@@ -246,7 +245,7 @@ export function StreakBadge() {
               <span><Icon name="microphone" size={16} />강의 녹음</span>
               <span><Icon name="cards" size={16} />복습</span>
               <span><Icon name="brain" size={16} />퀴즈</span>
-              <small>하루에 하나만 해도 달이 한 칸</small>
+              <small>하루에 하나만 해도 불꽃 하나</small>
             </div>
           </div>
         </>, document.body)}
@@ -265,9 +264,9 @@ export function StreakCard() {
       <div className="row carrots-top">
         <span>
           <b><Count to={data.streak} /><small>일째</small></b>
-          <span className={`streak-sub${data.today ? " lit" : ""}`}>{data.today ? "오늘 달이 한 칸 찼어요" : data.streak > 0 ? "오늘도 공부하면 불꽃 하나 더" : `최고 기록 ${data.best}일`}</span>
+          <span className={`streak-sub${data.today ? " lit" : ""}`}>{data.today ? "오늘 불꽃 켰어요 🔥" : data.streak > 0 ? "오늘도 공부하면 불꽃 하나 더" : `최고 기록 ${data.best}일`}</span>
         </span>
-        <span className="carrot-row" aria-label="이번 주 기록">
+        <span className="carrot-row" aria-label="이번 주 불꽃">
           {data.week.map((d, i) => (
             <span key={d.date} className={`${d.done ? "done" : ""}${i === data.week.length - 1 ? " today" : ""}`}>
               <Carrot />{names[new Date(d.date + "T00:00:00").getDay()]}
@@ -279,7 +278,7 @@ export function StreakCard() {
         <div className="level" aria-label={`레벨 ${data.level}`}>
           <span className="level-name">Lv.{data.level} {data.level_name}</span>
           <span className="level-bar"><i style={{ width: `${data.next_at ? Math.round(100 * ((data.carrots ?? 0) - (data.level_from ?? 0)) / (data.next_at - (data.level_from ?? 0))) : 100}%` }} /></span>
-          <span className="level-next">{data.next_at ? <>레벨 업까지 <span className="level-left">달 {data.next_at - (data.carrots ?? 0)}개</span></> : <span className="level-left">최고 레벨!</span>}</span>
+          <span className="level-next">{data.next_at ? <>레벨 업까지 <span className="level-left">불꽃 {data.next_at - (data.carrots ?? 0)}개</span></> : <span className="level-left">최고 레벨!</span>}</span>
         </div>
       )}
     </div>

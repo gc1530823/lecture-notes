@@ -1,25 +1,24 @@
 // 자료 상세: 강의(녹음) 목록과 수업 시작, 시험 예상 지도로 가는 곳
 import { useRef, useState } from "react";
-import { Moon } from "../components/Moon";
 import { EnglishToggle, lectureLang } from "../components/EnglishToggle";
 import type { DocumentBrief } from "../api/types";
 import { useApi } from "../api/useApi";
 import { Chip, Empty, Icon, ListItem, TopBar } from "../components/ui";
 import { courseTone } from "../lib/course";
+import { useWaves, Wave } from "../lib/wave";
 import { getJSON } from "../api/useApi";
 import { useEffect } from "react";
 import { back, go } from "../router";
 import { subtitleOf } from "./Home";
 import { askText, askYes, tell } from "../components/Dialog";
 
-// 강의 상태를 달로: 녹음 중 초승달 → 받아쓰기 상현달 → 정리 중 차오르는 달 → 정리 끝 보름달 (실패는 삭)
-const STATUS_MOON: Record<string, number> = { recording: 0.12, transcribing: 0.25, processing: 0.38, done: 0.5, failed: 0.0 };
 const STATUS: Record<string, string> = { recording: "녹음 중", transcribing: "받아쓰는 중", processing: "정리 중", done: "정리 끝", failed: "정리 실패" };
 const API = import.meta.env.VITE_API_URL ?? "";
 
 export default function DocDetail({ docId }: { docId: string }) {
   // 목록 API에 강의 목록이 같이 오므로 그것을 쓴다
   const { data: docs, error, reload: reloadDocs } = useApi<DocumentBrief[]>("/documents");
+  const waves = useWaves();
   const doc = docs?.find((d) => d.id === docId);
   const [upload, setUpload] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
@@ -97,7 +96,7 @@ export default function DocDetail({ docId }: { docId: string }) {
             <h2 className="t-title-s section-title">강의 {doc.sessions.length}개</h2>
             {doc.sessions.length === 0 && <p className="muted">아직 녹음한 강의가 없어요. 위에서 녹음을 시작하거나 올려 주세요.</p>}
             {doc.sessions.map((s, i) => (
-              <ListItem key={s.id} icon="headphones" tone={courseTone(doc.course)} art={<Moon size={30} phase={STATUS_MOON[s.status] ?? 0.5} />}
+              <ListItem key={s.id} icon="headphones" tone={courseTone(doc.course)} art={waves[s.id]?.w ? <Wave data={waves[s.id]} /> : undefined}
                 title={new Date(s.started_at * 1000).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit" })}
                 subtitle={`${doc.sessions.length - i}번째 강의, ${STATUS[s.status] ?? s.status}`}
                 onClick={() => go(s.status === "failed" ? { name: "lecture", docId, sessionId: s.id } : { name: "session", docId, sessionId: s.id, tab: "notes" })} />
