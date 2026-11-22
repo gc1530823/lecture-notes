@@ -149,3 +149,78 @@
 .bottom-bar.rec .live-wave { width: 100%; align-self: stretch; }
 .bottom-bar.rec { background: #1F1C38; border-color: #2E2A4C; }
 .bottom-bar.rec .live-wave { flex: none !important; height: 48px; }
+
+/* ═══ 구조 바꾸기: 같은 둥근 카드 반복을 끊는다 ═══
+   - 목록은 카드가 아니라 '줄': 선으로만 나눈다. 아이콘 상자 없이 작은 아이콘, 설명은 한 줄.
+   - 화면마다 상자는 꼭 필요한 하나(녹음 판)만. 나머지는 머리선과 여백으로 묶는다.
+   - 모서리 위계: 녹음 판 20 / 버튼 12 / 입력 12 / 목록 줄 0 / 꼬리표 없음. */
+.list-item { background: transparent !important; border: 0 !important; border-bottom: 1px solid var(--border-line) !important; border-radius: 0 !important; box-shadow: none !important; padding: 15px 2px !important; gap: 14px !important; }
+.list-item + .list-item { border-top: 0 !important; }
+.list-item:active { transform: none !important; background: color-mix(in srgb, var(--accent-2) 8%, transparent) !important; }
+.list-item-icon, .list-item-icon.is-art, .list-item-icon.has-art { width: 26px !important; height: 26px !important; background: none !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; }
+.list-item-icon .icon.art, .list-item-icon .icon { width: 24px !important; height: 24px !important; }
+.list-item-sub { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px !important; color: var(--text-tertiary) !important; }
+.list-item-chev { opacity: .45; }
+/* 묶음 머리: 굵은 제목 + 짧은 머리선 */
+.section-title { position: relative; padding-top: 14px; margin-top: 20px !important; font-weight: 800 !important; letter-spacing: -.03em; }
+.section-title::before { content: ""; position: absolute; left: 0; top: 0; width: 22px; height: 3px; border-radius: 2px; background: var(--accent-primary); }
+/* 할 일·안내 상자 → 상자 없이 */
+.tasks-card { background: transparent !important; border: 0 !important; border-top: 1.5px solid var(--text-primary) !important; border-radius: 0 !important; box-shadow: none !important; padding: 14px 0 4px !important; }
+.tasks-card .row > .icon.art { display: none; }
+.tasks-card .chip { background: none !important; border: 0 !important; padding: 0 !important; color: var(--accent-primary) !important; font-weight: 700; }
+.tasks-urgent { background: none !important; padding: 0 !important; }
+.tt-invite { background: transparent !important; border: 0 !important; border-top: 1px solid var(--border-line) !important; border-bottom: 1px solid var(--border-line) !important; border-radius: 0 !important; padding: 14px 2px !important; box-shadow: none !important; }
+.tt-invite .tt-mini { transform: scale(.8); transform-origin: left center; }
+.tt-invite .tt-go { background: none !important; color: var(--accent-primary) !important; padding: 0 !important; box-shadow: none !important; }
+.banner { box-shadow: none !important; }
+.lang-toggle { background: transparent !important; border: 0 !important; border-bottom: 1px solid var(--border-line) !important; border-radius: 0 !important; padding: 12px 2px !important; }
+/* 보조 버튼: 상자 두 개 대신, 줄 하나에 글 버튼 두 개 */
+.record-sub { gap: 0 !important; border-bottom: 1px solid var(--border-line); }
+.record-sub > * { background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; min-height: 48px; color: var(--text-primary) !important; font-weight: 700 !important; }
+.record-sub > * + * { border-left: 1px solid var(--border-line) !important; }
+.record-sub > * svg, .record-sub > * .icon { color: var(--accent-primary) !important; }
+/* 버튼 모서리 통일 */
+.btn { border-radius: 12px !important; }
+.btn-secondary { background: transparent !important; box-shadow: inset 0 0 0 1.5px var(--text-primary) !important; border: 0 !important; color: var(--text-primary) !important; }
+.chip, button.chip { border-radius: 8px !important; }
+/* 위쪽 탭: 알약 덩어리 대신 밑줄 */
+.slide-tabs { background: transparent !important; box-shadow: none !important; border-radius: 0 !important; border-bottom: 1px solid var(--border-line) !important; padding: 0 !important; }
+.slide-tabs button { color: var(--text-tertiary) !important; border-radius: 0 !important; }
+.slide-tabs button.on { color: var(--text-primary) !important; font-weight: 800 !important; }
+.slide-tabs .slide-pill { top: auto !important; bottom: -1px !important; height: 3px !important; border-radius: 2px !important; background: var(--accent-primary) !important; box-shadow: none !important; }
+/* 녹음 판 하나만 크게, 둥글게 */
+.record-main:not(.alt), .hero-card { border-radius: 20px !important; }
+.record-main.alt { background: transparent !important; border: 0 !important; border-bottom: 1px solid var(--border-line) !important; border-radius: 0 !important; }
+/* 홈 강의 목록 과목 칩 → 밑줄 글자 */
+.pick, .pick.on { background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; padding: 4px 0 !important; color: var(--text-tertiary); }
+.pick.on { color: var(--text-primary) !important; font-weight: 800; box-shadow: inset 0 -2px 0 var(--accent-primary) !important; }
+.picks { gap: 4px 14px !important; }
+.home-links { border-top: 1px solid var(--border-line); gap: 0 !important; }
+.home-links button { background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
+.home-links button + button { border-left: 1px solid var(--border-line) !important; }
+
+/* ═══ 모션: LUNE의 핵심 순간에만 ═══ */
+/* 1) 녹음 파형: 소리 크기를 따라 흐르는 세 겹 물결 (캔버스) */
+.live-canvas { display: block !important; width: 100% !important; height: 72px !important; flex: none !important; }
+.bottom-bar.rec .live-canvas { animation: wave-in .8s cubic-bezier(.2,1,.3,1) both; }
+@keyframes wave-in { from { opacity: 0; transform: scaleX(.2); } }
+/* 녹음 시작: 버튼이 한 번 크게 퍼진다 */
+.round-record.on { animation: rec-burst .7s cubic-bezier(.2,1.3,.3,1); }
+@keyframes rec-burst { 0% { transform: scale(.8); box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-record) 60%, transparent); } 60% { transform: scale(1.08); box-shadow: 0 0 0 26px transparent; } }
+/* 2) AI 필기가 생기는 과정: 정리 중인 필기는 빛이 훑고 지나가고, 완성되면 글이 왼쪽부터 써진다 */
+.postit-slot.preview .postit { position: relative; overflow: hidden; }
+.postit-slot.preview .postit::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--accent-2) 22%, transparent) 50%, transparent 70%); background-size: 220% 100%; animation: scan 1.4s linear infinite; pointer-events: none; }
+@keyframes scan { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+.postit-slot.fresh .postit { animation: note-in .5s cubic-bezier(.2,1.2,.3,1) both !important; }
+.postit-slot.fresh .note-text, .postit-slot.fresh .t-note { animation: write 1.1s steps(28) .2s both; }
+@keyframes note-in { from { opacity: 0; transform: translateY(-10px) scale(.98); } }
+@keyframes write { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+/* 3) 쪽 넘기기: 슬라이드와 함께 그 쪽 필기가 차례로 들어온다 */
+.page-turn > * { animation: turn-in .45s cubic-bezier(.2,.9,.2,1) both; }
+.page-turn > :nth-child(2) { animation-delay: .06s; } .page-turn > :nth-child(3) { animation-delay: .12s; } .page-turn > :nth-child(n+4) { animation-delay: .18s; }
+@keyframes turn-in { from { opacity: 0; transform: translateX(18px); } }
+@media (prefers-reduced-motion: reduce) {
+  .bottom-bar.rec .live-canvas, .round-record.on, .postit-slot.preview .postit::after, .postit-slot.fresh .postit, .postit-slot.fresh .note-text, .page-turn > * { animation: none !important; }
+}
+.list-item-icon .moon .moon-lit { fill: var(--accent-3); } .list-item-icon .moon .moon-dark { fill: var(--fill-soft); stroke: var(--border-line); stroke-width: 2; }
+.banner, .banner.overview { background: transparent !important; border: 0 !important; border-top: 1.5px solid var(--text-primary) !important; border-radius: 0 !important; padding: 14px 0 0 !important; }

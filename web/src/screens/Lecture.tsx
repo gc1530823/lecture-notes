@@ -635,7 +635,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
             {visible.length === 0 ? (
               <p className="muted lecture-empty">{recording ? "교수님 설명을 듣고 있어요. 필기가 여기에 붙어요." : "이 쪽에는 아직 필기가 없어요"}</p>
             ) : (
-              <div className="postit-grid">
+              <div key={page} className="postit-grid page-turn">
                 {visible.map((n, i) => (
                   <div key={n.id} className={`postit-slot${!n.preview && !n.edited_by_user && (n.confidence ?? 1) < 0.6 ? " unsure" : ""}${n.id === selected ? " sel" : ""}${n.id === fresh ? " fresh" : ""}${n.preview ? " preview" : ""}`}
                     onClick={() => setSelected(selected === n.id ? null : n.id)}
