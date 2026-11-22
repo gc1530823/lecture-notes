@@ -58,6 +58,7 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
   const { data: notes } = useApi<Annotation[]>(`/sessions/${sessionId}/annotations`);
   const { data: summary } = useApi<SummaryResponse>(`/sessions/${sessionId}/summary`);
   const { data: beyond } = useApi<{ ratio?: number; annotation_ids?: number[] }>(`/sessions/${sessionId}/beyond-slides`);
+  const { data: glossary } = useApi<GlossaryTerm[]>(`/sessions/${sessionId}/glossary`);
   if (!notes) return <Skeleton lines={5} />;
   if (notes.length === 0) return <Empty icon="note-pencil">이 강의에는 아직 필기가 없어요</Empty>;
 
@@ -85,9 +86,14 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
     );
   }
 
+  const terms = (glossary ?? []).map((t) => t.term).filter((t) => t.length >= 2);
+  const linesOf = (p: DocumentDetail["pages"][number]) => (p.text || p.blocks.map((b) => b.text).join("\n")).split("\n")
+    .map((l) => l.replace(/[\uE000-\uF8FF\uFFFD]/g, "").trim()).filter(Boolean);
+  const firstCount = new Map<string, number>();
+  for (const p of pages) { const l = linesOf(p)[0]; if (l) firstCount.set(l, (firstCount.get(l) ?? 0) + 1); }
   return (
     <>
-      {overview && <Overview text={overview} />}
+      {overview && <Overview text={overview} terms={terms} />}
       {review && review.checked > 0 && (
         <p className="t-caption review-note"><Icon name="check-circle" size={16} /> 수업 뒤 AI가 필기 {review.checked}개를 다시 확인했어요
           {[review.fixed ? `${review.fixed}개 고침` : "", review.moved ? `${review.moved}개 쪽 옮김` : "", review.deleted ? `${review.deleted}개 지움` : "", review.added ? `${review.added}개 더함` : ""].filter(Boolean).map((t) => `, ${t}`).join("")}</p>
@@ -95,30 +101,70 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
       {beyond?.ratio ? (
         <Hint icon="sparkle">교수님 설명의 <b>{Math.round(beyond.ratio * 100)}%</b>는 슬라이드에 없던 내용이에요</Hint>
       ) : null}
-      {pages.map((p) => {
+      {pages.map((p, idx) => {
         const mine = notes.filter((n) => n.page_no === p.page_no && !n.pending);
-        const heading = (p.text || p.blocks[0]?.text || "").split("\n")[0].slice(0, 40);
+        const sorted = [...mine].sort((x, y) => Number(y.type === "exam") - Number(x.type === "exam"));
+        const exam = mine.filter((n) => n.type === "exam").length;
+        const lines = linesOf(p);
+        // 쪽마다 똑같이 찍힌 머리글(강의 제목)은 건너뛰고 그 쪽만의 첫 줄을 제목으로
+        const heading = (lines.find((l) => (firstCount.get(l) ?? 0) < 3) ?? lines[0] ?? "").replace(/^[▸•\-\s]+/, "").slice(0, 40);
         return (
-          <section key={p.id} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <h2 className="t-title-s section-title">{p.page_no}쪽 {heading && <span className="muted">· {heading}</span>}</h2>
-            {pageSummary.get(p.page_no) && <p className="t-body muted">{pageSummary.get(p.page_no)}</p>}
-            <div className="postit-grid">
-              {mine.map((n, i) => (
-                <PostIt key={n.id} type={n.type} number={i + 1} photo={n.photo_id ? `${import.meta.env.VITE_API_URL ?? ""}/photos/${n.photo_id}` : null} tag={beyondIds.has(n.id) ? "슬라이드에 없음" : undefined}>{n.text}</PostIt>
-              ))}
+          <PageCard key={p.id} no={p.page_no} heading={heading} exam={exam} count={mine.length} defaultOpen={idx < 3 || exam > 0}>
+            <button className="slide-peek" onClick={() => go({ name: "lecture", docId: doc.id, sessionId })} aria-label={`${p.page_no}쪽 슬라이드에서 보기`}>
+              <span className="slide-paper">{lines.slice(0, 4).map((l, i) => <span key={i} className={i === 0 ? "ttl" : ""}>{highlight(l.slice(0, 60), terms)}</span>)}</span>
+              <span className="slide-go">슬라이드에서 보기 <Icon name="arrow-right" size={13} /></span>
+            </button>
+            {pageSummary.get(p.page_no) && <div className="ai-sum"><span className="src">AI 요약</span><p>{highlight(pageSummary.get(p.page_no)!, terms)}</p></div>}
+            <div className="prof-notes">
+              <span className="src">교수님 설명에서 붙은 필기 {mine.length}개</span>
+              <div className="postit-grid">
+                {sorted.map((n, i) => (
+                  <PostIt key={n.id} type={n.type} number={i + 1} photo={n.photo_id ? `${import.meta.env.VITE_API_URL ?? ""}/photos/${n.photo_id}` : null} tag={beyondIds.has(n.id) ? "슬라이드에 없음" : undefined}>{n.text}</PostIt>
+                ))}
+              </div>
             </div>
-          </section>
+          </PageCard>
         );
       })}
     </>
   );
 }
 
-function Overview({ text, title = "한눈에 보는 강의" }: { text: string; title?: string }) {
+/** 글 속 용어를 형광펜으로 (용어마다 처음 한 번만) */
+function highlight(text: string, terms: string[]) {
+  if (!terms.length) return text;
+  const esc = terms.slice().sort((a, b) => b.length - a.length).map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const re = new RegExp(`(${esc.join("|")})`, "g");
+  const seen = new Set<string>();
+  return text.split(re).map((part, i) => {
+    if (i % 2 === 1 && !seen.has(part)) { seen.add(part); return <mark key={i} className="kw">{part}</mark>; }
+    return part;
+  });
+}
+
+/** 쪽 하나: 머리줄을 누르면 접고 펼친다. 안에는 슬라이드 미리보기, AI 요약, 교수님 설명에서 붙은 필기 */
+function PageCard({ no, heading, exam, count, defaultOpen, children }: { no: number; heading: string; exam: number; count: number; defaultOpen: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="banner">
+    <section className={`page-card${open ? " open" : ""}${exam ? " has-exam" : ""}`}>
+      <button className="page-head" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <span className="page-no">{no}<small>쪽</small></span>
+        <span className="grow"><b>{heading || `${no}쪽`}</b><small>{exam ? <em>시험 언급 {exam}번</em> : null}{exam ? ", " : ""}필기 {count}개</small></span>
+        <Icon name="caret-down" size={16} />
+      </button>
+      <div className="page-body"><div>{children}</div></div>
+    </section>
+  );
+}
+
+function Overview({ text, title = "한눈에 보는 강의", terms = [] }: { text: string; title?: string; terms?: string[] }) {
+  const [more, setMore] = useState(false);
+  const long = text.length > 160;
+  return (
+    <div className={`banner overview${more || !long ? " open" : ""}`}>
       <strong className="t-title-s">{title}</strong>
-      <p className="t-body">{text}</p>
+      <p className="t-body">{highlight(text, terms)}</p>
+      {long && <button className="overview-more" onClick={() => setMore(!more)}>{more ? "접기" : "끝까지 읽기"}</button>}
     </div>
   );
 }
