@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles/app.css'
-import './styles/editorial.css'
+import './styles/theme.css'
 import App from './App.tsx'
 import { isDemo, startDemo } from './demo'
 import { installTapSound } from './lib/sound'
@@ -9,6 +9,8 @@ import { applyPrefs } from './lib/prefs'
 import { watchPendingRecordings } from './lib/localRec'
 import { followStatusBar } from './lib/native'
 
+// 색 조합: editorial(기본) · digital · swiss — 설정에서 바꿀 수 있게 저장해 둔다
+try { document.documentElement.dataset.palette = localStorage.getItem('ln.palette') || 'editorial' } catch { document.documentElement.dataset.palette = 'editorial' }
 installTapSound()
 applyPrefs() // 화면 색 · 글자 크기 · 움직임 · 진동 (설정)
 watchPendingRecordings() // 올리지 못한 녹음이 있으면 올린다 (녹음 오프라인 저장)

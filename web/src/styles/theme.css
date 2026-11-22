@@ -1,0 +1,77 @@
+/* 색 조합 세 가지 (배치는 원래 그대로, 색과 아이콘 색만 바꾼다)
+   01 Modern Editorial: 플럼 · 로즈 · 버터 · 크림
+   02 Digital Art:      잉크 네이비 · 바이올렛 · 라일락 · 화이트
+   03 Playful Swiss:    차콜 · 코랄 · 세이지 · 크림
+   규칙: 강조색은 화면마다 하나(--accent-primary), 보조색 둘(--accent-2, --accent-3)은 아이콘과 선택 표시에만.
+   빨강(녹음·마감 초과)은 의미가 있을 때만. 아이콘 색도 이 다섯 색 안에서만. */
+:root, :root[data-palette="editorial"] {
+  --bg-paper: #F7F2EA; --bg-card: #FFFCF8;
+  --text-primary: #30202D; --text-secondary: #5E4F59; --text-tertiary: #7E7178; --text-note: #30202D;
+  --accent-primary: #30202D; --accent-deep: #1F141D;
+  --accent-2: #D98E8D; --accent-2-soft: #F6DEDD;
+  --accent-3: #E9CF8E; --accent-3-soft: #FAEFD3;
+  --accent-record: #E0614D;
+  --border-line: #ECE2D8; --line-deep: #E2D6CA; --fill-soft: #F2E9E2; --leaf: #30202D;
+}
+:root[data-palette="digital"] {
+  --bg-paper: #F6F4FD; --bg-card: #FFFFFF;
+  --text-primary: #22243F; --text-secondary: #4E5172; --text-tertiary: #6E7090; --text-note: #22243F;
+  --accent-primary: #5B53D6; --accent-deep: #463FB8;
+  --accent-2: #9A95EC; --accent-2-soft: #E6DDF8;
+  --accent-3: #22243F; --accent-3-soft: #ECEAF8;
+  --accent-record: #E25A6B;
+  --border-line: #E6E3F4; --line-deep: #DCD8EE; --fill-soft: #EEEBFA; --leaf: #5B53D6;
+}
+:root[data-palette="swiss"] {
+  --bg-paper: #F3EADF; --bg-card: #FFFBF5;
+  --text-primary: #252420; --text-secondary: #55524A; --text-tertiary: #716D63; --text-note: #252420;
+  --accent-primary: #D9603F; --accent-deep: #BC4C2E;
+  --accent-2: #8FAE86; --accent-2-soft: #D8E3D2;
+  --accent-3: #252420; --accent-3-soft: #EAE3D8;
+  --accent-record: #D9603F;
+  --border-line: #E7DDCF; --line-deep: #DDD1C1; --fill-soft: #EFE5D8; --leaf: #6E9466;
+}
+/* 아이콘 색: 팔레트 안에서만 */
+:root {
+  --ico-violet: var(--accent-primary); --ico-blue: var(--accent-2); --ico-green: var(--accent-2); --ico-pink: var(--accent-2);
+  --ico-yellow: var(--accent-3); --ico-orange: var(--accent-3); --ico-red: var(--accent-record); --ico-slate: var(--text-secondary);
+  --shadow-card: 0 1px 2px rgb(40 30 40 / .05), 0 4px 14px rgb(40 30 40 / .04);
+}
+/* 어두운 화면 (세 팔레트 공통 바탕, 강조색만 밝게) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg-paper: #17151A; --bg-card: #221F26; --text-primary: #F1EDF2; --text-secondary: #C9C2CC; --text-tertiary: #9C94A0; --text-note: #F1EDF2; --border-line: #34303A; --line-deep: #0E0D10; --fill-soft: #2B2830; }
+  :root[data-palette="editorial"]:not([data-theme="light"]), :root:not([data-palette]):not([data-theme="light"]) { --accent-primary: #E9A1A0; --accent-deep: #D4807F; }
+  :root[data-palette="digital"]:not([data-theme="light"]) { --accent-primary: #A6A1F2; --accent-deep: #8C86E8; }
+  :root[data-palette="swiss"]:not([data-theme="light"]) { --accent-primary: #EE8566; --accent-deep: #D9603F; }
+}
+:root[data-theme="dark"] { --bg-paper: #17151A; --bg-card: #221F26; --text-primary: #F1EDF2; --text-secondary: #C9C2CC; --text-tertiary: #9C94A0; --text-note: #F1EDF2; --border-line: #34303A; --line-deep: #0E0D10; --fill-soft: #2B2830; }
+:root[data-theme="dark"][data-palette="editorial"] { --accent-primary: #E9A1A0; --accent-deep: #D4807F; }
+:root[data-theme="dark"][data-palette="digital"] { --accent-primary: #A6A1F2; --accent-deep: #8C86E8; }
+:root[data-theme="dark"][data-palette="swiss"] { --accent-primary: #EE8566; --accent-deep: #D9603F; }
+
+/* ── 강조 판: 그라데이션 대신 한 가지 색 ── */
+.hero-card, .record-main { background: var(--accent-primary) !important; box-shadow: none !important; }
+.hero-card::before { background: rgb(255 255 255 / .08); }
+.hero-card.tone-rose { background: var(--accent-record) !important; } .hero-card.tone-sky { background: var(--accent-2) !important; }
+.record-main.alt { background: var(--bg-card) !important; }
+.btn-primary { background: var(--accent-primary); box-shadow: none; }
+.home-head::before { background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--accent-2) 18%, transparent), transparent 60%), radial-gradient(80% 70% at 0% 0%, color-mix(in srgb, var(--accent-3) 18%, transparent), transparent 70%) !important; }
+.home-hello h1 em { background: none !important; -webkit-text-fill-color: currentColor; color: var(--accent-primary); }
+.home-brand .lune-word { filter: none; }
+.tt-invite { background: var(--accent-3-soft); border-color: transparent !important; }
+.list-item-icon, .list-item-icon.is-art, .list-item-icon.has-art { background: var(--fill-soft); }
+
+/* ── AI 티 걷어내기: 색 배경 꼬리표는 글자로, 안내 칸의 아이콘·색 배경도 뺀다 ── */
+.dday, .dday.late, .dday.soon, .dday.later { background: none !important; padding: 0 !important; border-radius: 0 !important; font-weight: 700; }
+.dday.late { color: var(--accent-record); } .dday.soon { color: var(--accent-deep); } .dday.later { color: var(--text-tertiary); }
+.ai-found { background: none !important; padding: 0 !important; margin-left: 6px; color: var(--text-tertiary); font-weight: 500; }
+.meta-chip, .kind-chip, .source-chip, .reason-chip, .free-chip, .next-chip, .story-count, .story-label, .loud-tag, .confirm-chip, .tt-link-chip, .review-left, .review-src, .note-chips span, .keywords span { background: none !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; color: var(--text-tertiary); font-weight: 600; }
+.meta-chip.strong { color: var(--text-primary); }
+.meta-chips { gap: 4px 12px; }
+.qz-type { background: none !important; border: 0 !important; padding: 0 !important; color: var(--accent-primary); }
+.lang-toggle .lang-tag, .lang-toggle.on .lang-tag { background: none !important; padding: 0; color: var(--text-tertiary); }
+.postit-tag { background: none !important; padding: 0 !important; opacity: .7; }
+.hint { background: none !important; border-left: 2px solid var(--accent-2); border-radius: 0 !important; padding: 2px 0 2px 12px !important; }
+.hint > svg, .hint > .icon { display: none; }
+.note-line { padding: 6px 0; border-bottom: 1px solid var(--border-line); }
+.note-line:last-child { border-bottom: 0; }

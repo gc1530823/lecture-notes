@@ -31,10 +31,8 @@ const TONE: Record<string, string> = {
 export function hasArt(name: string): boolean { return DUO.has(DUO_ALIAS[name] ?? name); }
 
 /** 아이콘. art = 색 벡터 아이콘(duotone). 없는 이름은 굵은 선 아이콘. 모두 public/icons.svg 스프라이트 */
-// 아이콘은 한 가지 스타일(같은 굵기의 선)로 통일한다. 선 아이콘이 없는 것만 색 그림을 쓴다.
-const LINE_MISSING = new Set(["calendar-check", "waveform"]);
 export function Icon({ name, size = 22, art = false }: { name: string; size?: number; art?: boolean }) {
-  if (art && hasArt(name) && LINE_MISSING.has(name)) {
+  if (art && hasArt(name)) {
     const id = DUO_ALIAS[name] ?? name;
     return (
       <svg className={`icon art tone-${TONE[id] ?? "violet"}`} width={size} height={size} style={{ width: size, height: size }} aria-hidden="true">
@@ -102,7 +100,7 @@ export function ListItem({ icon, title, subtitle, onClick, index, tone, art }: {
   const style = index === undefined ? undefined : { animationDelay: `${Math.min(index, 8) * 45}ms` } as CSSProperties;
   const inner = (
     <>
-      <span className={`list-item-icon${art ? " has-art" : hasArt(icon) ? " is-art" : ""}`}>{art ?? <Icon name={icon} art size={22} />}</span>
+      <span className={`list-item-icon${art ? " has-art" : hasArt(icon) ? " is-art" : ""}`}>{art ?? <Icon name={icon} art size={40} />}</span>
       <span className="grow">
         <span className="t-title-s" style={{ display: "block" }}>{title}</span>
         {subtitle && <span className="list-item-sub">{subtitle}</span>}

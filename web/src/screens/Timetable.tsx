@@ -60,7 +60,7 @@ export function Timetable({ onPick, slot = "top" }: { courses?: string[]; onPick
         </span>
         <span className="grow">
           <b>시간표 등록하기</b>
-          <small>캡처 한 장이면 수업 시간에 그 과목이 맨 위에 떠요</small>
+          <small>에브리타임이나 학교 시간표를 캡처해 올리면 끝이에요. 수업 시간이 되면 그 과목이 맨 위에 떠요</small>
         </span>
         <span className="tt-go">등록 <Icon name="caret-right" size={14} /></span>
       </button>
