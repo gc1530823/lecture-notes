@@ -85,6 +85,10 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
     );
   }
 
+  const linesOf = (p: DocumentDetail["pages"][number]) => (p.text || p.blocks.map((b) => b.text).join("\n")).split("\n")
+    .map((l) => l.replace(/[\uE000-\uF8FF\uFFFD]/g, "").trim()).filter(Boolean);
+  const firstCount = new Map<string, number>();
+  for (const p of pages) { const l = linesOf(p)[0]; if (l) firstCount.set(l, (firstCount.get(l) ?? 0) + 1); }
   return (
     <>
       {overview && <Overview text={overview} />}
@@ -97,7 +101,9 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
       ) : null}
       {pages.map((p) => {
         const mine = notes.filter((n) => n.page_no === p.page_no && !n.pending);
-        const heading = (p.text || p.blocks[0]?.text || "").split("\n")[0].slice(0, 40);
+        // 쪽마다 똑같이 찍힌 머리글(강의 제목)은 건너뛰고 그 쪽만의 첫 줄을 제목으로
+        const lines = linesOf(p);
+        const heading = (lines.find((l) => (firstCount.get(l) ?? 0) < 3) ?? lines[0] ?? "").replace(/^[▸▶•\-\s]+/, "").slice(0, 44);
         return (
           <section key={p.id} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <h2 className="page-title"><small>{p.page_no}쪽</small>{heading || `${p.page_no}쪽`}</h2>
