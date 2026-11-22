@@ -230,3 +230,33 @@
 .task-when { color: var(--text-tertiary); }
 .task-dot { display: none !important; }
 .plain-line { padding: 7px 0; border-bottom: 1px solid var(--border-line); margin: 0; } .plain-line:last-child { border-bottom: 0; }
+
+/* ═══ 다듬기: 리듬·정렬·글자 끊김 ═══ */
+/* 간격 리듬: 구역 사이 24, 구역 안 8~12 */
+.screen-body { gap: 12px !important; }
+.screen-body > .record-hub, .screen-body > .tasks-card, .screen-body > .timetable, .screen-body > .section-title { margin-top: 12px !important; }
+/* 인사: 이름이 중간에 끊기지 않게, 달은 조금 작게 */
+.home-hello h1 { word-break: keep-all; overflow-wrap: anywhere; }
+.home-hello { padding-right: 84px !important; }
+.home-sky .moon { width: 62px; height: 62px; }
+.home-sky span { font-size: 10.5px; }
+/* 검색: 그림자 없이 얇은 선 */
+.home-search { box-shadow: none !important; border: 1px solid var(--border-line) !important; background: color-mix(in srgb, var(--bg-card) 80%, transparent) !important; border-radius: 12px !important; }
+/* 시간표 안내: 한 줄, 색 많은 작은 그림 대신 달력 선 아이콘 느낌으로 단순하게 */
+.tt-invite { border-top: 0 !important; padding: 12px 2px !important; }
+.tt-invite .tt-mini { display: none !important; }
+.tt-invite b { font-size: 15px !important; }
+.tt-invite small { font-size: 12.5px !important; line-height: 18px !important; color: var(--text-tertiary) !important; }
+/* 할 일: 굵은 검은 선 대신 강조색 짧은 머리선 + 제목 */
+.tasks-card { border-top: 0 !important; padding-top: 6px !important; position: relative; }
+.tasks-card::before { content: ""; display: block; width: 22px; height: 3px; border-radius: 2px; background: var(--accent-primary); margin-bottom: 12px; }
+.tasks-card .t-title-s { font-size: 18px !important; font-weight: 800 !important; letter-spacing: -.03em; }
+.tasks-urgent { font-size: 12.5px !important; margin-bottom: 2px; }
+.tasks-urgent > svg, .tasks-urgent > .icon { width: 14px !important; height: 14px !important; }
+/* 목록 줄: 제목 굵기 한 단계, 아이콘과 글 정렬 */
+.list-item b, .list-item-title { font-weight: 700 !important; letter-spacing: -.02em; }
+.list-item-icon { align-self: center; }
+/* 화면 제목(위쪽 막대) 조금 더 단정하게 */
+.top-bar-title { font-weight: 800 !important; letter-spacing: -.03em; }
+/* 밤에는 검색·줄 선이 너무 밝지 않게 */
+:root[data-sky="night"] .home-search { background: rgb(255 255 255 / .04) !important; }
