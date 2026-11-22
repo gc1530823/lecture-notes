@@ -196,6 +196,7 @@ export default function Home() {
   const courses = [...new Set((docs ?? []).map((d) => d.course ?? "").filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko"));
   const hasLoose = (docs ?? []).some((d) => !d.course);
   const [showAll, setShowAll] = useState(false);
+  const [going, setGoing] = useState(false);  // 녹음 버튼을 누르면 동그라미가 커지며 파형이 생긴 뒤 시트가 열린다
   const matched = (docs ?? []).filter((d) => filter === "all" || (d.course ?? "") === filter);
   // 홈에는 최근 강의 5개만, 나머지는 '전체 보기'로 (과목이 늘어도 홈이 길어지지 않게)
   const LIMIT = 5;
@@ -220,10 +221,17 @@ export default function Home() {
         {docs && <FirstSteps docs={docs} onDoc={() => file.current?.click()} onRecord={() => setPicker("record")} />}
         {/* 이 앱의 중심: 강의자료에 녹음을 붙인다 (지금 녹음하거나, 녹음 파일을 올리거나) */}
         <section className="record-hub" aria-label="강의 녹음">
-          <button className="record-main" onClick={() => setPicker("record")} disabled={!!busy}>
-            <span className="record-ic"><Icon name="microphone" art size={30} /></span>
-            <span className="grow"><b>수업 녹음 시작</b><small>들으면서 강의자료 쪽마다 필기가 붙어요</small></span>
-            <Icon name="caret-right" size={18} />
+          <button className={`record-main hero-rec${going ? " go" : ""}`} disabled={!!busy}
+            onClick={() => { if (going) return; setGoing(true); navigator.vibrate?.(10); window.setTimeout(() => { setGoing(false); setPicker("record"); }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 420); }}>
+            <span className="grow">
+              <small className="rec-kicker">수업 시작 전에 한 번</small>
+              <b>수업 녹음 시작</b>
+              <small>들으면서 강의자료 쪽마다 필기가 붙어요</small>
+            </span>
+            <span className="rec-orb" aria-hidden>
+              <span className="rec-wave">{[0, 1, 2, 3, 4].map((i) => <i key={i} style={{ animationDelay: `${i * -0.18}s` }} />)}</span>
+              <Icon name="microphone" size={26} />
+            </span>
           </button>
           <div className="record-sub">
             <button onClick={() => setPicker("upload")} disabled={!!busy}><Icon name="upload-simple" size={17} />녹음 파일 올리기</button>
@@ -231,7 +239,7 @@ export default function Home() {
           </div>
           {busy && <p className="record-busy"><span className="spin" /> {busy}</p>}
         </section>
-        <Timetable courses={courses} onPick={pick} slot="invite" />
+
         <input ref={file} type="file" accept="application/pdf,.pdf,.ppt,.pptx,.key,.odp,.doc,.docx,.hwp,.hwpx" hidden
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
         <input ref={audio} type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
@@ -239,9 +247,10 @@ export default function Home() {
         <input ref={audioToDoc} type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm" hidden
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f && target.current) uploadToDoc(target.current, f); }} />
 
-        <IosInstallHint />
-        <ExamBanner />
         <TasksCard />
+        <ExamBanner />
+        <Timetable courses={courses} onPick={pick} slot="invite" />
+        <IosInstallHint />
 
         <h2 className="section-title">내 강의</h2>
         {courses.length > 0 && (

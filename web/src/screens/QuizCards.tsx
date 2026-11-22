@@ -123,9 +123,11 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
 
   const total = set.questions.length;
   const missed = set.questions.filter((q) => q.result && q.result.verdict !== "correct");
+  const right = set.questions.filter((q) => q.result?.verdict === "correct").length;
   const dots = (
-    <div className="qz-dots" aria-label={`${set.answered}/${total}장`}>
-      {set.questions.map((q) => <i key={q.index} className={`${q.result?.verdict ?? ""}${q.index === at && review === null ? " now" : ""}`} />)}
+    <div className="qz-progress" aria-label={`${set.answered}/${total}장 풀었고 ${right}장 맞았어요`}>
+      <div className="qz-progress-top"><b>{Math.min(at + 1, total)}<small> / {total}</small></b><span>맞힌 카드 {right}장</span></div>
+      <div className="qz-bar">{set.questions.map((q) => <i key={q.index} className={`${q.result?.verdict ?? ""}${q.index === at && review === null ? " now" : ""}`} />)}</div>
     </div>
   );
 
@@ -183,6 +185,12 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
           </svg>
           <strong className="qz-score">{set.score % 1 ? set.score.toFixed(1) : set.score} / {total}</strong>
           <span className="t-caption muted">{pct >= 80 ? "아주 잘했어요. 이 강의는 거의 다 이해했어요" : pct >= 50 ? "절반 넘게 맞았어요. 틀린 카드를 다시 넘겨 보세요" : "틀린 카드의 해설을 읽고 한 번 더 풀어 봐요"}</span>
+          {missed.length > 0 && (
+            <div className="qz-weak">
+              <span>다시 볼 개념</span>
+              <ul>{[...new Map(missed.map((m) => [m.topic || `${m.page_no}쪽`, m])).values()].slice(0, 4).map((m) => <li key={m.index}><b>{m.topic || "이 쪽 내용"}</b><small>{m.page_no}쪽</small></li>)}</ul>
+            </div>
+          )}
         </div>
         <div className="row">
           {missed.length > 0 && <Button className="grow" variant="secondary" onClick={() => { setReview(0); setShown(false); }}>틀린 카드 {missed.length}장 다시 보기</Button>}
@@ -200,7 +208,31 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
       {dots}
       <div className="qz-stack">
         {at + 1 < total && <div className="qz-under" aria-hidden="true" />}
-        {!r ? (
+        {r && (q.type === "mcq" || q.type === "ox") ? (
+          // 고르는 문제: 카드는 그대로, 고른 칸과 정답 칸이 색으로 바뀌고 해설이 아래로 펼쳐진다
+          <div ref={backRef} key={`a${at}`} className={`flashcard qz-card qz-answered swipe-card ${r.verdict}`}>
+            <CardHead q={q} total={total} />
+            <strong className="qz-q">{q.question}</strong>
+            {q.type === "mcq" ? (
+              <div className="qz-choices done">
+                {q.choices.map((c, i) => {
+                  const key = "ABCD"[i]; const isAns = (q.answer ?? "").trim().toUpperCase().startsWith(key) || (r.verdict === "correct" && r.given === key);
+                  return <div key={i} className={`qz-choice${isAns ? " ans" : ""}${r.given === key && !isAns ? " miss" : ""}`} style={{ animationDelay: `${i * 40}ms` }}><b>{key}</b>{c}{isAns && <Mark verdict="correct" size={20} />}{r.given === key && !isAns && <Mark verdict="wrong" size={20} />}</div>;
+                })}
+              </div>
+            ) : (
+              <div className="qz-ox done">{["O", "X"].map((k) => {
+                const isAns = (q.answer ?? "").trim().toUpperCase().startsWith(k) || (r.verdict === "correct" && r.given === k);
+                return <div key={k} className={`qz-choice${isAns ? " ans" : ""}${r.given === k && !isAns ? " miss" : ""}`}><b>{k}</b></div>;
+              })}</div>
+            )}
+            <div className="qz-explain">
+              <b className="qz-verdict"><Mark verdict={r.verdict} />{r.verdict === "correct" ? "맞았어요" : "다시 볼 부분이 있어요"}</b>
+              {r.verdict !== "correct" && <p className="qz-concept"><span>핵심 개념</span>{q.topic || "이 쪽 내용"}<small>{q.page_no}쪽에서 다시 보기</small></p>}
+              {q.explanation && <p className="qz-why">{q.explanation}</p>}
+            </div>
+          </div>
+        ) : !r ? (
           // 앞면: 문제와 답하기
           <div key={`f${at}`} className="flashcard qz-card card-in">
             <CardHead q={q} total={total} />
