@@ -179,15 +179,15 @@ export function StudyNotePdf({ sessionId }: { sessionId: string }) {
       <div className="row">
         <span className="list-item-icon is-art"><Icon name="notebook" art size={40} /></span>
         <span className="grow">
-          <strong className="t-title-s" style={{ display: "block" }}>AI 정리 노트 PDF</strong>
+          <strong className="t-title-s" style={{ display: "block" }}>정리 노트 PDF</strong>
           <span className="t-caption muted">AI가 오늘 배운 내용을 주제별로 다시 정리해요. 핵심과 설명, 예시, 시험 포인트, 용어, 확인 문제까지요</span>
         </span>
       </div>
       {(error || state?.error) && <p className="t-caption" style={{ color: "var(--accent-record)" }}>{error || state?.error}</p>}
       {state?.status === "building" ? (
-        <Button block disabled><span className="spin" /> AI 가 정리하는 중… (1분쯤)</Button>
+        <Button block disabled><span className="spin" /> 정리하는 중이에요 (1분쯤)</Button>
       ) : state?.status === "ready" ? (
-        <PdfActions url={`${API}${path}`} title="AI 정리 노트" onRebuild={build} />
+        <PdfActions url={`${API}${path}`} title="정리 노트" onRebuild={build} />
       ) : (
         <Button block onClick={build} disabled={!state}>만들기</Button>
       )}

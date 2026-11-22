@@ -107,7 +107,7 @@ export default function DocDetail({ docId }: { docId: string }) {
                 <h2 className="t-title-s section-title">시험 준비 <span className="t-caption faint">이 자료의 모든 강의로</span></h2>
                 <ListItem icon="star" title="족보 노트" subtitle="시험에 나온다고 한 것과 예상 문제를 한 장에 모아요"
                   onClick={() => go({ name: "jokbo", docId })} />
-                <ListItem icon="brain" title="AI 퀴즈" subtitle="이 자료와 강의로 문제를 내고 바로 채점해요"
+                <ListItem icon="brain" title="퀴즈" subtitle="이 자료와 강의로 문제를 내고 바로 채점해요"
                   onClick={() => go({ name: "quiz", docId })} />
                 <ListItem icon="target" title="약점 노트" subtitle="틀린 문제와 헷갈렸던 곳만 다시 모아 봐요"
                   onClick={() => go({ name: "weak", docId })} />

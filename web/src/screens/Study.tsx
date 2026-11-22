@@ -11,7 +11,7 @@ import { useSwipe } from "../lib/gesture";
 import { Skeleton } from "../lib/motion";
 
 // 공부 탭은 세 가지만: 퀴즈(AI가 내고 채점) · 외우기(플래시카드 + 빈칸) · 질문하기(헷갈린 곳 + AI 튜터)
-const KINDS = [["quiz", "퀴즈"], ["memorize", "외우기"], ["ask", "AI 튜터"]] as const;
+const KINDS = [["quiz", "퀴즈"], ["memorize", "외우기"], ["ask", "질문하기"]] as const;
 type Kind = (typeof KINDS)[number][0];
 
 export default function Study({ sessionId }: { sessionId: string }) {
@@ -32,7 +32,7 @@ export default function Study({ sessionId }: { sessionId: string }) {
         <>
           <h3 className="t-title-s section-title">헷갈렸던 곳</h3>
           <ConfusedPane sessionId={sessionId} />
-          <h3 className="t-title-s section-title">AI에게 묻기</h3>
+          <h3 className="t-title-s section-title">질문하기</h3>
           <Tutor sessionId={sessionId} />
         </>
       )}
@@ -92,7 +92,7 @@ function AIStudy<T>({ sessionId, kind, render }: { sessionId: string; kind: stri
   if (error) return <Empty icon="warning-circle">{error}</Empty>;
   if (!state) return <Skeleton />;
   if (state.status === "building")
-    return <Empty icon="sparkle">AI가 만드는 중이에요{state.total ? ` (${state.done}/${state.total}쪽)` : "…"}</Empty>;
+    return <Empty icon="sparkle">만드는 중이에요{state.total ? ` (${state.done}/${state.total}쪽)` : "…"}</Empty>;
   if (state.status !== "ready" || state.body === null)
     return (
       <div className="banner">

@@ -641,7 +641,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
                     onClick={() => setSelected(selected === n.id ? null : n.id)}
                     onContextMenu={(e) => { e.preventDefault(); editNote(n); }}>
                     <PostIt type={n.type} number={i + 1} photo={n.photo_id ? `${import.meta.env.VITE_API_URL ?? ""}/photos/${n.photo_id}` : null}
-                      tag={n.preview ? "AI가 정리 중…" : beyond.has(n.id) ? "슬라이드에 없는 설명" : n.edited_by_user ? "직접 씀·고침" : undefined}>{n.text}</PostIt>
+                      tag={n.preview ? "정리하는 중…" : beyond.has(n.id) ? "슬라이드에 없는 설명" : n.edited_by_user ? "직접 씀·고침" : undefined}>{n.text}</PostIt>
                     {n.id === selected && !n.preview && (
                       <div className="note-actions" onClick={(e) => e.stopPropagation()}>
                         {/* AI 가 엉뚱한 쪽에 붙였을 때: 옆 쪽으로 한 번에 옮기기 */}
@@ -764,7 +764,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               </div>
             )}
             <span className="t-caption muted" style={{ display: "block" }}>
-              {recording ? (notebook ? `AI 필기 생성 중, ${page}번 주제` : "AI 필기 생성 중") : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (cut ? "녹음이 끊긴 강의예요" : serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}${serverStatus.engine === "local" ? ", Groq 가 막혀 서버에서 받아쓰는 중이라 느려요" : ""}`
+              {recording ? (notebook ? `필기 쓰는 중, ${page}번 주제` : "필기 쓰는 중") : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (cut ? "녹음이 끊긴 강의예요" : serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}${serverStatus.engine === "local" ? ", Groq 가 막혀 서버에서 받아쓰는 중이라 느려요" : ""}`
                 : serverStatus?.status === "processing" ? "필기·요약 정리 중…" : serverStatus?.status === "failed" ? "정리하지 못했어요" : "강의가 끝났어요") : "버튼을 누르면 녹음을 시작해요"}
             </span>
           </div>

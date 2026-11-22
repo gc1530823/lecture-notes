@@ -98,7 +98,7 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
       <div className="qz">
         <div className="qz-stack">
           <div className="flashcard qz-card qz-intro card-in">
-            <span className="qz-type t-mcq">AI 퀴즈 카드</span>
+            <span className="qz-type t-mcq">퀴즈 카드</span>
             {making ? (
               <>
                 <span className="spin" />
@@ -107,9 +107,9 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
               </>
             ) : (
               <>
-                <strong className="t-title-m">{scopeLabel} AI가 먼저 공부하고<br />시험 문제 카드를 만들어요</strong>
+                <strong className="t-title-m">{scopeLabel} 바탕으로 시험 문제 카드를 만들어요</strong>
                 <div className="meta-chips center">{["객관식", "OX", "빈칸", "단답", "서술"].map((k) => <span key={k} className="meta-chip">{k}</span>)}</div>
-                <span className="t-caption muted">카드에서 바로 답하면 AI가 채점하고 뒤집어서 해설을 보여 줘요</span>
+                <span className="t-caption muted">카드에서 바로 답하면 채점하고 해설을 보여 줘요</span>
                 <div className="qz-counts">{COUNTS.map((n) => <button key={n} className={n === count ? "on" : ""} onClick={() => setCount(n)}>{n}장</button>)}</div>
               </>
             )}
@@ -256,7 +256,7 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
                   placeholder={q.type === "essay" ? "2~4문장으로 설명해 보세요" : q.type === "fill" ? "빈칸에 들어갈 말 (여러 칸이면 쉼표로)" : "답을 적어 주세요"}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && q.type !== "essay") { e.preventDefault(); void send(draft); } }} />
-                <Button block disabled={grading || !draft.trim()}>{grading ? "AI가 채점하는 중…" : "채점 받기"}</Button>
+                <Button block disabled={grading || !draft.trim()}>{grading ? "채점하는 중…" : "채점 받기"}</Button>
               </form>
             )}
             {grading && q.type !== "fill" && q.type !== "short" && q.type !== "essay" && <span className="t-caption faint"><span className="spin" /> 채점하는 중…</span>}
@@ -284,7 +284,7 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
 export function QuizScreen({ docId }: { docId: string }) {
   return (
     <div className="screen">
-      <TopBar title="AI 퀴즈" onBack={() => back({ name: "doc", docId })} />
+      <TopBar title="퀴즈" onBack={() => back({ name: "doc", docId })} />
       <div className="screen-body">
         <QuizCards makePath={`/documents/${docId}/quiz-set`} scopeLabel="이 강의자료와 지금까지 들은 강의를" />
       </div>

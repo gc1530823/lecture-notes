@@ -59,7 +59,7 @@ export default function Semester({ tab }: { tab: string }) {
     <div className="screen">
       <TopBar title="학기 전체" onBack={() => back({ name: "home" })} />
       <div className="screen-body">
-        <SlidingTabs label="학기 전체" items={[["map", "개념 지도"], ["tutor", "AI에게 묻기"], ["exams", "시험 D-day"]] as const}
+        <SlidingTabs label="학기 전체" items={[["map", "개념 지도"], ["tutor", "질문하기"], ["exams", "시험 D-day"]] as const}
           value={tab as "map" | "tutor" | "exams"} onChange={(k) => go({ name: "semester", tab: k })} />
         {tab === "map" && <ConceptMap />}
         {tab === "tutor" && <SemesterTutor />}

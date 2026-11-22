@@ -45,7 +45,7 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
         {tab === "glossary" && (
           <>
             <Glossary sessionId={sessionId} />
-            <h3 className="t-title-s section-title">AI 개념 설명 <span className="t-caption faint">예시까지 더 자세히</span></h3>
+            <h3 className="t-title-s section-title">개념 설명 <span className="t-caption faint">예시까지 더 자세히</span></h3>
             <ConceptExplain sessionId={sessionId} />
           </>
         )}
@@ -114,7 +114,7 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
               <span className="slide-paper">{lines.slice(0, 4).map((l, i) => <span key={i} className={i === 0 ? "ttl" : ""}>{highlight(l.slice(0, 60), terms)}</span>)}</span>
               <span className="slide-go">슬라이드에서 보기 <Icon name="arrow-right" size={13} /></span>
             </button>
-            {pageSummary.get(p.page_no) && <div className="ai-sum"><span className="src">AI 요약</span><p>{highlight(pageSummary.get(p.page_no)!, terms)}</p></div>}
+            {pageSummary.get(p.page_no) && <div className="ai-sum"><span className="src">요약</span><p>{highlight(pageSummary.get(p.page_no)!, terms)}</p></div>}
             <div className="prof-notes">
               <span className="src">교수님 설명에서 붙은 필기 {mine.length}개</span>
               <div className="postit-grid">
@@ -266,7 +266,7 @@ function Renote({ sessionId }: { sessionId: string }) {
   return (
     <div className="renote-row">
       <button className="soft-link" onClick={() => void run()} disabled={busy}>
-        <Icon name="arrows-clockwise" size={14} /> {busy ? "바꾸는 중…" : "AI 필기 다시 만들기"}
+        <Icon name="arrows-clockwise" size={14} /> {busy ? "바꾸는 중…" : "필기 다시 만들기"}
       </button>
       {snap && (
         <span className={`renote-undo${snap.now < snap.notes * 0.9 ? " warn" : ""}`}>

@@ -31,8 +31,10 @@ const TONE: Record<string, string> = {
 export function hasArt(name: string): boolean { return DUO.has(DUO_ALIAS[name] ?? name); }
 
 /** 아이콘. art = 색 벡터 아이콘(duotone). 없는 이름은 굵은 선 아이콘. 모두 public/icons.svg 스프라이트 */
+// 아이콘은 한 가지 스타일(같은 굵기의 선)로 통일한다. 선 아이콘이 없는 것만 색 그림을 쓴다.
+const LINE_MISSING = new Set(["calendar-check", "waveform"]);
 export function Icon({ name, size = 22, art = false }: { name: string; size?: number; art?: boolean }) {
-  if (art && hasArt(name)) {
+  if (art && hasArt(name) && LINE_MISSING.has(name)) {
     const id = DUO_ALIAS[name] ?? name;
     return (
       <svg className={`icon art tone-${TONE[id] ?? "violet"}`} width={size} height={size} style={{ width: size, height: size }} aria-hidden="true">
@@ -100,7 +102,7 @@ export function ListItem({ icon, title, subtitle, onClick, index, tone, art }: {
   const style = index === undefined ? undefined : { animationDelay: `${Math.min(index, 8) * 45}ms` } as CSSProperties;
   const inner = (
     <>
-      <span className={`list-item-icon${art ? " has-art" : hasArt(icon) ? " is-art" : ""}`}>{art ?? <Icon name={icon} art size={40} />}</span>
+      <span className={`list-item-icon${art ? " has-art" : hasArt(icon) ? " is-art" : ""}`}>{art ?? <Icon name={icon} art size={22} />}</span>
       <span className="grow">
         <span className="t-title-s" style={{ display: "block" }}>{title}</span>
         {subtitle && <span className="list-item-sub">{subtitle}</span>}
@@ -134,7 +136,7 @@ export function TopBar({ title, onBack, action, home = true }: { title: string; 
 }
 
 export const NOTE_LABEL: Record<NoteType, string> = {
-  explanation: "보충설명", example: "예시", emphasis: "강조", exam: "시험", notice: "공지", tip: "AI 팁", qa: "질문",
+  explanation: "보충설명", example: "예시", emphasis: "강조", exam: "시험", notice: "공지", tip: "팁", qa: "질문",
 };
 
 // 회의 모드에서는 같은 종류를 회의록의 이름으로 보여 준다
@@ -180,7 +182,7 @@ export function NoteSection({ number, title, highlight, lines }: { number: numbe
         <h3 className="t-title-s">{title}</h3>
       </div>
       {highlight && <p className="note-hl t-note">{highlight}</p>}
-      {lines.map((l, i) => <p key={i} className="t-note">· {l}</p>)}
+      {lines.map((l, i) => <p key={i} className="t-note note-line">{l}</p>)}
     </section>
   );
 }

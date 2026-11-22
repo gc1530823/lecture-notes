@@ -439,7 +439,7 @@ export function PrivacyScreen() {
 
         <section className="set-group">
           <h3>앱 정보</h3>
-          <SettingRow icon="sparkle" title="LUNE AI 강의 노트" sub="Listen. Learn. Remember." />
+          <SettingRow icon="sparkle" title="LUNE 강의 노트" sub="Listen. Learn. Remember." />
           <SettingRow icon="graduation-cap" title="처음 안내 다시 보기" onClick={() => go({ name: "intro" })} />
           {android() && <SettingRow icon="gear" title="서버 주소 바꾸기" sub="다른 LUNE 서버에 연결해요" onClick={() => android()?.changeServer()} />}
           <SettingRow icon="chalkboard-teacher" title="발표 모드" sub="강의 화면에 '녹음 파일을 실시간 강의처럼 틀기'를 보여 줘요"

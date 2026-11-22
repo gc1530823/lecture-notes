@@ -19,7 +19,7 @@ export function WeakScreen({ docId }: { docId: string }) {
         <Hint icon="target">퀴즈에서 틀린 문제와 수업 중 헷갈린 곳이에요. 복습에서 맞힐 때까지 다시 나와요.</Hint>
         {!items && <Skeleton />}
         {items && items.length === 0 && (
-          <Empty icon="check-circle"><strong className="t-title-s">아직 약점이 없어요</strong><br />AI 퀴즈를 풀어 보거나 수업 중 '모르겠어요'를 누르면 여기에 모여요.</Empty>
+          <Empty icon="check-circle"><strong className="t-title-s">아직 약점이 없어요</strong><br />퀴즈를 풀어 보거나 수업 중 '모르겠어요'를 누르면 여기에 모여요.</Empty>
         )}
         {items?.map((w) => (
           <button key={w.card_key} className={`weak-item${open === w.card_key ? " open" : ""}`} onClick={() => setOpen(open === w.card_key ? null : w.card_key)}>

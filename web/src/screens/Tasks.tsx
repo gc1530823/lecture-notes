@@ -109,7 +109,7 @@ function TaskRow({ t, onDone, onDue, open, onOpen, onCheck, onRemove }: {
           <Icon name="check" size={14} />
         </button>
         <button className="grow task-main" onClick={onOpen ?? (() => go({ name: "lecture", docId: t.doc_id, sessionId: t.session_id }))}>
-          <span className="task-title">{t.title}{ai && <em className="ai-found">AI가 찾음</em>}</span>
+          <span className="task-title">{t.title}{ai && <em className="ai-found">강의에서 찾음</em>}</span>
           <span className="task-meta">
             <i className={`task-dot ${courseTone(t.course)}`} />{t.course || t.doc_title}
             {t.due_text ? `, ${t.due_text}` : ""}

@@ -86,7 +86,7 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
       <LuneMark size={84} className="login-mark" />
       <h1 aria-label="LUNE"><LuneWordmark height={30} /></h1>
       <p className="login-tag">{TAGLINE}</p>
-      <p className="t-caption muted">녹음하면 강의자료 위에 AI 필기가 붙어요</p>
+      <p className="t-caption muted">녹음하면 강의자료 위에 필기가 붙어요</p>
       <form className="login-card" onSubmit={(e) => { e.preventDefault(); if (ready && !busy) void submit(); }}>
         {forgot ? (
           <div className="forgot-head"><b>비밀번호 다시 만들기</b><small>이메일로 인증번호를 받거나, 가입할 때 받은 복구 코드(또는 서버 주인에게 받은 초기화 코드)를 넣어 주세요</small></div>

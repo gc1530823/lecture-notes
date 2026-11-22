@@ -290,7 +290,7 @@ export default function Home() {
         {/* 학기 전체로 가는 길은 가볍게 한 줄 (홈은 오늘 녹음, D-day, 할 일 위주) */}
         <div className="home-links" role="group" aria-label="학기 전체">
           <button onClick={() => go({ name: "semester", tab: "exams" })}><Icon name="target" art size={26} /><span>시험 준비</span></button>
-          <button onClick={() => go({ name: "semester", tab: "tutor" })}><Icon name="chats-circle" art size={26} /><span>AI에게 묻기</span></button>
+          <button onClick={() => go({ name: "semester", tab: "tutor" })}><Icon name="chats-circle" art size={26} /><span>질문하기</span></button>
           <button onClick={() => go({ name: "semester", tab: "map" })}><Icon name="tree-structure" art size={26} /><span>개념 지도</span></button>
         </div>
 
