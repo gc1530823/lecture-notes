@@ -238,3 +238,6 @@ mark.kw { background: none; color: var(--accent-primary); font-weight: 700; padd
 .qz-head .chip { background: none !important; border: 0 !important; padding: 0 !important; color: var(--text-tertiary) !important; font: 600 12px/16px var(--font-sans); }
 .my-code-line { background: var(--bg-card) !important; background-image: none !important; border: 1px solid var(--border-line); box-shadow: none !important; }
 .qz-intro .t-title-m { max-width: 18em; margin: 0 auto; }
+.record-main, .record-main.alt { box-shadow: none !important; border-radius: var(--r-card) !important; }
+.record-main.alt { border: 1px solid var(--border-line); background: var(--bg-card) !important; }
+.record-ic { border-radius: 10px; }
