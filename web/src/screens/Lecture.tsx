@@ -585,7 +585,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   };
 
   return (
-    <div className="screen lecture">
+    <div className={`screen lecture${recording ? " night-rec" : ""}`}>
       <TopBar title={doc.title} onBack={back} home={false} action={
         <div className="row" style={{ gap: 0 }}>
           <button className="top-bar-back" aria-label={`용어 사전 ${terms.length}개`} onClick={() => setSheet("glossary")} style={{ position: "relative" }}>

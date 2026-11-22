@@ -126,3 +126,26 @@
 .note-list li i { background: none !important; color: var(--text-tertiary) !important; font: 600 13px/1.7 var(--font-sans) !important; font-style: normal; width: auto !important; min-width: 18px; }
 .note-hi { background: linear-gradient(transparent 62%, color-mix(in srgb, var(--accent-3) 70%, transparent) 62%) !important; color: inherit !important; padding: 0 !important; }
 .note-sub, .note-outro { color: var(--text-secondary) !important; }
+
+/* ── 달 개념 넓히기 ── */
+/* 강의 상태 달, 연속 기록 달: 목록 아이콘 칸과 알약 안에 */
+.list-item-icon .moon { animation: none; filter: none; }
+.streak-pill .moon { animation: none; filter: none; }
+.streak-flame .moon { filter: drop-shadow(0 0 22px color-mix(in srgb, var(--moon-lit) 70%, transparent)); }
+.streak-pill.lit { border-color: color-mix(in srgb, var(--accent-3) 70%, transparent); }
+/* 녹음 중에는 시간과 상관없이 화면이 밤하늘로 (집중) */
+.screen.lecture { transition: background-color .9s ease; }
+.screen.lecture.night-rec, :root:has(.screen.lecture.night-rec) {
+  --bg-paper: #15132A; --bg-card: #1F1C38; --text-primary: #EFEBFA; --text-secondary: #C3BDDC; --text-tertiary: #9790B6; --text-note: #EFEBFA;
+  --accent-primary: #F3D27A; --accent-2: #8F86DA; --border-line: #2E2A4C; --fill-soft: #272347;
+  background: #15132A radial-gradient(1px 1px at 14% 12%, #fff8 50%, transparent 51%) , radial-gradient(1px 1px at 72% 20%, #fff6 50%, transparent 51%), radial-gradient(1.5px 1.5px at 44% 6%, #fff9 50%, transparent 51%);
+  color: var(--text-primary);
+}
+.screen.lecture.night-rec .top-bar { background: transparent; }
+.screen.lecture.night-rec .postit { background: color-mix(in srgb, var(--paper) 12%, #1F1C38) !important; border-color: color-mix(in srgb, var(--paper) 28%, transparent) !important; color: #EFEBFA !important; }
+.screen.lecture.night-rec .postit-head { color: var(--paper) !important; }
+
+:root:has(.screen.lecture.night-rec) body { background: #15132A; }
+.bottom-bar.rec .live-wave { width: 100%; align-self: stretch; }
+.bottom-bar.rec { background: #1F1C38; border-color: #2E2A4C; }
+.bottom-bar.rec .live-wave { flex: none !important; height: 48px; }
