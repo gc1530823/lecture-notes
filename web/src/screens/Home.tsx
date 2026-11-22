@@ -1,5 +1,6 @@
 // 1 자료 목록 (Figma "03 디자인 / 1 자료 목록")
 import { useEffect, useRef, useState } from "react";
+import { Moon, moonName, moonNext, moonPhase } from "../components/Moon";
 import { EnglishToggle, lectureLang, setLectureLang } from "../components/EnglishToggle";
 import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
@@ -339,6 +340,10 @@ function HomeHead() {
           <StreakBadge />
           <button className="home-me" onClick={() => go({ name: "privacy" })} aria-label="설정"><Icon name="gear" size={18} /></button>
         </span>
+      </div>
+      <div className="home-sky" aria-label={`오늘 밤 달: ${moonName(moonPhase())}`}>
+        <Moon size={78} />
+        <span><b>{moonName(moonPhase())}</b>{moonNext(moonPhase())}</span>
       </div>
       <div className="home-hello">
         <span className="home-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>

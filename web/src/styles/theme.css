@@ -1,53 +1,71 @@
-/* 색 조합 세 가지 (배치는 원래 그대로, 색과 아이콘 색만 바꾼다)
-   01 Modern Editorial: 플럼 · 로즈 · 버터 · 크림
-   02 Digital Art:      잉크 네이비 · 바이올렛 · 라일락 · 화이트
-   03 Playful Swiss:    차콜 · 코랄 · 세이지 · 크림
-   규칙: 강조색은 화면마다 하나(--accent-primary), 보조색 둘(--accent-2, --accent-3)은 아이콘과 선택 표시에만.
-   빨강(녹음·마감 초과)은 의미가 있을 때만. 아이콘 색도 이 다섯 색 안에서만. */
-:root, :root[data-palette="editorial"] {
-  --bg-paper: #F7F2EA; --bg-card: #FFFCF8;
-  --text-primary: #30202D; --text-secondary: #5E4F59; --text-tertiary: #7E7178; --text-note: #30202D;
-  --accent-primary: #30202D; --accent-deep: #1F141D;
-  --accent-2: #D98E8D; --accent-2-soft: #F6DEDD;
-  --accent-3: #E9CF8E; --accent-3-soft: #FAEFD3;
-  --accent-record: #E0614D;
-  --border-line: #ECE2D8; --line-deep: #E2D6CA; --fill-soft: #F2E9E2; --leaf: #30202D;
+/* LUNE — 하늘을 따라 바뀌는 색
+   LUNE(달)이라는 이름에서 출발: 앱의 색이 하루의 하늘을 따라간다.
+   새벽(5~11) 복숭아빛 / 낮(11~17) 맑은 하늘 / 노을(17~21) 장밋빛 / 밤(21~5) 깊은 남색과 달빛 노랑.
+   강조색은 그 시간의 하늘 한 가지, 보조색 둘은 아이콘·선택 표시에만. 빨강(녹음·마감 초과)은 의미가 있을 때만. */
+:root, :root[data-sky="dawn"] {
+  --bg-paper: #FBF3EA; --bg-card: #FFFBF6;
+  --text-primary: #3A2723; --text-secondary: #654B44; --text-tertiary: #8A6F66; --text-note: #3A2723;
+  --accent-primary: #CF6A4C; --accent-deep: #B4553A;
+  --accent-2: #F0A77E; --accent-2-soft: #FBE1D0; --accent-3: #F2CF7E; --accent-3-soft: #FBEFCF;
+  --accent-record: #D2483A;
+  --border-line: #F0E2D4; --line-deep: #E6D3C2; --fill-soft: #F8E9DC; --leaf: #CF6A4C;
+  --sky-1: #F9C9A9; --sky-2: #FCE3C8; --moon-lit: #FFF6E4; --moon-dark: #F1D2BC;
 }
-:root[data-palette="digital"] {
-  --bg-paper: #F6F4FD; --bg-card: #FFFFFF;
-  --text-primary: #22243F; --text-secondary: #4E5172; --text-tertiary: #6E7090; --text-note: #22243F;
-  --accent-primary: #5B53D6; --accent-deep: #463FB8;
-  --accent-2: #9A95EC; --accent-2-soft: #E6DDF8;
-  --accent-3: #22243F; --accent-3-soft: #ECEAF8;
-  --accent-record: #E25A6B;
-  --border-line: #E6E3F4; --line-deep: #DCD8EE; --fill-soft: #EEEBFA; --leaf: #5B53D6;
+:root[data-sky="day"] {
+  --bg-paper: #F2F6F8; --bg-card: #FFFFFF;
+  --text-primary: #1B2A36; --text-secondary: #43586A; --text-tertiary: #667B8C; --text-note: #1B2A36;
+  --accent-primary: #2A6FB0; --accent-deep: #1F5A93;
+  --accent-2: #7FB8E0; --accent-2-soft: #D9EBF7; --accent-3: #F2C94C; --accent-3-soft: #FCF0C6;
+  --accent-record: #E0503F;
+  --border-line: #E1EAF0; --line-deep: #D2DEE7; --fill-soft: #E8F1F7; --leaf: #2A6FB0;
+  --sky-1: #A9D3F2; --sky-2: #DCEEFA; --moon-lit: #FFFFFF; --moon-dark: #C6DDEE;
 }
-:root[data-palette="swiss"] {
-  --bg-paper: #F3EADF; --bg-card: #FFFBF5;
-  --text-primary: #252420; --text-secondary: #55524A; --text-tertiary: #716D63; --text-note: #252420;
-  --accent-primary: #D9603F; --accent-deep: #BC4C2E;
-  --accent-2: #8FAE86; --accent-2-soft: #D8E3D2;
-  --accent-3: #252420; --accent-3-soft: #EAE3D8;
-  --accent-record: #D9603F;
-  --border-line: #E7DDCF; --line-deep: #DDD1C1; --fill-soft: #EFE5D8; --leaf: #6E9466;
+:root[data-sky="dusk"] {
+  --bg-paper: #F8EEEE; --bg-card: #FFFAF9;
+  --text-primary: #35202D; --text-secondary: #634756; --text-tertiary: #8B6D7B; --text-note: #35202D;
+  --accent-primary: #A04468; --accent-deep: #84344F;
+  --accent-2: #E9A1A0; --accent-2-soft: #F6DCDC; --accent-3: #F1C38E; --accent-3-soft: #FAE8D3;
+  --accent-record: #D9483F;
+  --border-line: #EFDCDD; --line-deep: #E4CBCD; --fill-soft: #F4E2E3; --leaf: #A04468;
+  --sky-1: #E7A7B3; --sky-2: #F6D3CE; --moon-lit: #FFF1DD; --moon-dark: #D99AA6;
 }
-/* 아이콘 색: 팔레트 안에서만 */
+:root[data-sky="night"] {
+  --bg-paper: #15132A; --bg-card: #1F1C38;
+  --text-primary: #EFEBFA; --text-secondary: #C3BDDC; --text-tertiary: #9790B6; --text-note: #EFEBFA;
+  --accent-primary: #F3D27A; --accent-deep: #E0BC5C; --text-on-accent: #1A1730;
+  --accent-2: #8F86DA; --accent-2-soft: #2C2752; --accent-3: #F3D27A; --accent-3-soft: #352F4A;
+  --accent-record: #F07A6A;
+  --border-line: #2E2A4C; --line-deep: #0D0B1C; --fill-soft: #272347; --leaf: #F3D27A;
+  --sky-1: #2B2660; --sky-2: #1A1736; --moon-lit: #F7E7B0; --moon-dark: #2A2650;
+  color-scheme: dark;
+}
+/* 아이콘 색: 그 시간 하늘의 색 안에서만 */
 :root {
   --ico-violet: var(--accent-primary); --ico-blue: var(--accent-2); --ico-green: var(--accent-2); --ico-pink: var(--accent-2);
   --ico-yellow: var(--accent-3); --ico-orange: var(--accent-3); --ico-red: var(--accent-record); --ico-slate: var(--text-secondary);
   --shadow-card: 0 1px 2px rgb(40 30 40 / .05), 0 4px 14px rgb(40 30 40 / .04);
 }
-/* 어두운 화면 (세 팔레트 공통 바탕, 강조색만 밝게) */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --bg-paper: #17151A; --bg-card: #221F26; --text-primary: #F1EDF2; --text-secondary: #C9C2CC; --text-tertiary: #9C94A0; --text-note: #F1EDF2; --border-line: #34303A; --line-deep: #0E0D10; --fill-soft: #2B2830; }
-  :root[data-palette="editorial"]:not([data-theme="light"]), :root:not([data-palette]):not([data-theme="light"]) { --accent-primary: #E9A1A0; --accent-deep: #D4807F; }
-  :root[data-palette="digital"]:not([data-theme="light"]) { --accent-primary: #A6A1F2; --accent-deep: #8C86E8; }
-  :root[data-palette="swiss"]:not([data-theme="light"]) { --accent-primary: #EE8566; --accent-deep: #D9603F; }
-}
-:root[data-theme="dark"] { --bg-paper: #17151A; --bg-card: #221F26; --text-primary: #F1EDF2; --text-secondary: #C9C2CC; --text-tertiary: #9C94A0; --text-note: #F1EDF2; --border-line: #34303A; --line-deep: #0E0D10; --fill-soft: #2B2830; }
-:root[data-theme="dark"][data-palette="editorial"] { --accent-primary: #E9A1A0; --accent-deep: #D4807F; }
-:root[data-theme="dark"][data-palette="digital"] { --accent-primary: #A6A1F2; --accent-deep: #8C86E8; }
-:root[data-theme="dark"][data-palette="swiss"] { --accent-primary: #EE8566; --accent-deep: #D9603F; }
+/* 밤 하늘은 별이 조금 */
+:root[data-sky="night"] body { background-image: radial-gradient(1px 1px at 12% 8%, #fff8 50%, transparent 51%), radial-gradient(1px 1px at 78% 14%, #fff6 50%, transparent 51%), radial-gradient(1.5px 1.5px at 56% 4%, #fff9 50%, transparent 51%), radial-gradient(1px 1px at 33% 22%, #fff5 50%, transparent 51%); background-attachment: fixed; }
+:root[data-sky="night"] .btn-primary, :root[data-sky="night"] .hero-card, :root[data-sky="night"] .record-main:not(.alt) { color: #1A1730 !important; }
+:root[data-sky="night"] .record-main:not(.alt) .icon.art { color: #1A1730 !important; }
+:root[data-sky="night"] .postit { background: color-mix(in srgb, var(--paper) 12%, var(--bg-card)) !important; border-color: color-mix(in srgb, var(--paper) 30%, transparent) !important; }
+:root[data-sky="night"] .postit-exam { background: color-mix(in srgb, var(--accent-3) 18%, var(--bg-card)) !important; }
+:root[data-sky="night"] .postit-head { color: var(--paper) !important; }
+
+/* ── 홈 머리: 그 시간의 하늘 + 오늘 밤의 진짜 달 ── */
+.home-head { position: relative; }
+.home-head::before { background: linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 55%, var(--bg-paper) 100%) !important; inset: 0 0 -30px !important; }
+.home-sky { position: absolute; right: 18px; top: calc(62px + env(safe-area-inset-top)); display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 1; }
+.home-sky span { display: flex; flex-direction: column; align-items: center; font: 500 10.5px/14px var(--font-sans); color: var(--text-secondary); text-align: center; }
+.home-sky span b { font: 700 12px/16px var(--font-sans); color: var(--text-primary); }
+.moon { display: block; overflow: visible; filter: drop-shadow(0 0 18px color-mix(in srgb, var(--moon-lit) 60%, transparent)); animation: moon-rise 1.2s cubic-bezier(.2,.8,.2,1) both; }
+.moon-dark { fill: var(--moon-dark); }
+.moon-lit { fill: var(--moon-lit); }
+.moon-crater { fill: #000; opacity: .045; }
+@keyframes moon-rise { from { opacity: 0; transform: translateY(14px) scale(.9); } }
+.home-hello { padding-right: 96px; }
+@media (prefers-reduced-motion: reduce) { .moon { animation: none; } }
 
 /* ── 강조 판: 그라데이션 대신 한 가지 색 ── */
 .hero-card, .record-main { background: var(--accent-primary) !important; box-shadow: none !important; }
@@ -55,7 +73,6 @@
 .hero-card.tone-rose { background: var(--accent-record) !important; } .hero-card.tone-sky { background: var(--accent-2) !important; }
 .record-main.alt { background: var(--bg-card) !important; }
 .btn-primary { background: var(--accent-primary); box-shadow: none; }
-.home-head::before { background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--accent-2) 18%, transparent), transparent 60%), radial-gradient(80% 70% at 0% 0%, color-mix(in srgb, var(--accent-3) 18%, transparent), transparent 70%) !important; }
 .home-hello h1 em { background: none !important; -webkit-text-fill-color: currentColor; color: var(--accent-primary); }
 .home-brand .lune-word { filter: none; }
 .tt-invite { background: var(--accent-3-soft); border-color: transparent !important; }

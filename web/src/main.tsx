@@ -10,7 +10,10 @@ import { watchPendingRecordings } from './lib/localRec'
 import { followStatusBar } from './lib/native'
 
 // 색 조합: editorial(기본) · digital · swiss — 설정에서 바꿀 수 있게 저장해 둔다
-try { document.documentElement.dataset.palette = localStorage.getItem('ln.palette') || 'editorial' } catch { document.documentElement.dataset.palette = 'editorial' }
+// 하늘 색: 시간에 따라 새벽(5~11) · 낮(11~17) ·노을(17~21) · 밤(21~5). 1분마다 다시 본다
+const skyNow = () => { const h = new Date().getHours(); return h >= 5 && h < 11 ? 'dawn' : h < 17 && h >= 11 ? 'day' : h >= 17 && h < 21 ? 'dusk' : 'night' }
+const applySky = () => { let s = skyNow(); try { s = localStorage.getItem('ln.sky') || s } catch { /* 저장소가 막혀도 시간대로 */ } document.documentElement.dataset.sky = s }
+applySky(); window.setInterval(applySky, 60000)
 installTapSound()
 applyPrefs() // 화면 색 · 글자 크기 · 움직임 · 진동 (설정)
 watchPendingRecordings() // 올리지 못한 녹음이 있으면 올린다 (녹음 오프라인 저장)
