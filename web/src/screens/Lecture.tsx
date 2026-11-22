@@ -275,7 +275,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
       }
       case "task_added":
         setTasks((t) => [...t, e.task]);
-        setBanner({ icon: "clipboard-text", title: `새 ${TASK_LABEL[e.task.kind] ?? "과제"}${e.task.due_text ? ` · ${e.task.due_text}` : ""}`, text: e.task.title, task: e.task.id });
+        setBanner({ icon: "clipboard-text", title: `새 ${TASK_LABEL[e.task.kind] ?? "과제"}${e.task.due_text ? `, ${e.task.due_text}` : ""}`, text: e.task.title, task: e.task.id });
         if (a11yRef.current) navigator.vibrate?.(STRONG_BUZZ);
         break;
       case "heard":
@@ -449,7 +449,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
       await postJSON(`/sessions/${sessionId}/confused`, { page_no: page });
       setConfused((n) => n + 1);
       navigator.vibrate?.(15);
-      toast("표시했어요 · 끝나고 쉽게 설명해 드릴게요");
+      toast("표시했어요, 끝나고 쉽게 설명해 드릴게요");
     } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
   };
 
@@ -480,7 +480,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
       if (!res.ok) throw new Error("확인하지 못했어요");
       const updated = await res.json();
       setNotes((all) => all.map((x) => (x.id === n.id ? updated : x)));
-      toast("확인했어요 · 우리 AI가 배워요");
+      toast("확인했어요, 우리 AI가 배워요");
     } catch (e) { toast(e instanceof Error ? e.message : String(e)); }
   };
 
@@ -598,7 +598,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
             <small className="top-icon-label">자막</small>
           </button>
           {sessionId && phase === "ended" && (
-            <button className="top-bar-back" aria-label="더보기: 정리 노트 PDF · 강의 지우기" onClick={() => setSheet("pdf")}><Icon name="dots-three-outline" /></button>
+            <button className="top-bar-back" aria-label="더보기: 정리 노트 PDF, 강의 지우기" onClick={() => setSheet("pdf")}><Icon name="dots-three-outline" /></button>
           )}
         </div>
       } />
@@ -625,7 +625,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               {pending.length > 0 && <Chip variant="default" onClick={() => setSheet("pending")}>보류 {pending.length}</Chip>}
               {recording && !notebook && (
                 <Chip variant={autoFollow ? "default" : "selected"} onClick={() => setAutoFollow(!autoFollow)}>
-                  {autoFollow ? <><Icon name="lock-simple" size={13} /> 이 쪽 고정</> : <><Icon name="lock-simple" size={13} /> {page}쪽 고정 · 풀기</>}
+                  {autoFollow ? <><Icon name="lock-simple" size={13} /> 이 쪽 고정</> : <><Icon name="lock-simple" size={13} /> {page}쪽 고정 풀기</>}
                 </Chip>
               )}
             </div>
@@ -653,7 +653,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
                     )}
                     {!n.preview && !n.edited_by_user && (n.confidence ?? 1) < 0.6 && (
                       <button className="confirm-chip" onClick={(e) => { e.stopPropagation(); void confirmNote(n); }}
-                        aria-label="AI가 쪽을 확신하지 못한 필기예요. 맞으면 눌러 주세요">확인 필요 · 맞아요</button>
+                        aria-label="AI가 쪽을 확신하지 못한 필기예요. 맞으면 눌러 주세요">이 쪽이 맞아요</button>
                     )}
                     {n.id === selected && !n.preview && (
                       <button className="source-chip" onClick={(e) => { e.stopPropagation(); setSheet({ source: n.id }); }}>
@@ -699,7 +699,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         )}
         {!player.open && player.hasAudio && phase === "ended" && (
           <button className="replay-start t-caption" onClick={() => player.playFrom(3000)}>
-            <Icon name="play" size={16} /> 처음부터 다시 보기 · 녹음에 맞춰 쪽·필기·자막이 따라와요
+            <Icon name="play" size={16} /> 처음부터 다시 보기 (녹음에 맞춰 쪽과 필기, 자막이 따라와요)
           </button>
         )}
         {recording && (
@@ -755,7 +755,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         <div className="row">
           <div className="grow">
             {notebook ? (
-              <span className="t-title-s">{page}번 주제{pageInfo?.text ? ` · ${pageInfo.text}` : ""}</span>
+              <span className="t-title-s">{page}번 주제{pageInfo?.text ? `, ${pageInfo.text}` : ""}</span>
             ) : (
               <div className="pager">
                 <button onClick={() => goTo(page - 1)} aria-label="이전 쪽"><Icon name="caret-left" size={18} /></button>
@@ -764,12 +764,12 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               </div>
             )}
             <span className="t-caption muted" style={{ display: "block" }}>
-              {recording ? (notebook ? `AI 필기 생성 중 · ${page}번 주제` : "AI 필기 생성 중") : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (cut ? "녹음이 끊긴 강의예요" : serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}${serverStatus.engine === "local" ? " · Groq 가 막혀 서버에서 받아쓰는 중이라 느려요" : ""}`
+              {recording ? (notebook ? `AI 필기 생성 중, ${page}번 주제` : "AI 필기 생성 중") : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (cut ? "녹음이 끊긴 강의예요" : serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}${serverStatus.engine === "local" ? ", Groq 가 막혀 서버에서 받아쓰는 중이라 느려요" : ""}`
                 : serverStatus?.status === "processing" ? "필기·요약 정리 중…" : serverStatus?.status === "failed" ? "정리하지 못했어요" : "강의가 끝났어요") : "버튼을 누르면 녹음을 시작해요"}
             </span>
           </div>
           {sessionId && phase !== "idle" && (
-            <button className="round round-soft" onClick={() => setSheet("add")} disabled={photoBusy} aria-label="내 필기 쓰기 · 칠판 사진">
+            <button className="round round-soft" onClick={() => setSheet("add")} disabled={photoBusy} aria-label="내 필기 쓰기, 칠판 사진">
               {photoBusy ? <span className="spin" /> : <Icon name="note-pencil" art size={30} />}<span className="tool-label">내 필기</span>
             </button>
           )}
@@ -1156,7 +1156,7 @@ function EditNoteSheet({ note, onSave, onDelete }: { note: Note; onSave: (text: 
         <button onClick={() => lines((l) => `· ${l}`)}>· 나열</button>
       </div>
       <textarea ref={box} className="input" rows={5} value={text} onChange={(e) => setText(e.target.value)} style={{ padding: 12, resize: "vertical" }} autoFocus />
-      <span className="t-caption muted">미리 보기 · "제목: 내용"이면 제목이 굵게, 줄마다 "1." 이면 번호 목록이 돼요</span>
+      <span className="t-caption muted">미리 보기. "제목: 내용"이면 제목이 굵게, 줄마다 "1." 이면 번호 목록이 돼요</span>
       <div className="edit-preview"><PostIt type={type}>{text || " "}</PostIt></div>
       <div className="row">
         <Button className="grow" variant="record" icon="trash" onClick={onDelete}>지우기</Button>

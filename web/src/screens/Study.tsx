@@ -92,7 +92,7 @@ function AIStudy<T>({ sessionId, kind, render }: { sessionId: string; kind: stri
   if (error) return <Empty icon="warning-circle">{error}</Empty>;
   if (!state) return <Skeleton />;
   if (state.status === "building")
-    return <Empty icon="sparkle">AI가 만드는 중이에요{state.total ? ` · ${state.done}/${state.total}쪽` : "…"}</Empty>;
+    return <Empty icon="sparkle">AI가 만드는 중이에요{state.total ? ` (${state.done}/${state.total}쪽)` : "…"}</Empty>;
   if (state.status !== "ready" || state.body === null)
     return (
       <div className="banner">
@@ -102,7 +102,7 @@ function AIStudy<T>({ sessionId, kind, render }: { sessionId: string; kind: stri
     );
   return (
     <>
-      {state.stale && <Button variant="secondary" onClick={build} icon="clock-counter-clockwise">필기가 바뀌었어요 · 다시 만들기</Button>}
+      {state.stale && <Button variant="secondary" onClick={build} icon="clock-counter-clockwise">필기가 바뀌었어요. 다시 만들기</Button>}
       {render(state.body)}
     </>
   );
@@ -135,7 +135,7 @@ function Flashcards({ cards }: { cards: Flashcard[] }) {
   const card = deck[index];
   return (
     <>
-      <p className="t-caption faint" style={{ textAlign: "center" }}>{index + 1} / {deck.length}{i >= cards.length ? " · 다시 보기" : ""}</p>
+      <p className="t-caption faint" style={{ textAlign: "center" }}>{index + 1} / {deck.length}{i >= cards.length ? ", 다시 보기" : ""}</p>
       <div className="swipe-hint" aria-hidden="true"><span>← 다시 볼래요</span><span>알아요 →</span></div>
       <button ref={cardRef} key={`${i}-${flipped}`} className="flashcard flip-in swipe-card" data-flipped={flipped} onClick={() => setFlipped(!flipped)} aria-live="polite">
         <Chip variant="accent">{card.page_no}쪽</Chip>
@@ -156,7 +156,7 @@ function MindMap({ root }: { root: MindNode }) {
       <strong className="t-title-m" style={{ textAlign: "center" }}>{root.label}</strong>
       {(root.children ?? []).map((b, i) => (
         <div key={i} className="mind-branch">
-          <strong className="t-title-s">{b.label}{b.page_no ? <span className="t-caption faint"> · {b.page_no}쪽</span> : null}</strong>
+          <strong className="t-title-s">{b.label}{b.page_no ? <span className="t-caption faint"> {b.page_no}쪽</span> : null}</strong>
           {(b.children ?? []).map((leaf, j) => <span key={j} className="t-body muted">{leaf.label}</span>)}
         </div>
       ))}
@@ -200,13 +200,13 @@ function Cloze({ sessionId }: { sessionId: string }) {
   if (items.length === 0) return <Empty icon="brain">빈칸으로 낼 문장이 아직 없어요</Empty>;
   return (
     <>
-      <p className="t-caption muted">빈칸을 눌러 답을 확인하세요 · 시험·강조 필기부터</p>
+      <p className="t-caption muted">빈칸을 누르면 답이 보여요. 시험에 나온다고 한 것부터 나와요</p>
       {items.map((it, i) => {
         const [before, after] = it.text.split("____");
         const open = shown.has(i);
         return (
           <button key={i} className="banner" style={{ textAlign: "left" }} onClick={() => setShown(new Set(shown).add(i))}>
-            <span className="t-caption faint">{it.page_no}쪽{it.important ? " · 시험에 나올 수 있어요" : ""}</span>
+            <span className="t-caption faint">{it.page_no}쪽{it.important ? ", 시험에 나올 수 있어요" : ""}</span>
             <p className="t-body">{before}{open ? <span className="cloze-answer">{it.answer}</span> : <span className="cloze-blank" />}{after}</p>
           </button>
         );
@@ -217,7 +217,7 @@ function Cloze({ sessionId }: { sessionId: string }) {
 
 type Scope = "lecture" | "course" | "all";
 const SCOPES: [Scope, string, string][] = [
-  ["lecture", "이 강의", "오늘 강의 내용(슬라이드 · 교수님 설명 · 필기)으로만 답해요"],
+  ["lecture", "이 강의", "오늘 강의의 슬라이드와 교수님 설명, 필기로만 답해요"],
   ["course", "이 과목", "같은 과목의 모든 강의에서 가까운 부분을 찾아 답해요"],
   ["all", "학기 전체", "지금까지 들은 모든 강의에서 찾아 답해요"],
 ];
@@ -294,7 +294,7 @@ function Bilingual({ pairs }: { pairs: { en: string; ko: string; page_no: number
   return (
     <>
       <div className="row">
-        <span className="t-caption muted grow">왼쪽 영어 원문 · 오른쪽 한국어 번역</span>
+        <span className="t-caption muted grow">왼쪽은 영어 원문, 오른쪽은 한국어 번역</span>
         <Chip variant={hideKo ? "selected" : "default"} onClick={() => setHideKo(!hideKo)}>{hideKo ? "번역 보기" : "번역 가리기"}</Chip>
       </div>
       {pages.map((no) => (

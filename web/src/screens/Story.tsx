@@ -44,7 +44,7 @@ export function StoryEntry({ docId, sessionId }: { docId: string; sessionId: str
         <span className="story-ring"><Icon name="play" size={20} /></span>
         <span className="grow">
           <span className="t-title-s" style={{ display: "block" }}>1분 스토리로 보기</span>
-          <span className="list-item-sub">{[s.exam ? `시험 언급 ${s.exam}번` : "", `필기 ${s.notes}개`, s.minutes ? `${s.minutes}분 수업` : ""].filter(Boolean).join(" · ")}</span>
+          <span className="list-item-sub">{[s.exam ? `시험 언급 ${s.exam}번` : "", `필기 ${s.notes}개`, s.minutes ? `${s.minutes}분 수업` : ""].filter(Boolean).join(", ")}</span>
         </span>
         <span className="story-count t-caption">{data.cards.length}장</span>
       </button>
@@ -105,7 +105,7 @@ function StoryViewer({ data, onClose, onListen, onStudy, endTitle = "오늘도 �
         ))}
       </div>
       <header className="story-head">
-        <span className="grow t-caption">{data.title} · {new Date(data.started_at * 1000).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}</span>
+        <span className="grow t-caption">{data.title}, {new Date(data.started_at * 1000).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}</span>
         <button onClick={onClose} aria-label="닫기"><Icon name="x" /></button>
       </header>
       <button className="story-tap left" onPointerDown={down} onPointerUp={() => up(-1)} onPointerLeave={() => setPaused(false)} aria-label="이전 카드" />
@@ -128,7 +128,7 @@ function StoryViewer({ data, onClose, onListen, onStudy, endTitle = "오늘도 �
             <h2 className={`story-text${card.text.length < 60 ? " big" : ""}`}><Words text={card.text} /></h2>
             {card.quote && <p className="story-quote">“{card.quote}”</p>}
             {(card.page_no || card.at_ms != null) && (
-              <span className="story-meta t-caption">{[card.page_no ? `${card.page_no}쪽` : "", card.at_ms != null ? clock(card.at_ms) : ""].filter(Boolean).join(" · ")}</span>
+              <span className="story-meta t-caption">{[card.page_no ? `${card.page_no}쪽` : "", card.at_ms != null ? clock(card.at_ms) : ""].filter(Boolean).join(", ")}</span>
             )}
           </>
         )}
@@ -188,8 +188,8 @@ export function FlowStrip({ flow, onJump }: { flow: StoryData["flow"]; onJump: (
       </div>
       <button className="flow-info" onClick={() => onJump(info)}>
         <span className="grow t-caption">
-          <b>{info.minute}분쯤{info.page ? ` · ${info.page}쪽` : ""}</b>{" "}
-          {[info.exam ? "시험에 나온다고 한 구간" : "", info.confused ? "모르겠다고 표시" : "", info.loud ? "목소리를 높임" : "", info.notes ? `필기 ${info.notes}개` : ""].filter(Boolean).join(" · ") || "조용히 지나간 구간"}
+          <b>{info.minute}분쯤{info.page ? `, ${info.page}쪽` : ""}</b>{" "}
+          {[info.exam ? "시험에 나온다고 한 구간" : "", info.confused ? "모르겠다고 표시" : "", info.loud ? "목소리를 높임" : "", info.notes ? `필기 ${info.notes}개` : ""].filter(Boolean).join(", ") || "조용히 지나간 구간"}
         </span>
         <span className="t-caption flow-go"><Icon name="play" size={14} /> 여기부터 듣기</span>
       </button>
@@ -214,7 +214,7 @@ export function StreakBadge() {
   const pct = data.next_at ? Math.round(100 * ((data.carrots ?? 0) - (data.level_from ?? 0)) / (data.next_at - (data.level_from ?? 0))) : 100;
   return (
     <>
-      <button className={`streak-pill${data.today ? " lit" : ""}`} onClick={() => setOpen(true)} aria-label={`연속 공부 ${data.streak}일${data.today ? " · 오늘 불꽃 켬" : " · 오늘 아직"}`}>
+      <button className={`streak-pill${data.today ? " lit" : ""}`} onClick={() => setOpen(true)} aria-label={`연속 공부 ${data.streak}일${data.today ? ", 오늘 불꽃 켬" : ", 오늘 아직"}`}>
         <Icon name="fire" size={17} /><b>{data.streak}</b>
       </button>
       {open && createPortal(

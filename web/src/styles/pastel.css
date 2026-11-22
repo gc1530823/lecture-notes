@@ -1,108 +1,116 @@
-/* 파스텔 테마: 배치는 그대로 두고 겉모습만 바꾼다.
-   따뜻한 크림 바탕, 칸마다 다른 파스텔 색, 파란 강조 하나, 명조 제목, 따뜻한 그림자. */
+/* 종이 테마: 배치는 그대로 두고 겉모습만 바꾼다.
+   원칙
+   - 색은 세 층만: 따뜻한 종이(바탕) / 먹색(글자) / 숲초록 한 가지(강조). 빨강은 녹음과 '마감 지남'에만.
+   - 칸 색은 채도를 낮춘 흙빛 파스텔(점토·모래·세이지·안개)로, 위 글자는 같은 계열의 진한 색(톤온톤).
+   - 동그란 알약 배지를 줄이고, 꼬리표는 모서리가 살짝 둥근 네모나 그냥 글자로.
+   - 보라·파랑 그라데이션, 빛 번짐, 반짝이 같은 장식은 쓰지 않는다. */
 :root {
-  --bg-paper: #fbf6ee;
-  --bg-card: #ffffff;
-  --text-primary: #1f1d1a;
-  --text-secondary: #5f584e;
-  --text-tertiary: #746c60;   /* 크림 바탕 위 4.5:1 이상 */
-  --text-note: #211f1c;
-  --accent-primary: #5b6cff;
-  --accent-deep: #4352e8;
-  --accent-record: #ff6b4f;
-  --border-line: #efe6d8;
-  --fill-soft: #f5eee3;
-  --line-deep: #e8dece;
-  --shadow-card: 0 2px 10px rgb(110 80 30 / .06), 0 1px 2px rgb(110 80 30 / .05);
-  --ico-violet: #5b6cff;
-  --pastel-peach: #ffe1d1; --pastel-butter: #fff0bf; --pastel-mint: #d6f0e0; --pastel-lav: #e8e1ff; --pastel-sky: #dcebf8; --pastel-pink: #fde0e6;
+  --bg-paper: #f4f1ea;
+  --bg-card: #fffdf9;
+  --text-primary: #23221e;
+  --text-secondary: #57534a;
+  --text-tertiary: #6f6a5f;   /* 종이 바탕 위 4.5:1 이상 */
+  --text-on-accent: #ffffff;
+  --text-note: #23221e;
+  --accent-primary: #2f6b4f;  /* 숲초록 */
+  --accent-deep: #24543e;
+  --accent-record: #d4553a;   /* 테라코타 빨강: 녹음·마감 지남 */
+  --border-line: #e5dfd3;
+  --fill-soft: #ece7dc;
+  --line-deep: #ddd5c6;
+  --leaf: #2f6b4f;
+  --shadow-card: 0 1px 2px rgb(60 45 20 / .06);
+  --ico-violet: #2f6b4f; --ico-blue: #3f6e8c; --ico-red: #c8492f; --ico-orange: #c0712c; --ico-green: #2f6b4f;
+  /* 흙빛 칸 색과 그 위 글자 */
+  --c-clay: #f0dccd;  --c-clay-ink: #7c3b1f;
+  --c-sand: #efe3c3;  --c-sand-ink: #6a5216;
+  --c-sage: #dbe5d3;  --c-sage-ink: #2c5a3f;
+  --c-mist: #dbe3e6;  --c-mist-ink: #2f5266;
+  --c-lilac: #e5dfe8; --c-lilac-ink: #4f3f62;
+  --c-rose: #f1dcd8;  --c-rose-ink: #8a3226;
   --font-serif: "Gowun Batang", "Noto Serif KR", serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg-paper: #1a1815; --bg-card: #242120; --text-primary: #f3eee6; --text-secondary: #c2b9ab; --text-tertiary: #a59c8e;
-    --accent-primary: #8f9bff; --accent-deep: #5b6cff; --border-line: #34302b; --fill-soft: #2d2a26; --line-deep: #11100e;
-    --pastel-peach: #3d2a22; --pastel-butter: #3a3220; --pastel-mint: #1f3328; --pastel-lav: #2b2840; --pastel-sky: #1f2d3a; --pastel-pink: #3a2329;
+    --bg-paper: #1b1a17; --bg-card: #23221f; --text-primary: #efebe3; --text-secondary: #c3bcae; --text-tertiary: #a8a192; --text-note: #efebe3;
+    --accent-primary: #7fb798; --accent-deep: #5e9a7a; --accent-record: #f0846a; --border-line: #34312b; --fill-soft: #2c2a25; --line-deep: #121110; --leaf: #7fb798;
+    --c-clay: #3a2a20; --c-clay-ink: #f0c9b0; --c-sand: #37301d; --c-sand-ink: #eedb9e; --c-sage: #23312a; --c-sage-ink: #b9d8c3;
+    --c-mist: #222d33; --c-mist-ink: #b7cfdb; --c-lilac: #2c2731; --c-lilac-ink: #d6c9e2; --c-rose: #3a2422; --c-rose-ink: #f2b8ab;
   }
 }
 :root[data-theme="dark"] {
-  --bg-paper: #1a1815; --bg-card: #242120; --text-primary: #f3eee6; --text-secondary: #c2b9ab; --text-tertiary: #a59c8e;
-  --accent-primary: #8f9bff; --accent-deep: #5b6cff; --border-line: #34302b; --fill-soft: #2d2a26; --line-deep: #11100e;
-  --pastel-peach: #3d2a22; --pastel-butter: #3a3220; --pastel-mint: #1f3328; --pastel-lav: #2b2840; --pastel-sky: #1f2d3a; --pastel-pink: #3a2329;
+  --bg-paper: #1b1a17; --bg-card: #23221f; --text-primary: #efebe3; --text-secondary: #c3bcae; --text-tertiary: #a8a192; --text-note: #efebe3;
+  --accent-primary: #7fb798; --accent-deep: #5e9a7a; --accent-record: #f0846a; --border-line: #34312b; --fill-soft: #2c2a25; --line-deep: #121110; --leaf: #7fb798;
+  --c-clay: #3a2a20; --c-clay-ink: #f0c9b0; --c-sand: #37301d; --c-sand-ink: #eedb9e; --c-sage: #23312a; --c-sage-ink: #b9d8c3;
+  --c-mist: #222d33; --c-mist-ink: #b7cfdb; --c-lilac: #2c2731; --c-lilac-ink: #d6c9e2; --c-rose: #3a2422; --c-rose-ink: #f2b8ab;
 }
 
-/* 제목은 명조 */
-.home-hello h1, .top-bar-title, .section-title, .t-title-l, .t-title-m { font-family: var(--font-serif); letter-spacing: -.02em; }
+/* ── 글자: 제목만 명조, 나머지는 그대로 ── */
+.home-hello h1, .top-bar-title, .section-title, .t-title-l, .t-title-m, .home-brand { font-family: var(--font-serif); letter-spacing: -.02em; }
 .home-hello h1 { font-weight: 700; font-size: 26px; line-height: 34px; }
-.home-hello h1 em { background: none; color: var(--accent-primary); }
-.home-hello .home-date { color: var(--text-tertiary); }
-.top-bar-title { font-weight: 700; }
+.home-hello h1 em { background: none; color: var(--accent-primary); -webkit-text-fill-color: currentColor; }
+.home-hello .home-date { color: var(--text-tertiary); font-weight: 600; letter-spacing: 0; }
 .section-title { font-weight: 700; font-size: 18px; }
-
-/* 카드: 흰 바탕 + 따뜻한 얇은 테두리 */
-.list-item, .tile, .tasks-card, .home-search, .slide-tabs { box-shadow: 0 0 0 1px var(--border-line), var(--shadow-card); }
-.list-item-icon, .list-item-icon.is-art, .list-item-icon.has-art { background: var(--pastel-lav); }
-.list-item:nth-child(4n+2) .list-item-icon { background: var(--pastel-peach); }
-.list-item:nth-child(4n+3) .list-item-icon { background: var(--pastel-mint); }
-.list-item:nth-child(4n+4) .list-item-icon { background: var(--pastel-butter); }
-
-/* 녹음 시작 큰 카드: 보라 그라데이션 → 납작한 파랑 */
-.hero-card { background: var(--accent-primary); box-shadow: 0 12px 24px -10px rgb(91 108 255 / .55); border-radius: 24px; }
-.hero-card::before { background: rgb(255 255 255 / .14); }
-.hero-card .hero-art { filter: none; }
-.hero-card.tone-rose { background: #ff6b4f; box-shadow: 0 12px 24px -10px rgb(255 107 79 / .5); }
-.hero-card.tone-sky { background: #4b9be6; box-shadow: 0 12px 24px -10px rgb(75 155 230 / .5); }
-
-/* 버튼 */
-.btn-primary { background: var(--accent-primary); box-shadow: 0 8px 16px -8px rgb(91 108 255 / .6); }
-
-/* 시간표 등록 칸: 버터색 */
-.tt-invite { background: var(--pastel-butter); border-color: transparent !important; box-shadow: none; }
-
-/* 위쪽 탭(필기·정리·공부·용어 등) */
-.slide-tabs { background: var(--bg-card); }
-
-/* 아래 탭바: 고른 칸에 파란 알약 */
-.tabbar { background: color-mix(in srgb, var(--bg-card) 96%, transparent); border-top: 1px solid var(--border-line); }
-.tabbar button.on { color: var(--accent-primary); }
-.tabbar button.on svg, .tabbar button.on .icon { background: color-mix(in srgb, var(--accent-primary) 14%, transparent); border-radius: 10px; padding: 3px 10px; box-sizing: content-box; }
-
-/* 칩 */
-.chip.on, button.chip.on { background: var(--accent-primary); color: #fff; }
-
-/* 홈 위쪽 은은한 빛: 라벤더·분홍 → 복숭아·버터 */
-.home-head::before { background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, #ffc9a8 40%, transparent), transparent 60%), radial-gradient(80% 70% at 0% 0%, color-mix(in srgb, #ffe28a 30%, transparent), transparent 70%); }
-/* 녹음 파일·자료 올리기 두 버튼: 복숭아 / 민트 */
-.record-sub > :nth-child(1) { background: var(--pastel-peach); box-shadow: none; border-color: transparent; }
-.record-sub > :nth-child(2) { background: var(--pastel-mint); box-shadow: none; border-color: transparent; }
-/* 할 일 카드: 분홍 테두리 대신 옅은 분홍 바탕 */
-.tasks-card.urgent { background: color-mix(in srgb, var(--pastel-pink) 60%, var(--bg-card)); box-shadow: none; }
-.home-brand { font-family: var(--font-serif); }
-
-/* ── 조화 다듬기: 파스텔 칸 위 글자는 같은 색 계열의 진한 색(톤온톤) ── */
-.record-sub > :nth-child(1) { color: #8a3f1c; } .record-sub > :nth-child(2) { color: #1d6b47; }
-.record-sub > * svg { color: inherit; }
-.tt-invite b { color: #5e4500; } .tt-invite small { color: #7a6420; }
-.tt-invite .btn, .tt-invite button:last-child { background: #1f1d1a; color: #fff; box-shadow: none; }
-.tasks-card.urgent { background: var(--bg-card); box-shadow: 0 0 0 1px var(--border-line), var(--shadow-card); border-left: 4px solid #ff8a80; }
 .home-brand { color: var(--text-primary); }
 .home-brand .lune-word { filter: none; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .record-sub > *, :root:not([data-theme="light"]) .tt-invite b, :root:not([data-theme="light"]) .tt-invite small { color: var(--text-primary); } }
-:root[data-theme="dark"] .record-sub > *, :root[data-theme="dark"] .tt-invite b, :root[data-theme="dark"] .tt-invite small { color: var(--text-primary); }
+.home-head::before { background: none; }
 
-/* ── 모션 ── */
-/* 녹음 카드의 마이크가 숨 쉬듯 */
-.record-main .record-ic { position: relative; }
-.record-main .record-ic::after { content: ""; position: absolute; inset: -4px; border-radius: inherit; border: 2px solid rgb(255 255 255 / .55); animation: lune-breathe 2.4s ease-out infinite; pointer-events: none; }
-@keyframes lune-breathe { 0% { transform: scale(.9); opacity: .9; } 100% { transform: scale(1.35); opacity: 0; } }
-/* 탭을 바꾸면 알약이 톡 튀어나옴 */
-.tabbar button.on svg, .tabbar button.on .icon { animation: lune-pop .45s cubic-bezier(.2,1.6,.3,1); }
-@keyframes lune-pop { from { transform: scale(.6); } }
-/* 파스텔 칸은 누를 때 말랑하게 */
-.record-sub > *, .tt-invite, .list-item, .tile { transition: transform .35s cubic-bezier(.2,1.5,.3,1), box-shadow .2s; }
-.record-sub > *:active, .tt-invite:active { transform: scale(.95); }
-/* 목록 아이콘 칸이 순서대로 살짝 튀며 등장 */
-.list-item .list-item-icon { animation: lune-icon .6s cubic-bezier(.2,1.6,.3,1) both; animation-delay: .15s; }
-@keyframes lune-icon { from { transform: scale(.4) rotate(-12deg); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .record-main .record-ic::after, .tabbar button.on svg, .list-item .list-item-icon { animation: none; } }
+/* ── 카드: 종이 위 흰 종이. 그림자 대신 얇은 선 ── */
+.list-item, .tile, .tasks-card, .home-search, .slide-tabs, .tt-card { box-shadow: 0 0 0 1px var(--border-line); }
+.list-item-icon, .list-item-icon.is-art, .list-item-icon.has-art { background: var(--fill-soft); color: var(--text-primary); border-radius: 12px; }
+
+/* ── 녹음 시작: 숲초록 판, 장식 동그라미 없앰 ── */
+.hero-card, .record-main { background: var(--accent-primary); box-shadow: none; border-radius: 18px; }
+.hero-card::before { display: none; }
+.hero-card .hero-art { filter: none; }
+.hero-card.tone-rose { background: var(--accent-record); } .hero-card.tone-sky { background: #3f6e8c; }
+.record-main .record-ic { background: rgb(255 255 255 / .14); }
+.btn-primary { background: var(--accent-primary); box-shadow: none; }
+
+/* 보조 버튼 두 개: 점토 / 세이지, 글자는 같은 계열 진한 색 */
+.record-sub > * { box-shadow: none !important; border: 0 !important; }
+.record-sub > :nth-child(1) { background: var(--c-clay); color: var(--c-clay-ink); }
+.record-sub > :nth-child(2) { background: var(--c-sage); color: var(--c-sage-ink); }
 .record-sub > * .icon, .record-sub > * svg { color: currentColor !important; }
+
+/* 시간표 등록: 모래색, 버튼은 먹색 네모 */
+.tt-invite { background: var(--c-sand); border: 0 !important; box-shadow: none; }
+.tt-invite b { color: var(--c-sand-ink); } .tt-invite small { color: color-mix(in srgb, var(--c-sand-ink) 80%, var(--c-sand)); }
+.tt-invite .btn, .tt-invite button:last-child { background: var(--text-primary); color: var(--bg-card); box-shadow: none; border-radius: 10px; }
+
+/* 할 일: 흰 카드 + 왼쪽 테라코타 띠 */
+.tasks-card.urgent { background: var(--bg-card); box-shadow: 0 0 0 1px var(--border-line); border-left: 3px solid var(--accent-record); }
+
+/* ── 알약 배지 → 네모 꼬리표 또는 그냥 글자 ── */
+.chip, button.chip, a.chip { border-radius: 8px; }
+.chip-selected, button.chip-selected { box-shadow: none; }
+.dday, .dday.late, .dday.soon, .dday.later { background: none; padding: 0; border-radius: 0; font-weight: 700; }
+.dday.late { color: var(--accent-record); } .dday.soon { color: var(--ico-orange); } .dday.later { color: var(--text-tertiary); }
+.ai-found { background: none; padding: 0; border-radius: 0; color: var(--text-tertiary); font-weight: 600; margin-left: 6px; }
+.ai-found::before { content: "— "; }
+.cal-today, .tt-today-btn { border-radius: 8px; }
+.lang-toggle .lang-tag, .lang-toggle.on .lang-tag { background: none; border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; }
+.badge { border-radius: 5px; }
+.streak-pill { border-radius: 10px; }
+
+/* 위쪽 탭(필기·정리·공부·용어) */
+.slide-tabs { background: var(--bg-card); border-radius: 12px; }
+.slide-tabs button { border-radius: 9px; }
+
+/* 아래 탭바: 고른 칸은 아이콘 밑 짧은 밑줄 */
+.tabbar { background: var(--bg-paper); border-top: 1px solid var(--border-line); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.tabbar button { position: relative; color: var(--text-tertiary); }
+.tabbar button.on { color: var(--text-primary); font-weight: 700; }
+.tabbar button.on::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 18px; height: 2px; margin-left: -9px; border-radius: 1px; background: var(--accent-primary); animation: lune-line .35s cubic-bezier(.2,1.4,.3,1); }
+@keyframes lune-line { from { transform: scaleX(0); } }
+
+/* ── 모션: 조용하고 짧게 ── */
+.record-sub > *, .tt-invite, .list-item, .tile { transition: transform .3s cubic-bezier(.2,1.4,.3,1); }
+.record-sub > *:active, .tt-invite:active { transform: scale(.97); }
+@media (prefers-reduced-motion: reduce) { .tabbar button.on::after { animation: none; } }
+
+/* 남은 알약 모양 꼬리표들도 네모로 (재생 칩·출처·키워드·퀴즈 종류·과목 칩 등) */
+.play-chip, .loud-tag, .source-chip, .confirm-chip, .story-count, .story-label, .intro-kicker, .pick, .rec-pill, .keywords span, .qz-type, .qz-kinds span,
+.tt-btn, .tt-go, .note-chips span, .kind-chip, .tt-now span, .free-chip, .next-chip, .tt-link-chip, .review-left, .review-src, .level-next .level-left,
+.reason-chip, .meta-chip, .streak-next, .home-links button, .empty-action, .next-missing-label em { border-radius: 7px; }
+.qz-type { background: none; color: var(--accent-primary); border: 1px solid currentColor; }

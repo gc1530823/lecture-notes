@@ -75,7 +75,7 @@ export default function DocDetail({ docId }: { docId: string }) {
                 if (course === null) return;
                 await fetch(`${API}/documents/${docId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ course }) });
                 reloadDocs();
-              }}>{doc.course ? `과목 · ${doc.course}` : "과목 정하기"}</Chip>
+              }}>{doc.course ? doc.course : "과목 정하기"}</Chip>
             </div>
             <OcrProgress docId={docId} />
             {/* 이 자료로 할 일은 두 가지: 지금 녹음하거나, 녹음 파일을 붙이거나 */}
@@ -98,18 +98,18 @@ export default function DocDetail({ docId }: { docId: string }) {
             {doc.sessions.map((s, i) => (
               <ListItem key={s.id} icon="headphones" tone={courseTone(doc.course)} art={waves[s.id]?.w ? <Wave data={waves[s.id]} /> : undefined}
                 title={new Date(s.started_at * 1000).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit" })}
-                subtitle={`${doc.sessions.length - i}번째 강의 · ${STATUS[s.status] ?? s.status}`}
+                subtitle={`${doc.sessions.length - i}번째 강의, ${STATUS[s.status] ?? s.status}`}
                 onClick={() => go(s.status === "failed" ? { name: "lecture", docId, sessionId: s.id } : { name: "session", docId, sessionId: s.id, tab: "notes" })} />
             ))}
 
             {doc.kind !== "meeting" && doc.sessions.length > 0 && (
               <>
                 <h2 className="t-title-s section-title">시험 준비 <span className="t-caption faint">이 자료의 모든 강의로</span></h2>
-                <ListItem icon="star" title="족보 노트" subtitle="시험에 나온다고 한 것 · 유력한 쪽 · 헷갈린 것 · 예상 문제를 한 장에"
+                <ListItem icon="star" title="족보 노트" subtitle="시험에 나온다고 한 것과 예상 문제를 한 장에 모아요"
                   onClick={() => go({ name: "jokbo", docId })} />
-                <ListItem icon="brain" title="AI 퀴즈" subtitle="AI 가 이 자료와 강의를 공부하고 문제를 내요 · 바로 채점"
+                <ListItem icon="brain" title="AI 퀴즈" subtitle="이 자료와 강의로 문제를 내고 바로 채점해요"
                   onClick={() => go({ name: "quiz", docId })} />
-                <ListItem icon="target" title="약점 노트" subtitle="퀴즈에서 틀린 문제 · 수업 중 헷갈린 곳 · 복습에서 자주 틀린 것"
+                <ListItem icon="target" title="약점 노트" subtitle="틀린 문제와 헷갈렸던 곳만 다시 모아 봐요"
                   onClick={() => go({ name: "weak", docId })} />
                 <button className="link-row" onClick={() => { window.location.href = `${API}/documents/${docId}/anki.txt`; }}>
                   <Icon name="export" size={16} /> Anki 로 내보내기
@@ -138,5 +138,5 @@ function OcrProgress({ docId }: { docId: string }) {
     return () => { alive = false; window.clearTimeout(timer); };
   }, [docId]);
   if (!state || state.status !== "reading") return null;
-  return <p className="t-caption" style={{ color: "var(--accent-primary)" }}><span className="spin" /> 그림으로 된 쪽의 글자를 읽는 중 {state.done}/{state.total}쪽 · 다 읽으면 쪽 추적이 잘 돼요</p>;
+  return <p className="t-caption" style={{ color: "var(--accent-primary)" }}><span className="spin" /> 그림으로 된 쪽의 글자를 읽는 중 {state.done}/{state.total}쪽. 다 읽으면 쪽 추적이 잘 돼요</p>;
 }

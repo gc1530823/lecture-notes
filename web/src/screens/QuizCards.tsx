@@ -37,7 +37,7 @@ function Mark({ verdict, size = 26 }: { verdict: Verdict; size?: number }) {
 function CardHead({ q, total }: { q: Question; total: number }) {
   return (
     <div className="qz-head">
-      <Chip variant="accent">{q.page_no}쪽{q.topic ? ` · ${q.topic}` : ""}</Chip>
+      <Chip variant="accent">{q.page_no}쪽{q.topic ? `, ${q.topic}` : ""}</Chip>
       <span className={`qz-type t-${q.type}`}>{q.type_label}</span>
       <span className="qz-no">{q.index + 1}/{total}</span>
     </div>
@@ -145,7 +145,7 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
     const q = missed[review];
     return (
       <div className="qz">
-        <p className="t-caption faint" style={{ textAlign: "center" }}>틀린 카드 다시 보기 · {review + 1} / {missed.length}</p>
+        <p className="t-caption faint" style={{ textAlign: "center" }}>틀린 카드 다시 보기, {review + 1} / {missed.length}</p>
         <button key={`${review}-${shown}`} className="flashcard qz-card flip-in" data-flipped={shown} onClick={() => setShown(!shown)}>
           <CardHead q={q} total={total} />
           {!shown ? (

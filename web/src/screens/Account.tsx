@@ -44,7 +44,7 @@ export function AccountSecurity() {
   return (
     <>
       <Row icon="envelope-simple" title="이메일" open={open === "email"} onClick={() => toggle("email")}
-        sub={mail?.email ? `${mail.email} · 비밀번호를 잊으면 여기로 인증번호` : "등록하면 비밀번호를 잊었을 때 메일로 찾아요"} />
+        sub={mail?.email ? `${mail.email}. 비밀번호를 잊으면 여기로 인증번호가 가요` : "등록하면 비밀번호를 잊었을 때 메일로 찾아요"} />
       {open === "email" && (
         <div className="set-panel">
           {!mail?.mail_ready && <p className="set-warn">이 서버는 아직 메일을 보낼 수 없어요. 서버 주인이 설정 &gt; 서버에서 메일 보내기를 켜야 해요.</p>}
@@ -79,7 +79,7 @@ export function AccountSecurity() {
       )}
 
       <Row icon="key" title="복구 코드" open={open === "recovery"} onClick={() => toggle("recovery")}
-        sub={hasCode ? "있어요 · 이메일이 없을 때 비밀번호를 찾는 코드" : "없어요 · 만들어 두면 이메일 없이도 찾아요"} />
+        sub={hasCode ? "있어요. 이메일이 없을 때 비밀번호를 찾는 코드예요" : "없어요. 만들어 두면 이메일 없이도 찾아요"} />
       {open === "recovery" && (
         <div className="set-panel">
           <p className="t-caption muted" style={{ margin: 0 }}>새로 만들면 예전 코드는 못 써요. 만든 코드는 지금 한 번만 보여 줘요.</p>
@@ -136,7 +136,7 @@ export function OwnerAccountTools() {
         <Button variant="secondary" disabled={!friend.trim() || busy}
           onClick={() => void run(async () => setReset(await postJSON("/admin/reset-code", { name: friend })))}>만들기</Button>
       </div>
-      {reset && <p className="set-msg">{reset.name}님 코드: <code className="inline-code">{reset.code}</code> · 로그인 화면 '비밀번호를 잊었어요'에 넣으면 돼요</p>}
+      {reset && <p className="set-msg">{reset.name}님 코드: <code className="inline-code">{reset.code}</code>. 로그인 화면 '비밀번호를 잊었어요'에 넣으면 돼요</p>}
       {msg && <p className="set-msg">{msg}</p>}
     </div>
   );
@@ -158,13 +158,13 @@ export function TrashPanel() {
   return (
     <>
       <Row icon="trash" title="휴지통" open={open} onClick={() => setOpen(!open)}
-        sub={items?.length ? `${items.length}개 · 지운 뒤 7일 동안 되살릴 수 있어요` : "비어 있어요 · 지운 강의자료는 7일 동안 여기 있어요"} />
+        sub={items?.length ? `${items.length}개 있어요. 지운 뒤 7일 동안 되살릴 수 있어요` : "비어 있어요. 지운 강의자료는 7일 동안 여기 있어요"} />
       {open && (
         <div className="set-panel">
           {!items?.length && <p className="t-caption muted" style={{ margin: 0 }}>휴지통이 비어 있어요.</p>}
           {items?.map((t) => (
             <div key={t.id} className="trash-row">
-              <span className="grow"><b>{t.title}</b><small>{t.days_left}일 뒤 완전히 지워져요{t.course ? ` · ${t.course}` : ""}</small></span>
+              <span className="grow"><b>{t.title}</b><small>{t.days_left}일 뒤 완전히 지워져요{t.course ? `, ${t.course}` : ""}</small></span>
               <button className="chip chip-accent" onClick={() => void restore(t)}>되살리기</button>
               <button className="chip chip-default danger" onClick={() => void purge(t)}>지우기</button>
             </div>
@@ -214,7 +214,7 @@ export function UsagePanel() {
   return (
     <>
       <Row icon="sliders-horizontal" title="내 사용량" open={open} onClick={() => setOpen(!open)}
-        sub={u ? `강의 ${u.lectures}개 · 녹음 ${hours ? `${hours}시간 ` : ""}${u.recorded_minutes % 60}분 · ${mb(u.bytes.total)}` : "불러오는 중…"} />
+        sub={u ? `강의 ${u.lectures}개, 녹음 ${hours ? `${hours}시간 ` : ""}${u.recorded_minutes % 60}분, ${mb(u.bytes.total)}` : "불러오는 중…"} />
       {open && u && (
         <div className="set-panel">
           <div className="usage-bars">
@@ -226,7 +226,7 @@ export function UsagePanel() {
               </div>
             ))}
           </div>
-          <p className="t-caption muted" style={{ margin: 0 }}>강의자료 {u.documents}개 · 강의 {u.lectures}개{u.trash ? ` · 휴지통 ${u.trash}개` : ""}. 무료 서버라 공간이 넉넉하지 않아요. 안 보는 강의자료는 지워 주세요.</p>
+          <p className="t-caption muted" style={{ margin: 0 }}>강의자료 {u.documents}개, 강의 {u.lectures}개{u.trash ? `, 휴지통 ${u.trash}개` : ""}. 무료 서버라 공간이 넉넉하지 않아요. 안 보는 강의자료는 지워 주세요.</p>
         </div>
       )}
     </>

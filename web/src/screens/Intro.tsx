@@ -64,7 +64,7 @@ export default function Intro() {
         <div className="intro-copy c0"><p className="intro-kicker">수업을 대신 들어 주는 AI 강의 노트</p><h1>Listen.<br />Learn.<br />Remember.</h1></div>
         <div className="intro-copy c1"><h2>녹음만 켜세요.<br />나머지는 알아서.</h2><p>교수님 말이 실시간으로 글이 되고, 강의자료의 그 문단 옆에 필기로 붙어요.</p></div>
         <div className="intro-copy c2"><h2>“시험에 나와요”<br />놓치지 않아요.</h2><p>시험·과제·공지 얘기가 나오면 바로 표시해 둬요.</p></div>
-        <div className="intro-copy c3"><h2>수업이 끝나면<br />공부가 준비돼 있어요.</h2><p>요약 · 플래시카드 · 족보 노트 · 오늘의 복습까지 준비돼요.</p></div>
+        <div className="intro-copy c3"><h2>수업이 끝나면<br />공부가 준비돼 있어요.</h2><p>요약과 플래시카드, 족보 노트, 오늘의 복습까지 준비돼요.</p></div>
         <div className="intro-copy c4"><h2>같이 시작해요!</h2><p>공부한 날마다 불꽃 하나.</p><Button onClick={start}>시작하기</Button></div>
 
         <div className="intro-hint" aria-hidden="true"><span />아래로 내려 보세요</div>

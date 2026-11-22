@@ -38,7 +38,7 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
             <NotesPdf sessionId={sessionId} />
             <ExportRow sessionId={sessionId} />
             {/* 1분 스토리는 덤: 정리 탭 맨 아래 */}
-            {doc.kind !== "meeting" && <Fold title="한눈에 넘겨 보기" sub="1분 스토리 · 수업 흐름"><StoryEntry docId={docId} sessionId={sessionId} /></Fold>}
+            {doc.kind !== "meeting" && <Fold title="한눈에 넘겨 보기" sub="1분 만에 수업 흐름 보기"><StoryEntry docId={docId} sessionId={sessionId} /></Fold>}
           </>
         )}
         {tab === "study" && <Study sessionId={sessionId} />}
@@ -90,7 +90,7 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
       {overview && <Overview text={overview} />}
       {review && review.checked > 0 && (
         <p className="t-caption review-note"><Icon name="check-circle" size={16} /> 수업 뒤 AI가 필기 {review.checked}개를 다시 확인했어요
-          {[review.fixed ? `${review.fixed}개 고침` : "", review.moved ? `${review.moved}개 쪽 옮김` : "", review.deleted ? `${review.deleted}개 지움` : "", review.added ? `${review.added}개 더함` : ""].filter(Boolean).map((t) => ` · ${t}`).join("")}</p>
+          {[review.fixed ? `${review.fixed}개 고침` : "", review.moved ? `${review.moved}개 쪽 옮김` : "", review.deleted ? `${review.deleted}개 지움` : "", review.added ? `${review.added}개 더함` : ""].filter(Boolean).map((t) => `, ${t}`).join("")}</p>
       )}
       {beyond?.ratio ? (
         <Hint icon="sparkle">교수님 설명의 <b>{Math.round(beyond.ratio * 100)}%</b>는 슬라이드에 없던 내용이에요</Hint>
@@ -150,7 +150,7 @@ function ExportRow({ sessionId }: { sessionId: string }) {
   return (
     <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
       <a className="chip chip-accent" href={url} download>Markdown 받기</a>
-      <Chip variant={copied ? "selected" : "accent"} onClick={copy}>{copied ? "복사했어요 · 노션에 붙여 넣으세요" : "노션에 붙여 넣기용 복사"}</Chip>
+      <Chip variant={copied ? "selected" : "accent"} onClick={copy}>{copied ? "복사했어요. 노션에 붙여 넣으세요" : "노션에 붙여 넣기용 복사"}</Chip>
     </div>
   );
 }
@@ -176,7 +176,7 @@ function Minutes({ sessionId }: { sessionId: string }) {
   return (
     <>
       <p className="t-caption muted">{new Date(data.started_at * 1000).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit" })}
-        {data.topics.length ? ` · 안건 ${data.topics.map((t) => t.title).join(", ")}` : ""}</p>
+        {data.topics.length ? `, 안건 ${data.topics.map((t) => t.title).join(", ")}` : ""}</p>
       {data.summary && <Overview text={data.summary} title="회의 요약" />}
       {section("결정된 것", "check-circle", data.decisions, "emphasis")}
       {data.actions.length > 0 && (

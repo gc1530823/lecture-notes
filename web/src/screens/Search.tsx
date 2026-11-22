@@ -79,7 +79,7 @@ export default function Search() {
           <button key={i} className="list-item search-hit" onClick={() => jumpTo(h)}>
             <span className="grow" style={{ minWidth: 0 }}>
               <span className="t-caption muted" style={{ display: "block" }}>
-                {KIND[h.kind]}{h.note_type ? ` · ${NOTE_LABEL[h.note_type]}` : ""} · {h.course ? `${h.course} · ` : ""}{h.title}{h.page_no ? ` ${h.page_no}쪽` : ""}
+                {KIND[h.kind]}{h.note_type ? `, ${NOTE_LABEL[h.note_type]}` : ""}, {h.course ? `${h.course}, ` : ""}{h.title}{h.page_no ? ` ${h.page_no}쪽` : ""}
               </span>
               <span className="t-body">{mark(h.text)}</span>
               {h.kind === "speech" && h.start_ms != null && <span className="t-caption faint" style={{ display: "block" }}><Icon name="play" size={11} /> 누르면 이 순간부터 들어요</span>}

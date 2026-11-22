@@ -22,8 +22,8 @@ import { askText, tell } from "../components/Dialog";
 
 export function subtitleOf(doc: DocumentBrief): string {
   const lectures = doc.sessions.length ? `강의 ${doc.sessions.length}번` : "아직 강의 없음";
-  const kind = doc.kind === "meeting" ? `회의 · 안건 ${doc.page_count}개` : doc.kind === "notebook" ? `노트 · 주제 ${doc.page_count}개` : `슬라이드 ${doc.page_count}쪽`;
-  return `${kind} · ${lectures} · ${relativeDay(doc.created_at)}`;
+  const kind = doc.kind === "meeting" ? `회의, 안건 ${doc.page_count}개` : doc.kind === "notebook" ? `노트, 주제 ${doc.page_count}개` : `슬라이드 ${doc.page_count}쪽`;
+  return `${kind}, ${lectures} (${relativeDay(doc.created_at)})`;
 }
 
 export function relativeDay(seconds: number): string {
@@ -50,7 +50,7 @@ function useReminder() {
       const count = review?.cards.length ?? 0;
       if (!review?.total && !exam) return;
       const title = count ? `오늘 복습 ${count}장이 기다려요` : "오늘 강의 복습할 시간이에요";
-      const text = [exam ? `${exam.title} ${days === 0 ? "D-DAY" : `D-${days}`}` : "", "눌러서 바로 복습하기"].filter(Boolean).join(" · ");
+      const text = [exam ? `${exam.title} ${days === 0 ? "D-DAY" : `D-${days}`}` : "", "눌러서 바로 복습하기"].filter(Boolean).join(". ");
       const hour = getPrefs().reminder;
       if (hour) app.setReminder!(title, text, hour, 0);
     });
@@ -66,7 +66,7 @@ function FirstSteps({ docs, onDoc, onRecord }: { docs: DocumentBrief[]; onDoc: (
   const close = () => { try { localStorage.setItem("ln.firstSteps", "off"); } catch { /* 괜찮다 */ } setHide(true); };
   const steps: [string, string, boolean, (() => void) | null][] = [
     ["가입하기", "끝났어요", true, null],
-    ["강의자료 올리기", "PDF · PPT · 한글 파일", hasDoc, onDoc],
+    ["강의자료 올리기", "PDF, PPT, 한글 파일", hasDoc, onDoc],
     ["첫 수업 녹음", "들으면서 쪽마다 필기가 붙어요", hasRec, onRecord],
   ];
   const next = steps.findIndex(([, , done]) => !done);
@@ -211,7 +211,7 @@ export default function Home() {
       <HomeHead />
       <div className="home-search-wrap">
         <button className="home-search" onClick={() => go({ name: "search" })}>
-          <Icon name="magnifying-glass" size={17} /><span>모든 강의에서 찾기 · 필기, 교수님 말, 용어</span>
+          <Icon name="magnifying-glass" size={17} /><span>필기, 교수님 말, 용어까지 한 번에 찾기</span>
         </button>
       </div>
       <div className="screen-body">
@@ -278,7 +278,7 @@ export default function Home() {
             {showAll ? "접기" : `강의 ${matched.length}개 전체 보기`} <Icon name={showAll ? "caret-up" : "caret-down"} size={14} />
           </button>
         )}
-        {/* 학기 전체로 가는 길은 가볍게 한 줄 (홈은 오늘 녹음 · D-day · 할 일 위주) */}
+        {/* 학기 전체로 가는 길은 가볍게 한 줄 (홈은 오늘 녹음, D-day, 할 일 위주) */}
         <div className="home-links" role="group" aria-label="학기 전체">
           <button onClick={() => go({ name: "semester", tab: "exams" })}><Icon name="target" art size={26} /><span>시험 준비</span></button>
           <button onClick={() => go({ name: "semester", tab: "tutor" })}><Icon name="chats-circle" art size={26} /><span>AI에게 묻기</span></button>
@@ -296,7 +296,7 @@ export default function Home() {
                 <ListItem key={d.id} icon={d.kind === "notebook" ? "notebook" : "file-pdf"} title={d.title} subtitle={subtitleOf(d)} onClick={() => choose(d.id)} />
               ))}
               {picker === "record" && (
-                <ListItem icon="upload-simple" title="강의자료 먼저 올리기" subtitle="PDF · PPT · 한글 파일을 올리고 그 위에서 녹음해요" onClick={() => { setPicker(null); file.current?.click(); }} />
+                <ListItem icon="upload-simple" title="강의자료 먼저 올리기" subtitle="PDF, PPT, 한글 파일을 올리고 그 위에서 녹음해요" onClick={() => { setPicker(null); file.current?.click(); }} />
               )}
               <ListItem icon="note-pencil" title="강의자료 없이" subtitle="주제가 바뀔 때마다 노트를 나눠서 정리해요" onClick={() => choose(null)} />
 
@@ -329,7 +329,7 @@ function HomeHead() {
   const h = new Date().getHours();
   const hello = h < 5 ? "늦은 밤이에요" : h < 11 ? "좋은 아침이에요" : h < 17 ? "좋은 오후예요" : h < 22 ? "좋은 저녁이에요" : "오늘도 수고했어요";
   // 오늘 한 줄: 수업·마감이 있으면 그 수, 없으면 가벼운 한마디 (아래 카드와 같은 말을 되풀이하지 않게)
-  const line = sum && ([sum.classes ? `오늘 수업 ${sum.classes}개` : "", sum.due ? `마감 할 일 ${sum.due}개` : ""].filter(Boolean).join(" · ")
+  const line = sum && ([sum.classes ? `오늘 수업 ${sum.classes}개` : "", sum.due ? `마감 할 일 ${sum.due}개` : ""].filter(Boolean).join(", ")
     || (h < 17 ? "오늘 배운 것을 LUNE에 남겨 볼까요?" : "오늘 배운 것, 잊기 전에 한 번 볼까요?"));
   return (
     <header className="home-head">

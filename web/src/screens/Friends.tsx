@@ -104,7 +104,7 @@ export function FriendsScreen() {
       <TopBar title="친구" />
       <div className="screen-body">
         <SlidingTabs label="친구 메뉴" value={tab} onChange={setTab}
-          items={[["friends", `친구${data?.incoming.length ? ` · ${data.incoming.length}` : ""}`], ["jokbo", "족보"], ["privacy", "공개 설정"]] as const} />
+          items={[["friends", `친구${data?.incoming.length ? ` ${data.incoming.length}` : ""}`], ["jokbo", "족보"], ["privacy", "공개 설정"]] as const} />
         {error && <p className="muted">{error}</p>}
         <div key={tab} className="pane-in">
         {data && tab === "friends" && <FriendsTab data={data} reload={load} onSettings={() => setTab("privacy")}
@@ -189,7 +189,7 @@ function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: Frien
   );
   return (
     <>
-      {/* 친구가 없으면 추가부터, 있으면 받은 신청 · 내 친구가 먼저 */}
+      {/* 친구가 없으면 추가부터, 있으면 받은 신청, 내 친구가 먼저 */}
       {data.friends.length === 0 && addCard}
       {data.incoming.length > 0 && (
         <section className="set-group">
@@ -213,7 +213,7 @@ function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: Frien
               <div key={f.id} className="same-row">
                 <span className="avatar">{f.name.slice(0, 1)}</span>
                 <span className="grow">
-                  <b>{f.name}님도 {withEul(f.same_courses!.join(" · "))} 들어요</b>
+                  <b>{f.name}님도 {withEul(f.same_courses!.join(", "))} 들어요</b>
                   <small>{f.their_jokbo && f.merge !== false ? "족보가 내 족보에 자동으로 합쳐져요" : f.their_jokbo ? "이 친구 족보 합치기를 켜면 같이 볼 수 있어요" : "친구가 족보를 공개하면 합쳐져요"}</small>
                 </span>
                 {f.their_jokbo && f.merge === false && <button className="chip chip-accent" onClick={() => void pair(f, { merge: true })}>합치기</button>}
@@ -229,7 +229,7 @@ function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: Frien
               <span className="grow set-text">
                 <b>{f.name}</b>
                 <small>{[f.same_courses?.length ? `같이 듣는 과목 ${f.same_courses.length}` : "", f.their_timetable ? "시간표 공개" : "시간표 비공개", f.their_jokbo ? "족보 공개" : "족보 비공개",
-                  f.share === false ? "내 것 숨김" : ""].filter(Boolean).join(" · ")}</small>
+                  f.share === false ? "내 것 숨김" : ""].filter(Boolean).join(", ")}</small>
               </span>
               <Icon name={open === f.id ? "caret-up" : "caret-down"} size={14} />
             </button>
@@ -271,7 +271,7 @@ function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: Frien
                 {table.mine?.length ? <FreeTogether name={table.name} mine={table.mine} theirs={table.classes} /> : null}
                 <WeekGrid rows={table.classes.map((c, i) => ({ ...c, id: i }))} onPick={() => {}} />
                 <ul className="friend-classes">
-                  {table.classes.map((c, i) => <li key={i}><b>{"월화수목금토일"[c.weekday]}</b> {c.start}~{c.end} · {c.course}{c.place ? ` (${c.place})` : ""}</li>)}
+                  {table.classes.map((c, i) => <li key={i}><b>{"월화수목금토일"[c.weekday]}</b> {c.start}~{c.end}, {c.course}{c.place ? ` (${c.place})` : ""}</li>)}
                 </ul>
               </>
             ) : <p className="muted">아직 시간표를 넣지 않았어요.</p>}
@@ -314,7 +314,7 @@ function JokboTab({ prefs, onSettings }: { prefs: Prefs; onSettings: () => void 
           </div>
           {d.files.map((f) => (
             <div key={f.id} className="row jokbo-file">
-              <Icon name="file-text" size={15} /><span className="grow">{f.nickname} · 파일로 받은 족보</span>
+              <Icon name="file-text" size={15} /><span className="grow">{f.nickname}님에게 파일로 받은 족보</span>
               <button className="chip chip-default" onClick={() => void dropFile(f.id, f.nickname)}>빼기</button>
             </div>
           ))}

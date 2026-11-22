@@ -37,7 +37,7 @@ export function JokboScreen({ docId }: { docId: string }) {
   return (
     <div className="screen jokbo">
       <TopBar title="족보 노트" onBack={() => back({ name: "doc", docId })}
-        action={<button className="top-bar-back no-print" onClick={() => { const app = android(); if (app) app.print("족보 노트"); else window.print(); }} aria-label="인쇄 · PDF로 저장"><Icon name="file-pdf" /></button>} />
+        action={<button className="top-bar-back no-print" onClick={() => { const app = android(); if (app) app.print("족보 노트"); else window.print(); }} aria-label="인쇄, PDF로 저장"><Icon name="file-pdf" /></button>} />
       <div className="screen-body">
         {error && <Empty icon="warning-circle">{error}</Empty>}
         {data && data.lectures === 0 && <Empty icon="notebook">강의를 녹음하면 시험에 필요한 것만 모아 드려요</Empty>}
@@ -51,11 +51,11 @@ export function JokboScreen({ docId }: { docId: string }) {
             <ShareBox docId={docId} friends={data.friends} />
 
             {data.crowd.length > 0 && (
-              <Section icon="users" title={`함께 본 족보 · 나와 친구 ${data.friends.length}명`} tone="exam">
+              <Section icon="users" title={`나와 친구 ${data.friends.length}명이 함께 본 족보`} tone="exam">
                 {data.crowd.slice(0, 12).map((c) => (
                   <div key={c.page_no} className="jokbo-page">
                     <div className="row">
-                      <strong className="t-title-s grow">{c.page_no}쪽{c.title ? ` · ${c.title}` : ""}</strong>
+                      <strong className="t-title-s grow">{c.page_no}쪽{c.title ? `, ${c.title}` : ""}</strong>
                       <span className="chip chip-selected">{c.people.length}명</span>
                     </div>
                     <span className="t-caption muted">{c.people.join(", ")}이(가) 시험·강조로 적음</span>
@@ -75,7 +75,7 @@ export function JokboScreen({ docId }: { docId: string }) {
               <Section icon="target" title="가장 유력한 쪽">
                 {data.top_pages.map((p) => (
                   <div key={p.page_no} className="jokbo-page">
-                    <strong className="t-title-s">{p.page_no}쪽{p.title ? ` · ${p.title}` : ""}</strong>
+                    <strong className="t-title-s">{p.page_no}쪽{p.title ? `, ${p.title}` : ""}</strong>
                     {p.summary && <p className="t-body">{p.summary}</p>}
                     <ReasonChips reasons={p.reasons} />
                   </div>
@@ -93,7 +93,7 @@ export function JokboScreen({ docId }: { docId: string }) {
               <Section icon="hand-palm" title="내가 헷갈렸던 것">
                 {data.confused.map((m, i) => (
                   <div key={i} className="jokbo-page">
-                    <span className="t-caption muted">{m.page_no}쪽 · {m.lecture}번째 강의</span>
+                    <span className="t-caption muted">{m.page_no}쪽, {m.lecture}번째 강의</span>
                     <p className="t-body">{m.explanation ?? `"${m.speech.slice(-80)}" — 공부하기 › 모르겠다에서 설명을 만들 수 있어요`}</p>
                   </div>
                 ))}
@@ -228,7 +228,7 @@ export function ReviewScreen() {
               <span className="review-src"><Icon name="file-text" size={14} /><span className="review-src-t">{card.title}</span>{card.page_no ? <em>{card.page_no}쪽</em> : null}</span>
             </div>
             <button ref={cardRef} key={`${card.card_key}-${flipped}`} className={`flashcard swipe-card ${flipped ? "flip-in" : "card-in"}`} data-flipped={flipped} onClick={() => setFlipped(!flipped)} aria-live="polite">
-              <Chip variant="accent">{card.new ? "새 카드 · " : card.lapses ? `${card.lapses}번 틀림 · ` : ""}{SOURCE_LABEL[card.source] ?? card.source}</Chip>
+              <Chip variant="accent">{card.new ? "새 카드, " : card.lapses ? `${card.lapses}번 틀림, ` : ""}{SOURCE_LABEL[card.source] ?? card.source}</Chip>
               {flipped && <span className="review-q t-caption">Q. {card.front}</span>}
               <span className={flipped ? "t-body" : "t-title-m"} style={{ whiteSpace: "pre-wrap" }}>{flipped ? card.back : card.front}</span>
               <span className="t-caption faint">{flipped ? "얼마나 기억났는지 아래에서 골라 주세요" : "답을 떠올려 본 뒤 눌러서 확인"}</span>
@@ -265,7 +265,7 @@ export function ReviewBanner() {
       <span className="list-item-icon is-art"><Icon name="brain" art size={40} /></span>
       <span className="grow">
         <span className="t-title-s" style={{ display: "block" }}>{count ? `오늘 복습 ${count}장` : "오늘 복습 끝!"}</span>
-        <span className="list-item-sub">{count ? `다시 볼 때가 된 카드 ${today.due}장 · 새 카드 ${today.new}장` : "잊어버릴 때쯤 다시 알려 드릴게요"}</span>
+        <span className="list-item-sub">{count ? `다시 볼 때가 된 카드 ${today.due}장, 새 카드 ${today.new}장` : "잊어버릴 때쯤 다시 알려 드릴게요"}</span>
       </span>
       <span className="list-item-chev"><Icon name="caret-right" size={18} /></span>
     </button>
@@ -302,10 +302,10 @@ function PrivacyFacts({ info }: { info: Privacy | null }) {
   if (!info) return <p className="muted">확인하는 중…</p>;
   return (
     <ul className="privacy-list t-body">
-      <li><b>받아쓰기</b> · {info.speech}</li>
-      <li><b>필기·요약 AI</b> · {info.ai}</li>
-      <li><b>저장</b> · {info.storage}</li>
-      <li><b>우리 AI 학습</b> · {info.training ? "켜짐: AI 요청·답과 필기 고친 기록을 이 서버 안에 학습 데이터로 남겨요" : "꺼짐"}</li>
+      <li><b>받아쓰기</b>: {info.speech}</li>
+      <li><b>필기와 요약 AI</b>: {info.ai}</li>
+      <li><b>저장</b>: {info.storage}</li>
+      <li><b>우리 AI 학습</b>: {info.training ? "켜짐: AI 요청·답과 필기 고친 기록을 이 서버 안에 학습 데이터로 남겨요" : "꺼짐"}</li>
     </ul>
   );
 }
@@ -411,7 +411,7 @@ export function PrivacyScreen() {
               options={[[0, "끄기"], [19, "7시"], [21, "9시"], [23, "11시"]]} />} />
           )}
           {android() && (
-            <SettingRow icon="calendar-check" title="마감 알림" sub="할 일 마감 하루 전 저녁 8시 · 당일 아침 8시"
+            <SettingRow icon="calendar-check" title="마감 알림" sub="할 일 마감 하루 전 저녁 8시, 당일 아침 8시"
               right={<Switch on={prefs.dueAlarm} onChange={(v) => { change({ dueAlarm: v }); void refreshNotices(); }} label="마감 알림" />} />
           )}
           {!android() && (
@@ -426,7 +426,7 @@ export function PrivacyScreen() {
         <section className="set-group">
           <h3>녹음과 개인정보</h3>
           <SettingRow icon="shield-check" title="녹음 전 안내" sub="녹음은 교수님 허락을 받고, 본인 공부에만 써 주세요" />
-          <SettingRow icon="question" title="내 녹음과 자료는 어디로 가나요?" sub={showFacts ? undefined : "받아쓰기 · AI · 저장 위치 보기"} onClick={() => setShowFacts((v) => !v)} />
+          <SettingRow icon="question" title="내 녹음과 자료는 어디로 가나요?" sub={showFacts ? undefined : "받아쓰기와 AI, 저장 위치 보기"} onClick={() => setShowFacts((v) => !v)} />
           {showFacts && <div className="set-facts"><PrivacyFacts info={info} /></div>}
           <SettingRow icon="arrow-counter-clockwise" title="녹음 동의 다시 받기" sub="다음 녹음 때 안내를 다시 보여 줘요"
             onClick={() => { try { localStorage.removeItem("ln.consent"); } catch { /* 괜찮다 */ } tell("다음 녹음 때 다시 물어볼게요."); }} />
@@ -439,7 +439,7 @@ export function PrivacyScreen() {
 
         <section className="set-group">
           <h3>앱 정보</h3>
-          <SettingRow icon="sparkle" title="LUNE · AI 강의 노트" sub="Listen. Learn. Remember." />
+          <SettingRow icon="sparkle" title="LUNE AI 강의 노트" sub="Listen. Learn. Remember." />
           <SettingRow icon="graduation-cap" title="처음 안내 다시 보기" onClick={() => go({ name: "intro" })} />
           {android() && <SettingRow icon="gear" title="서버 주소 바꾸기" sub="다른 LUNE 서버에 연결해요" onClick={() => android()?.changeServer()} />}
           <SettingRow icon="chalkboard-teacher" title="발표 모드" sub="강의 화면에 '녹음 파일을 실시간 강의처럼 틀기'를 보여 줘요"
@@ -475,7 +475,7 @@ export function ConfusedPane({ sessionId }: { sessionId: string }) {
       <p className="t-caption muted">설명을 만든 것은 오늘의 복습 카드로도 나와요</p>
       {marks.map((m) => (
         <div key={m.id} className="banner">
-          <span className="t-caption faint">{m.page_no}쪽 · {Math.floor(m.at_ms / 60000)}분쯤</span>
+          <span className="t-caption faint">{m.page_no}쪽, {Math.floor(m.at_ms / 60000)}분쯤</span>
           <p className="t-body muted">"{m.speech.slice(-140) || "(받아쓴 말 없음)"}"</p>
           {m.explanation ? <PostIt type="qa">{m.explanation}</PostIt> : (
             <Button onClick={() => explain(m.id)} disabled={busy !== null} icon="sparkle">{busy === m.id ? "설명 만드는 중…" : "쉽게 다시 설명해 줘"}</Button>
@@ -531,7 +531,7 @@ function ShareBox({ docId, friends }: { docId: string; friends: string[] }) {
         </span>
       </div>
       <button className="link-row" onClick={() => go({ name: "friends" })}>
-        <Icon name="users" art size={20} /><span className="grow">친구 추가 · 관리</span><Icon name="caret-right" size={14} />
+        <Icon name="users" art size={20} /><span className="grow">친구 추가하고 관리하기</span><Icon name="caret-right" size={14} />
       </button>
       <div className="row">
         <Button className="grow" variant="secondary" onClick={exportFile}>파일로 보내기</Button>

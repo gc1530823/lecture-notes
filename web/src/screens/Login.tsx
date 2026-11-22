@@ -109,11 +109,11 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
         {forgot && mailNote && <p className="forgot-note">{mailNote}</p>}
         {forgot && (
           <label><span>인증번호 또는 복구 코드</span>
-            <input className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="메일의 6자리 숫자 · ABCD-EFGH-JKLM" autoComplete="one-time-code" />
+            <input className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="메일의 6자리 숫자 또는 ABCD-EFGH-JKLM" autoComplete="one-time-code" />
           </label>
         )}
         {!forgot && mode === "signup" && (
-          <label><span>이메일 <small className="faint">(선택 · 비밀번호를 잊었을 때 찾는 곳)</small></span>
+          <label><span>이메일 <small className="faint">(없어도 돼요. 비밀번호를 잊었을 때 써요)</small></span>
             <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="예: minji@school.ac.kr" autoComplete="email" />
           </label>
         )}

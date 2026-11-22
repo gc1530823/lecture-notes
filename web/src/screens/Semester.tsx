@@ -92,7 +92,7 @@ function ConceptMap() {
 
   return (
     <>
-      <Hint icon="tree-structure">용어 <b>{data.nodes.length}개</b> · 함께 설명됐거나 뜻에 서로 나오면 이어요. 누르면 그 강의 그 순간으로 갈 수 있어요.</Hint>
+      <Hint icon="tree-structure">용어 <b>{data.nodes.length}개</b>예요. 함께 설명됐거나 뜻에 서로 나오면 이어요. 누르면 그 강의 그 순간으로 갈 수 있어요.</Hint>
       <div className="scroll-x" style={{ flexWrap: "wrap" }}>
         {docs.map((d) => <span key={d} className="chip chip-default"><span className="dot" style={{ background: docColor(d) }} /> {titles.get(d)}</span>)}
       </div>
@@ -127,8 +127,8 @@ function ConceptMap() {
           )}
           <span className="t-caption muted">나온 곳 {node.occurrences.length}번</span>
           {node.occurrences.map((o, i) => (
-            <ListItem key={i} icon="play" title={`${o.doc_title}${o.page_no ? ` · ${o.page_no}쪽` : ""}`}
-              subtitle={`${new Date(o.started_at * 1000).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 강의 · ${Math.floor(o.start_ms / 60000)}분쯤`}
+            <ListItem key={i} icon="play" title={`${o.doc_title}${o.page_no ? `, ${o.page_no}쪽` : ""}`}
+              subtitle={`${new Date(o.started_at * 1000).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 강의, ${Math.floor(o.start_ms / 60000)}분쯤`}
               onClick={() => go({ name: "lecture", docId: o.doc_id, sessionId: o.session_id })} />
           ))}
         </div>
@@ -233,7 +233,7 @@ function Exams() {
             <span className="list-item-icon dday">{dday(e.exam_date)}</span>
             <span className="grow">
               <span className="t-title-s" style={{ display: "block" }}>{e.title}</span>
-              <span className="list-item-sub">{e.exam_date} · 범위 {e.doc_ids.length}개 자료</span>
+              <span className="list-item-sub">{e.exam_date}, 범위 {e.doc_ids.length}개 자료</span>
             </span>
             <span className="list-item-chev"><Icon name={open === e.id ? "caret-left" : "caret-right"} size={18} /></span>
           </button>
@@ -298,7 +298,7 @@ export function ExamBanner() {
       <span className="list-item-icon dday">{dday(exam.exam_date)}</span>
       <span className="grow">
         <span className="t-title-s" style={{ display: "block" }}>{exam.title}</span>
-        <span className="list-item-sub">오늘 할 것 보기 · {exam.exam_date}</span>
+        <span className="list-item-sub">오늘 할 것 보기 ({exam.exam_date})</span>
       </span>
       <span className="list-item-chev"><Icon name="caret-right" size={18} /></span>
     </button>

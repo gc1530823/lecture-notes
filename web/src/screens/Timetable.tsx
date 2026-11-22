@@ -60,7 +60,7 @@ export function Timetable({ onPick, slot = "top" }: { courses?: string[]; onPick
         </span>
         <span className="grow">
           <b>시간표 등록하기</b>
-          <small>에타 · 학교 시간표 캡처 한 장이면 끝. 수업 시간이 되면 그 과목이 맨 위에 떠요</small>
+          <small>에브리타임이나 학교 시간표를 캡처해 올리면 끝이에요. 수업 시간이 되면 그 과목이 맨 위에 떠요</small>
         </span>
         <span className="tt-go">등록 <Icon name="caret-right" size={14} /></span>
       </button>
@@ -77,9 +77,9 @@ export function Timetable({ onPick, slot = "top" }: { courses?: string[]; onPick
         <button className={`list-item class-now ${courseTone(now.row.course)}${now.live ? " live" : ""}`} onClick={() => onPick(now.row.course)}>
           <span className="list-item-icon is-art"><Icon name="chalkboard-teacher" art size={40} /></span>
           <span className="grow">
-            <span className="class-tag">{now.live && <i />}{now.live ? "지금 수업" : "다음 수업"} · <span className="num">{now.row.start}~{now.row.end}</span></span>
+            <span className="class-tag">{now.live && <i />}{now.live ? "지금 수업" : "다음 수업"} <span className="num">{now.row.start}~{now.row.end}</span></span>
             <span className="t-title-m" style={{ display: "block" }}>{now.row.course}</span>
-            <span className="list-item-sub">{now.row.place ? `${now.row.place} · ` : ""}눌러서 이 과목 열기</span>
+            <span className="list-item-sub">{now.row.place ? `${now.row.place}, ` : ""}눌러서 이 과목 열기</span>
           </span>
           <span className="list-item-chev"><Icon name="caret-right" size={18} /></span>
         </button>
@@ -211,7 +211,7 @@ export function TimetableEditor({ onPick }: { onPick: (course: string) => void }
             <button className={`tt-tile${adding ? " on" : ""}`} onClick={() => setAdding(!adding)} aria-expanded={adding}>
               <span className="tt-tile-ic edit"><Icon name="note-pencil" size={20} /></span>
               <b>직접 고치기</b>
-              <small>한 과목씩 넣기 · 빼기</small>
+              <small>한 과목씩 넣고 빼기</small>
             </button>
           </div>
         </section>
@@ -322,7 +322,7 @@ function ImportFromImage({ hasRows, onSaved, compact = false }: { hasRows: boole
         <button className="tt-tile" onClick={() => input.current?.click()} disabled={state === "reading"}>
           <span className="tt-tile-ic shot">{state === "reading" ? <span className="spin" aria-hidden /> : <Icon name="camera" size={20} />}</span>
           <b>{state === "reading" ? "읽는 중…" : "캡처로 넣기"}</b>
-          <small>{state === "reading" ? "10초쯤 걸려요" : "에타 · 포털 시간표 사진"}</small>
+          <small>{state === "reading" ? "10초쯤 걸려요" : "에타나 포털 시간표 사진"}</small>
         </button>
       )}
       {!compact && state !== "check" && state !== "saving" && (
@@ -330,7 +330,7 @@ function ImportFromImage({ hasRows, onSaved, compact = false }: { hasRows: boole
           <span className="tt-shot-ic"><Icon name="camera" art size={26} /></span>
           <span className="grow">
             <b>{state === "reading" ? "시간표를 읽는 중…" : "시간표 캡처로 넣기"}</b>
-            <small>{state === "reading" ? "AI가 요일·시간·과목을 옮기고 있어요 (10초쯤)" : "에브리타임 · 학교 포털 시간표 캡처나 사진"}</small>
+            <small>{state === "reading" ? "AI가 요일·시간·과목을 옮기고 있어요 (10초쯤)" : "에브리타임이나 학교 포털 시간표 캡처"}</small>
           </span>
           {state === "reading" ? <span className="spin" aria-hidden /> : <Icon name="caret-right" size={16} />}
         </button>
@@ -482,7 +482,7 @@ export function NextClassCard({ rows, onPick }: { rows: ClassRow[]; onPick: (cou
       <span className="grow">
         <small>{found.live ? "지금 수업" : "다음 수업"}</small>
         <b>{found.row.course}</b>
-        <span>{found.when}{found.row.place ? ` · ${found.row.place}` : ""}</span>
+        <span>{found.when}{found.row.place ? `, ${found.row.place}` : ""}</span>
       </span>
       <Icon name="caret-right" size={18} />
     </button>

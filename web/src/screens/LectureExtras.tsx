@@ -36,7 +36,7 @@ export function TaskList({ tasks, onOpen }: { tasks: FullTask[]; onOpen: (id: nu
             <span className="list-item-icon" style={{ color: t.done ? "var(--note-example-ink)" : k.color }}><Icon name={t.done ? "check-circle" : k.icon} /></span>
             <span className="grow">
               <span className="t-title-s" style={{ display: "block", textDecoration: t.done ? "line-through" : undefined }}>{t.title}</span>
-              <span className="list-item-sub">{k.label}{t.due_text ? ` · ${t.due_text}` : ""}{t.draft ? " · 초안 있음" : ""}</span>
+              <span className="list-item-sub">{k.label}{t.due_text ? `, ${t.due_text}` : ""}{t.draft ? ", 초안 있음" : ""}</span>
             </span>
             <span className="list-item-chev"><Icon name="caret-right" size={18} /></span>
           </button>
@@ -72,7 +72,7 @@ export function TaskDetail({ task, onChange, toast }: { task: FullTask; onChange
   return (
     <>
       <div className="banner">
-        <span className="t-caption" style={{ color: k.color, fontWeight: 700 }}>{k.label}{task.due_text ? ` · ${task.due_text}` : ""}</span>
+        <span className="t-caption" style={{ color: k.color, fontWeight: 700 }}>{k.label}{task.due_text ? `, ${task.due_text}` : ""}</span>
         <h3 className="t-title-m">{task.title}</h3>
         <p className="t-body muted">{task.instructions}</p>
         <Chip variant={task.done ? "selected" : "default"} onClick={toggle}>{task.done ? "완료함" : "완료 표시"}</Chip>
@@ -180,7 +180,7 @@ export function StudyNotePdf({ sessionId }: { sessionId: string }) {
         <span className="list-item-icon is-art"><Icon name="notebook" art size={40} /></span>
         <span className="grow">
           <strong className="t-title-s" style={{ display: "block" }}>AI 정리 노트 PDF</strong>
-          <span className="t-caption muted">AI 가 오늘 배운 내용을 공부해서 주제별로 새로 정리해요 · 핵심, 설명, 예시, 시험 포인트, 용어, 확인 문제</span>
+          <span className="t-caption muted">AI가 오늘 배운 내용을 주제별로 다시 정리해요. 핵심과 설명, 예시, 시험 포인트, 용어, 확인 문제까지요</span>
         </span>
       </div>
       {(error || state?.error) && <p className="t-caption" style={{ color: "var(--accent-record)" }}>{error || state?.error}</p>}

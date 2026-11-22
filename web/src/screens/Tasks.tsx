@@ -112,7 +112,7 @@ function TaskRow({ t, onDone, onDue, open, onOpen, onCheck, onRemove }: {
           <span className="task-title">{t.title}{ai && <em className="ai-found">AI가 찾음</em>}</span>
           <span className="task-meta">
             <i className={`task-dot ${courseTone(t.course)}`} />{t.course || t.doc_title}
-            {t.due_text ? ` · ${t.due_text}` : ""}
+            {t.due_text ? `, ${t.due_text}` : ""}
           </span>
         </button>
         {d && <span className={`dday ${d.tone}`}>{d.text}</span>}
@@ -164,7 +164,7 @@ export function TasksCard() {
     <section className={`banner tasks-card${urgent.length ? " urgent" : ""}`} aria-label="할 일">
       {urgent.length > 0 && (
         <p className="tasks-urgent"><Icon name="warning-circle" size={15} />
-          {[urgent.length - late ? `오늘 마감 ${urgent.length - late}개` : "", late ? `마감 지남 ${late}개` : ""].filter(Boolean).join(" · ")}</p>
+          {[urgent.length - late ? `오늘 마감 ${urgent.length - late}개` : "", late ? `마감 지남 ${late}개` : ""].filter(Boolean).join(", ")}</p>
       )}
       <div className="row">
         <Icon name="clipboard-text" art size={30} />
@@ -249,7 +249,7 @@ function TasksPane() {
                 <button key={c} className={`cal-day${c === today ? " today" : ""}${c === day ? " sel" : ""}${late ? " late" : ""}${list.length && !openList.length ? " cleared" : ""}`}
                   onClick={() => setDay(c === day ? null : c)} aria-label={`${dueLabel(c)}${list.length ? `, 할 일 ${openList.length}개` : ""}`}>
                   <span className="n">{Number(c.slice(8))}</span>
-                  {/* 색 점 대신 남은 개수 (색만으로 뜻을 전하지 않게) · 다 끝냈으면 체크 */}
+                  {/* 색 점 대신 남은 개수 (색만으로 뜻을 전하지 않게), 다 끝냈으면 체크 */}
                   <span className="cal-count">{openList.length ? openList.length : list.length ? <Icon name="check" size={10} /> : null}</span>
                 </button>
               );
