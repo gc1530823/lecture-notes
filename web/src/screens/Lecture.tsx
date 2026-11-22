@@ -912,7 +912,7 @@ function CatchUp({ sessionId, minutes, onGo }: { sessionId: string; minutes: num
           <div className="banner">
             {res.points.map((p, i) => {
               const important = p.startsWith("[중요]");
-              return <p key={i} className="t-body" style={important ? { color: "var(--note-exam-ink)", fontWeight: 700 } : undefined}>· {p.replace(/^\[중요\]\s*/, "")}</p>;
+              return <p key={i} style={important ? { color: "var(--note-exam-ink)", fontWeight: 700 } : undefined} className="t-body plain-line">{p.replace(/^\[중요\]\s*/, "")}</p>;
             })}
           </div>
           <div className="scroll-x">{res.pages.map((no) => <Chip key={no} variant="accent" onClick={() => onGo(no)}>{no}쪽 보기</Chip>)}</div>

@@ -59,7 +59,7 @@ export function JokboScreen({ docId }: { docId: string }) {
                       <span className="chip chip-selected">{c.people.length}명</span>
                     </div>
                     <span className="t-caption muted">{c.people.join(", ")}이(가) 시험·강조로 적음</span>
-                    {groupNotes(c.notes).slice(0, 3).map((n, i) => <p key={i} className="t-body">· {n.text} <span className="t-caption faint">({n.who.join(", ")})</span></p>)}
+                    {groupNotes(c.notes).slice(0, 3).map((n, i) => <p key={i} className="t-body plain-line">{n.text} <span className="t-caption faint">({n.who.join(", ")})</span></p>)}
                   </div>
                 ))}
               </Section>

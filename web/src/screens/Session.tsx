@@ -180,7 +180,7 @@ function Minutes({ sessionId }: { sessionId: string }) {
   const section = (title: string, icon: string, items: { text: string }[], tone: string) => items.length > 0 && (
     <section className="jokbo-section" style={{ borderColor: `var(--note-${tone}-ink)` }}>
       <div className="row"><span style={{ color: `var(--note-${tone}-ink)` }}><Icon name={icon} /></span><h2 className="t-title-s grow">{title}</h2></div>
-      {items.map((d, i) => <p key={i} className="t-body jokbo-line">· {d.text}</p>)}
+      {items.map((d, i) => <p key={i} className="t-body jokbo-line plain-line">{d.text}</p>)}
     </section>
   );
   return (

@@ -270,7 +270,7 @@ function Plan({ exam, onDelete }: { exam: Exam; onDelete: () => void }) {
             <strong className="t-title-s grow">{i === 0 ? "오늘" : new Date(day.date + "T00:00:00").toLocaleDateString("ko-KR", { month: "short", day: "numeric", weekday: "short" })}</strong>
             <span className="t-caption faint">{day.d === 0 ? "시험날" : `D-${day.d}`}</span>
           </div>
-          {day.todo.map((t, j) => <p key={j} className="t-body">· {t}</p>)}
+          {day.todo.map((t, j) => <p key={j} className="t-body plain-line">{t}</p>)}
           {day.pages.length > 0 && (
             <div className="scroll-x" style={{ flexWrap: "wrap" }}>
               {day.pages.map((p, j) => (

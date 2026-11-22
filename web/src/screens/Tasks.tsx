@@ -7,7 +7,6 @@ import { getJSON } from "../api/useApi";
 import { Empty, Icon, TopBar } from "../components/ui";
 import { useSwipe } from "../lib/swipe";
 import { haptic } from "../lib/haptic";
-import { courseTone } from "../lib/course";
 import SlidingTabs from "../components/SlidingTabs";
 import { TimetableEditor } from "./Timetable";
 import { go } from "../router";
@@ -111,8 +110,8 @@ function TaskRow({ t, onDone, onDue, open, onOpen, onCheck, onRemove }: {
         <button className="grow task-main" onClick={onOpen ?? (() => go({ name: "lecture", docId: t.doc_id, sessionId: t.session_id }))}>
           <span className="task-title">{t.title}{ai && <em className="ai-found">강의에서 찾음</em>}</span>
           <span className="task-meta">
-            <i className={`task-dot ${courseTone(t.course)}`} />{t.course || t.doc_title}
-            {t.due_text ? `, ${t.due_text}` : ""}
+            <span className="task-course">{t.course || t.doc_title}</span>
+            {t.due_text && <span className="task-when">{t.due_text}</span>}
           </span>
         </button>
         {d && <span className={`dday ${d.tone}`}>{d.text}</span>}
