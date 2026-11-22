@@ -75,3 +75,37 @@
 .hint > svg, .hint > .icon { display: none; }
 .note-line { padding: 6px 0; border-bottom: 1px solid var(--border-line); }
 .note-line:last-child { border-bottom: 0; }
+
+/* ═══ 필기 읽기 편하게 ═══ */
+/* 한눈에 보는 강의: 진한 글자, 넉넉한 줄 간격, 다섯 줄만 먼저 */
+.overview p { color: var(--text-primary) !important; font: 400 15.5px/1.8 var(--font-sans) !important; letter-spacing: -.01em; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; margin-top: 6px; }
+.overview.open p { -webkit-line-clamp: unset; display: block; }
+.overview-more { align-self: flex-start; margin-top: 6px; border: 0; background: none; padding: 0; font: 700 13.5px/20px var(--font-sans); color: var(--accent-primary); cursor: pointer; }
+/* 쪽 머리: 작은 쪽 번호 위에, 제목은 크게 */
+.page-title { margin: 22px 0 0; display: flex; flex-direction: column; gap: 4px; font: 800 19px/26px var(--font-sans); letter-spacing: -.03em; color: var(--text-primary); }
+.page-title small { font: 700 12px/16px var(--font-sans); color: var(--accent-primary); letter-spacing: .02em; }
+/* 쪽 요약: 회색 대신 읽히는 색, 왼쪽 선으로 '요약'임을 */
+.page-sum { margin: 0; padding: 2px 0 2px 14px; border-left: 3px solid var(--accent-2); color: var(--text-secondary); font: 400 15px/1.75 var(--font-sans); letter-spacing: -.005em; }
+/* 필기 카드: 한 줄에 하나, 기울임·번호 동그라미 없이, 글자는 크게 */
+.postit-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+.postit, .postit:nth-child(odd), .postit:nth-child(even) { transform: none !important; }
+.postit { border-radius: 14px !important; padding: 14px 16px 15px !important; box-shadow: none !important; border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent) !important;
+  background: color-mix(in srgb, var(--paper) 38%, var(--bg-card)) !important; color: var(--text-primary) !important; }
+.postit-exam { background: var(--accent-3-soft) !important; border-color: color-mix(in srgb, var(--accent-3) 70%, transparent) !important; }
+.postit-head { font: 700 12px/16px var(--font-sans) !important; letter-spacing: .01em; }
+.postit-badge { width: auto !important; height: auto !important; background: none !important; color: var(--text-tertiary) !important; font: 600 12px/16px var(--font-sans) !important; border-radius: 0 !important; }
+.exam-stamp { display: none !important; }
+.note-body { font: 400 15px/1.7 var(--font-sans) !important; color: var(--text-primary) !important; letter-spacing: -.01em; }
+.note-body.solo { font-weight: 600 !important; }
+.postit .t-note { font: 400 15px/1.7 var(--font-sans); }
+.postit b, .postit strong { color: var(--text-primary); }
+.postit:active { transform: scale(.99) !important; box-shadow: none !important; }
+.note-title { font: 700 16px/1.5 var(--font-sans) !important; color: var(--text-primary) !important; letter-spacing: -.02em; }
+.note-q { background: none !important; color: var(--accent-primary) !important; padding: 0 !important; margin-right: 6px; font-weight: 800; }
+.note-chips { display: flex; flex-wrap: wrap; gap: 2px 0 !important; }
+.note-chips span { font: 500 15px/1.7 var(--font-sans) !important; color: var(--text-primary) !important; }
+.note-chips span:not(:last-child)::after { content: ","; margin-right: 6px; }
+.note-list li { font: 400 15px/1.7 var(--font-sans); }
+.note-list li i { background: none !important; color: var(--text-tertiary) !important; font: 600 13px/1.7 var(--font-sans) !important; font-style: normal; width: auto !important; min-width: 18px; }
+.note-hi { background: linear-gradient(transparent 62%, color-mix(in srgb, var(--accent-3) 70%, transparent) 62%) !important; color: inherit !important; padding: 0 !important; }
+.note-sub, .note-outro { color: var(--text-secondary) !important; }
