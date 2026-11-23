@@ -808,3 +808,57 @@
 .empty-art .icon { width: 40px !important; height: 40px !important; }
 .empty { gap: 10px !important; }
 .record-main.sig .sig-mic { color: #30202D !important; }
+
+/* ════════ 시각 시그니처: 조용한 '공부하는 밤' — 구조는 그대로, 디테일만 ════════
+   1) 잘린 초승달 · 궤도선 같은 얇은 선
+   2) 작은 에디토리얼 꼬리표(번호·영문 메타)
+   3) 카드 처리 세 가지: 기본 줄 / 한쪽 모서리만 다른 유기적 판 / 얇은 선이 살짝 어긋난 종이 */
+:root { --moon-line: color-mix(in srgb, var(--accent-primary) 14%, transparent); --moon-fill: color-mix(in srgb, var(--accent-2) 16%, transparent); }
+
+/* 홈 머리: 오른쪽 위에 화면 밖으로 잘린 초승달과 점선 궤도, 별 두 점 */
+.home-head { position: relative; overflow: hidden; }
+.home-head::after { content: ""; position: absolute; right: -54px; top: 58px; width: 150px; height: 150px; border-radius: 50%; pointer-events: none; z-index: 0;
+  background: radial-gradient(circle at 34% 50%, transparent 0 58%, var(--moon-fill) 58.5%); box-shadow: inset 0 0 0 1px var(--moon-line); }
+.home-hello { position: relative; z-index: 1; }
+.home-hello::before { content: ""; position: absolute; right: 18px; top: -6px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent-2); box-shadow: -34px 26px 0 -1px var(--accent-3), 14px 44px 0 -1.5px var(--accent-2); opacity: .8; }
+.home-date::after { content: "Study night · 오늘의 기록"; margin-left: 4px; align-self: flex-end; padding-bottom: 6px; font: 600 9.5px/1 var(--font-num); letter-spacing: .14em; text-transform: uppercase; color: var(--text-tertiary); opacity: .8; }
+
+/* 녹음 판: 바깥에 얇은 궤도선 하나 (판보다 살짝 크게, 어긋나게) */
+.record-hub { position: relative; }
+.record-hub::before { content: ""; position: absolute; left: -10px; right: 28px; top: -10px; height: 120px; border: 1px dashed var(--moon-line); border-radius: 60% 40% 50% 50% / 60% 60% 40% 40%; pointer-events: none; }
+
+/* 묶음 제목: 앞에 작은 번호 꼬리표 (No.01, No.02 …) */
+.screen-body { counter-reset: sec; }
+.section-title { counter-increment: sec; position: relative; }
+.section-title::after { content: "No." counter(sec, decimal-leading-zero); position: absolute; right: 0; top: 50%; transform: translateY(-50%); font: 600 10px/1 var(--font-num); letter-spacing: .12em; color: var(--text-tertiary); opacity: .7; }
+
+/* 카드 처리 ①: 유기적인 판 — 한쪽 모서리만 덜 둥글게 (시간표 안내 · 오늘의 복습 · 시험 준비 작은 칸) */
+.tt-invite, .prep-sub, .review-card, .flashcard { border-radius: 20px 20px 20px 6px !important; }
+.prep-sub.weak { border-radius: 20px 6px 20px 20px !important; }
+/* 카드 처리 ②: 종이 — 얇은 선이 살짝 어긋나 겹친 느낌 (한눈에 보는 강의 · 족보 머리) */
+.banner.overview, .overview { position: relative; }
+.banner.overview::after { content: ""; position: absolute; left: 6px; right: -4px; top: 8px; bottom: -6px; border: 1px solid var(--moon-line); border-radius: 4px; pointer-events: none; z-index: -1; }
+/* 카드 처리 ③: 기본 줄 — 그대로 (목록) */
+
+/* 큰 숫자 순간에 손글씨 같은 작은 주석 */
+.agenda-head > b, .tasks-head h2 b { position: relative; }
+.lec-no { position: relative; }
+.lec-row:first-of-type .lec-no::after { content: "latest"; position: absolute; left: 0; top: -10px; font: 600 8.5px/1 var(--font-num); letter-spacing: .12em; text-transform: uppercase; color: var(--accent-2); }
+
+/* 일정 달력: 오늘 날짜 위에 작은 초승달 표시 */
+.cal-day.today { position: relative; }
+.cal-day.today::before { content: ""; position: absolute; top: 2px; left: 50%; width: 9px; height: 9px; margin-left: 9px; border-radius: 50%; box-shadow: -2.5px 1.5px 0 0 var(--accent-2); transform: rotate(-20deg); }
+
+/* 퀴즈 결과 링 뒤에 아주 옅은 보름달 */
+.qz-ring { position: relative; }
+.qz-end { position: relative; overflow: hidden; }
+.qz-end::before { content: ""; position: absolute; left: 50%; top: 14px; width: 170px; height: 170px; margin-left: -85px; border-radius: 50%; background: var(--moon-fill); opacity: .6; z-index: 0; }
+.qz-end > * { position: relative; z-index: 1; }
+
+/* 빈 화면: 아이콘 뒤에 잘린 원 하나 */
+.empty-art { position: relative; }
+.empty-art::before { content: ""; position: absolute; left: 50%; top: 50%; width: 76px; height: 76px; margin: -38px 0 0 -30px; border-radius: 50%; background: var(--moon-fill); z-index: -1; }
+
+/* 아래 탭바 위에 아주 얇은 지평선 그라데이션 */
+.tabbar::before { content: ""; position: absolute; left: 18%; right: 18%; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, var(--accent-2), transparent); opacity: .5; }
+.tabbar { position: fixed; }
