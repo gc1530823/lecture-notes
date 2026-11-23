@@ -339,7 +339,9 @@ function HomeHead() {
   const hello = h < 5 ? "늦은 밤이에요" : h < 11 ? "좋은 아침이에요" : h < 17 ? "좋은 오후예요" : h < 22 ? "좋은 저녁이에요" : "오늘도 수고했어요";
   // 글은 두 단계만: 작은 날짜 한 줄 + 큰 한 줄(오늘 제일 중요한 것 하나, 숫자만 달빛색으로 강조)
   const now = new Date();
-  const caption = `${now.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })} · ${moonNext(moonPhase())}`;
+  // 달 꼬리표는 짧고 굵게: 보름 D-1 · 오늘 밤 보름 · 그믐 D-5
+  const p = moonPhase();
+  const moonTag = p >= 0.47 && p < 0.53 ? "오늘 밤 보름" : moonNext(p).replace(/^(보름|그믐)까지 (\d+)일$/, "$1 D-$2");
   const big = !sum ? <>{hello}</>
     : sum.due ? <>오늘 마감 <em>{sum.due}개</em></>
     : sum.classes ? <>오늘 수업 <em>{sum.classes}개</em></>
@@ -347,6 +349,7 @@ function HomeHead() {
   return (
     <header className="home-head">
       <span className="home-bigmoon" aria-hidden="true"><Moon size={230} phase={moonPhase()} /></span>
+      <span className="moon-tag">{moonTag}</span>
       <div className="home-top">
         <span className="home-brand"><LuneMark size={22} /><LuneWordmark height={12} /></span>
         <span className="home-top-right">
@@ -355,7 +358,10 @@ function HomeHead() {
         </span>
       </div>
       <div className="home-hello">
-        <p className="home-cap">{caption}</p>
+        {/* 날짜는 회색 글 대신 달력 아이콘으로 */}
+        <span className="hcal" aria-label={now.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}>
+          <i className="cal-ring" /><em>{now.getMonth() + 1}월</em><b>{now.getDate()}</b><small>{now.toLocaleDateString("ko-KR", { weekday: "short" })}</small>
+        </span>
         <h1 className="home-big">{big}</h1>
       </div>
     </header>
