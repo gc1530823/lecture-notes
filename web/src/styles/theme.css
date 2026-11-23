@@ -1011,3 +1011,15 @@
 .moon-tag { position: absolute; right: 22px; top: 186px; z-index: 2; padding: 6px 11px; border-radius: 999px; background: #30202D; color: #F3DDA9; font: 800 12.5px/1 var(--font-sans); letter-spacing: -.01em; box-shadow: 0 4px 12px #00000040; }
 .home-head > .moon-tag { position: absolute !important; right: 26px; top: auto; bottom: 48px; width: auto; animation: none; }
 .home-big em { text-shadow: 0 0 1px #30202D, 0 2px 12px #30202Dcc; } .home-big { text-shadow: 0 2px 14px #30202D99; }
+/* 홈 머리 v3: 날짜는 달 위에, 강조는 로즈 */
+.hcal, .moon-tag { display: none !important; }
+.home-bigmoon { pointer-events: none; }
+.moon-date { position: absolute; left: 40px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: flex-start; color: #30202D; }
+.moon-date b { font: 900 64px/.9 var(--font-num); letter-spacing: -.04em; color: #30202D; opacity: .88; }
+.moon-date small { margin-top: 4px; padding-left: 3px; font: 800 13px/1 var(--font-sans); color: #30202D; opacity: .72; }
+.home-hello { padding-top: 64px !important; max-width: 62%; }
+.home-big { font-size: 30px !important; line-height: 1.25 !important; text-shadow: none !important; }
+.home-big em { color: #F4A9A6 !important; text-shadow: none !important; font-size: 1.15em; }
+.home-head h1.home-big em { color: #F4A9A6 !important; }
+.home-head .home-hello { max-width: 66%; }
+.home-head h1.home-big { white-space: nowrap; font-size: 28px !important; }
