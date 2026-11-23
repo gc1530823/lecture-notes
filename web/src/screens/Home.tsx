@@ -196,6 +196,7 @@ export default function Home() {
   const courses = [...new Set((docs ?? []).map((d) => d.course ?? "").filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko"));
   const hasLoose = (docs ?? []).some((d) => !d.course);
   const [showAll, setShowAll] = useState(false);
+  const [going, setGoing] = useState(false); // 녹음 판을 누르면 물결이 솟고 마이크 원이 커진 뒤 강의자료 고르기가 열린다
   const matched = (docs ?? []).filter((d) => filter === "all" || (d.course ?? "") === filter);
   // 홈에는 최근 강의 5개만, 나머지는 '전체 보기'로 (과목이 늘어도 홈이 길어지지 않게)
   const LIMIT = 5;
@@ -220,10 +221,17 @@ export default function Home() {
         {docs && <FirstSteps docs={docs} onDoc={() => file.current?.click()} onRecord={() => setPicker("record")} />}
         {/* 이 앱의 중심: 강의자료에 녹음을 붙인다 (지금 녹음하거나, 녹음 파일을 올리거나) */}
         <section className="record-hub" aria-label="강의 녹음">
-          <button className="record-main" onClick={() => setPicker("record")} disabled={!!busy}>
-            <span className="record-ic"><Icon name="microphone" art size={30} /></span>
-            <span className="grow"><b>수업 녹음 시작</b><small>들으면서 강의자료 쪽마다 필기가 붙어요</small></span>
-            <Icon name="caret-right" size={18} />
+          <button className={`record-main sig${going ? " go" : ""}`} disabled={!!busy} onClick={() => { if (going) return; setGoing(true); navigator.vibrate?.(10); window.setTimeout(() => { setGoing(false); setPicker("record"); }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 480); }}>
+            <svg className="sig-wave" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true">
+              <path className="w1" d="M0 70 C 60 40, 120 100, 200 66 S 330 30, 400 64 V120 H0Z">
+                <animate attributeName="d" dur="7s" repeatCount="indefinite" values="M0 70 C 60 40, 120 100, 200 66 S 330 30, 400 64 V120 H0Z;M0 62 C 70 92, 140 36, 210 72 S 320 96, 400 58 V120 H0Z;M0 70 C 60 40, 120 100, 200 66 S 330 30, 400 64 V120 H0Z" />
+              </path>
+              <path className="w2" d="M0 86 C 80 70, 150 104, 220 84 S 340 70, 400 90 V120 H0Z">
+                <animate attributeName="d" dur="5s" repeatCount="indefinite" values="M0 86 C 80 70, 150 104, 220 84 S 340 70, 400 90 V120 H0Z;M0 92 C 70 104, 160 70, 230 92 S 330 104, 400 82 V120 H0Z;M0 86 C 80 70, 150 104, 220 84 S 340 70, 400 90 V120 H0Z" />
+              </path>
+            </svg>
+            <span className="grow sig-copy"><small>REC</small><b>수업 녹음 시작</b><span>들으면서 강의자료 쪽마다 필기가 붙어요</span></span>
+            <span className="sig-mic"><i /><i /><Icon name="microphone" size={26} /></span>
           </button>
           <div className="record-sub">
             <button onClick={() => setPicker("upload")} disabled={!!busy}><Icon name="upload-simple" size={17} />녹음 파일 올리기</button>
@@ -341,7 +349,7 @@ function HomeHead() {
         </span>
       </div>
       <div className="home-hello">
-        <span className="home-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>
+        <span className="home-date"><b>{new Date().getDate()}</b><span>{new Date().toLocaleDateString("ko-KR", { month: "long" })}<br />{new Date().toLocaleDateString("ko-KR", { weekday: "long" })}</span></span>
         <h1>{hello}{name ? <>, <em>{name}</em>님</> : ""}</h1>
         {line && <p>{line}</p>}
       </div>

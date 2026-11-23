@@ -1,10 +1,10 @@
 // 자료 상세: 강의(녹음) 목록과 수업 시작, 시험 예상 지도로 가는 곳
 import { useRef, useState } from "react";
-import { Moon } from "../components/Moon";
+import { useWaves, Wave } from "../lib/wave";
 import { EnglishToggle, lectureLang } from "../components/EnglishToggle";
 import type { DocumentBrief } from "../api/types";
 import { useApi } from "../api/useApi";
-import { Chip, Empty, Icon, ListItem, TopBar } from "../components/ui";
+import { Chip, Empty, Icon, TopBar } from "../components/ui";
 import { courseTone } from "../lib/course";
 import { getJSON } from "../api/useApi";
 import { useEffect } from "react";
@@ -12,12 +12,13 @@ import { back, go } from "../router";
 import { subtitleOf } from "./Home";
 import { askText, askYes, tell } from "../components/Dialog";
 
-// 강의 상태를 달로: 녹음 중 초승달 → 받아쓰기 상현달 → 정리 중 차오르는 달 → 정리 끝 보름달 (실패는 삭)
-const STATUS_MOON: Record<string, number> = { recording: 0.12, transcribing: 0.25, processing: 0.38, done: 0.5, failed: 0.0 };
+// 강의 진행 단계: 녹음 → 받아쓰기 → 정리 → 끝
+const STEP: Record<string, number> = { recording: 0, transcribing: 1, processing: 2, done: 3, failed: -1 };
 const STATUS: Record<string, string> = { recording: "녹음 중", transcribing: "받아쓰는 중", processing: "정리 중", done: "정리 끝", failed: "정리 실패" };
 const API = import.meta.env.VITE_API_URL ?? "";
 
 export default function DocDetail({ docId }: { docId: string }) {
+  const waves = useWaves();
   // 목록 API에 강의 목록이 같이 오므로 그것을 쓴다
   const { data: docs, error, reload: reloadDocs } = useApi<DocumentBrief[]>("/documents");
   const doc = docs?.find((d) => d.id === docId);
@@ -97,21 +98,30 @@ export default function DocDetail({ docId }: { docId: string }) {
             <h2 className="t-title-s section-title">강의 {doc.sessions.length}개</h2>
             {doc.sessions.length === 0 && <p className="muted">아직 녹음한 강의가 없어요. 위에서 녹음을 시작하거나 올려 주세요.</p>}
             {doc.sessions.map((s, i) => (
-              <ListItem key={s.id} icon="headphones" tone={courseTone(doc.course)} art={<Moon size={30} phase={STATUS_MOON[s.status] ?? 0.5} />}
-                title={new Date(s.started_at * 1000).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit" })}
-                subtitle={`${doc.sessions.length - i}번째 강의, ${STATUS[s.status] ?? s.status}`}
-                onClick={() => go(s.status === "failed" ? { name: "lecture", docId, sessionId: s.id } : { name: "session", docId, sessionId: s.id, tab: "notes" })} />
+              <button key={s.id} className={`lec-row ${courseTone(doc.course)}`} style={{ animationDelay: `${i * 50}ms` }}
+                onClick={() => go(s.status === "failed" ? { name: "lecture", docId, sessionId: s.id } : { name: "session", docId, sessionId: s.id, tab: "notes" })}>
+                <span className="lec-no">{String(doc.sessions.length - i).padStart(2, "0")}</span>
+                <span className="lec-main">
+                  <b>{new Date(s.started_at * 1000).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</b>
+                  <small>{new Date(s.started_at * 1000).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" })} · {STATUS[s.status] ?? s.status}</small>
+                  <span className="lec-steps" aria-hidden="true">{[0, 1, 2, 3].map((k) => <i key={k} className={k <= (STEP[s.status] ?? 0) ? "on" : ""} />)}</span>
+                </span>
+                <Wave data={waves[s.id]} bars={14} className="lec-wave" />
+              </button>
             ))}
 
             {doc.kind !== "meeting" && doc.sessions.length > 0 && (
               <>
-                <h2 className="t-title-s section-title">시험 준비 <span className="t-caption faint">이 자료의 모든 강의로</span></h2>
-                <ListItem icon="star" title="족보 노트" subtitle="시험에 나온다고 한 것과 예상 문제를 한 장에 모아요"
-                  onClick={() => go({ name: "jokbo", docId })} />
-                <ListItem icon="brain" title="퀴즈" subtitle="이 자료와 강의로 문제를 내고 바로 채점해요"
-                  onClick={() => go({ name: "quiz", docId })} />
-                <ListItem icon="target" title="약점 노트" subtitle="틀린 문제와 헷갈렸던 곳만 다시 모아 봐요"
-                  onClick={() => go({ name: "weak", docId })} />
+                <h2 className="t-title-s section-title">시험 준비 <span className="t-caption faint">이 자료의 강의 {doc.sessions.length}개로</span></h2>
+                <div className="prep">
+                  <button className="prep-main" onClick={() => go({ name: "jokbo", docId })}>
+                    <small>한 장으로 보는</small><b>족보 노트</b>
+                    <span>교수님이 시험에 나온다고 한 것과 예상 문제</span>
+                    <i className="prep-go"><Icon name="arrow-right" size={18} /></i>
+                  </button>
+                  <button className="prep-sub quiz" onClick={() => go({ name: "quiz", docId })}><small>바로 채점</small><b>퀴즈</b></button>
+                  <button className="prep-sub weak" onClick={() => go({ name: "weak", docId })}><small>틀린 것만</small><b>약점 노트</b></button>
+                </div>
                 <button className="link-row" onClick={() => { window.location.href = `${API}/documents/${docId}/anki.txt`; }}>
                   <Icon name="export" size={16} /> Anki 로 내보내기
                 </button>

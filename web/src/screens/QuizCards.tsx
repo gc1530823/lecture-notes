@@ -92,30 +92,23 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
     setGrading(false);
   };
 
-  // 시작 카드
+  // 시작: 큰 빈 카드 대신, 문제 수를 크게 고르고 바로 푸는 화면
   if (!set || making) {
     return (
-      <div className="qz">
-        <div className="qz-stack">
-          <div className="flashcard qz-card qz-intro card-in">
-            <span className="qz-type t-mcq">퀴즈 카드</span>
-            {making ? (
-              <>
-                <span className="spin" />
-                <strong className="t-title-s">강의를 공부하고 문제를 고르는 중…</strong>
-                <span className="t-caption muted">외운 문장이 아니라 이해를 묻는 문제로 만들어요</span>
-              </>
-            ) : (
-              <>
-                <strong className="t-title-m">{scopeLabel} 바탕으로 시험 문제 카드를 만들어요</strong>
-                <div className="meta-chips center">{["객관식", "OX", "빈칸", "단답", "서술"].map((k) => <span key={k} className="meta-chip">{k}</span>)}</div>
-                <span className="t-caption muted">카드에서 바로 답하면 채점하고 해설을 보여 줘요</span>
-                <div className="qz-counts">{COUNTS.map((n) => <button key={n} className={n === count ? "on" : ""} onClick={() => setCount(n)}>{n}장</button>)}</div>
-              </>
-            )}
-          </div>
-        </div>
-        {!making && <Button block onClick={() => void start()}>카드 만들기</Button>}
+      <div className={`qz qz-start${making ? " making" : ""}`}>
+        <span className="qz-kick">{making ? "문제를 고르는 중" : "Quiz"}</span>
+        <h2 className="qz-hero">{making ? <>강의를 다시 읽고<br />시험에 낼 곳을 찾고 있어요</> : <>{scopeLabel}<br />바탕으로 문제를 내요</>}</h2>
+        {making ? (
+          <div className="qz-build" aria-hidden="true">{[0, 1, 2, 3, 4].map((k) => <i key={k} style={{ animationDelay: `${k * 0.18}s` }} />)}</div>
+        ) : (
+          <>
+            <div className="qz-count" role="radiogroup" aria-label="문제 수">
+              {COUNTS.map((n) => <button key={n} role="radio" aria-checked={n === count} className={n === count ? "on" : ""} onClick={() => setCount(n)}><b>{n}</b><small>문제</small></button>)}
+            </div>
+            <p className="qz-kinds-line">객관식, OX, 빈칸, 단답, 서술이 섞여 나와요. 답하면 바로 채점하고 해설을 보여 줘요.</p>
+            <Button block onClick={() => void start()}>{count}문제 풀기</Button>
+          </>
+        )}
         {error && <p className="qz-error">{error}</p>}
       </div>
     );
@@ -123,9 +116,11 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
 
   const total = set.questions.length;
   const missed = set.questions.filter((q) => q.result && q.result.verdict !== "correct");
+  const right = set.questions.filter((q) => q.result?.verdict === "correct").length;
   const dots = (
-    <div className="qz-dots" aria-label={`${set.answered}/${total}장`}>
-      {set.questions.map((q) => <i key={q.index} className={`${q.result?.verdict ?? ""}${q.index === at && review === null ? " now" : ""}`} />)}
+    <div className="qz-progress" aria-label={`${set.answered}/${total}장 풀었고 ${right}장 맞았어요`}>
+      <div className="qz-progress-top"><b>{Math.min(at + 1, total)}<small> / {total}</small></b><span>맞힌 카드 {right}장</span></div>
+      <div className="qz-bar">{set.questions.map((q) => <i key={q.index} className={`${q.result?.verdict ?? ""}${q.index === at && review === null ? " now" : ""}`} />)}</div>
     </div>
   );
 
@@ -183,6 +178,12 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
           </svg>
           <strong className="qz-score">{set.score % 1 ? set.score.toFixed(1) : set.score} / {total}</strong>
           <span className="t-caption muted">{pct >= 80 ? "아주 잘했어요. 이 강의는 거의 다 이해했어요" : pct >= 50 ? "절반 넘게 맞았어요. 틀린 카드를 다시 넘겨 보세요" : "틀린 카드의 해설을 읽고 한 번 더 풀어 봐요"}</span>
+          {missed.length > 0 && (
+            <div className="qz-weak">
+              <span>다시 볼 개념</span>
+              <ul>{[...new Map(missed.map((m) => [m.topic || `${m.page_no}쪽`, m])).values()].slice(0, 4).map((m) => <li key={m.index}><b>{m.topic || "이 쪽 내용"}</b><small>{m.page_no}쪽</small></li>)}</ul>
+            </div>
+          )}
         </div>
         <div className="row">
           {missed.length > 0 && <Button className="grow" variant="secondary" onClick={() => { setReview(0); setShown(false); }}>틀린 카드 {missed.length}장 다시 보기</Button>}
@@ -200,7 +201,31 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
       {dots}
       <div className="qz-stack">
         {at + 1 < total && <div className="qz-under" aria-hidden="true" />}
-        {!r ? (
+        {r && (q.type === "mcq" || q.type === "ox") ? (
+          // 고르는 문제: 카드는 그대로, 고른 칸과 정답 칸이 색으로 바뀌고 해설이 아래로 펼쳐진다
+          <div ref={backRef} key={`a${at}`} className={`flashcard qz-card qz-answered swipe-card ${r.verdict}`}>
+            <CardHead q={q} total={total} />
+            <strong className="qz-q">{q.question}</strong>
+            {q.type === "mcq" ? (
+              <div className="qz-choices done">
+                {q.choices.map((c, i) => {
+                  const key = "ABCD"[i]; const isAns = (q.answer ?? "").trim().toUpperCase().startsWith(key) || (r.verdict === "correct" && r.given === key);
+                  return <div key={i} className={`qz-choice${isAns ? " ans" : ""}${r.given === key && !isAns ? " miss" : ""}`} style={{ animationDelay: `${i * 40}ms` }}><b>{key}</b>{c}{isAns && <Mark verdict="correct" size={20} />}{r.given === key && !isAns && <Mark verdict="wrong" size={20} />}</div>;
+                })}
+              </div>
+            ) : (
+              <div className="qz-ox done">{["O", "X"].map((k) => {
+                const isAns = (q.answer ?? "").trim().toUpperCase().startsWith(k) || (r.verdict === "correct" && r.given === k);
+                return <div key={k} className={`qz-choice${isAns ? " ans" : ""}${r.given === k && !isAns ? " miss" : ""}`}><b>{k}</b></div>;
+              })}</div>
+            )}
+            <div className="qz-explain">
+              <b className="qz-verdict"><Mark verdict={r.verdict} />{r.verdict === "correct" ? "맞았어요" : "다시 볼 부분이 있어요"}</b>
+              {r.verdict !== "correct" && <p className="qz-concept"><span>핵심 개념</span>{q.topic || "이 쪽 내용"}<small>{q.page_no}쪽에서 다시 보기</small></p>}
+              {q.explanation && <p className="qz-why">{q.explanation}</p>}
+            </div>
+          </div>
+        ) : !r ? (
           // 앞면: 문제와 답하기
           <div key={`f${at}`} className="flashcard qz-card card-in">
             <CardHead q={q} total={total} />

@@ -185,7 +185,7 @@ function TasksPane() {
   const [open, setOpen] = useState<number | null>(null);
   const [showDone, setShowDone] = useState(false);
   // 달력은 이번 주 한 줄로 접어 두고, 할 일 목록이 먼저 보이게 (펼치면 한 달)
-  const [calOpen, setCalOpen] = useState(false);
+  const [calOpen, setCalOpen] = useState(true);
   const [kept] = useState(() => new Set<number>());
   const today = todayIso();
 
@@ -258,9 +258,10 @@ function TasksPane() {
           </button>
         </section>
 
-        {(day || tasks.length > 0) && <div className="row tasks-sum">
-          <strong className="grow">{day ? dueLabel(day) : left ? `남은 할 일 ${left}개` : "할 일"}</strong>
-          {day && <button className="chip chip-default" onClick={() => setDay(null)}>전체 보기</button>}
+        {(day || tasks.length > 0) && <div className="agenda-head">
+          {day ? <><b>{Number(day.slice(8))}</b><span>{new Date(day + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", weekday: "long" })}<small>{(byDay.get(day) ?? []).filter((t) => !t.done).length ? `마감 ${(byDay.get(day) ?? []).filter((t) => !t.done).length}개` : "마감 없음"}</small></span>
+            <button className="agenda-all" onClick={() => setDay(null)}>전체</button></>
+            : <><b>{left}</b><span>남은 할 일<small>{dayDiff(sorted.find((t) => t.due_date && t.due_date >= today)?.due_date ?? today, today) >= 0 && sorted.some((t) => t.due_date && t.due_date >= today) ? `가장 가까운 마감 ${dueLabel(sorted.find((t) => t.due_date && t.due_date >= today)!.due_date!)}` : "다가오는 마감 없음"}</small></span></>}
         </div>}
 
         {groups.every(([, l]) => l.length === 0) && (
@@ -270,12 +271,14 @@ function TasksPane() {
             </Empty>
           )
         )}
+        <div key={day ?? "all"} className="agenda">
         {groups.map(([label, list]) => list.length > 0 && (
           <section key={label} className="task-group">
             {!day && <h3 className={label === "마감 지남" ? "late" : ""}>{label} <span>{list.length}</span></h3>}
             {list.map((t) => <TaskRow key={t.id} t={t} onDone={toggle} onDue={setDue} open={open === t.id} onOpen={() => setOpen(open === t.id ? null : t.id)} onCheck={check} onRemove={remove} />)}
           </section>
         ))}
+        </div>
 
         {finished.length > 0 && (
           <section className="task-group finished">
