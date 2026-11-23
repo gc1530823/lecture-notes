@@ -19,6 +19,9 @@ const API = import.meta.env.VITE_API_URL ?? "";
 
 export default function DocDetail({ docId }: { docId: string }) {
   const waves = useWaves();
+  // 약점 노트에 모인 수 (시험 준비 칸에 실제 숫자로)
+  const [weakN, setWeakN] = useState<number | null>(null);
+  useEffect(() => { getJSON<{ items?: unknown[] } | unknown[]>(`/documents/${docId}/weak`).then((r) => setWeakN(Array.isArray(r) ? r.length : (r.items?.length ?? 0))).catch(() => setWeakN(null)); }, [docId]);
   // 목록 API에 강의 목록이 같이 오므로 그것을 쓴다
   const { data: docs, error, reload: reloadDocs } = useApi<DocumentBrief[]>("/documents");
   const doc = docs?.find((d) => d.id === docId);
@@ -120,7 +123,7 @@ export default function DocDetail({ docId }: { docId: string }) {
                     <i className="prep-go"><Icon name="arrow-right" size={18} /></i>
                   </button>
                   <button className="prep-sub quiz" onClick={() => go({ name: "quiz", docId })}><small>바로 채점</small><b>퀴즈</b></button>
-                  <button className="prep-sub weak" onClick={() => go({ name: "weak", docId })}><small>틀린 것만</small><b>약점 노트</b></button>
+                  <button className="prep-sub weak" onClick={() => go({ name: "weak", docId })}><small>틀린 것만</small><b>약점 노트</b>{weakN != null && <em>{weakN ? `${weakN}개 모였어요` : "아직 없어요"}</em>}</button>
                 </div>
                 <button className="link-row" onClick={() => { window.location.href = `${API}/documents/${docId}/anki.txt`; }}>
                   <Icon name="export" size={16} /> Anki 로 내보내기

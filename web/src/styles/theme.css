@@ -475,3 +475,64 @@
   .agenda, .agenda .task-item, .lec-row, .qz-build i, .qz-choice.ans, .qz-choice.miss, .qz-explain { animation: none !important; }
 }
 .qz-start, .qz-start * { text-align: left; } .qz-start .btn { justify-content: center; }
+
+/* ════════ 3차: 완성도 ════════ */
+/* 타이포 역할: 숫자·영문 메타는 Space Grotesk, 제목·본문은 Noto Sans KR */
+:root { --font-num: "Space Grotesk", "Noto Sans KR", system-ui, sans-serif; }
+.home-date > b, .agenda-head > b, .lec-no, .qz-count b, .qz-progress-top b, .qz-score, .qz-pct, .tasks-head h2 b, .task-date b, .cal-day .n, .rec-clock, .qz-go-n, .prep em, .tasks-card .task-date b { font-family: var(--font-num) !important; font-variant-numeric: tabular-nums; }
+.home-date > b { font-weight: 600 !important; font-size: 52px !important; letter-spacing: -.05em !important; }
+.sig-copy small, .qz-kick { font-family: var(--font-num) !important; font-weight: 600 !important; letter-spacing: .18em !important; text-transform: uppercase; }
+.lec-no { font-weight: 500 !important; }
+.home-hello h1 { font-weight: 800 !important; }
+.home-hello h1 em { font-weight: 800; }
+
+/* 홈 녹음: 누르면 물결이 바닥에서 위로 확장되고 마이크 원이 파형으로 */
+.record-main.sig.go .sig-wave { height: 100%; transition-duration: .45s; }
+.record-main.sig.go .sig-wave .w1 { fill: color-mix(in srgb, var(--accent-2) 45%, transparent); }
+.record-main.sig.go .sig-mic { transform: scale(1.2); background: var(--accent-record); color: #fff; }
+
+/* 강의 목록(홈): 번호 없이 파형·최근 정보가 보이게 */
+.course-group .list-item-sub { color: var(--text-tertiary) !important; }
+
+/* 일정: 마감이 가까울수록 날짜 숫자가 진해지고 색이 바뀐다 */
+.agenda .task-date b { color: var(--text-tertiary); }
+.agenda .t-later .task-date b { color: var(--text-secondary); }
+.agenda .t-soon .task-date b { color: var(--text-primary); }
+.agenda .t-late .task-date b { color: var(--accent-record); }
+.agenda .t-soon .task-title, .agenda .t-late .task-title { font-weight: 800 !important; }
+.cal-day .n { font-weight: 500 !important; }
+
+/* 시험 준비: 약점 노트에 실제 숫자 */
+.prep em { font-style: normal; font: 600 13px/18px var(--font-num); margin-top: 6px; opacity: .8; }
+
+/* 퀴즈 시작: 고른 수가 바뀌면 버튼 숫자가 굴러 들어온다 */
+.qz-go-n { display: inline-block; margin-right: 2px; animation: qz-roll .4s cubic-bezier(.2,1.4,.3,1); }
+@keyframes qz-roll { from { transform: translateY(70%); opacity: 0; } }
+.qz-count button { transition: color .25s, background .3s; }
+.qz-count button.on { background: linear-gradient(transparent 70%, color-mix(in srgb, var(--accent-2) 22%, transparent) 70%); }
+
+/* 퀴즈 풀이: 고른 칸 배경 → 표시 아이콘 → 해설 순서로 */
+.qz-choice.ans, .qz-choice.miss { animation-duration: .45s; }
+.qz-choice .qz-mark { animation: qz-mark .4s cubic-bezier(.2,1.6,.3,1) .25s both; }
+@keyframes qz-mark { from { transform: scale(0) rotate(-45deg); opacity: 0; } }
+.qz-explain { animation-delay: .5s !important; }
+.qz-explain > * { animation: qz-line .4s cubic-bezier(.2,.9,.2,1) both; }
+.qz-explain > :nth-child(1) { animation-delay: .55s; } .qz-explain > :nth-child(2) { animation-delay: .65s; } .qz-explain > :nth-child(3) { animation-delay: .75s; }
+@keyframes qz-line { from { opacity: 0; transform: translateY(6px); } }
+.qz-card.card-in, .qz-card.flip-in { animation: qz-next .45s cubic-bezier(.2,.9,.2,1) both !important; }
+@keyframes qz-next { from { opacity: 0; transform: translateX(28px); } }
+
+/* 퀴즈 결과: 점수 링이 0에서 채워지고, 다시 볼 개념은 누르면 그 쪽으로 */
+.qz-ring .fill { stroke: var(--accent-primary) !important; stroke-linecap: round; animation: qz-ring 1.2s cubic-bezier(.2,.8,.2,1) .2s both; }
+.qz-ring .track { stroke: var(--border-line) !important; }
+@keyframes qz-ring { from { stroke-dasharray: 0 314; } }
+.qz-pct { display: block; font: 600 12px/1 var(--font-num); letter-spacing: .14em; color: var(--accent-2); text-transform: uppercase; margin-top: 4px; }
+.qz-score { font: 600 40px/1 var(--font-num) !important; letter-spacing: -.04em; animation: qz-line .5s .9s both; }
+.qz-weak-go { display: flex; justify-content: space-between; align-items: baseline; width: 100%; border: 0; background: none; padding: 0; text-align: left; cursor: pointer; color: inherit; }
+.qz-weak-go:disabled { cursor: default; }
+.qz-weak li { padding: 0 !important; } .qz-weak-go { padding: 13px 0; }
+.qz-weak-go:not(:disabled):active { padding-left: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .qz-go-n, .qz-choice .qz-mark, .qz-explain > *, .qz-card.card-in, .qz-card.flip-in, .qz-ring .fill, .qz-score { animation: none !important; }
+}

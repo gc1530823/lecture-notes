@@ -41,7 +41,7 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
             {doc.kind !== "meeting" && <Fold title="한눈에 넘겨 보기" sub="1분 만에 수업 흐름 보기"><StoryEntry docId={docId} sessionId={sessionId} /></Fold>}
           </>
         )}
-        {tab === "study" && <Study sessionId={sessionId} />}
+        {tab === "study" && <Study sessionId={sessionId} docId={docId} />}
         {tab === "glossary" && (
           <>
             <Glossary sessionId={sessionId} />

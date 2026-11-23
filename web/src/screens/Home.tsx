@@ -230,7 +230,7 @@ export default function Home() {
                 <animate attributeName="d" dur="5s" repeatCount="indefinite" values="M0 86 C 80 70, 150 104, 220 84 S 340 70, 400 90 V120 H0Z;M0 92 C 70 104, 160 70, 230 92 S 330 104, 400 82 V120 H0Z;M0 86 C 80 70, 150 104, 220 84 S 340 70, 400 90 V120 H0Z" />
               </path>
             </svg>
-            <span className="grow sig-copy"><small>REC</small><b>수업 녹음 시작</b><span>들으면서 강의자료 쪽마다 필기가 붙어요</span></span>
+            <span className="grow sig-copy"><small>Tap to record</small><b>수업 녹음 시작</b><span>들으면서 강의자료 쪽마다 필기가 붙어요</span></span>
             <span className="sig-mic"><i /><i /><Icon name="microphone" size={26} /></span>
           </button>
           <div className="record-sub">

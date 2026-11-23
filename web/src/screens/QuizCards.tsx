@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getJSON, postJSON } from "../api/useApi";
 import { Button, Chip, TopBar } from "../components/ui";
-import { back } from "../router";
+import { back, go } from "../router";
 import { play } from "../lib/sound";
 import { useSwipe } from "../lib/gesture";
 import { getPrefs } from "../lib/prefs";
@@ -44,7 +44,7 @@ function CardHead({ q, total }: { q: Question; total: number }) {
   );
 }
 
-export default function QuizCards({ makePath, scopeLabel }: { makePath: string; scopeLabel: string }) {
+export default function QuizCards({ makePath, scopeLabel, onPage }: { makePath: string; scopeLabel: string; onPage?: (page: number) => void }) {
   const [set, setSet] = useState<QuizSet | null>(null);
   const [count, setCount] = useState(getPrefs().quizCount);
   const [making, setMaking] = useState(false);
@@ -106,7 +106,7 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
               {COUNTS.map((n) => <button key={n} role="radio" aria-checked={n === count} className={n === count ? "on" : ""} onClick={() => setCount(n)}><b>{n}</b><small>문제</small></button>)}
             </div>
             <p className="qz-kinds-line">객관식, OX, 빈칸, 단답, 서술이 섞여 나와요. 답하면 바로 채점하고 해설을 보여 줘요.</p>
-            <Button block onClick={() => void start()}>{count}문제 풀기</Button>
+            <Button block onClick={() => void start()}><span key={count} className="qz-go-n">{count}</span>문제 풀기</Button>
           </>
         )}
         {error && <p className="qz-error">{error}</p>}
@@ -174,14 +174,15 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
         <div className="flashcard qz-card qz-end card-in">
           <svg className="qz-ring" viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
             <circle cx="60" cy="60" r="50" className="track" />
-            <circle cx="60" cy="60" r="50" className="fill" style={{ strokeDasharray: `${(pct / 100) * 314} 314` }} />
+            <circle cx="60" cy="60" r="50" className="fill" style={{ strokeDasharray: `${(pct / 100) * 314} 314`, ["--dash" as string]: `${(pct / 100) * 314}` }} />
           </svg>
+          <span className="qz-pct">정답률 {pct}%</span>
           <strong className="qz-score">{set.score % 1 ? set.score.toFixed(1) : set.score} / {total}</strong>
           <span className="t-caption muted">{pct >= 80 ? "아주 잘했어요. 이 강의는 거의 다 이해했어요" : pct >= 50 ? "절반 넘게 맞았어요. 틀린 카드를 다시 넘겨 보세요" : "틀린 카드의 해설을 읽고 한 번 더 풀어 봐요"}</span>
           {missed.length > 0 && (
             <div className="qz-weak">
               <span>다시 볼 개념</span>
-              <ul>{[...new Map(missed.map((m) => [m.topic || `${m.page_no}쪽`, m])).values()].slice(0, 4).map((m) => <li key={m.index}><b>{m.topic || "이 쪽 내용"}</b><small>{m.page_no}쪽</small></li>)}</ul>
+              <ul>{[...new Map(missed.map((m) => [m.topic || `${m.page_no}쪽`, m])).values()].slice(0, 4).map((m) => <li key={m.index}><button className="qz-weak-go" disabled={!onPage || !m.page_no} onClick={() => onPage?.(m.page_no)}><b>{m.topic || "이 쪽 내용"}</b><small>{m.page_no}쪽 보기 →</small></button></li>)}</ul>
             </div>
           )}
         </div>
@@ -275,11 +276,12 @@ export default function QuizCards({ makePath, scopeLabel }: { makePath: string; 
 
 /** 강의자료 전체로 푸는 AI 퀴즈 카드 (자료 상세 › AI 퀴즈) */
 export function QuizScreen({ docId }: { docId: string }) {
+  const openPage = (page: number) => { try { sessionStorage.setItem("ln.jump", String(page)); } catch { /* 괜찮다 */ } go({ name: "lecture", docId }); };
   return (
     <div className="screen">
       <TopBar title="퀴즈" onBack={() => back({ name: "doc", docId })} />
       <div className="screen-body">
-        <QuizCards makePath={`/documents/${docId}/quiz-set`} scopeLabel="이 강의자료와 지금까지 들은 강의를" />
+        <QuizCards makePath={`/documents/${docId}/quiz-set`} scopeLabel="이 강의자료와 지금까지 들은 강의를" onPage={openPage} />
       </div>
     </div>
   );
