@@ -981,3 +981,21 @@
 @keyframes star-twinkle { 0% { opacity: 0; transform: scale(.2) translateY(0) rotate(0); } 30% { opacity: 1; transform: scale(1.15) translateY(-6px) rotate(20deg); } 100% { opacity: 0; transform: scale(.6) translateY(-40px) rotate(45deg); } }
 .streak-hero small, .streak-sub.lit { color: var(--text-secondary) !important; }
 .home-head .streak-pill, .home-head .home-top-right button { background: #30202D66 !important; backdrop-filter: blur(6px); }
+/* 홈 머리 글: 작은 날짜 한 줄 + 큰 한 줄, 숫자만 달빛색 */
+.home-hello { gap: 6px !important; padding-top: 18px; }
+.home-cap { margin: 0 !important; font: 600 13px/18px var(--font-sans) !important; letter-spacing: -.01em; color: color-mix(in srgb, var(--sky-ink) 72%, transparent) !important; }
+.home-big { margin: 0 !important; font: 800 34px/1.2 var(--font-sans) !important; letter-spacing: -.045em; color: var(--sky-ink) !important; }
+.home-big em { font-style: normal; font-family: var(--font-num); font-weight: 900; font-size: 1.18em; color: #F3DDA9 !important; }
+.home-hello::before { display: none !important; }
+
+/* ════════ 내 강의: 점(•) 대신 책등처럼 ════════ */
+.pick i { display: none !important; }
+.picks { gap: 18px !important; }
+.pick { color: var(--text-secondary) !important; font-weight: 600 !important; }
+.course-title::before { content: none !important; }
+.course-title { gap: 10px !important; margin-top: 18px !important; font: 800 14px/20px var(--font-sans) !important; letter-spacing: -.02em; color: var(--blk-ink, var(--text-primary)) !important; }
+.course-title::after { content: ""; flex: 1; height: 1px; background: color-mix(in srgb, var(--blk-ink, var(--text-primary)) 25%, transparent); order: 1; }
+.course-title small { order: 2; font: 800 12px/1 var(--font-num) !important; color: var(--blk-ink, var(--text-secondary)) !important; }
+.course-group { position: relative; }
+.course-group .list-item { position: relative; }
+.course-group .list-item::before { content: ""; position: absolute; left: -10px; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--blk, var(--fill-soft)); }

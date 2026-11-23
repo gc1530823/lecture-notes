@@ -271,7 +271,7 @@ export default function Home() {
           </Empty>
         )}
         {groups.map(([course, list]) => (
-          <section key={course || "-"} className="course-group">
+          <section key={course || "-"} className={`course-group ${courseTone(course)}`}>
             {(filter === "all" && courses.length > 0) && (
               <h3 className={`course-title ${courseTone(course)}`}><span>{course || "과목 없음"}</span> <small>{list.length}</small></h3>
             )}
@@ -337,9 +337,13 @@ function HomeHead() {
   }, []);
   const h = new Date().getHours();
   const hello = h < 5 ? "늦은 밤이에요" : h < 11 ? "좋은 아침이에요" : h < 17 ? "좋은 오후예요" : h < 22 ? "좋은 저녁이에요" : "오늘도 수고했어요";
-  // 오늘 한 줄: 수업·마감이 있으면 그 수, 없으면 가벼운 한마디 (아래 카드와 같은 말을 되풀이하지 않게)
-  const line = sum && ([sum.classes ? `오늘 수업 ${sum.classes}개` : "", sum.due ? `마감 할 일 ${sum.due}개` : ""].filter(Boolean).join(", ")
-    || (h < 17 ? "오늘 배운 것을 LUNE에 남겨 볼까요?" : "오늘 배운 것, 잊기 전에 한 번 볼까요?"));
+  // 글은 두 단계만: 작은 날짜 한 줄 + 큰 한 줄(오늘 제일 중요한 것 하나, 숫자만 달빛색으로 강조)
+  const now = new Date();
+  const caption = `${now.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })} · ${moonNext(moonPhase())}`;
+  const big = !sum ? <>{hello}</>
+    : sum.due ? <>오늘 마감 <em>{sum.due}개</em></>
+    : sum.classes ? <>오늘 수업 <em>{sum.classes}개</em></>
+    : <>{hello}{name ? <>, <em>{name}</em>님</> : ""}</>;
   return (
     <header className="home-head">
       <span className="home-bigmoon" aria-hidden="true"><Moon size={230} phase={moonPhase()} /></span>
@@ -351,10 +355,8 @@ function HomeHead() {
         </span>
       </div>
       <div className="home-hello">
-        <span className="home-date"><b>{new Date().getDate()}</b><span>{new Date().toLocaleDateString("ko-KR", { month: "long" })}<br />{new Date().toLocaleDateString("ko-KR", { weekday: "long" })}</span>
-          <span className="home-moon"><small>{moonNext(moonPhase())}</small></span></span>
-        <h1>{hello}{name ? <>, <em>{name}</em>님</> : ""}</h1>
-        {line && <p>{line}</p>}
+        <p className="home-cap">{caption}</p>
+        <h1 className="home-big">{big}</h1>
       </div>
     </header>
   );
