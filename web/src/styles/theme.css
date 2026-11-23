@@ -39,7 +39,31 @@
   --sky-1: #2B2660; --sky-2: #1A1736; --moon-lit: #F7E7B0; --moon-dark: #2A2650;
   color-scheme: dark;
 }
-/* 아이콘 색: 그 시간 하늘의 색 안에서만 */
+/* 브랜드 팔레트 (기본): 플럼 · 로즈 · 버터 · 페이퍼. 강조색은 화면마다 바뀌지 않는다 */
+:root[data-sky="brand"] {
+  --bg-paper: #F8F2EA; --bg-card: #FFFCF8;
+  --text-primary: #30202D; --text-secondary: #5E4F59; --text-tertiary: #857880; --text-note: #30202D;
+  --accent-primary: #30202D; --accent-deep: #1F141D; --text-on-accent: #FFFCF8;
+  --accent-2: #E9A1A0; --accent-2-soft: #F6DEDD; --accent-3: #F3DDA9; --accent-3-soft: #FAF0D6;
+  --accent-record: #E66C59;
+  --border-line: #ECE2D8; --line-deep: #E2D6CA; --fill-soft: #F2E9E2; --leaf: #30202D;
+  --sky-1: #F6DEDD; --sky-2: #F8EDE6; --moon-lit: #F3DDA9; --moon-dark: #F2E9E2;
+}
+@media (prefers-color-scheme: dark) { :root[data-sky="brand"]:not([data-theme="light"]) {
+  --bg-paper: #1B1419; --bg-card: #251C22; --text-primary: #F3E8EE; --text-secondary: #D2C2CB; --text-tertiary: #A2939B; --text-note: #F3E8EE;
+  --accent-primary: #E9A1A0; --accent-deep: #D4807F; --text-on-accent: #1B1419; --accent-2-soft: #3B262B; --accent-3-soft: #3A3122;
+  --border-line: #3A2E36; --line-deep: #0E0A0D; --fill-soft: #2F242B; --sky-1: #2A1E25; --sky-2: #1E161B; --moon-dark: #2F242B; color-scheme: dark; } }
+:root[data-sky="brand"][data-theme="dark"] {
+  --bg-paper: #1B1419; --bg-card: #251C22; --text-primary: #F3E8EE; --text-secondary: #D2C2CB; --text-tertiary: #A2939B; --text-note: #F3E8EE;
+  --accent-primary: #E9A1A0; --accent-deep: #D4807F; --text-on-accent: #1B1419; --accent-2-soft: #3B262B; --accent-3-soft: #3A3122;
+  --border-line: #3A2E36; --line-deep: #0E0A0D; --fill-soft: #2F242B; --sky-1: #2A1E25; --sky-2: #1E161B; --moon-dark: #2F242B; color-scheme: dark; }
+.home-hello { padding-right: 0 !important; }
+/* 녹음 버튼 글자색은 강조색 위 글자색 */
+.record-main:not(.alt), .hero-card, .btn-primary { color: var(--text-on-accent) !important; }
+.record-main:not(.alt) .icon.art { color: var(--text-on-accent) !important; }
+/* 받아쓰기는 앞이 흐려지며 이어지는 글 */
+.bottom-bar.rec .caption-line { background: none !important; border: 0 !important; font: 500 16px/1.6 var(--font-sans) !important; -webkit-mask-image: linear-gradient(90deg, transparent, #000 16%); mask-image: linear-gradient(90deg, transparent, #000 16%); white-space: normal !important; }
+/* 아이콘 색: 팔레트 안에서만 */
 :root {
   --ico-violet: var(--accent-primary); --ico-blue: var(--accent-2); --ico-green: var(--accent-2); --ico-pink: var(--accent-2);
   --ico-yellow: var(--accent-3); --ico-orange: var(--accent-3); --ico-red: var(--accent-record); --ico-slate: var(--text-secondary);
