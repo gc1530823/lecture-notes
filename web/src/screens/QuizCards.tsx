@@ -106,7 +106,7 @@ export default function QuizCards({ makePath, scopeLabel, onPage }: { makePath: 
             <div className="qz-count" role="radiogroup" aria-label="문제 수">
               {COUNTS.map((n) => <button key={n} role="radio" aria-checked={n === count} className={n === count ? "on" : ""} onClick={() => setCount(n)}><b>{n}</b><small>문제</small></button>)}
             </div>
-            <p className="qz-kinds-line">객관식, OX, 빈칸, 단답, 서술이 섞여 나와요. 답하면 바로 채점하고 해설을 보여 줘요.</p>
+            <p className="qz-kinds-line">객관식 · OX · 빈칸 · 단답 · 서술</p>
             <Button block onClick={() => void start()}><span key={count} className="qz-go-n">{count}</span>문제 풀기</Button>
           </>
         )}

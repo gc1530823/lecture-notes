@@ -5,9 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Icon } from "../components/ui";
 import { Confetti } from "../lib/motion";
 import { go } from "../router";
+import { Moon } from "../components/Moon";
 
 const SCENES = 5;
-const FLOATERS = ["microphone", "star", "notebook", "target", "cards", "fire", "headphones", "book-open-text", "megaphone", "brain"];
 const NOTES = [
   { tone: "exam", text: "이거 시험에 꼭 나와요" }, { tone: "explanation", text: "교착 상태의 네 가지 조건" },
   { tone: "example", text: "예: 식사하는 철학자" }, { tone: "emphasis", text: "안전 상태가 핵심!" },
@@ -49,23 +49,21 @@ export default function Intro() {
       <div className={`intro-stage scene-${scene}`}>
         <div className="intro-sky" aria-hidden="true" />
         <div className="intro-word" aria-hidden="true">LUNE</div>
-        <div className="intro-floaters" aria-hidden="true">
-          {FLOATERS.map((name, i) => <span key={name} className={`floater f${i}`}><Icon name={name} art size={64} /></span>)}
-        </div>
         <div className="intro-notes" aria-hidden="true">
           {NOTES.map((n, i) => (
             <span key={i} className={`intro-note n${i}`} style={{ background: `var(--note-${n.tone}-paper)`, borderColor: `var(--note-${n.tone}-ink)` }}>{n.text}</span>
           ))}
         </div>
         <div className="intro-wave" aria-hidden="true">{Array.from({ length: 28 }, (_, i) => <i key={i} style={{ animationDelay: `${(i * 97) % 900}ms` }} />)}</div>
-        <div className="intro-mascot"><span className="intro-hero" key={hero}><Icon name={hero} art size={200} /></span></div>
+        {/* 장면이 넘어갈수록 달이 초승달에서 보름달로 차오른다 */}
+        <div className="intro-mascot"><span className="intro-moon"><Moon size={240} phase={[0.06, 0.16, 0.26, 0.38, 0.5][scene]} /></span><span className="intro-hero" key={hero}><Icon name={hero} art size={64} /></span></div>
         {scene === 4 && <Confetti count={44} />}
 
-        <div className="intro-copy c0"><p className="intro-kicker">수업을 대신 들어 주는 AI 강의 노트</p><h1>Listen.<br />Learn.<br />Remember.</h1></div>
-        <div className="intro-copy c1"><h2>녹음만 켜세요.<br />나머지는 알아서.</h2><p>교수님 말이 실시간으로 글이 되고, 강의자료의 그 문단 옆에 필기로 붙어요.</p></div>
-        <div className="intro-copy c2"><h2>“시험에 나와요”<br />놓치지 않아요.</h2><p>시험·과제·공지 얘기가 나오면 바로 표시해 둬요.</p></div>
-        <div className="intro-copy c3"><h2>수업이 끝나면<br />공부가 준비돼 있어요.</h2><p>요약과 플래시카드, 족보 노트, 오늘의 복습까지 준비돼요.</p></div>
-        <div className="intro-copy c4"><h2>같이 시작해요!</h2><p>공부한 날마다 불꽃 하나.</p><Button onClick={start}>시작하기</Button></div>
+        <div className="intro-copy c0"><p className="intro-kicker">밤에 다시 보는 강의 노트</p><h1>Listen.<br />Learn.<br />Remember.</h1></div>
+        <div className="intro-copy c1"><h2>녹음만 켜세요.<br />나머지는 알아서.</h2><p>필기는 강의자료 위에 붙어요.</p></div>
+        <div className="intro-copy c2"><h2>“시험에 나와요”<br />놓치지 않아요.</h2><p>시험·과제는 따로 표시해요.</p></div>
+        <div className="intro-copy c3"><h2>수업이 끝나면<br />공부가 준비돼 있어요.</h2><p>요약 · 퀴즈 · 족보 노트까지.</p></div>
+        <div className="intro-copy c4"><h2>같이 시작해요!</h2><p>공부한 날마다 달이 한 칸씩 차요.</p><Button onClick={start}>시작하기</Button></div>
 
         <div className="intro-hint" aria-hidden="true"><span />아래로 내려 보세요</div>
         <button className="intro-skip" onClick={start}>건너뛰기</button>

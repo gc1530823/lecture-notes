@@ -87,11 +87,11 @@ export default function DocDetail({ docId }: { docId: string }) {
             <div className="record-hub two">
               <button className="record-main" onClick={() => go({ name: "lecture", docId })}>
                 <span className="record-ic"><Icon name="microphone" art size={32} /></span>
-                <span><b>{doc.kind === "meeting" ? "회의 기록 시작" : "수업 녹음 시작"}</b><small>필기가 이 자료 위에 붙어요</small></span>
+                <span><b>{doc.kind === "meeting" ? "회의 기록" : "수업 녹음"}</b></span>
               </button>
               <button className="record-main alt" onClick={() => !upload && audioInput.current?.click()}>
                 <span className="record-ic"><Icon name="upload-simple" art size={32} /></span>
-                <span><b>녹음 파일 올리기</b><small>{upload ?? "녹음한 수업을 정리해요"}</small></span>
+                <span><b>녹음 파일</b>{upload && <small>{upload}</small>}</span>
               </button>
             </div>
             <EnglishToggle docId={docId} />
@@ -115,15 +115,14 @@ export default function DocDetail({ docId }: { docId: string }) {
 
             {doc.kind !== "meeting" && doc.sessions.length > 0 && (
               <>
-                <h2 className="t-title-s section-title">시험 준비 <span className="t-caption faint">이 자료의 강의 {doc.sessions.length}개로</span></h2>
+                <h2 className="t-title-s section-title">시험 준비</h2>
                 <div className="prep">
                   <button className="prep-main" onClick={() => go({ name: "jokbo", docId })}>
-                    <small>한 장으로 보는</small><b>족보 노트</b>
-                    <span>교수님이 시험에 나온다고 한 것과 예상 문제</span>
+                    <b>족보 노트</b>
                     <i className="prep-go"><Icon name="arrow-right" size={18} /></i>
                   </button>
-                  <button className="prep-sub quiz" onClick={() => go({ name: "quiz", docId })}><small>바로 채점</small><b>퀴즈</b></button>
-                  <button className="prep-sub weak" onClick={() => go({ name: "weak", docId })}><small>틀린 것만</small><b>약점 노트</b>{weakN != null && <em>{weakN ? `${weakN}개 모였어요` : "아직 없어요"}</em>}</button>
+                  <button className="prep-sub quiz" onClick={() => go({ name: "quiz", docId })}><b>퀴즈</b></button>
+                  <button className="prep-sub weak" onClick={() => go({ name: "weak", docId })}><b>약점 노트</b>{weakN != null && <em>{weakN ? `${weakN}개 모였어요` : "아직 없어요"}</em>}</button>
                 </div>
                 <button className="link-row" onClick={() => { window.location.href = `${API}/documents/${docId}/anki.txt`; }}>
                   <Icon name="export" size={16} /> Anki 로 내보내기

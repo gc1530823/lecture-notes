@@ -914,3 +914,26 @@
 .section-title::after, .lec-row:first-of-type .lec-no::after { content: none !important; }
 .sig-copy b { font-size: 26px !important; letter-spacing: -.04em; }
 .tt-invite small { display: none; }
+.confirm-chip::before { content: none !important; }
+.confirm-chip::after { content: " ?"; }
+
+/* ════════ 시작 화면 · 로그인 · 빈 화면도 달로 ════════ */
+.intro-mascot { display: grid; place-items: center; width: 240px; height: 240px; margin: -120px 0 0 -120px !important; }
+.intro-moon { grid-area: 1 / 1; }
+.intro-moon .moon { animation: none; filter: drop-shadow(0 0 50px color-mix(in srgb, var(--moon-lit) 75%, transparent)); }
+.intro-moon .moon-lit { transition: d .9s cubic-bezier(.2,.9,.2,1); }
+.intro-moon .moon-dark { fill: color-mix(in srgb, var(--accent-primary) 8%, transparent); }
+.intro-hero { grid-area: 1 / 1; width: auto !important; height: auto !important; opacity: .9; }
+.intro-hero .icon { width: 64px !important; height: 64px !important; }
+.login { position: relative; overflow: hidden; }
+.login > *:not(.login-moon) { position: relative; z-index: 1; }
+.login-moon { position: absolute; right: -110px; top: -60px; z-index: 0; pointer-events: none; }
+.login-moon .moon { filter: drop-shadow(0 0 60px color-mix(in srgb, var(--moon-lit) 70%, transparent)); }
+.login-moon .moon-dark { fill: color-mix(in srgb, var(--accent-primary) 6%, transparent); }
+.empty-art { display: grid !important; place-items: center; }
+.empty-art::before { content: none !important; }
+.empty-art > * { grid-area: 1 / 1; }
+.empty-moon { animation: none !important; filter: none !important; width: 104px; height: 104px; }
+.empty-moon .moon-dark { fill: color-mix(in srgb, var(--accent-primary) 7%, transparent); }
+.empty-moon .moon-crater { display: none; }
+.intro-copy .btn { background: var(--accent-3) !important; color: #30202D !important; }

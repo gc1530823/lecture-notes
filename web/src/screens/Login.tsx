@@ -1,6 +1,7 @@
 // 로그인: 친구들과 함께 쓰는 서버(INVITE_CODE)일 때만 나온다. 혼자 쓰는 서버·데모에서는 보이지 않는다.
 // 처음이면 초대 코드 + 이름 + 비밀번호로 가입, 다음부터는 이름 + 비밀번호. 로그인은 180일 동안 유지돼요.
 import { useState } from "react";
+import { Moon, moonPhase } from "../components/Moon";
 import { postJSON } from "../api/useApi";
 import { Button } from "../components/ui";
 import SlidingTabs from "../components/SlidingTabs";
@@ -83,11 +84,11 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
   );
   return (
     <div className="login">
+      <span className="login-moon" aria-hidden="true"><Moon size={300} phase={moonPhase()} /></span>
       <LuneMark size={84} className="login-mark" />
       <h1 aria-label="LUNE"><LuneWordmark height={30} /></h1>
       <p className="login-tag">{TAGLINE}</p>
-      <p className="t-caption muted">녹음하면 강의자료 위에 필기가 붙어요</p>
-      <form className="login-card" onSubmit={(e) => { e.preventDefault(); if (ready && !busy) void submit(); }}>
+            <form className="login-card" onSubmit={(e) => { e.preventDefault(); if (ready && !busy) void submit(); }}>
         {forgot ? (
           <div className="forgot-head"><b>비밀번호 다시 만들기</b><small>이메일로 인증번호를 받거나, 가입할 때 받은 복구 코드(또는 서버 주인에게 받은 초기화 코드)를 넣어 주세요</small></div>
         ) : (
@@ -129,7 +130,7 @@ export default function Login({ onDone }: { onDone: (me: Me) => void }) {
           </button>
         )}
         <p className="t-caption faint" style={{ textAlign: "center", margin: 0 }}>
-          {mode === "signup" ? "내 강의·녹음·필기는 나만 볼 수 있어요" : "한 번 로그인하면 이 기기에서 계속 유지돼요"}
+          {mode === "signup" ? "내 기록은 나만 봐요" : "이 기기에서 계속 로그인돼요"}
         </p>
       </form>
     </div>

@@ -19,7 +19,7 @@ export function EnglishToggle({ docId, onChange }: { docId: string | null; onCha
   return (
     <button type="button" className={`lang-toggle${en ? " on" : ""}`} role="switch" aria-checked={en} onClick={flip}>
       <span className="lang-box">{en && <Icon name="check" size={12} />}</span>
-      <span className="grow"><b>영어 강의예요</b><small>{en ? "받아쓰기를 영어로 해요" : "체크 안 하면 목소리를 듣고 언어를 골라요"}</small></span>
+      <span className="grow"><b>영어 강의예요</b><small>{en ? "영어로 받아써요" : "자동으로 언어 감지"}</small></span>
       <span className="lang-tag">EN</span>
     </button>
   );

@@ -1,6 +1,7 @@
 // Figma "02 디자인 시스템" 페이지의 컴포넌트와 1:1로 맞춘 기본 부품.
 // 이름·속성(variant)도 Figma와 같게 두어 디자인과 코드를 오가기 쉽게 한다.
 import { useState } from "react";
+import { Moon } from "./Moon";
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { NoteText } from "./NoteText";
 import type { NoteType } from "../api/types";
@@ -191,7 +192,7 @@ export function NoteSection({ number, title, highlight, lines }: { number: numbe
 export function Empty({ icon, children, action }: { icon: string; children: ReactNode; mood?: string; action?: { label: string; onClick: () => void; icon?: string } }) {
   return (
     <div className="empty">
-      <span className="empty-art"><Icon name={icon} art size={96} /></span>
+      <span className="empty-art"><Moon size={132} phase={0.14} className="empty-moon" /><Icon name={icon} art size={72} /></span>
       <div>{children}</div>
       {/* 빈 화면에서 끝나지 않게: 다음에 할 일 하나 */}
       {action && <button className="btn btn-primary empty-action" onClick={action.onClick}>{action.icon && <Icon name={action.icon} size={18} />}{action.label}</button>}

@@ -125,7 +125,7 @@ function TaskRow({ t, onDone, onDue, open, onOpen, onCheck, onRemove }: {
           {t.instructions && <p>{t.instructions}</p>}
           {ai && onCheck && (
             <div className="ai-check">
-              <small>강의에서 AI가 찾은 과제예요. 맞는지 한 번 확인해 주세요.</small>
+              <small>강의에서 찾은 과제예요. 맞나요?</small>
               <div className="row">
                 <input className="input grow" value={name} onChange={(e) => setName(e.target.value)} aria-label="과제 이름" />
                 <button className="chip chip-accent" onClick={() => onCheck(t, name.trim() !== t.title ? name.trim() : undefined)}>{name.trim() !== t.title ? "고쳐서 저장" : "맞아요"}</button>
@@ -263,7 +263,7 @@ function TasksPane() {
         {(day || tasks.length > 0) && <div className="agenda-head">
           {day ? <><b>{Number(day.slice(8))}</b><span>{new Date(day + "T00:00:00").toLocaleDateString("ko-KR", { month: "long", weekday: "long" })}<small>{(byDay.get(day) ?? []).filter((t) => !t.done).length ? `마감 ${(byDay.get(day) ?? []).filter((t) => !t.done).length}개` : "마감 없음"}</small></span>
             <button className="agenda-all" onClick={() => setDay(null)}>전체</button></>
-            : <><b>{left}</b><span>남은 할 일<small>{dayDiff(sorted.find((t) => t.due_date && t.due_date >= today)?.due_date ?? today, today) >= 0 && sorted.some((t) => t.due_date && t.due_date >= today) ? `가장 가까운 마감 ${dueLabel(sorted.find((t) => t.due_date && t.due_date >= today)!.due_date!)}` : "다가오는 마감 없음"}</small></span></>}
+            : <><b>{left}</b><span>남은 할 일<small>{dayDiff(sorted.find((t) => t.due_date && t.due_date >= today)?.due_date ?? today, today) >= 0 && sorted.some((t) => t.due_date && t.due_date >= today) ? `다음 마감 ${dueLabel(sorted.find((t) => t.due_date && t.due_date >= today)!.due_date!)}` : "다가오는 마감 없음"}</small></span></>}
         </div>}
 
         {groups.every(([, l]) => l.length === 0) && (

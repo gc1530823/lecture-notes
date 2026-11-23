@@ -725,7 +725,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         )}
         {!player.open && player.hasAudio && phase === "ended" && (
           <button className="replay-start t-caption" onClick={() => player.playFrom(3000)}>
-            <Icon name="play" size={16} /> 처음부터 다시 보기 (녹음에 맞춰 쪽과 필기, 자막이 따라와요)
+            <Icon name="play" size={16} /> 처음부터 다시 보기
           </button>
         )}
         {recording && (
