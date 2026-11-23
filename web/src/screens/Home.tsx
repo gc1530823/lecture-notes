@@ -348,7 +348,7 @@ function HomeHead() {
       {/* 오늘 날짜는 오늘 밤 달 위에 새긴다 */}
       <span className="home-bigmoon" aria-label={now.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}>
         <Moon size={230} phase={moonPhase()} />
-        <span className="moon-date"><b>{now.getDate()}</b><small>{now.getMonth() + 1}월 {now.toLocaleDateString("ko-KR", { weekday: "short" })}요일</small></span>
+        <span className="moon-date"><b>{now.getDate()}</b><i /><small>{now.getMonth() + 1}월 · {now.toLocaleDateString("ko-KR", { weekday: "long" })}</small></span>
       </span>
       <div className="home-top">
         <span className="home-brand"><LuneMark size={22} /><LuneWordmark height={12} /></span>

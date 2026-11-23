@@ -1023,3 +1023,17 @@
 .home-head h1.home-big em { color: #F4A9A6 !important; }
 .home-head .home-hello { max-width: 66%; }
 .home-head h1.home-big { white-space: nowrap; font-size: 28px !important; }
+/* 홈 머리 v4: 날짜를 달에 '찍지' 않고 새기듯 · 테두리를 따라 도는 날짜 글 */
+.moon-date { left: 46px; }
+.moon-date b { font: 300 92px/1 var(--font-num) !important; letter-spacing: -.05em; color: transparent !important; opacity: 1 !important;
+  -webkit-text-stroke: 1.2px color-mix(in srgb, #30202D 38%, transparent); text-shadow: 1px 1px 0 #ffffff55, -1px -1px 0 #30202D14; }
+.moon-rim { position: absolute; left: 50%; top: 50%; width: 300px; height: 300px; margin: -150px 0 0 -150px; overflow: visible; pointer-events: none; }
+.moon-rim text { font: 700 11.5px var(--font-sans); letter-spacing: .22em; fill: #F3DDA9; opacity: .85; }
+.home-bigmoon { overflow: visible; }
+/* 홈 머리 v5: 날짜는 달에 스며들게 (굵기 한 단계 낮추고, 곱하기로 달 표면에 배게), 숫자와 글 사이 짧은 선 */
+.moon-rim { display: none; }
+.moon-date { left: 44px; }
+.moon-date b { font: 800 60px/1 var(--font-num) !important; letter-spacing: -.045em; color: #30202D !important; -webkit-text-stroke: 0; text-shadow: none;
+  opacity: .72 !important; mix-blend-mode: multiply; }
+.moon-date i { display: block; width: 22px; height: 2px; margin: 8px 0 7px 3px; border-radius: 2px; background: #E9A1A0; }
+.moon-date small { margin: 0 !important; padding-left: 3px; font: 800 11.5px/1 var(--font-sans) !important; letter-spacing: .06em; color: #30202D !important; opacity: .62 !important; mix-blend-mode: multiply; }
