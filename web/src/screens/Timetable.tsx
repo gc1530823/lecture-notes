@@ -59,10 +59,9 @@ export function Timetable({ onPick, slot = "top" }: { courses?: string[]; onPick
           {[0, 1, 2, 3, 4].map((d) => <span key={d}>{[0, 1, 2].map((h) => <i key={h} className={(d + h) % 3 === 0 ? `blk-${(d + h) % 8}` : undefined} />)}</span>)}
         </span>
         <span className="grow">
-          <b>시간표 등록하기</b>
-          <small>캡처 한 장이면 수업 시간에 그 과목이 맨 위에 떠요</small>
+          <b>시간표 등록</b>
         </span>
-        <span className="tt-go">등록 <Icon name="caret-right" size={14} /></span>
+        <Icon name="caret-right" size={16} />
       </button>
     </section>
   );

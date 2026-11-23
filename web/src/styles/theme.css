@@ -910,3 +910,7 @@
 .sig-moon .moon-lit { fill: var(--accent-3); }
 .record-main.sig > *:not(.sig-moon):not(.sig-wave) { position: relative; z-index: 1; }
 .task-date { display: flex !important; flex-direction: column !important; align-items: center !important; } .task-date b, .task-date small { text-align: center; width: 100%; }
+/* 글 줄이기: 장식 라벨 제거 */
+.section-title::after, .lec-row:first-of-type .lec-no::after { content: none !important; }
+.sig-copy b { font-size: 26px !important; letter-spacing: -.04em; }
+.tt-invite small { display: none; }

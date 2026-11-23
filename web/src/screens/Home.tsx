@@ -5,7 +5,7 @@ import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { android } from "../lib/live";
 import { Empty, Icon, ListItem } from "../components/ui";
-import { Moon, moonName, moonNext, moonPhase } from "../components/Moon";
+import { Moon, moonNext, moonPhase } from "../components/Moon";
 import { ExamBanner } from "./Semester";
 import { Timetable } from "./Timetable";
 import { StreakBadge } from "./Story";
@@ -22,9 +22,8 @@ import { askText, tell } from "../components/Dialog";
 
 
 export function subtitleOf(doc: DocumentBrief): string {
-  const lectures = doc.sessions.length ? `강의 ${doc.sessions.length}번` : "아직 강의 없음";
   const kind = doc.kind === "meeting" ? `회의, 안건 ${doc.page_count}개` : doc.kind === "notebook" ? `노트, 주제 ${doc.page_count}개` : `슬라이드 ${doc.page_count}쪽`;
-  return `${kind}, ${lectures} (${relativeDay(doc.created_at)})`;
+  return `${doc.kind === "meeting" || doc.kind === "notebook" ? kind : `${doc.page_count}쪽`} · ${doc.sessions.length ? `${doc.sessions.length}강` : "녹음 전"} · ${relativeDay(doc.created_at)}`;
 }
 
 export function relativeDay(seconds: number): string {
@@ -213,7 +212,7 @@ export default function Home() {
       <HomeHead />
       <div className="home-search-wrap">
         <button className="home-search" onClick={() => go({ name: "search" })}>
-          <Icon name="magnifying-glass" size={17} /><span>필기, 교수님 말, 용어까지 한 번에 찾기</span>
+          <Icon name="magnifying-glass" size={17} /><span>검색</span>
         </button>
       </div>
       <div className="screen-body">
@@ -231,13 +230,13 @@ export default function Home() {
                 <animate attributeName="d" dur="5s" repeatCount="indefinite" values="M0 86 C 80 70, 150 104, 220 84 S 340 70, 400 90 V120 H0Z;M0 92 C 70 104, 160 70, 230 92 S 330 104, 400 82 V120 H0Z;M0 86 C 80 70, 150 104, 220 84 S 340 70, 400 90 V120 H0Z" />
               </path>
             </svg>
-            <span className="grow sig-copy"><small>Tap to record</small><b>수업 녹음 시작</b><span>들으면서 강의자료 쪽마다 필기가 붙어요</span></span>
+            <span className="grow sig-copy"><b>수업 녹음</b></span>
             <span className="sig-moon" aria-hidden="true"><Moon size={190} phase={moonPhase()} /></span>
             <span className="sig-mic"><i /><i /><Icon name="microphone" size={26} /></span>
           </button>
           <div className="record-sub">
-            <button onClick={() => setPicker("upload")} disabled={!!busy}><Icon name="upload-simple" size={17} />녹음 파일 올리기</button>
-            <button onClick={() => file.current?.click()} disabled={!!busy}><Icon name="plus" size={17} />강의자료 올리기</button>
+            <button onClick={() => setPicker("upload")} disabled={!!busy}><Icon name="upload-simple" size={17} />녹음 파일</button>
+            <button onClick={() => file.current?.click()} disabled={!!busy}><Icon name="plus" size={17} />강의자료</button>
           </div>
           {busy && <p className="record-busy"><span className="spin" /> {busy}</p>}
         </section>
@@ -353,7 +352,7 @@ function HomeHead() {
       </div>
       <div className="home-hello">
         <span className="home-date"><b>{new Date().getDate()}</b><span>{new Date().toLocaleDateString("ko-KR", { month: "long" })}<br />{new Date().toLocaleDateString("ko-KR", { weekday: "long" })}</span>
-          <span className="home-moon"><small>오늘 밤 {moonName(moonPhase())}<br />{moonNext(moonPhase())}</small></span></span>
+          <span className="home-moon"><small>{moonNext(moonPhase())}</small></span></span>
         <h1>{hello}{name ? <>, <em>{name}</em>님</> : ""}</h1>
         {line && <p>{line}</p>}
       </div>

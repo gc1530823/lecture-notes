@@ -30,8 +30,8 @@ function dday(due: string | null | undefined): { text: string; tone: "late" | "s
   if (!due) return null;
   const n = dayDiff(due, todayIso());
   if (n < 0) return { text: `${-n}일 지남`, tone: "late" };
-  if (n === 0) return { text: "오늘 마감", tone: "soon" };
-  if (n === 1) return { text: "내일 마감", tone: "soon" };
+  if (n === 0) return { text: "오늘", tone: "soon" };
+  if (n === 1) return { text: "내일", tone: "soon" };
   return { text: `D-${n}`, tone: n <= 3 ? "soon" : "later" };
 }
 
@@ -112,7 +112,7 @@ function TaskRow({ t, onDone, onDue, open, onOpen, onCheck, onRemove }: {
           <span className="task-title">{t.title}</span>
           <span className="task-meta">
             <span className="task-course">{t.course || t.doc_title}</span>
-            {ai && <span className="task-when">강의에서 찾은 과제</span>}
+            
           </span>
         </button>
         <button className={`task-box${t.done ? " on" : ""}`} onClick={() => onDone(t, !t.done)}
@@ -167,8 +167,8 @@ export function TasksCard() {
     <section className={`banner tasks-card${urgent.length ? " urgent" : ""}`} aria-label="할 일">
       <div className="tasks-head">
         <h2>할 일 <b>{left}</b></h2>
-        {urgent.length > 0 && <span className="tasks-alert">{[urgent.length - late ? `오늘 마감 ${urgent.length - late}` : "", late ? `마감 지남 ${late}` : ""].filter(Boolean).join(", ")}</span>}
-        <button className="tasks-cal" onClick={() => go({ name: "tasks" })}>달력 <Icon name="arrow-right" size={14} /></button>
+        {late > 0 && <span className="tasks-alert">{late}개 지남</span>}
+        <button className="tasks-cal" onClick={() => go({ name: "tasks" })} aria-label="달력으로"><Icon name="arrow-right" size={16} /></button>
       </div>
       {list.slice(0, 3).map((t) => <TaskRow key={t.id} t={t} onDone={toggle} />)}
       <UndoBar task={undo} onUndo={(t) => setDone(t, false)} />
