@@ -81,7 +81,7 @@ function ConceptMap() {
   if (!data) return <p className="muted">용어를 모으는 중…</p>;
   if (nodes.length === 0) return (
     <Empty icon="tree-structure" action={{ label: "첫 수업 녹음하기", icon: "microphone", onClick: () => go({ name: "home" }) }}>
-      <strong className="t-title-s">아직 개념 지도가 비어 있어요</strong><br />강의 중에 잡힌 전문용어가 쌓이면 학기 전체 개념 지도가 그려져요
+      <strong className="t-title-s">아직 별자리가 비어 있어요</strong>
     </Empty>
   );
 

@@ -99,7 +99,7 @@ export default function DocDetail({ docId }: { docId: string }) {
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) sendAudio(f); }} />
 
             <h2 className="t-title-s section-title">강의 {doc.sessions.length}개</h2>
-            {doc.sessions.length === 0 && <p className="muted">아직 녹음한 강의가 없어요. 위에서 녹음을 시작하거나 올려 주세요.</p>}
+            {doc.sessions.length === 0 && <p className="muted">아직 녹음한 강의가 없어요</p>}
             {doc.sessions.map((s, i) => (
               <button key={s.id} className={`lec-row ${courseTone(doc.course)}`} style={{ animationDelay: `${i * 50}ms` }}
                 onClick={() => go(s.status === "failed" ? { name: "lecture", docId, sessionId: s.id } : { name: "session", docId, sessionId: s.id, tab: "notes" })}>

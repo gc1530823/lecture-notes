@@ -45,7 +45,7 @@ function CardHead({ q, total }: { q: Question; total: number }) {
   );
 }
 
-export default function QuizCards({ makePath, scopeLabel, onPage }: { makePath: string; scopeLabel: string; onPage?: (page: number) => void }) {
+export default function QuizCards({ makePath, onPage }: { makePath: string; scopeLabel: string; onPage?: (page: number) => void }) {
   const [set, setSet] = useState<QuizSet | null>(null);
   const [count, setCount] = useState(getPrefs().quizCount);
   const [making, setMaking] = useState(false);
@@ -98,7 +98,7 @@ export default function QuizCards({ makePath, scopeLabel, onPage }: { makePath: 
     return (
       <div className={`qz qz-start${making ? " making" : ""}`}>
         <span className="qz-kick">{making ? "문제를 고르는 중" : "Quiz"}</span>
-        <h2 className="qz-hero">{making ? <>강의를 다시 읽고<br />시험에 낼 곳을 찾고 있어요</> : <>{scopeLabel} 바탕으로 문제를 내요</>}</h2>
+        <h2 className="qz-hero">{making ? <>강의를 다시 읽고<br />시험에 낼 곳을 찾고 있어요</> : <>문제 몇 개 풀어 볼까요?</>}</h2>
         {making ? (
           <div className="qz-build" aria-hidden="true">{[0, 1, 2, 3, 4].map((k) => <i key={k} style={{ animationDelay: `${k * 0.18}s` }} />)}</div>
         ) : (

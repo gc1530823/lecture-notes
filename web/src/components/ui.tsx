@@ -32,7 +32,19 @@ const TONE: Record<string, string> = {
 export function hasArt(name: string): boolean { return DUO.has(DUO_ALIAS[name] ?? name); }
 
 /** 아이콘. art = 색 벡터 아이콘(duotone). 없는 이름은 굵은 선 아이콘. 모두 public/icons.svg 스프라이트 */
+/** LUNE 전용 달 아이콘: 자주 보이는 자리의 기본 아이콘을 밤하늘 세트로 바꾼다 */
+const LUNE_ICON: Record<string, string> = {
+  house: "lune-home", "calendar-dots": "lune-calendar", "calendar-check": "lune-calendar", cards: "lune-review", users: "lune-friends",
+  target: "lune-star", "chats-circle": "lune-chat", "tree-structure": "lune-constellation", "book-open-text": "lune-book", notebook: "lune-book",
+};
+
 export function Icon({ name, size = 22, art = false }: { name: string; size?: number; art?: boolean }) {
+  const lune = LUNE_ICON[name];
+  if (lune) return (
+    <svg className={`icon lune${art ? " art" : ""}`} width={size} height={size} style={{ width: size, height: size }} aria-hidden="true">
+      <use href={`${import.meta.env.BASE_URL}icons.svg#${lune}`} />
+    </svg>
+  );
   if (art && hasArt(name)) {
     const id = DUO_ALIAS[name] ?? name;
     return (
@@ -117,6 +129,7 @@ export function ListItem({ icon, title, subtitle, onClick, index, tone, art }: {
 export function TopBar({ title, onBack, action, home = true }: { title: string; onBack?: () => void; action?: ReactNode; home?: boolean }) {
   return (
     <header className="top-bar">
+      <span className="top-bar-moon" aria-hidden="true" />
       {onBack && (
         <button className="top-bar-back" onClick={onBack} aria-label="뒤로">
           <Icon name="caret-left" />

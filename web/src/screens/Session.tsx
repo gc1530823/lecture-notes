@@ -45,7 +45,7 @@ export default function Session({ docId, sessionId, tab }: { docId: string; sess
         {tab === "glossary" && (
           <>
             <Glossary sessionId={sessionId} />
-            <h3 className="t-title-s section-title">개념 설명 <span className="t-caption faint">예시까지 더 자세히</span></h3>
+            <h3 className="t-title-s section-title">개념 설명</h3>
             <ConceptExplain sessionId={sessionId} />
           </>
         )}
@@ -97,7 +97,7 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
           {[review.fixed ? `${review.fixed}개 고침` : "", review.moved ? `${review.moved}개 쪽 옮김` : "", review.deleted ? `${review.deleted}개 지움` : "", review.added ? `${review.added}개 더함` : ""].filter(Boolean).map((t) => `, ${t}`).join("")}</p>
       )}
       {beyond?.ratio ? (
-        <Hint icon="sparkle">교수님 설명의 <b>{Math.round(beyond.ratio * 100)}%</b>는 슬라이드에 없던 내용이에요</Hint>
+        <Hint icon="sparkle">슬라이드 밖 설명 <b>{Math.round(beyond.ratio * 100)}%</b></Hint>
       ) : null}
       {pages.map((p) => {
         const mine = notes.filter((n) => n.page_no === p.page_no && !n.pending);
@@ -106,7 +106,7 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
         const heading = (lines.find((l) => (firstCount.get(l) ?? 0) < 3) ?? lines[0] ?? "").replace(/^[▸▶•\-\s]+/, "").slice(0, 44);
         return (
           <section key={p.id} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <h2 className="page-title"><button className="page-jump" onClick={() => jumpToMoment(doc.id, sessionId, p.page_no, null)} aria-label={`${p.page_no}쪽 슬라이드 열기`}>{p.page_no}쪽 슬라이드 보기 →</button>{heading || `${p.page_no}쪽`}</h2>
+            <h2 className="page-title"><button className="page-jump" onClick={() => jumpToMoment(doc.id, sessionId, p.page_no, null)} aria-label={`${p.page_no}쪽 슬라이드 열기`}>{p.page_no}쪽</button>{heading || `${p.page_no}쪽`}</h2>
             {pageSummary.get(p.page_no) && <p className="page-sum">{pageSummary.get(p.page_no)}</p>}
             <div className="postit-grid">
               {mine.map((n, i) => (
@@ -136,7 +136,7 @@ function Overview({ text, title = "한눈에 보는 강의" }: { text: string; t
 function Glossary({ sessionId }: { sessionId: string }) {
   const { data: terms } = useApi<GlossaryTerm[]>(`/sessions/${sessionId}/glossary`);
   if (!terms) return <Skeleton />;
-  if (terms.length === 0) return <Empty icon="book-open-text">수업 중에 잡힌 전문용어가 없어요</Empty>;
+  if (terms.length === 0) return <Empty icon="book-open-text">아직 잡힌 용어가 없어요</Empty>;
   return (
     <>
       <div className="meta-chips"><span className="meta-chip strong">용어 {terms.length}개</span><span className="meta-chip">수업에 나온 순서</span></div>

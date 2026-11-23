@@ -73,7 +73,7 @@ export default function Search() {
             ))}
           </div>
         )}
-        {!hits && <Empty icon="book-open-text">두 글자 이상 넣으면 필기·교수님 말·용어·슬라이드에서 찾아요</Empty>}
+        {!hits && <Empty icon="book-open-text">필기 · 교수님 말 · 용어에서 찾아요</Empty>}
         {hits && shown.length === 0 && <Empty icon="warning-circle">찾는 말이 없어요</Empty>}
         {shown.map((h, i) => (
           <button key={i} className="list-item search-hit" onClick={() => jumpTo(h)}>

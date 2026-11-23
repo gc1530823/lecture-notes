@@ -97,7 +97,7 @@ function AIStudy<T>({ sessionId, kind, render }: { sessionId: string; kind: stri
   if (state.status !== "ready" || state.body === null)
     return (
       <div className="banner">
-        <p className="t-body">오늘 강의 내용으로 만들어 드릴게요.</p>
+        
         <Button onClick={build} icon="magic-wand">만들기</Button>
       </div>
     );

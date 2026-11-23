@@ -199,7 +199,7 @@ export function TimetableEditor({ onPick }: { onPick: (course: string) => void }
   return (
     <div className="tt-screen">
       {rows.length > 0 ? <><WeekGrid rows={rows} onPick={onPick} dated /><NextClassCard rows={rows} onPick={onPick} /></> : (
-        <p className="tasks-empty">아직 시간표가 없어요. 에타·학교 시간표를 캡처해서 넣어 보세요.</p>
+        <p className="tasks-empty">아직 시간표가 없어요</p>
       )}
       {rows.length > 0 && <NextDocs courses={[...new Set(rows.map((r) => r.course))]} />}
       {rows.length > 0 ? (

@@ -1044,3 +1044,27 @@
 .sky-date > span { display: flex; flex-direction: column; gap: 7px; padding-bottom: 3px; }
 .sky-date i { display: block; width: 20px; height: 2px; border-radius: 2px; background: #E9A1A0; }
 .sky-date small { font: 800 12.5px/1.35 var(--font-sans); color: #F3DDA9; letter-spacing: .02em; }
+
+/* ════════ 달 아이콘 세트 ════════ */
+.icon.lune { --duo-fill: var(--accent-3); --duo-op: .75; color: var(--text-primary); }
+.icon.lune.art { --duo-fill: #E9A1A0; --duo-op: .6; color: var(--accent-primary); }
+.tabbar .icon.lune { --duo-op: 0; }
+.tabbar button.on .icon.lune { --duo-fill: var(--accent-3); --duo-op: .9; }
+:root[data-theme="dark"] .icon.lune.art { color: #F3DDA9; --duo-fill: #E9A1A0; }
+
+/* ════════ 모든 화면 맨 위: 홈과 같은 밤하늘 띠 + 오른쪽에 반쯤 걸린 달 ════════ */
+.top-bar { position: sticky; overflow: hidden; color: #F8F2EA; border-radius: 0 0 22px 22px; isolation: isolate;
+  background:
+    radial-gradient(1px 1px at 18% 30%, #fff 50%, transparent 52%), radial-gradient(1.3px 1.3px at 42% 70%, #fffc 50%, transparent 52%),
+    radial-gradient(1px 1px at 66% 24%, #fffa 50%, transparent 52%), radial-gradient(1px 1px at 8% 76%, #fff8 50%, transparent 52%),
+    linear-gradient(180deg, #2A1B27 0%, #3D2838 70%, #4E3549 100%) !important;
+  backdrop-filter: none !important; animation: none !important; }
+.top-bar-title { color: #F8F2EA !important; }
+.top-bar .top-bar-back, .top-bar button { color: #F8F2EA !important; }
+.top-bar-moon { position: absolute; right: -26px; top: -30px; width: 84px; height: 84px; border-radius: 50%; z-index: -1; pointer-events: none;
+  background: radial-gradient(circle at 38% 40%, #F7E7BC 0 55%, #F3DDA9 70%); box-shadow: 0 0 30px #F3DDA966; opacity: .9; }
+.top-bar .top-menu-list button { color: var(--text-primary) !important; }
+.top-bar .chip { background: #ffffff1f !important; color: #F8F2EA !important; border-color: #ffffff2a !important; }
+.top-bar .icon.lune { color: inherit; --duo-op: 0; }
+.top-bar-moon { right: -48px; top: -46px; width: 92px; height: 92px; }
+.top-bar .top-menu > .top-bar-back, .top-bar > button:last-child:not(.top-bar-back:first-of-type), .top-bar .lec-tools button { background: #2A1B27b3 !important; border-radius: 50%; }
