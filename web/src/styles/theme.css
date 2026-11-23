@@ -42,7 +42,7 @@
 /* 브랜드 팔레트 (기본): 플럼 · 로즈 · 버터 · 페이퍼. 강조색은 화면마다 바뀌지 않는다 */
 :root[data-sky="brand"] {
   --bg-paper: #F8F2EA; --bg-card: #FFFCF8;
-  --text-primary: #30202D; --text-secondary: #5E4F59; --text-tertiary: #857880; --text-note: #30202D;
+  --text-primary: #30202D; --text-secondary: #4B3343; --text-tertiary: #6C5262; --text-note: #30202D;
   --accent-primary: #30202D; --accent-deep: #1F141D; --text-on-accent: #FFFCF8;
   --accent-2: #E9A1A0; --accent-2-soft: #F6DEDD; --accent-3: #F3DDA9; --accent-3-soft: #FAF0D6;
   --accent-record: #E66C59;
@@ -50,11 +50,11 @@
   --sky-1: #F6DEDD; --sky-2: #F8EDE6; --moon-lit: #F3DDA9; --moon-dark: #F2E9E2;
 }
 @media (prefers-color-scheme: dark) { :root[data-sky="brand"]:not([data-theme="light"]) {
-  --bg-paper: #1B1419; --bg-card: #251C22; --text-primary: #F3E8EE; --text-secondary: #D2C2CB; --text-tertiary: #A2939B; --text-note: #F3E8EE;
+  --bg-paper: #1B1419; --bg-card: #251C22; --text-primary: #F3E8EE; --text-secondary: #E4D4DD; --text-tertiary: #C2ADB9; --text-note: #F3E8EE;
   --accent-primary: #E9A1A0; --accent-deep: #D4807F; --text-on-accent: #1B1419; --accent-2-soft: #3B262B; --accent-3-soft: #3A3122;
   --border-line: #3A2E36; --line-deep: #0E0A0D; --fill-soft: #2F242B; --sky-1: #2A1E25; --sky-2: #1E161B; --moon-dark: #2F242B; color-scheme: dark; } }
 :root[data-sky="brand"][data-theme="dark"] {
-  --bg-paper: #1B1419; --bg-card: #251C22; --text-primary: #F3E8EE; --text-secondary: #D2C2CB; --text-tertiary: #A2939B; --text-note: #F3E8EE;
+  --bg-paper: #1B1419; --bg-card: #251C22; --text-primary: #F3E8EE; --text-secondary: #E4D4DD; --text-tertiary: #C2ADB9; --text-note: #F3E8EE;
   --accent-primary: #E9A1A0; --accent-deep: #D4807F; --text-on-accent: #1B1419; --accent-2-soft: #3B262B; --accent-3-soft: #3A3122;
   --border-line: #3A2E36; --line-deep: #0E0A0D; --fill-soft: #2F242B; --sky-1: #2A1E25; --sky-2: #1E161B; --moon-dark: #2F242B; color-scheme: dark; }
 .home-hello { padding-right: 0 !important; }
@@ -867,3 +867,35 @@
 .ai-work.finished .aw-moon .moon { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--moon-lit) 70%, transparent)); }
 .qz-moon { display: grid; place-items: center; margin: 6px auto 4px; }
 .qz-moon .moon { filter: drop-shadow(0 0 22px color-mix(in srgb, var(--moon-lit) 60%, transparent)); }
+
+/* ════════ 홈 할 일: 2주 달력 (날마다 그날 밤 달 · 마감 개수) ════════ */
+.moon-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px 2px; margin: 8px 0 4px; padding: 10px 6px 8px; border-radius: 20px 20px 20px 6px; background: var(--bg-card); box-shadow: inset 0 0 0 1px var(--border-line); }
+.ms-w { text-align: center; font: 700 11px/1 var(--font-sans); color: var(--text-secondary); padding-bottom: 4px; }
+.ms-w.sun { color: var(--accent-record); } .ms-w.sat { color: var(--accent-2); }
+.ms-day { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0 5px; border: 0; background: none; border-radius: 14px; color: var(--text-primary); transition: background .2s; }
+.ms-day .moon { animation: none; filter: none; }
+.ms-day .moon-dark { stroke: color-mix(in srgb, var(--accent-primary) 22%, transparent); stroke-width: 6; }
+.ms-day .n { font: 700 15px/1 var(--font-num); font-variant-numeric: tabular-nums; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; }
+.ms-day.past .n { color: var(--text-tertiary); font-weight: 600; }
+.ms-day.today .n { background: var(--accent-primary); color: var(--bg-paper); }
+.ms-day.due .n { box-shadow: inset 0 0 0 2px var(--accent-record); }
+.ms-day.late .n { box-shadow: inset 0 0 0 2px var(--accent-record); color: var(--accent-record); }
+.ms-day.today.due .n { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--accent-record); }
+.ms-day.sel { background: var(--accent-3-soft, color-mix(in srgb, var(--accent-3) 30%, transparent)); }
+.ms-n { min-height: 13px; font: 800 10.5px/13px var(--font-num); color: var(--accent-record); }
+.ms-cap { margin: 8px 2px 2px; font: 700 12.5px/18px var(--font-sans); color: var(--text-secondary); }
+.cal-day .cal-moon { display: block; margin: 0 auto 1px; animation: none; filter: none; }
+.cal-day .cal-moon .moon-dark { stroke: color-mix(in srgb, var(--accent-primary) 20%, transparent); stroke-width: 6; }
+.cal-day.today::before { display: none !important; }
+
+/* ════════ 달 더 크게: 기다릴 땐 달이 차고 기울고, 지금 탭엔 초승달 ════════ */
+.spin { border: 0 !important; border-radius: 50%; background: var(--moon-lit, #F3DDA9); box-shadow: inset 0 0 0 1.5px currentColor; position: relative; overflow: hidden; animation: none !important; }
+.spin::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: currentColor; opacity: .85; animation: moon-wax 1.6s cubic-bezier(.45,0,.55,1) infinite; }
+@keyframes moon-wax { 0% { transform: translateX(0); } 50% { transform: translateX(100%); } 50.01% { transform: translateX(-100%); } 100% { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .spin::after { animation: none; transform: translateX(45%); } }
+.tabbar button { position: relative; }
+.tabbar button.on::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; box-shadow: -2.5px 0 0 0 var(--accent-3); transform: rotate(-90deg); }
+/* 기본 bubble 밑줄이 있다면 초승달로 대체 */
+.tabbar button.on .tab-ic::after { display: none; }
+/* 밝은 화면에서도 달의 어두운 쪽이 보이게 */
+.ms-day .moon-dark, .cal-day .cal-moon .moon-dark { fill: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-card)); }
