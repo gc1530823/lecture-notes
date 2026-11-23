@@ -105,7 +105,7 @@ function TaskRow({ t, onDone, onDue, open, onOpen, onCheck, onRemove }: {
     <div className={`task-item${t.done ? " done" : ""}${open ? " open" : ""}`}>
       <div className={`task-line${d ? ` t-${d.tone}` : ""}`}>
         <span className="task-date" aria-hidden="true">
-          {t.due_date ? <><b>{Number(t.due_date.slice(8))}</b><small>{new Date(t.due_date + "T00:00:00").toLocaleDateString("ko-KR", { weekday: "short" })}</small></> : <small>날짜<br />없음</small>}
+          {t.due_date ? <><i className="cal-ring" /><em>{Number(t.due_date.slice(5, 7))}월</em><b>{Number(t.due_date.slice(8))}</b><small>{new Date(t.due_date + "T00:00:00").toLocaleDateString("ko-KR", { weekday: "short" })}</small></> : <><i className="cal-ring" /><em>-</em><small>날짜<br />없음</small></>}
         </span>
         <button className="grow task-main" onClick={onOpen ?? (() => go({ name: "lecture", docId: t.doc_id, sessionId: t.session_id }))}>
           {d && <span className={`dday ${d.tone}`}>{d.text}</span>}
@@ -149,30 +149,20 @@ function TaskRow({ t, onDone, onDue, open, onOpen, onCheck, onRemove }: {
   );
 }
 
-/** 홈 카드: 이번 주·다음 주 달력(날마다 그날 밤 달 모양 + 마감 개수) → 고른 날의 할 일, 안 고르면 가까운 마감 3개 */
+/** 홈 카드: 가까운 마감 순으로 3개 + 달력으로 */
 export function TasksCard() {
   const { tasks, setDone, undo } = useTasks();
   const [kept] = useState(() => new Set<number>()); // 이 화면에서 방금 체크한 것은 줄 그은 채 남긴다
-  const [day, setDay] = useState<string | null>(null);
-  // 이번 주 일요일부터 14일
-  const days = useMemo(() => {
-    const t = new Date(); const s = new Date(t.getFullYear(), t.getMonth(), t.getDate() - t.getDay());
-    return Array.from({ length: 14 }, (_, k) => new Date(s.getFullYear(), s.getMonth(), s.getDate() + k));
-  }, []);
   if (!tasks) return null;
-  const open = tasks.filter((t) => !t.done);
-  const left = open.length;
-  if (tasks.filter((t) => !t.done || kept.has(t.id)).length === 0 && !undo) return null;
-  const toggle = (t: HomeTask, done: boolean) => { kept.add(t.id); setDone(t, done); };
-  const today = todayIso();
-  const urgent = open.filter((t) => t.due_date && t.due_date <= today);
-  const late = urgent.filter((t) => t.due_date! < today).length;
-  const count = new Map<string, number>();
-  for (const t of open) if (t.due_date) count.set(t.due_date, (count.get(t.due_date) ?? 0) + 1);
-  const pool = tasks.filter((t) => !t.done || kept.has(t.id));
-  const list = (day ? pool.filter((t) => t.due_date === day) : pool)
+  const list = tasks.filter((t) => !t.done || kept.has(t.id))
     .sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"));
-  const later = open.filter((t) => t.due_date && t.due_date > iso(days[13])).length;
+  const left = tasks.filter((t) => !t.done).length;
+  if (list.length === 0 && !undo) return null;
+  const toggle = (t: HomeTask, done: boolean) => { kept.add(t.id); setDone(t, done); };
+  // 알림이 없는 웹·아이폰에서도 놓치지 않게: 오늘 마감·마감 지남을 맨 위에 눈에 띄게
+  const today = todayIso();
+  const urgent = tasks.filter((t) => !t.done && t.due_date && t.due_date <= today);
+  const late = urgent.filter((t) => t.due_date! < today).length;
   return (
     <section className={`banner tasks-card${urgent.length ? " urgent" : ""}`} aria-label="할 일">
       <div className="tasks-head">
@@ -180,22 +170,7 @@ export function TasksCard() {
         {urgent.length > 0 && <span className="tasks-alert">{[urgent.length - late ? `오늘 마감 ${urgent.length - late}` : "", late ? `마감 지남 ${late}` : ""].filter(Boolean).join(", ")}</span>}
         <button className="tasks-cal" onClick={() => go({ name: "tasks" })}>달력 <Icon name="arrow-right" size={14} /></button>
       </div>
-      <div className="moon-strip" role="group" aria-label="이번 주와 다음 주 마감">
-        {WEEK.map((w, k) => <span key={w} className={`ms-w${k === 0 ? " sun" : k === 6 ? " sat" : ""}`}>{w}</span>)}
-        {days.map((d) => {
-          const c = iso(d); const n = count.get(c) ?? 0;
-          return (
-            <button key={c} className={`ms-day${c === today ? " today" : ""}${c === day ? " sel" : ""}${c < today ? " past" : ""}${n ? (c < today ? " late" : " due") : ""}`}
-              onClick={() => setDay(c === day ? null : c)} aria-pressed={c === day} aria-label={`${dueLabel(c)}${n ? `, 마감 ${n}개` : ""}`}>
-              <Moon size={13} phase={moonPhase(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 21))} />
-              <span className="n">{d.getDate()}</span>
-              <span className="ms-n">{n || ""}</span>
-            </button>
-          );
-        })}
-      </div>
-      <p className="ms-cap">{day ? `${dueLabel(day)} · ${list.length ? `마감 ${list.filter((t) => !t.done).length}개` : "이날은 마감이 없어요"}` : `가까운 마감${later ? ` · 그 뒤로 ${later}개 더` : ""}`}</p>
-      {(day ? list : list.slice(0, 3)).map((t) => <TaskRow key={t.id} t={t} onDone={toggle} />)}
+      {list.slice(0, 3).map((t) => <TaskRow key={t.id} t={t} onDone={toggle} />)}
       <UndoBar task={undo} onUndo={(t) => setDone(t, false)} />
     </section>
   );

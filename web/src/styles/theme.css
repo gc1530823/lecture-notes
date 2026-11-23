@@ -868,24 +868,7 @@
 .qz-moon { display: grid; place-items: center; margin: 6px auto 4px; }
 .qz-moon .moon { filter: drop-shadow(0 0 22px color-mix(in srgb, var(--moon-lit) 60%, transparent)); }
 
-/* ════════ 홈 할 일: 2주 달력 (날마다 그날 밤 달 · 마감 개수) ════════ */
-.moon-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px 2px; margin: 8px 0 4px; padding: 10px 6px 8px; border-radius: 20px 20px 20px 6px; background: var(--bg-card); box-shadow: inset 0 0 0 1px var(--border-line); }
-.ms-w { text-align: center; font: 700 11px/1 var(--font-sans); color: var(--text-secondary); padding-bottom: 4px; }
-.ms-w.sun { color: var(--accent-record); } .ms-w.sat { color: var(--accent-2); }
-.ms-day { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0 5px; border: 0; background: none; border-radius: 14px; color: var(--text-primary); transition: background .2s; }
-.ms-day .moon { animation: none; filter: none; }
-.ms-day .moon-dark { stroke: color-mix(in srgb, var(--accent-primary) 22%, transparent); stroke-width: 6; }
-.ms-day .n { font: 700 15px/1 var(--font-num); font-variant-numeric: tabular-nums; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; }
-.ms-day.past .n { color: var(--text-tertiary); font-weight: 600; }
-.ms-day.today .n { background: var(--accent-primary); color: var(--bg-paper); }
-.ms-day.due .n { box-shadow: inset 0 0 0 2px var(--accent-record); }
-.ms-day.late .n { box-shadow: inset 0 0 0 2px var(--accent-record); color: var(--accent-record); }
-.ms-day.today.due .n { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--accent-record); }
-.ms-day.sel { background: var(--accent-3-soft, color-mix(in srgb, var(--accent-3) 30%, transparent)); }
-.ms-n { min-height: 13px; font: 800 10.5px/13px var(--font-num); color: var(--accent-record); }
-.ms-cap { margin: 8px 2px 2px; font: 700 12.5px/18px var(--font-sans); color: var(--text-secondary); }
 .cal-day .cal-moon { display: block; margin: 0 auto 1px; animation: none; filter: none; }
-.cal-day .cal-moon .moon-dark { stroke: color-mix(in srgb, var(--accent-primary) 20%, transparent); stroke-width: 6; }
 .cal-day.today::before { display: none !important; }
 
 /* ════════ 달 더 크게: 기다릴 땐 달이 차고 기울고, 지금 탭엔 초승달 ════════ */
@@ -898,4 +881,32 @@
 /* 기본 bubble 밑줄이 있다면 초승달로 대체 */
 .tabbar button.on .tab-ic::after { display: none; }
 /* 밝은 화면에서도 달의 어두운 쪽이 보이게 */
-.ms-day .moon-dark, .cal-day .cal-moon .moon-dark { fill: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-card)); }
+.cal-day .cal-moon .moon-dark { fill: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-card)); }
+
+/* ════════ 할 일 날짜 = 달력 아이콘 ════════ */
+.task-date { position: relative; width: 48px !important; height: 54px !important; padding: 0 0 5px !important; justify-content: flex-start !important; gap: 0 !important; overflow: visible;
+  background: var(--bg-card) !important; border-radius: 11px !important; box-shadow: inset 0 0 0 1.5px var(--border-line), 0 2px 0 var(--border-line); }
+.task-date em { align-self: stretch; font: 800 10px/17px var(--font-sans); font-style: normal; text-align: center; color: #fff; background: var(--accent-primary); border-radius: 11px 11px 0 0; letter-spacing: .02em; }
+.task-date b { margin-top: 3px; font: 800 20px/1 var(--font-num) !important; color: var(--text-primary); }
+.task-date small { margin-top: 2px; font: 700 9.5px/1 var(--font-sans) !important; color: var(--text-secondary) !important; }
+.task-date .cal-ring { position: absolute; top: -3px; left: 12px; right: 12px; height: 7px; pointer-events: none;
+  background: radial-gradient(circle, var(--text-primary) 0 2px, transparent 2.5px) left center / 7px 7px no-repeat, radial-gradient(circle, var(--text-primary) 0 2px, transparent 2.5px) right center / 7px 7px no-repeat; }
+.t-soon .task-date em { background: var(--accent-3); color: var(--accent-primary); }
+.t-late .task-date em { background: var(--accent-record); color: #fff; }
+.t-late .task-date b { color: var(--accent-record); }
+.task-item.done .task-date { opacity: .55; }
+
+/* ════════ 큰 달을 뒤에: 홈 머리 · 녹음 판 ════════ */
+.home-head { position: relative; overflow: hidden; }
+.home-bigmoon { position: absolute; right: -64px; top: 6px; z-index: 0; pointer-events: none; opacity: .9; }
+.home-bigmoon .moon { filter: drop-shadow(0 0 40px color-mix(in srgb, var(--moon-lit) 70%, transparent)); }
+.home-bigmoon .moon-dark { fill: color-mix(in srgb, var(--accent-primary) 6%, transparent); }
+.home-head > *:not(.home-bigmoon) { position: relative; z-index: 1; }
+.home-moon { border-left: 0; padding-left: 4px; }
+.record-main.sig { position: relative; overflow: hidden; }
+.sig-moon { position: absolute; right: -42px; top: -58px; z-index: 0; pointer-events: none; opacity: .22; }
+.sig-moon .moon { animation: none; filter: none; }
+.sig-moon .moon-dark { fill: transparent; }
+.sig-moon .moon-lit { fill: var(--accent-3); }
+.record-main.sig > *:not(.sig-moon):not(.sig-wave) { position: relative; z-index: 1; }
+.task-date { display: flex !important; flex-direction: column !important; align-items: center !important; } .task-date b, .task-date small { text-align: center; width: 100%; }

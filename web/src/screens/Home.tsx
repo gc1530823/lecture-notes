@@ -232,6 +232,7 @@ export default function Home() {
               </path>
             </svg>
             <span className="grow sig-copy"><small>Tap to record</small><b>수업 녹음 시작</b><span>들으면서 강의자료 쪽마다 필기가 붙어요</span></span>
+            <span className="sig-moon" aria-hidden="true"><Moon size={190} phase={moonPhase()} /></span>
             <span className="sig-mic"><i /><i /><Icon name="microphone" size={26} /></span>
           </button>
           <div className="record-sub">
@@ -342,6 +343,7 @@ function HomeHead() {
     || (h < 17 ? "오늘 배운 것을 LUNE에 남겨 볼까요?" : "오늘 배운 것, 잊기 전에 한 번 볼까요?"));
   return (
     <header className="home-head">
+      <span className="home-bigmoon" aria-hidden="true"><Moon size={230} phase={moonPhase()} /></span>
       <div className="home-top">
         <span className="home-brand"><LuneMark size={22} /><LuneWordmark height={12} /></span>
         <span className="home-top-right">
@@ -351,7 +353,7 @@ function HomeHead() {
       </div>
       <div className="home-hello">
         <span className="home-date"><b>{new Date().getDate()}</b><span>{new Date().toLocaleDateString("ko-KR", { month: "long" })}<br />{new Date().toLocaleDateString("ko-KR", { weekday: "long" })}</span>
-          <span className="home-moon"><Moon size={30} phase={moonPhase()} /><small>오늘 밤 {moonName(moonPhase())}<br />{moonNext(moonPhase())}</small></span></span>
+          <span className="home-moon"><small>오늘 밤 {moonName(moonPhase())}<br />{moonNext(moonPhase())}</small></span></span>
         <h1>{hello}{name ? <>, <em>{name}</em>님</> : ""}</h1>
         {line && <p>{line}</p>}
       </div>
