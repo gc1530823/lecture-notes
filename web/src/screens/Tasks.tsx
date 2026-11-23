@@ -102,19 +102,22 @@ function TaskRow({ t, onDone, onDue, open, onOpen, onCheck, onRemove }: {
   const ai = !t.checked && !t.done;
   return (
     <div className={`task-item${t.done ? " done" : ""}${open ? " open" : ""}`}>
-      <div className="task-line">
+      <div className={`task-line${d ? ` t-${d.tone}` : ""}`}>
+        <span className="task-date" aria-hidden="true">
+          {t.due_date ? <><b>{Number(t.due_date.slice(8))}</b><small>{new Date(t.due_date + "T00:00:00").toLocaleDateString("ko-KR", { weekday: "short" })}</small></> : <small>날짜<br />없음</small>}
+        </span>
+        <button className="grow task-main" onClick={onOpen ?? (() => go({ name: "lecture", docId: t.doc_id, sessionId: t.session_id }))}>
+          {d && <span className={`dday ${d.tone}`}>{d.text}</span>}
+          <span className="task-title">{t.title}</span>
+          <span className="task-meta">
+            <span className="task-course">{t.course || t.doc_title}</span>
+            {ai && <span className="task-when">강의에서 찾은 과제</span>}
+          </span>
+        </button>
         <button className={`task-box${t.done ? " on" : ""}`} onClick={() => onDone(t, !t.done)}
           aria-label={t.done ? `${t.title} 다시 할 일로` : `${t.title} 끝냄으로 표시`} aria-pressed={t.done}>
           <Icon name="check" size={14} />
         </button>
-        <button className="grow task-main" onClick={onOpen ?? (() => go({ name: "lecture", docId: t.doc_id, sessionId: t.session_id }))}>
-          <span className="task-title">{t.title}{ai && <em className="ai-found">강의에서 찾음</em>}</span>
-          <span className="task-meta">
-            <span className="task-course">{t.course || t.doc_title}</span>
-            {t.due_text && <span className="task-when">{t.due_text}</span>}
-          </span>
-        </button>
-        {d && <span className={`dday ${d.tone}`}>{d.text}</span>}
       </div>
       {open && (
         <div className="task-more">
@@ -161,14 +164,10 @@ export function TasksCard() {
   const late = urgent.filter((t) => t.due_date! < today).length;
   return (
     <section className={`banner tasks-card${urgent.length ? " urgent" : ""}`} aria-label="할 일">
-      {urgent.length > 0 && (
-        <p className="tasks-urgent"><Icon name="warning-circle" size={15} />
-          {[urgent.length - late ? `오늘 마감 ${urgent.length - late}개` : "", late ? `마감 지남 ${late}개` : ""].filter(Boolean).join(", ")}</p>
-      )}
-      <div className="row">
-        <Icon name="clipboard-text" art size={30} />
-        <strong className="t-title-s grow">할 일 {left}개</strong>
-        <button className="chip chip-accent" onClick={() => go({ name: "tasks" })}><Icon name="calendar-dots" size={14} /> 달력으로 보기</button>
+      <div className="tasks-head">
+        <h2>할 일 <b>{left}</b></h2>
+        {urgent.length > 0 && <span className="tasks-alert">{[urgent.length - late ? `오늘 마감 ${urgent.length - late}` : "", late ? `마감 지남 ${late}` : ""].filter(Boolean).join(", ")}</span>}
+        <button className="tasks-cal" onClick={() => go({ name: "tasks" })}>달력 <Icon name="arrow-right" size={14} /></button>
       </div>
       {list.slice(0, 3).map((t) => <TaskRow key={t.id} t={t} onDone={toggle} />)}
       <UndoBar task={undo} onUndo={(t) => setDone(t, false)} />

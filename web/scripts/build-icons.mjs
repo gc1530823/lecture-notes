@@ -23,7 +23,7 @@ const DUO = ["microphone", "headphones", "notebook", "file-text", "book-open-tex
   "chalkboard-teacher", "arrow-counter-clockwise", "waveform", "books", "notepad", "house", "gear", "file-pdf", "hand-palm", "upload-simple", "arrows-clockwise", "folder-simple-plus", "envelope-simple", "key", "lock-simple"];
 for (const id of DUO) {
   const inner = readFileSync(`node_modules/@phosphor-icons/core/assets/duotone/${id}-duotone.svg`, "utf8").replace(/^[\s\S]*?<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
-  symbols.push(`<symbol id="dt-${id}" viewBox="0 0 256 256" fill="currentColor">${inner}</symbol>`);
+  symbols.push(`<symbol id="dt-${id}" viewBox="0 0 256 256" fill="currentColor">${inner.replace(/ opacity="0\.2"/g, ' style="fill:var(--duo-fill,currentColor);opacity:var(--duo-op,.2)"')}</symbol>`); // 옅은 채움은 테마의 두 번째 색으로
 }
 for (const extra of ["house", "notepad", "dots-three-outline", "gear", "pause", "magnifying-glass", "export", "sliders-horizontal", "speaker-high"]) {
   const file = `node_modules/@phosphor-icons/core/assets/bold/${extra}-bold.svg`;

@@ -284,3 +284,50 @@
 .top-bar-title { font-weight: 800 !important; letter-spacing: -.03em; }
 /* 밤에는 검색·줄 선이 너무 밝지 않게 */
 :root[data-sky="night"] .home-search { background: rgb(255 255 255 / .04) !important; }
+
+/* ═══ 아이콘: Phosphor Duotone을 테마 두 색으로 — 선은 플럼, 채움은 로즈(경고는 코랄, 일정은 버터) ═══ */
+.icon.art { color: var(--accent-primary) !important; --duo-fill: var(--accent-2); --duo-op: .75; }
+.icon.art.tone-yellow, .icon.art.tone-orange { --duo-fill: var(--accent-3); --duo-op: 1; }
+.icon.art.tone-red { color: var(--accent-record) !important; --duo-fill: color-mix(in srgb, var(--accent-record) 35%, transparent); --duo-op: 1; }
+.record-main:not(.alt) .icon.art, .hero-card .icon.art { color: var(--text-on-accent) !important; --duo-fill: var(--accent-2); --duo-op: .9; }
+.list-item-icon .icon.art { width: 26px !important; height: 26px !important; }
+
+/* ═══ 할 일: 날짜가 먼저 보이는 일정표 줄 ═══ */
+.tasks-card::before { display: none !important; }
+.tasks-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.tasks-head h2 { margin: 0; font: 800 20px/26px var(--font-sans); letter-spacing: -.035em; color: var(--text-primary); }
+.tasks-head h2 b { font-weight: 800; color: var(--accent-2); margin-left: 2px; }
+.tasks-alert { font: 700 12.5px/18px var(--font-sans); color: var(--accent-record); }
+.tasks-cal { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 4px 0; font: 700 13px/18px var(--font-sans); color: var(--text-secondary); cursor: pointer; }
+.task-line { display: flex !important; align-items: center !important; gap: 14px !important; padding: 12px 0 !important; border-bottom: 1px solid var(--border-line) !important; }
+.task-item:last-of-type .task-line { border-bottom: 0 !important; }
+.task-date { flex: none; width: 46px; height: 52px; border-radius: 12px; background: var(--fill-soft); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; color: var(--text-primary); }
+.task-date b { font: 800 20px/1 var(--font-sans); letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.task-date small { font: 600 10.5px/1.2 var(--font-sans); color: var(--text-tertiary); text-align: center; }
+.t-late .task-date { background: color-mix(in srgb, var(--accent-record) 12%, var(--bg-card)); color: var(--accent-record); }
+.t-late .task-date small { color: color-mix(in srgb, var(--accent-record) 75%, var(--text-tertiary)); }
+.t-soon .task-date { background: var(--accent-3-soft); }
+.task-main { display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; min-width: 0; text-align: left; }
+.task-main .dday { font: 700 11.5px/16px var(--font-sans) !important; letter-spacing: .01em; }
+.task-title { font: 700 15.5px/21px var(--font-sans) !important; letter-spacing: -.02em; color: var(--text-primary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.task-meta { font: 500 12.5px/18px var(--font-sans) !important; }
+.task-course { font-weight: 600 !important; color: var(--text-secondary) !important; }
+.task-when { color: var(--text-tertiary) !important; }
+.task-box { flex: none; width: 26px !important; height: 26px !important; border-radius: 50% !important; border: 1.5px solid var(--border-line) !important; background: var(--bg-card) !important; color: transparent !important; display: grid; place-items: center; transition: background .25s, border-color .25s, transform .3s cubic-bezier(.2,1.5,.3,1); }
+.task-box:active { transform: scale(.85); }
+.task-box.on { background: var(--accent-primary) !important; border-color: var(--accent-primary) !important; color: var(--text-on-accent) !important; }
+.task-item.done .task-title { text-decoration: line-through; color: var(--text-tertiary); }
+
+/* ═══ 달력: 오늘은 플럼 원, 고른 날은 로즈 테두리, 마감 있는 날은 아래 짧은 막대 ═══ */
+.cal-day { border-radius: 14px !important; background: none !important; color: var(--text-primary) !important; gap: 4px !important; transition: background .2s; }
+.cal-day .n { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; font: 600 14.5px/1 var(--font-sans); border: 0 !important; margin: 0 !important; transition: background .3s, color .3s, transform .35s cubic-bezier(.2,1.5,.3,1); }
+.cal-day.today .n { background: var(--accent-primary) !important; color: var(--text-on-accent) !important; font-weight: 800 !important; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-2) 35%, transparent); }
+.cal-day.sel:not(.today) .n { background: none; box-shadow: inset 0 0 0 2px var(--accent-2); color: var(--text-primary) !important; font-weight: 800; transform: scale(1.06); }
+.cal-day.sel.today .n { transform: scale(1.06); }
+.cal-day.late:not(.today) .n { color: var(--accent-record) !important; font-weight: 800; }
+.cal-count { min-width: 0 !important; width: 14px; height: 3px !important; padding: 0 !important; border-radius: 2px !important; font-size: 0 !important; background: var(--accent-2) !important; }
+.cal-count:empty { visibility: hidden; }
+.cal-day.late .cal-count { background: var(--accent-record) !important; }
+.cal-day.cleared .cal-count { background: var(--border-line) !important; }
+.cal-today { border-radius: 8px !important; background: none !important; border: 1px solid var(--border-line) !important; color: var(--text-secondary) !important; }
+.task-line { padding-right: 6px !important; } .task-item { overflow: visible !important; } .tasks-screen .task-item { padding-left: 10px !important; padding-right: 8px !important; }
