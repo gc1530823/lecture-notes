@@ -36,7 +36,7 @@ export function Wave({ data, bars = 9, className = "" }: { data?: WaveData; bars
   return (
     <span className={`wave${empty ? " empty" : ""} ${className}`} style={{ gridTemplateColumns: `repeat(${bars}, 1fr)` }} aria-hidden="true">
       {items.map((b, i) => (
-        <i key={i} className={b.exam ? "exam" : ""} style={{ height: empty ? "12%" : `${14 + (b.h / 9) * 86}%`, animationDelay: `${i * 22}ms` }} />
+        <i key={i} className={b.exam ? "exam" : ""} style={{ height: empty ? "12%" : `${14 + (b.h / 9) * 86}%`, animationDelay: `${i * 22}ms`, ["--i" as string]: i }} />
       ))}
     </span>
   );
@@ -69,8 +69,10 @@ export function LiveWave({ loud }: { loud?: boolean }) {
       cur += (target - cur) * 0.25;
       if (++tick % 3 === 0) { levels.shift(); levels.push(cur); }
       const mid = h / 2, t = (now - t0) / 1000;
-      const main = css(loudRef.current ? "--accent-3" : "--accent-2", "#9a95ec");
-      const layers: [number, number, number][] = [[1, 0.9, 2.2], [0.62, 0.45, 1.4], [0.34, 0.25, 1]];
+      const quiet = now - last > 700;
+      const main = loudRef.current ? css("--accent-record", "#E66C59") : quiet ? css("--accent-lav", "#B9A7E8") : css("--accent-2", "#E9A1A0");
+      const thick = loudRef.current ? 1.6 : 1;
+      const layers: [number, number, number][] = [[1, 0.9, 2.2 * thick], [0.62, 0.45, 1.4 * thick], [0.34, 0.25, 1]];
       layers.forEach(([amp, alpha, lw], k) => {
         ctx.beginPath();
         for (let x = 0; x <= w; x += 3) {

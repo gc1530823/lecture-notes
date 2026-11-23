@@ -710,7 +710,13 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           </>
         )}
         {!recording && phase !== "idle" && serverStatus?.status && ["transcribing", "processing"].includes(serverStatus.status) && (
-          <div className="listen-row"><span className="spin" /><span className="t-caption muted">필기를 정리하고 있어요…</span></div>
+          <div className="listen-row ai-work" role="status">
+            {/* 음성 파형이 글줄과 쪽 번호로 바뀌어 가는 모습: 왼쪽 막대가 오른쪽 줄로 접혀 들어간다 */}
+            <span className="aw-wave" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} style={{ animationDelay: `${i * 0.09}s` }} />)}</span>
+            <span className="aw-arrow" aria-hidden="true" />
+            <span className="aw-lines" aria-hidden="true"><i /><i /><i /><em>p.{page}</em></span>
+            <span className="t-caption muted">교수님 말을 쪽마다 필기로 옮기는 중…</span>
+          </div>
         )}
         {!recording && phase === "ended" && sessionId && cut && (
           <div className="cut-banner" role="alert">

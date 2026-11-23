@@ -536,3 +536,79 @@
 @media (prefers-reduced-motion: reduce) {
   .qz-go-n, .qz-choice .qz-mark, .qz-explain > *, .qz-card.card-in, .qz-card.flip-in, .qz-ring .fill, .qz-score { animation: none !important; }
 }
+
+/* ════════ 4차: 살아 움직이는 화면 ════════ */
+/* 포인트 색 두 개를 기능에만: 코랄 = 녹음·마감·시험 감지, 라벤더 = AI가 일하는 중 */
+:root { --accent-lav: #B9A7E8; --accent-lav-soft: #ECE6FA; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --accent-lav: #A797DC; --accent-lav-soft: #2C2640; } }
+:root[data-theme="dark"] { --accent-lav: #A797DC; --accent-lav-soft: #2C2640; }
+
+/* 대시 머리선 반복 줄이기: 묶음 제목의 짧은 막대를 없애고 여백으로 */
+.section-title::before { display: none !important; }
+.section-title { padding-top: 0 !important; margin-top: 30px !important; }
+/* 강의 진행: 네 토막 대시 대신 한 줄 진행선 */
+.lec-steps { position: relative; gap: 0 !important; width: 96px; height: 2px; background: var(--border-line); border-radius: 1px; overflow: hidden; margin-top: 7px !important; }
+.lec-steps i { flex: 1; height: 2px !important; width: auto !important; border-radius: 0 !important; background: transparent !important; }
+.lec-steps i.on { background: var(--accent-primary) !important; }
+.lec-row:has(.lec-steps i:not(.on)) .lec-steps i.on:last-of-type { background: var(--accent-lav) !important; animation: lec-busy 1.2s ease-in-out infinite; }
+@keyframes lec-busy { 50% { opacity: .35; } }
+/* 강의 줄의 실제 파형: 화면에 들어올 때 왼쪽부터 자란다 */
+.lec-wave i { animation: wave-grow .6s cubic-bezier(.2,1.4,.3,1) both !important; transform-origin: center; }
+.lec-wave i:nth-child(n) { animation-delay: calc(var(--i, 0) * 30ms); }
+@keyframes wave-grow { from { transform: scaleY(.05); } }
+.lec-row:active .lec-wave i { transform: scaleY(1.25); transition: transform .2s; }
+
+/* AI가 일하는 중: 파형 막대가 글줄로 접혀 들어가고 쪽 번호가 찍힌다 */
+.ai-work { display: grid !important; grid-template-columns: auto auto auto 1fr; align-items: center; gap: 10px !important; padding: 12px 14px; border-radius: 14px; background: var(--accent-lav-soft); }
+.aw-wave { display: flex; align-items: center; gap: 2px; height: 26px; }
+.aw-wave i { width: 3px; border-radius: 2px; background: var(--accent-lav); animation: aw-bar 1.1s ease-in-out infinite; }
+@keyframes aw-bar { 0%, 100% { height: 6px; } 40% { height: 24px; } 70% { height: 10px; } }
+.aw-arrow { width: 14px; height: 2px; background: var(--accent-lav); position: relative; }
+.aw-arrow::after { content: ""; position: absolute; right: -1px; top: -3px; border: 4px solid transparent; border-left-color: var(--accent-lav); border-right: 0; }
+.aw-lines { display: flex; flex-direction: column; gap: 3px; width: 40px; position: relative; }
+.aw-lines i { height: 3px; border-radius: 2px; background: var(--text-secondary); opacity: .55; transform-origin: left; animation: aw-line 2.2s cubic-bezier(.2,.9,.2,1) infinite; }
+.aw-lines i:nth-child(2) { width: 80%; animation-delay: .25s; } .aw-lines i:nth-child(3) { width: 60%; animation-delay: .5s; }
+@keyframes aw-line { 0% { transform: scaleX(0); } 40%, 85% { transform: scaleX(1); } 100% { transform: scaleX(1); opacity: 0; } }
+.aw-lines em { position: absolute; right: -24px; top: -6px; font: 600 10px/1 var(--font-num); font-style: normal; color: var(--accent-lav); animation: aw-pop 2.2s infinite; }
+@keyframes aw-pop { 0%, 45% { opacity: 0; transform: scale(.6); } 55%, 90% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+/* 정리 중 필기 카드: 라벤더 빛이 훑는다 */
+.postit-slot.preview .postit::after { background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--accent-lav) 35%, transparent) 50%, transparent 70%) !important; background-size: 220% 100% !important; }
+
+/* 필기 생성: 쪽 필기가 한 장씩, 안의 글은 한 줄씩 */
+.postit-grid > * { animation: note-drop .5s cubic-bezier(.2,1.1,.3,1) both; }
+.postit-grid > :nth-child(2) { animation-delay: .12s; } .postit-grid > :nth-child(3) { animation-delay: .24s; } .postit-grid > :nth-child(n+4) { animation-delay: .36s; }
+@keyframes note-drop { from { opacity: 0; transform: translateY(-8px); } }
+.postit .note-text > * { animation: note-line .45s cubic-bezier(.2,.9,.2,1) both; }
+.postit .note-text > :nth-child(2) { animation-delay: .15s; } .postit .note-text > :nth-child(3) { animation-delay: .3s; } .postit .note-text > :nth-child(n+4) { animation-delay: .45s; }
+@keyframes note-line { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
+/* 시험 키워드: 형광펜이 왼쪽에서 그어진다 */
+.note-hi, .postit-exam .note-title span { background-image: linear-gradient(transparent 58%, color-mix(in srgb, var(--accent-3) 85%, transparent) 58%) !important; background-repeat: no-repeat !important; background-size: 100% 100%; animation: hl-draw .7s cubic-bezier(.3,.7,.2,1) .4s both; }
+@keyframes hl-draw { from { background-size: 0% 100%; } }
+/* 녹음 중 시험 얘기가 들리면 받아쓰기 줄에 코랄 형광 */
+.bottom-bar.rec .caption-line mark { background: linear-gradient(transparent 60%, color-mix(in srgb, var(--accent-record) 45%, transparent) 60%); color: inherit; background-size: 100% 100%; background-repeat: no-repeat; animation: hl-draw .6s both; }
+
+/* 퀴즈: 맞히면 진행 막대 칸이 왼쪽부터 채워진다 */
+.qz-bar i { position: relative; overflow: hidden; background: var(--border-line) !important; }
+.qz-bar i::after { content: ""; position: absolute; inset: 0; transform-origin: left; transform: scaleX(0); transition: transform .6s cubic-bezier(.2,.9,.2,1) .3s; }
+.qz-bar i.correct::after { background: var(--accent-primary); transform: scaleX(1); }
+.qz-bar i.partial::after { background: var(--accent-3); transform: scaleX(1); }
+.qz-bar i.wrong::after { background: var(--accent-record); transform: scaleX(1); }
+.qz-bar i.now::after { background: var(--text-primary); transform: scaleX(.35); animation: now-pulse 1.4s ease-in-out infinite; }
+@keyframes now-pulse { 50% { transform: scaleX(.6); } }
+
+/* 일정: 날짜를 누르면 숫자 원이 튀고, 마감 막대가 차오른다 */
+.cal-day:active .n { transform: scale(.85); }
+.cal-day.sel .n { animation: day-pick .45s cubic-bezier(.2,1.6,.3,1); }
+@keyframes day-pick { from { transform: scale(.7); } }
+.cal-count { transform-origin: center; animation: wave-grow .5s cubic-bezier(.2,1.4,.3,1) both; }
+.agenda-head > b { animation: num-in .5s cubic-bezier(.2,1.3,.3,1) both; }
+@keyframes num-in { from { opacity: 0; transform: translateY(12px); } }
+/* 시험 준비 칸: 누르면 화살표가 밀려 나간다 */
+.prep-main:active .prep-go { transform: translateX(6px); }
+.prep-go { transition: transform .3s cubic-bezier(.2,1.4,.3,1); }
+.prep-sub.quiz { background: var(--accent-primary); }
+.prep-sub.weak em { color: var(--accent-record); opacity: 1 !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lec-wave i, .aw-wave i, .aw-lines i, .aw-lines em, .postit-grid > *, .postit .note-text > *, .note-hi, .cal-day.sel .n, .cal-count, .agenda-head > b, .qz-bar i.now::after, .bottom-bar.rec .caption-line mark { animation: none !important; }
+}
