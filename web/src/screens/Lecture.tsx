@@ -640,7 +640,25 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         {!notebook && (
           <>
             {visible.length === 0 ? (
-              <p className="muted lecture-empty">{recording ? "교수님 설명을 듣고 있어요. 필기가 여기에 붙어요." : "이 쪽에는 아직 필기가 없어요"}</p>
+              (() => {
+                // 빈 쪽도 상황에 맞게: 녹음 중 / 분석 중(이 쪽 · 아직 안 온 쪽 · 지나간 쪽) / 실패 / 끝났는데 설명 없음
+                const an = serverStatus?.analysis;
+                const busy = !!serverStatus && ["transcribing", "processing"].includes(serverStatus.status);
+                const now = an?.page ?? null;
+                const [kind, title, sub] = recording ? ["listen", "교수님 설명을 듣고 있어요", "말이 이 쪽 이야기면 필기가 여기에 붙어요"]
+                  : serverStatus?.status === "failed" ? ["fail", "이 강의는 정리하다 멈췄어요", "아래 '다시 정리하기'를 누르면 처음부터 다시 해요"]
+                  : busy && serverStatus?.status === "transcribing" && !an ? ["wait", "먼저 녹음을 받아쓰는 중이에요", "받아쓰기가 끝나면 쪽마다 필기를 붙여요"]
+                  : busy && now === page ? ["here", "지금 이 쪽을 분석하고 있어요", "필기가 생기면 바로 여기에 붙어요"]
+                  : busy && now != null && page > now ? ["wait", `아직 ${page}쪽까지 오지 않았어요`, `지금 ${now}쪽을 보고 있어요`]
+                  : busy ? ["wait", "필기를 정리하는 중이에요", "끝나면 이 쪽 필기도 여기에 보여요"]
+                  : ["none", "이 쪽은 따로 설명하지 않았어요", "교수님이 이 쪽에서 한 말이 없거나 짧았어요"];
+                return (
+                  <div className={`page-empty pe-${kind}`} role="status">
+                    <b>{title}</b><small>{sub}</small>
+                    {kind === "wait" && now != null && page !== now && <button className="pe-go" onClick={() => goTo(now)}>{now}쪽으로 가기 →</button>}
+                  </div>
+                );
+              })()
             ) : (
               <div key={page} className="postit-grid page-turn">
                 {visible.map((n, i) => (
@@ -718,8 +736,9 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         )}
         {!recording && phase !== "idle" && ((serverStatus?.status && ["transcribing", "processing"].includes(serverStatus.status)) || justDone) && (() => {
           // AI가 지금 무엇을 하는지: 받아쓰기(몇 %) → 쪽마다 필기로 옮기기(몇 분 중 몇 분, 지금 몇 쪽) → 요약 → 끝
-          const st = justDone ? "done" : serverStatus!.status;
           const an = serverStatus?.analysis;
+          // 서버 상태는 받아쓰기·필기 옮기기 동안 모두 'transcribing'이라, 분석 정보가 오면 필기 옮기는 단계로 본다
+          const st = justDone ? "done" : an ? "analyzing" : serverStatus!.status;
           const mm = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
           const pct = st === "done" ? 1 : st === "transcribing" ? (serverStatus?.progress ?? 0) * 0.4 : an?.total_ms ? 0.4 + (an.done_ms / an.total_ms) * 0.5 : 0.92;
           const notedPages = new Set(notes.filter((n) => !n.pending).map((n) => n.page_no));
@@ -806,7 +825,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
               </div>
             )}
             <span className="t-caption muted" style={{ display: "block" }}>
-              {recording ? (notebook ? `필기 쓰는 중, ${page}번 주제` : "필기 쓰는 중") : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (cut ? "녹음이 끊긴 강의예요" : serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}${serverStatus.engine === "local" ? ", Groq 가 막혀 서버에서 받아쓰는 중이라 느려요" : ""}`
+              {recording ? (notebook ? `필기 쓰는 중, ${page}번 주제` : "필기 쓰는 중") : phase === "ending" ? "마지막 필기를 받는 중…" : phase === "ended" ? (cut ? "녹음이 끊긴 강의예요" : serverStatus?.status === "transcribing" && serverStatus.analysis ? "쪽마다 필기로 옮기는 중…" : serverStatus?.status === "transcribing" ? `녹음 파일 받아쓰는 중${serverStatus.progress ? ` ${Math.round(serverStatus.progress * 100)}%` : "…"}${serverStatus.engine === "local" ? ", Groq 가 막혀 서버에서 받아쓰는 중이라 느려요" : ""}`
                 : serverStatus?.status === "processing" ? "필기·요약 정리 중…" : serverStatus?.status === "failed" ? "정리하지 못했어요" : "강의가 끝났어요") : "버튼을 누르면 녹음을 시작해요"}
             </span>
           </div>
@@ -997,7 +1016,7 @@ function SlideView({ pdf, page, notes, selected, fresh, here, onSelect, onSwipe 
   let loose = 0;
 
   return (
-    <div className={`slide turn-${dir}-${page.page_no % 2}`} ref={box} style={{ aspectRatio: `${page.width} / ${page.height}` }}
+    <div className={`slide turn-${dir}-${page.page_no % 2}`} ref={box} style={{ aspectRatio: `${page.width} / ${page.height}` }} data-analyzing-label={`${page.page_no}쪽 분석 중`}
       onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
       onTouchEnd={(e) => {
         if (touchX.current === null) return;

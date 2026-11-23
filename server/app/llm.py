@@ -797,12 +797,15 @@ class FakeLLM:
     async def annotate(self, candidates: list[dict], transcript: str, existing_tasks: list[dict],
                        notebook: bool = False, known_terms: list[str] | None = None, meeting: bool = False) -> dict:
         transcript = transcript.replace("(목소리 높임) ", "")
+        import asyncio, os
+        if float(os.getenv("FAKE_PACE", "0")):  # 화면 검수용: 실제 AI처럼 시간이 걸리게
+            await asyncio.sleep(float(os.getenv("FAKE_PACE", "0")))
         if len(candidates) > 1 and "애매" in transcript:
             return {"annotations": [{"page_no": -1, "block_id": -1, "type": "explanation", "text": transcript[:60]}],
                     "tasks": []}
         page = candidates[0]
         block_id = page["blocks"][0]["id"] if page["blocks"] else -1
-        type_ = "exam" if "시험" in transcript else "emphasis" if "중요" in transcript else "explanation"
+        type_ = "exam" if "시험" in transcript else "emphasis" if "중요" in transcript else "example" if "예를 들어" in transcript else "explanation"
         tasks = []
         if "과제" in transcript and not existing_tasks:
             tasks = [{"kind": "homework", "title": "과제", "instructions": transcript, "due_text": "다음 주 금요일까지"}]

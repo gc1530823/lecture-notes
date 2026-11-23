@@ -44,6 +44,7 @@ class Batch:
     since: float
     # 이 묶음을 위해 띄운 즉시 필기(임시 포스트잇)들
     previews: list[dict] = field(default_factory=list)
+    end_ms: int = 0  # 이 묶음의 마지막 말이 끝난 시각 (정리 진행률용)
 
 
 def _grams(text: str) -> set[str]:
@@ -240,6 +241,7 @@ class LiveSession:
             self.batch = Batch(estimate, start_ms, [], time.monotonic())
         self.batch.estimate = estimate
         self.batch.texts.append(f"(목소리 높임) {text}" if loud else text)
+        self.batch.end_ms = max(self.batch.end_ms, end_ms)
 
         # 녹음 파일(patient)은 빨리 뜰 필요가 없으니 5배씩 모아 부른다 (AI 무료 하루 한도: 145분 강의가 수백 번 부르던 것을 줄임)
         if sum(len(t) for t in self.batch.texts) >= settings.min_chars_per_call * (5 if self.patient else 1):
@@ -254,6 +256,7 @@ class LiveSession:
         if last and last.estimate.page_no == batch.estimate.page_no:
             last.texts.extend(batch.texts)
             last.estimate = batch.estimate
+            last.end_ms = max(last.end_ms, batch.end_ms)
             last.previews.extend(batch.previews)
         else:
             self._queue.append(batch)
@@ -263,11 +266,14 @@ class LiveSession:
     # 녹음 파일 정리(patient): 기다릴 수 있으니 AI 한도에 걸려도 말을 그대로 필기로 남기지 않고 기다렸다 다시 한다.
     # 실시간 수업은 지금 바로 보여야 하니 실패하면 임시 필기(교수님 말)를 남긴다.
     patient = False
+    analyzed_ms = 0          # AI가 필기를 다 만든 녹음 지점 (ms)
+    working_page: int | None = None
     RETRY_WAITS = (30, 60, 120, 240, 480)
 
     async def _drain(self) -> None:
         while self._queue:
             batch = self._queue.pop(0)
+            self.working_page = getattr(getattr(batch, "estimate", None), "page_no", None)   # 화면의 '지금 몇 쪽 분석 중'
             ok = await self._annotate(batch)
             for wait in self.RETRY_WAITS if self.patient else ():
                 if ok:
@@ -276,6 +282,7 @@ class LiveSession:
                 await asyncio.sleep(wait)
                 ok = await self._annotate(batch)
             await self._resolve_previews(batch, keep=not ok)
+            self.analyzed_ms = max(self.analyzed_ms, getattr(batch, "end_ms", 0))   # AI가 실제로 필기를 다 만든 지점까지만
 
     def _send_preview(self, batch: Batch) -> None:
         """AI를 기다리지 않고 바로 임시 포스트잇을 띄운다."""

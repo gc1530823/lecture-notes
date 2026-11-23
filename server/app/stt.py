@@ -123,7 +123,8 @@ class FakeTranscriber:
     LINES = [
         "자 오늘은 경사하강법부터 볼게요. 산에서 눈을 감고 내려간다고 생각하면 돼요.",
         "학습률이 너무 크면 발산하고 너무 작으면 학습이 느려집니다. 이거 시험에 꼭 나와요.",
-        "다음 장, 역전파입니다. 결국 연쇄 법칙을 반복해서 쓰는 거예요.",
+        "다음 장, 역전파입니다. 결국 연쇄 법칙을 반복해서 쓰는 거예요. 이 부분 정말 중요합니다.",
+        "예를 들어 학습률이 0.1이면 기울기에 0.1을 곱해서 한 걸음 내려가요.",
         "과제 2번은 역전파를 손으로 계산해 보는 거고 다음 주 금요일까지 제출하세요.",
     ]
 
@@ -134,12 +135,15 @@ class FakeTranscriber:
         if not isinstance(audio, str):  # 실시간 조각: 한 문장씩 차례로
             self._next = getattr(self, "_next", -1) + 1
             return [Segment(0, len(audio) * 1000 // 16000, self.LINES[self._next % len(self.LINES)])]
+        import os
+        rounds = max(1, int(os.getenv("FAKE_ROUNDS", "1")))   # 화면 검수용: 여러 번 돌려 긴 강의처럼
+        lines = self.LINES * rounds
         result = []
-        for i, line in enumerate(self.LINES):
-            time.sleep(0.5)
+        for i, line in enumerate(lines):
+            time.sleep(0.5 / rounds)
             result.append(Segment(i * 6000, i * 6000 + 5000, line))
             if on_progress:
-                on_progress((i + 1) / len(self.LINES))
+                on_progress((i + 1) / len(lines))
         return result
 
 

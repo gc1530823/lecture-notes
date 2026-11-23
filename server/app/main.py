@@ -884,16 +884,22 @@ async def _process_audio(session_id: str, document_id: str, path: str) -> None:
     # 실시간 강의와 같은 파이프라인에 받아쓰기를 차례로 흘려 넣는다
     live = LiveSession(db(), app.state.llm, db().get_session(session_id), discard)
     live.patient = True   # 녹음 파일은 기다릴 수 있다: AI 한도에 걸려도 말을 그대로 필기로 남기지 않고 기다렸다 다시
-    # 화면에 '몇 분 중 몇 분을 분석했고 지금 몇 쪽을 보고 있는지' 보여 주려고 진행 상황을 남긴다
+    # 화면에 '몇 분 중 몇 분을 분석했고 지금 몇 쪽을 보는지' 보여 준다: AI가 실제로 필기를 다 만든 지점만 센다 (받아쓰기를 넣은 지점이 아니라)
     total_ms = segments[-1].end_ms if segments else 0
     analysis = app.state.analysis
+
+    async def watch() -> None:
+        while True:
+            analysis[session_id] = {"done_ms": live.analyzed_ms, "total_ms": total_ms, "page": live.working_page}
+            await asyncio.sleep(1)
+
+    watcher = asyncio.create_task(watch())
     try:
         for seg in segments:
             await live.handle({"type": "transcript_final", "text": seg.text, "start_ms": seg.start_ms, "end_ms": seg.end_ms})
-            est = getattr(getattr(live, "batch", None), "estimate", None) or getattr(live, "estimate", None)
-            analysis[session_id] = {"done_ms": seg.end_ms, "total_ms": total_ms, "page": getattr(est, "page_no", None)}
         await live.close()
     finally:
+        watcher.cancel()
         analysis.pop(session_id, None)
     db().set_session_status(session_id, "processing")
     await _summarize(session_id, document_id)
