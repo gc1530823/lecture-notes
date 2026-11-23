@@ -20,7 +20,7 @@ export default function Study({ sessionId, docId }: { sessionId: string; docId?:
   return (
     <>
       <SlidingTabs label="공부 방법" value={kind} onChange={setKind} items={KINDS} />
-      {kind === "quiz" && <QuizCards makePath={`/sessions/${sessionId}/quiz-set`} scopeLabel="이번 강의의 자료와 교수님 설명을" onPage={docId ? (p) => jumpToMoment(docId, sessionId, p, null) : undefined} />}
+      {kind === "quiz" && <QuizCards makePath={`/sessions/${sessionId}/quiz-set`} scopeLabel="이번 강의 자료와 교수님 설명을" onPage={docId ? (p) => jumpToMoment(docId, sessionId, p, null) : undefined} />}
       {kind === "memorize" && (
         <>
           <p className="t-caption muted">카드를 넘기며 외우고, 아래 빈칸으로 한 번 더 확인해요</p>

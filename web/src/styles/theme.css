@@ -795,3 +795,16 @@
 .postit-slot.unsure .postit::before { background: repeating-linear-gradient(var(--accent-lav) 0 4px, transparent 4px 7px) !important; }
 .confirm-chip { display: inline-block; margin: 2px 0 0 16px; font: 600 12px/16px var(--font-sans) !important; color: var(--accent-lav) !important; }
 .confirm-chip::before { content: "이 쪽 필기가 맞나요? "; color: var(--text-tertiary); font-weight: 500; }
+
+/* ════════ 검토 반영 ════════ */
+/* 다크 홈 녹음 판: 로즈 바탕에 로즈 마이크가 묻히던 것 → 짙은 플럼 판 + 로즈 마이크 */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .record-main.sig { background: #3A2733 !important; color: #F3E8EE !important; } }
+:root[data-theme="dark"] .record-main.sig { background: #3A2733 !important; color: #F3E8EE !important; }
+/* 족보 노트 묶음: 굵은 색 테두리 상자 → 상자 없이 머리선 */
+.jokbo-section { background: transparent !important; border: 0 !important; border-top: 1.5px solid var(--text-primary) !important; border-radius: 0 !important; box-shadow: none !important; padding: 14px 0 6px !important; }
+.jokbo-section .row > span { color: var(--accent-2) !important; }
+/* 빈 화면 그림: 색 3D 그림 대신 테마 두 색 아이콘, 둥둥 떠다니지 않게 */
+.empty-art { animation: none !important; background: transparent !important; width: auto !important; height: auto !important; }
+.empty-art .icon { width: 40px !important; height: 40px !important; }
+.empty { gap: 10px !important; }
+.record-main.sig .sig-mic { color: #30202D !important; }

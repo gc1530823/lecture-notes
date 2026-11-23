@@ -97,7 +97,7 @@ export default function QuizCards({ makePath, scopeLabel, onPage }: { makePath: 
     return (
       <div className={`qz qz-start${making ? " making" : ""}`}>
         <span className="qz-kick">{making ? "문제를 고르는 중" : "Quiz"}</span>
-        <h2 className="qz-hero">{making ? <>강의를 다시 읽고<br />시험에 낼 곳을 찾고 있어요</> : <>{scopeLabel}<br />바탕으로 문제를 내요</>}</h2>
+        <h2 className="qz-hero">{making ? <>강의를 다시 읽고<br />시험에 낼 곳을 찾고 있어요</> : <>{scopeLabel} 바탕으로 문제를 내요</>}</h2>
         {making ? (
           <div className="qz-build" aria-hidden="true">{[0, 1, 2, 3, 4].map((k) => <i key={k} style={{ animationDelay: `${k * 0.18}s` }} />)}</div>
         ) : (
@@ -281,7 +281,7 @@ export function QuizScreen({ docId }: { docId: string }) {
     <div className="screen">
       <TopBar title="퀴즈" onBack={() => back({ name: "doc", docId })} />
       <div className="screen-body">
-        <QuizCards makePath={`/documents/${docId}/quiz-set`} scopeLabel="이 강의자료와 지금까지 들은 강의를" onPage={openPage} />
+        <QuizCards makePath={`/documents/${docId}/quiz-set`} scopeLabel="이 자료와 들은 강의 전체를" onPage={openPage} />
       </div>
     </div>
   );

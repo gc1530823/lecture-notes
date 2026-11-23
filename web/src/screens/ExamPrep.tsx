@@ -55,7 +55,7 @@ export function JokboScreen({ docId }: { docId: string }) {
                 {data.crowd.slice(0, 12).map((c) => (
                   <div key={c.page_no} className="jokbo-page">
                     <div className="row">
-                      <strong className="t-title-s grow">{c.page_no}쪽{c.title ? `, ${c.title}` : ""}</strong>
+                      <strong className="t-title-s grow">{c.page_no}쪽{c.title ? `, ${clean(c.title)}` : ""}</strong>
                       <span className="chip chip-selected">{c.people.length}명</span>
                     </div>
                     <span className="t-caption muted">{c.people.join(", ")}이(가) 시험·강조로 적음</span>
@@ -75,8 +75,8 @@ export function JokboScreen({ docId }: { docId: string }) {
               <Section icon="target" title="가장 유력한 쪽">
                 {data.top_pages.map((p) => (
                   <div key={p.page_no} className="jokbo-page">
-                    <strong className="t-title-s">{p.page_no}쪽{p.title ? `, ${p.title}` : ""}</strong>
-                    {p.summary && <p className="t-body">{p.summary}</p>}
+                    <strong className="t-title-s">{p.page_no}쪽{p.title ? `, ${clean(p.title)}` : ""}</strong>
+                    {p.summary && <p className="t-body">{clean(p.summary)}</p>}
                     <ReasonChips reasons={p.reasons} />
                   </div>
                 ))}
@@ -133,6 +133,9 @@ export function JokboScreen({ docId }: { docId: string }) {
     </div>
   );
 }
+
+/** PDF에서 뽑은 글에 섞인 깨진 기호(글꼴 전용 문자)를 걷어 낸다 */
+const clean = (t: string) => t.replace(/[\uE000-\uF8FF\uFFFD]/g, "").replace(/\s{2,}/g, " ");
 
 function Section({ icon, title, tone, action, children }: { icon: string; title: string; tone?: string; action?: ReactNode; children: ReactNode }) {
   return (
