@@ -222,7 +222,7 @@ export default function QuizCards({ makePath, scopeLabel, onPage }: { makePath: 
             )}
             <div className="qz-explain">
               <b className="qz-verdict"><Mark verdict={r.verdict} />{r.verdict === "correct" ? "맞았어요" : "다시 볼 부분이 있어요"}</b>
-              {r.verdict !== "correct" && <p className="qz-concept"><span>핵심 개념</span>{q.topic || "이 쪽 내용"}<small>{q.page_no}쪽에서 다시 보기</small></p>}
+              {r.verdict !== "correct" && <p className="qz-concept"><span>핵심 개념</span>{q.topic || "이 쪽 내용"}{onPage && q.page_no ? <button className="qz-concept-go" onClick={() => onPage(q.page_no)}>{q.page_no}쪽 복습하기 →</button> : <small>{q.page_no}쪽</small>}</p>}
               {q.explanation && <p className="qz-why">{q.explanation}</p>}
             </div>
           </div>

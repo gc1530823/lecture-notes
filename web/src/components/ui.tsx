@@ -133,6 +133,8 @@ export function TopBar({ title, onBack, action, home = true }: { title: string; 
   );
 }
 
+// 필기 종류마다 작은 선 아이콘 (색만으로 구분하지 않게)
+const NOTE_ICON: Partial<Record<NoteType, string>> = { exam: "warning-circle", emphasis: "megaphone", example: "file-text", explanation: "book-open-text", tip: "lightbulb", notice: "calendar-dots", qa: "question" };
 export const NOTE_LABEL: Record<NoteType, string> = {
   explanation: "보충설명", example: "예시", emphasis: "강조", exam: "시험", notice: "공지", tip: "팁", qa: "질문",
 };
@@ -150,7 +152,7 @@ export function PostIt({ type, number, children, tag, photo, meeting }: {
     <article className={`postit postit-${type}`} style={style}>
       {type === "exam" && !meeting && <span className="exam-stamp" aria-hidden="true">시험</span>}
       <div className="postit-head">
-        <span>{(meeting && MEETING_LABEL[type]) || NOTE_LABEL[type] || type}</span>
+        <span className="postit-kind"><Icon name={NOTE_ICON[type] ?? "note-pencil"} size={13} />{(meeting && MEETING_LABEL[type]) || NOTE_LABEL[type] || type}</span>
         {number !== undefined && <span className="postit-badge">{number}</span>}
       </div>
       {photo && <img className="postit-photo" src={photo} alt="칠판 사진" loading="lazy" />}

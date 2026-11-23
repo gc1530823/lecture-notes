@@ -142,7 +142,12 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   const [cut, setCut] = useState<{ ms: number; native: boolean; elsewhere: boolean } | null>(null);
   // 녹음 파일로 정리 중인 강의: 끝날 때까지 필기를 다시 받아 온다
   const [serverStatus, setServerStatus] = useState<{ status: string; progress: number | null; error?: string | null; engine?: string | null; analysis?: { done_ms: number; total_ms: number; page: number | null } | null } | null>(null);
-  const [justDone, setJustDone] = useState(false); // 정리가 막 끝났을 때 잠깐 '정리 끝' 표시
+  const [justDone, setJustDone] = useState(false);
+  // 정리 진행이 1분 넘게 그대로면 '잠시 멈춤'으로 보여 준다 (AI 한도를 기다리는 중일 수 있다)
+  const lastMove = useRef<{ key: string; at: number }>({ key: "", at: Date.now() });
+  const progressKey = `${serverStatus?.status}:${serverStatus?.progress ?? ""}:${serverStatus?.analysis?.done_ms ?? ""}`;
+  if (progressKey !== lastMove.current.key) lastMove.current = { key: progressKey, at: Date.now() };
+  const stalled = !!serverStatus && ["transcribing", "processing"].includes(serverStatus.status) && Date.now() - lastMove.current.at > 60000; // 정리가 막 끝났을 때 잠깐 '정리 끝' 표시
   useEffect(() => {
     if (!initialSession) return;
     let alive = true;
@@ -587,7 +592,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   };
 
   return (
-    <div className={`screen lecture${recording ? " night-rec" : ""}${!recording && serverStatus?.status && ["transcribing", "processing"].includes(serverStatus.status) ? " analyzing" : ""}${!recording && serverStatus?.analysis?.page === page ? " analyzing-here" : ""}${justDone ? " just-done" : ""}`}>
+    <div className={`screen lecture${recording ? " night-rec" : ""}${!recording && serverStatus?.status && ["transcribing", "processing"].includes(serverStatus.status) ? " analyzing" : ""}${!recording && !stalled && serverStatus?.analysis?.page === page ? " analyzing-here" : ""}${justDone ? " just-done" : ""}`}>
       <TopBar title={doc.title} onBack={back} home={false} action={
         <div className="row" style={{ gap: 0 }}>
           <button className="top-bar-back" aria-label={`용어 사전 ${terms.length}개`} onClick={() => setSheet("glossary")} style={{ position: "relative" }}>
@@ -720,7 +725,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           const notedPages = new Set(notes.filter((n) => !n.pending).map((n) => n.page_no));
           const nowPage = an?.page ?? null;
           return (
-            <div className={`ai-work${st === "done" ? " finished" : ""}`} role="status">
+            <div className={`ai-work${st === "done" ? " finished" : ""}${stalled ? " stalled" : ""}`} role="status">
               <div className="aw-top">
                 {st === "done" ? <span className="aw-check" aria-hidden="true"><Icon name="check" size={16} /></span> : (
                   <span className="aw-flow" aria-hidden="true">
@@ -730,15 +735,15 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
                   </span>
                 )}
                 <span className="aw-text">
-                  <b>{st === "done" ? "정리 끝" : st === "transcribing" ? "교수님 말을 받아쓰는 중" : an ? "쪽마다 필기로 옮기는 중" : "요약과 퀴즈를 만드는 중"}</b>
-                  <small>{st === "done" ? `필기가 ${notedPages.size}쪽에 붙었어요` : st === "transcribing" ? `${Math.round((serverStatus?.progress ?? 0) * 100)}%` : an ? `${mm(an.done_ms)} / ${mm(an.total_ms)} 분석${nowPage ? `, 지금 ${nowPage}쪽` : ""}` : "거의 다 됐어요"}</small>
+                  <b>{st === "done" ? "정리 끝" : stalled ? "잠시 멈췄어요" : st === "transcribing" ? "교수님 말을 받아쓰는 중" : an ? "쪽마다 필기로 옮기는 중" : "요약과 퀴즈를 만드는 중"}</b>
+                  <small>{st === "done" ? `필기가 ${notedPages.size}쪽에 붙었어요` : stalled ? "AI 사용 한도가 풀리길 기다리는 중이에요. 저절로 이어서 해요" : st === "transcribing" ? `${Math.round((serverStatus?.progress ?? 0) * 100)}%` : an ? `${mm(an.done_ms)} / ${mm(an.total_ms)} 분석${nowPage ? `, 지금 ${nowPage}쪽` : ""}` : "거의 다 됐어요"}</small>
                 </span>
                 <span className="aw-pct">{Math.round(pct * 100)}<small>%</small></span>
               </div>
               <span className="aw-bar"><i style={{ transform: `scaleX(${pct})` }} /></span>
               {/* 쪽마다 상태: 끝(필기 있음) · 지금 · 기다림. 누르면 그 쪽으로 */}
               {!notebook && (
-                <div className="aw-pages" aria-label="쪽마다 정리 상태">
+                <div className="aw-pages" aria-label="쪽마다 정리 상태"><span className="aw-pages-sum">필기 붙은 쪽 {notedPages.size} / {doc.pages.length}</span>
                   {doc.pages.map((p) => {
                     const state = p.page_no === nowPage && st !== "done" ? "now" : notedPages.has(p.page_no) ? "done" : "wait";
                     return <button key={p.id} className={`aw-p ${state}${p.page_no === page ? " here" : ""}`} style={{ ["--k" as string]: p.page_no }} onClick={() => goTo(p.page_no)}
