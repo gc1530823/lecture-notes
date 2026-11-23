@@ -5,6 +5,7 @@ import type { DocumentBrief } from "../api/types";
 import { getJSON, postJSON, useApi } from "../api/useApi";
 import { android } from "../lib/live";
 import { Empty, Icon, ListItem } from "../components/ui";
+import { Moon, moonName, moonNext, moonPhase } from "../components/Moon";
 import { ExamBanner } from "./Semester";
 import { Timetable } from "./Timetable";
 import { StreakBadge } from "./Story";
@@ -349,7 +350,8 @@ function HomeHead() {
         </span>
       </div>
       <div className="home-hello">
-        <span className="home-date"><b>{new Date().getDate()}</b><span>{new Date().toLocaleDateString("ko-KR", { month: "long" })}<br />{new Date().toLocaleDateString("ko-KR", { weekday: "long" })}</span></span>
+        <span className="home-date"><b>{new Date().getDate()}</b><span>{new Date().toLocaleDateString("ko-KR", { month: "long" })}<br />{new Date().toLocaleDateString("ko-KR", { weekday: "long" })}</span>
+          <span className="home-moon"><Moon size={30} phase={moonPhase()} /><small>오늘 밤 {moonName(moonPhase())}<br />{moonNext(moonPhase())}</small></span></span>
         <h1>{hello}{name ? <>, <em>{name}</em>님</> : ""}</h1>
         {line && <p>{line}</p>}
       </div>

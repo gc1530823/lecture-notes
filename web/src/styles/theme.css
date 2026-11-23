@@ -817,11 +817,8 @@
 
 /* 홈 머리: 오른쪽 위에 화면 밖으로 잘린 초승달과 점선 궤도, 별 두 점 */
 .home-head { position: relative; overflow: hidden; }
-.home-head::after { content: ""; position: absolute; right: -54px; top: 58px; width: 150px; height: 150px; border-radius: 50%; pointer-events: none; z-index: 0;
-  background: radial-gradient(circle at 34% 50%, transparent 0 58%, var(--moon-fill) 58.5%); box-shadow: inset 0 0 0 1px var(--moon-line); }
 .home-hello { position: relative; z-index: 1; }
 .home-hello::before { content: ""; position: absolute; right: 18px; top: -6px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent-2); box-shadow: -34px 26px 0 -1px var(--accent-3), 14px 44px 0 -1.5px var(--accent-2); opacity: .8; }
-.home-date::after { content: "Study night · 오늘의 기록"; margin-left: 4px; align-self: flex-end; padding-bottom: 6px; font: 600 9.5px/1 var(--font-num); letter-spacing: .14em; text-transform: uppercase; color: var(--text-tertiary); opacity: .8; }
 
 /* 녹음 판: 바깥에 얇은 궤도선 하나 (판보다 살짝 크게, 어긋나게) */
 .record-hub { position: relative; }
@@ -849,10 +846,7 @@
 .cal-day.today { position: relative; }
 .cal-day.today::before { content: ""; position: absolute; top: 2px; left: 50%; width: 9px; height: 9px; margin-left: 9px; border-radius: 50%; box-shadow: -2.5px 1.5px 0 0 var(--accent-2); transform: rotate(-20deg); }
 
-/* 퀴즈 결과 링 뒤에 아주 옅은 보름달 */
-.qz-ring { position: relative; }
 .qz-end { position: relative; overflow: hidden; }
-.qz-end::before { content: ""; position: absolute; left: 50%; top: 14px; width: 170px; height: 170px; margin-left: -85px; border-radius: 50%; background: var(--moon-fill); opacity: .6; z-index: 0; }
 .qz-end > * { position: relative; z-index: 1; }
 
 /* 빈 화면: 아이콘 뒤에 잘린 원 하나 */
@@ -862,3 +856,14 @@
 /* 아래 탭바 위에 아주 얇은 지평선 그라데이션 */
 .tabbar::before { content: ""; position: absolute; left: 18%; right: 18%; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, var(--accent-2), transparent); opacity: .5; }
 .tabbar { position: fixed; }
+
+/* ════════ 달 = 진짜 정보: 오늘 밤 달 · 정리된 만큼 · 맞힌 만큼 ════════ */
+.home-moon { display: inline-flex; align-items: center; gap: 8px; margin-left: 10px; align-self: flex-end; padding: 0 0 4px 12px; border-left: 1px solid var(--border-line); }
+.home-moon .moon { animation: none; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--moon-lit) 55%, transparent)); }
+.home-moon small { font-size: 11px; line-height: 1.35; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
+.aw-moon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; }
+.aw-moon .moon { animation: none; filter: none; }
+.aw-moon .moon-lit { transition: d .8s cubic-bezier(.2,.9,.2,1); }
+.ai-work.finished .aw-moon .moon { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--moon-lit) 70%, transparent)); }
+.qz-moon { display: grid; place-items: center; margin: 6px auto 4px; }
+.qz-moon .moon { filter: drop-shadow(0 0 22px color-mix(in srgb, var(--moon-lit) 60%, transparent)); }

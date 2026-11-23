@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getJSON, postJSON } from "../api/useApi";
 import { Button, Chip, TopBar } from "../components/ui";
+import { Moon } from "../components/Moon";
 import { back, go } from "../router";
 import { play } from "../lib/sound";
 import { useSwipe } from "../lib/gesture";
@@ -172,11 +173,9 @@ export default function QuizCards({ makePath, scopeLabel, onPage }: { makePath: 
       <div className="qz">
         {dots}
         <div className="flashcard qz-card qz-end card-in">
-          <svg className="qz-ring" viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
-            <circle cx="60" cy="60" r="50" className="track" />
-            <circle cx="60" cy="60" r="50" className="fill" style={{ strokeDasharray: `${(pct / 100) * 314} 314`, ["--dash" as string]: `${(pct / 100) * 314}` }} />
-          </svg>
-          <span className="qz-pct">정답률 {pct}%</span>
+          {/* 맞힌 만큼 달이 차오른다: 다 맞히면 보름달 */}
+          <span className="qz-moon"><Moon size={112} phase={Math.max(0.035, pct / 200)} /></span>
+          <span className="qz-pct">{pct >= 100 ? "보름달이 떴어요 · " : ""}정답률 {pct}%</span>
           <strong className="qz-score">{set.score % 1 ? set.score.toFixed(1) : set.score} / {total}</strong>
           <span className="t-caption muted">{pct >= 80 ? "아주 잘했어요. 이 강의는 거의 다 이해했어요" : pct >= 50 ? "절반 넘게 맞았어요. 틀린 카드를 다시 넘겨 보세요" : "틀린 카드의 해설을 읽고 한 번 더 풀어 봐요"}</span>
           {missed.length > 0 && (

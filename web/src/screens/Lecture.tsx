@@ -13,6 +13,7 @@ import { clock, LectureMore, PlayerBar, TaskDetail, TaskList, usePlayer, type Fu
 import { ConsentSheet } from "./ExamPrep";
 import { loadPdf, renderPage, type PdfDoc } from "../lib/pdf";
 import { Button, Chip, Icon, NOTE_LABEL, PostIt, TermCard, TopBar } from "../components/ui";
+import { Moon } from "../components/Moon";
 import { back as goBack, go } from "../router";
 import { askYes, tell } from "../components/Dialog";
 import { Skeleton } from "../lib/motion";
@@ -746,13 +747,8 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
           return (
             <div className={`ai-work${st === "done" ? " finished" : ""}${stalled ? " stalled" : ""}`} role="status">
               <div className="aw-top">
-                {st === "done" ? <span className="aw-check" aria-hidden="true"><Icon name="check" size={16} /></span> : (
-                  <span className="aw-flow" aria-hidden="true">
-                    <span className="aw-wave">{Array.from({ length: 7 }, (_, i) => <i key={i} style={{ animationDelay: `${i * 0.09}s` }} />)}</span>
-                    <span className="aw-arrow" />
-                    <span className="aw-lines"><i /><i /><i /></span>
-                  </span>
-                )}
+                {/* 정리된 만큼 달이 차오른다: 끝나면 보름달 */}
+                <span className="aw-moon" aria-hidden="true"><Moon size={36} phase={st === "done" ? 0.5 : Math.max(0.035, pct / 2)} /></span>
                 <span className="aw-text">
                   <b>{st === "done" ? "정리 끝" : stalled ? "잠시 멈췄어요" : st === "transcribing" ? "교수님 말을 받아쓰는 중" : an ? "쪽마다 필기로 옮기는 중" : "요약과 퀴즈를 만드는 중"}</b>
                   <small>{st === "done" ? `필기가 ${notedPages.size}쪽에 붙었어요` : stalled ? "AI 사용 한도가 풀리길 기다리는 중이에요. 저절로 이어서 해요" : st === "transcribing" ? `${Math.round((serverStatus?.progress ?? 0) * 100)}%` : an ? `${mm(an.done_ms)} / ${mm(an.total_ms)} 분석${nowPage ? `, 지금 ${nowPage}쪽` : ""}` : "거의 다 됐어요"}</small>
