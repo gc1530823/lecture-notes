@@ -612,3 +612,60 @@
 @media (prefers-reduced-motion: reduce) {
   .lec-wave i, .aw-wave i, .aw-lines i, .aw-lines em, .postit-grid > *, .postit .note-text > *, .note-hi, .cal-day.sel .n, .cal-count, .agenda-head > b, .qz-bar i.now::after, .bottom-bar.rec .caption-line mark { animation: none !important; }
 }
+
+/* ════════ 5차: AI가 하는 일을 보이게 ════════ */
+.ai-work { display: flex !important; flex-direction: column; gap: 10px !important; padding: 16px 16px 14px !important; border-radius: 18px !important; background: var(--accent-lav-soft) !important; transition: background .6s; }
+.aw-top { display: flex; align-items: center; gap: 12px; }
+.aw-flow { display: flex; align-items: center; gap: 8px; flex: none; }
+.aw-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.aw-text b { font: 800 15px/20px var(--font-sans); letter-spacing: -.02em; color: var(--text-primary); }
+.aw-text small { font: 600 12.5px/16px var(--font-num); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.aw-pct { font: 600 28px/1 var(--font-num); letter-spacing: -.04em; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.aw-pct small { font-size: 13px; color: var(--text-tertiary); margin-left: 1px; }
+.aw-bar { display: block; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--accent-lav) 30%, transparent); overflow: hidden; }
+.aw-bar i { display: block; height: 100%; background: var(--accent-lav); transform-origin: left; transition: transform 1.2s cubic-bezier(.2,.8,.2,1), background .6s; }
+.aw-pages { display: flex; flex-wrap: wrap; gap: 4px; }
+.aw-p { width: 14px; height: 18px; border: 0; padding: 0; border-radius: 3px; cursor: pointer; background: color-mix(in srgb, var(--text-tertiary) 22%, transparent); transition: background .5s, transform .3s cubic-bezier(.2,1.5,.3,1); }
+.aw-p.done { background: var(--accent-primary); }
+.aw-p.now { background: var(--accent-lav); animation: aw-now 1s ease-in-out infinite; }
+@keyframes aw-now { 50% { transform: scaleY(.6); opacity: .6; } }
+.aw-p.here { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--accent-2); }
+.aw-p:active { transform: scale(.8); }
+/* 정리가 끝나면 라벤더 → 플럼 확인 표시로 바뀐다 */
+.ai-work.finished { background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-card)) !important; }
+.ai-work.finished .aw-bar i { background: var(--accent-primary); }
+.aw-check { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--accent-primary); color: var(--text-on-accent); display: grid; place-items: center; animation: aw-done .6s cubic-bezier(.2,1.6,.3,1); }
+@keyframes aw-done { from { transform: scale(0) rotate(-90deg); } }
+
+/* 받아쓰기 중 시험 얘기: 그 문장에 코랄 형광펜이 그어진다 */
+.caption-text.hot { background-image: linear-gradient(transparent 58%, color-mix(in srgb, var(--accent-record) 45%, transparent) 58%); background-repeat: no-repeat; background-size: 100% 100%; animation: hl-draw .7s cubic-bezier(.3,.7,.2,1) both; }
+
+/* 필기 글줄: 한 줄씩 자연스럽게 (흐림 + 살짝 올라오며) */
+@keyframes note-line { from { opacity: 0; transform: translateY(4px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
+.postit .note-text > * { clip-path: none !important; }
+
+/* 필기 탭: 쪽 번호를 누르면 그 슬라이드로 */
+.page-jump { align-self: flex-start; border: 0; background: none; padding: 0; font: 700 12px/16px var(--font-num); color: var(--accent-2); cursor: pointer; letter-spacing: .01em; }
+.page-jump:active { color: var(--accent-primary); }
+
+/* 퀴즈: 고른 칸이 먼저 반응 → (틀렸으면) 정답 칸이 이어서 → 표시 → 해설 */
+.qz-choice.given { animation-delay: 0s !important; }
+.qz-choice.ans:not(.given) { animation: qz-ans .5s cubic-bezier(.2,1.5,.3,1) .45s both !important; }
+.qz-choices.done .qz-choice:not(.given):not(.ans) { animation: qz-dim .4s .2s both; }
+@keyframes qz-dim { from { color: var(--text-primary); } }
+.qz-choice.given .qz-mark { animation-delay: .2s !important; }
+.qz-choice.ans:not(.given) .qz-mark { animation-delay: .7s !important; }
+.qz-explain { animation-delay: .8s !important; }
+.qz-explain > :nth-child(1) { animation-delay: .85s; } .qz-explain > :nth-child(2) { animation-delay: .95s; } .qz-explain > :nth-child(3) { animation-delay: 1.05s; }
+
+/* 일정: 고른 날의 할 일이 달력 바로 아래에서 위→아래로 펼쳐진다 */
+.agenda { animation: agenda-unfold .5s cubic-bezier(.2,.9,.2,1) both !important; transform-origin: top; }
+@keyframes agenda-unfold { from { opacity: 0; clip-path: inset(0 0 100% 0); transform: translateY(-6px); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
+
+/* 시험 준비: 퀴즈·약점 노트에 쌓이는 느낌 */
+.prep-sub { position: relative; overflow: hidden; }
+.prep-sub em { display: block; }
+.prep-sub.quiz::after, .prep-sub.weak::after { content: ""; position: absolute; right: 14px; top: 14px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid currentColor; opacity: .25; }
+
+@media (prefers-reduced-motion: reduce) { .aw-p.now, .aw-check, .caption-text.hot, .agenda, .qz-choice.ans:not(.given), .qz-choices.done .qz-choice { animation: none !important; } .aw-bar i { transition: none; } }
+.aw-flow .aw-lines { width: 26px; } .aw-flow { gap: 5px; } .aw-text b, .aw-text small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .aw-text b { font-size: 14.5px; }

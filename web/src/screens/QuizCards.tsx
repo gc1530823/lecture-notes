@@ -211,13 +211,13 @@ export default function QuizCards({ makePath, scopeLabel, onPage }: { makePath: 
               <div className="qz-choices done">
                 {q.choices.map((c, i) => {
                   const key = "ABCD"[i]; const isAns = (q.answer ?? "").trim().toUpperCase().startsWith(key) || (r.verdict === "correct" && r.given === key);
-                  return <div key={i} className={`qz-choice${isAns ? " ans" : ""}${r.given === key && !isAns ? " miss" : ""}`} style={{ animationDelay: `${i * 40}ms` }}><b>{key}</b>{c}{isAns && <Mark verdict="correct" size={20} />}{r.given === key && !isAns && <Mark verdict="wrong" size={20} />}</div>;
+                  return <div key={i} className={`qz-choice${isAns ? " ans" : ""}${r.given === key ? " given" : ""}${r.given === key && !isAns ? " miss" : ""}`}><b>{key}</b>{c}{isAns && <Mark verdict="correct" size={20} />}{r.given === key && !isAns && <Mark verdict="wrong" size={20} />}</div>;
                 })}
               </div>
             ) : (
               <div className="qz-ox done">{["O", "X"].map((k) => {
                 const isAns = (q.answer ?? "").trim().toUpperCase().startsWith(k) || (r.verdict === "correct" && r.given === k);
-                return <div key={k} className={`qz-choice${isAns ? " ans" : ""}${r.given === k && !isAns ? " miss" : ""}`}><b>{k}</b></div>;
+                return <div key={k} className={`qz-choice${isAns ? " ans" : ""}${r.given === k ? " given" : ""}${r.given === k && !isAns ? " miss" : ""}`}><b>{k}</b></div>;
               })}</div>
             )}
             <div className="qz-explain">

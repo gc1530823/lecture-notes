@@ -61,6 +61,7 @@ async def lifespan(app: FastAPI):
     app.state.ocr_jobs = {}
     app.state.transcriber = make_transcriber()
     app.state.progress = {}  # 세션 id → 녹음 파일 받아쓰기 진행률 (0~1)
+    app.state.analysis = {}  # 세션 id → 필기로 옮긴 진행 상황 {done_ms, total_ms, page}
     app.state.reviews = {}
     app.state.quiz_jobs = set()  # 퀴즈를 다시 내는 중인 강의   # 세션 id → 강의 뒤 필기 다시 확인 결과 (몇 개 고쳤는지)
     app.state.notes_pdf = {}
@@ -883,9 +884,17 @@ async def _process_audio(session_id: str, document_id: str, path: str) -> None:
     # 실시간 강의와 같은 파이프라인에 받아쓰기를 차례로 흘려 넣는다
     live = LiveSession(db(), app.state.llm, db().get_session(session_id), discard)
     live.patient = True   # 녹음 파일은 기다릴 수 있다: AI 한도에 걸려도 말을 그대로 필기로 남기지 않고 기다렸다 다시
-    for seg in segments:
-        await live.handle({"type": "transcript_final", "text": seg.text, "start_ms": seg.start_ms, "end_ms": seg.end_ms})
-    await live.close()
+    # 화면에 '몇 분 중 몇 분을 분석했고 지금 몇 쪽을 보고 있는지' 보여 주려고 진행 상황을 남긴다
+    total_ms = segments[-1].end_ms if segments else 0
+    analysis = app.state.analysis
+    try:
+        for seg in segments:
+            await live.handle({"type": "transcript_final", "text": seg.text, "start_ms": seg.start_ms, "end_ms": seg.end_ms})
+            est = getattr(getattr(live, "batch", None), "estimate", None) or getattr(live, "estimate", None)
+            analysis[session_id] = {"done_ms": seg.end_ms, "total_ms": total_ms, "page": getattr(est, "page_no", None)}
+        await live.close()
+    finally:
+        analysis.pop(session_id, None)
     db().set_session_status(session_id, "processing")
     await _summarize(session_id, document_id)
 
@@ -1248,7 +1257,7 @@ def get_summary(session_id: str, background: BackgroundTasks):
         app.state.quiz_jobs.add(session_id)
         background.add_task(_remake_quiz, session_id)
     return {"status": session["status"], "error": session.get("error"), "summary": summary, "quiz_status": "making" if session_id in app.state.quiz_jobs else "ready",
-            "progress": app.state.progress.get(session_id), "review": app.state.reviews.get(session_id),
+            "progress": app.state.progress.get(session_id), "analysis": app.state.analysis.get(session_id), "review": app.state.reviews.get(session_id),
             "engine": getattr(app.state.transcriber, "engine", None)}
 
 

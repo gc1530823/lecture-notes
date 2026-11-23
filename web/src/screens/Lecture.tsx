@@ -141,14 +141,15 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   // 녹음 중에 앱·브라우저가 꺼져 '끝내기'를 못 누른 강의: 이어서 녹음하거나 여기서 끝낸다
   const [cut, setCut] = useState<{ ms: number; native: boolean; elsewhere: boolean } | null>(null);
   // 녹음 파일로 정리 중인 강의: 끝날 때까지 필기를 다시 받아 온다
-  const [serverStatus, setServerStatus] = useState<{ status: string; progress: number | null; error?: string | null; engine?: string | null } | null>(null);
+  const [serverStatus, setServerStatus] = useState<{ status: string; progress: number | null; error?: string | null; engine?: string | null; analysis?: { done_ms: number; total_ms: number; page: number | null } | null } | null>(null);
+  const [justDone, setJustDone] = useState(false); // 정리가 막 끝났을 때 잠깐 '정리 끝' 표시
   useEffect(() => {
     if (!initialSession) return;
     let alive = true;
     let timer: number | undefined;
     const poll = async () => {
       try {
-        const s = await getJSON<{ status: string; progress: number | null; error?: string | null; engine?: string | null }>(`/sessions/${initialSession}/summary`);
+        const s = await getJSON<{ status: string; progress: number | null; error?: string | null; engine?: string | null; analysis?: { done_ms: number; total_ms: number; page: number | null } | null }>(`/sessions/${initialSession}/summary`);
         if (!alive) return;
         if (s.status === "recording") {
           const got = await getJSON<{ ms: number; live?: boolean }>(`/sessions/${initialSession}/received`).catch(() => ({ ms: 0, live: false }));
@@ -158,6 +159,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         const busy = s.status === "transcribing" || s.status === "processing";
         setServerStatus((prev) => {
           if (!busy && prev && prev.status !== s.status) setRefresh((n) => n + 1); // 막 끝났으면 마지막 필기를 한 번 더 받는다
+          if (!busy && prev && ["transcribing", "processing"].includes(prev.status) && s.status === "done") { setJustDone(true); window.setTimeout(() => setJustDone(false), 4500); }
           return s;
         });
         if (busy) {
@@ -709,15 +711,44 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
             <span className="rec-pill"><i />{perk ? "시험·공지 얘기가 나왔어요" : "실시간 받아쓰기 중…"}</span>
           </>
         )}
-        {!recording && phase !== "idle" && serverStatus?.status && ["transcribing", "processing"].includes(serverStatus.status) && (
-          <div className="listen-row ai-work" role="status">
-            {/* 음성 파형이 글줄과 쪽 번호로 바뀌어 가는 모습: 왼쪽 막대가 오른쪽 줄로 접혀 들어간다 */}
-            <span className="aw-wave" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} style={{ animationDelay: `${i * 0.09}s` }} />)}</span>
-            <span className="aw-arrow" aria-hidden="true" />
-            <span className="aw-lines" aria-hidden="true"><i /><i /><i /><em>p.{page}</em></span>
-            <span className="t-caption muted">교수님 말을 쪽마다 필기로 옮기는 중…</span>
-          </div>
-        )}
+        {!recording && phase !== "idle" && ((serverStatus?.status && ["transcribing", "processing"].includes(serverStatus.status)) || justDone) && (() => {
+          // AI가 지금 무엇을 하는지: 받아쓰기(몇 %) → 쪽마다 필기로 옮기기(몇 분 중 몇 분, 지금 몇 쪽) → 요약 → 끝
+          const st = justDone ? "done" : serverStatus!.status;
+          const an = serverStatus?.analysis;
+          const mm = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
+          const pct = st === "done" ? 1 : st === "transcribing" ? (serverStatus?.progress ?? 0) * 0.4 : an?.total_ms ? 0.4 + (an.done_ms / an.total_ms) * 0.5 : 0.92;
+          const notedPages = new Set(notes.filter((n) => !n.pending).map((n) => n.page_no));
+          const nowPage = an?.page ?? null;
+          return (
+            <div className={`ai-work${st === "done" ? " finished" : ""}`} role="status">
+              <div className="aw-top">
+                {st === "done" ? <span className="aw-check" aria-hidden="true"><Icon name="check" size={16} /></span> : (
+                  <span className="aw-flow" aria-hidden="true">
+                    <span className="aw-wave">{Array.from({ length: 7 }, (_, i) => <i key={i} style={{ animationDelay: `${i * 0.09}s` }} />)}</span>
+                    <span className="aw-arrow" />
+                    <span className="aw-lines"><i /><i /><i /></span>
+                  </span>
+                )}
+                <span className="aw-text">
+                  <b>{st === "done" ? "정리 끝" : st === "transcribing" ? "교수님 말을 받아쓰는 중" : an ? "쪽마다 필기로 옮기는 중" : "요약과 퀴즈를 만드는 중"}</b>
+                  <small>{st === "done" ? `필기가 ${notedPages.size}쪽에 붙었어요` : st === "transcribing" ? `${Math.round((serverStatus?.progress ?? 0) * 100)}%` : an ? `${mm(an.done_ms)} / ${mm(an.total_ms)} 분석${nowPage ? `, 지금 ${nowPage}쪽` : ""}` : "거의 다 됐어요"}</small>
+                </span>
+                <span className="aw-pct">{Math.round(pct * 100)}<small>%</small></span>
+              </div>
+              <span className="aw-bar"><i style={{ transform: `scaleX(${pct})` }} /></span>
+              {/* 쪽마다 상태: 끝(필기 있음) · 지금 · 기다림. 누르면 그 쪽으로 */}
+              {!notebook && (
+                <div className="aw-pages" aria-label="쪽마다 정리 상태">
+                  {doc.pages.map((p) => {
+                    const state = p.page_no === nowPage && st !== "done" ? "now" : notedPages.has(p.page_no) ? "done" : "wait";
+                    return <button key={p.id} className={`aw-p ${state}${p.page_no === page ? " here" : ""}`} onClick={() => goTo(p.page_no)}
+                      aria-label={`${p.page_no}쪽, ${state === "done" ? "정리 끝" : state === "now" ? "정리 중" : "기다리는 중"}`} />;
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
         {!recording && phase === "ended" && sessionId && cut && (
           <div className="cut-banner" role="alert">
             <span className="cut-ic"><Icon name="warning-circle" size={20} /></span>
@@ -750,7 +781,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
         {recording && !a11y && (
           <p className="caption-line t-caption" aria-live="polite">
             <span className="rec-dot" />
-            {loud && <span className="loud-tag">목소리 높임</span>}<span className="caption-text" key={caption.slice(0, 12)}>{caption}</span>
+            {loud && <span className="loud-tag">목소리 높임</span>}<span className={`caption-text${perk ? " hot" : ""}`} key={caption.slice(0, 12)}>{caption}</span>
           </p>
         )}
         {recording && a11y && (

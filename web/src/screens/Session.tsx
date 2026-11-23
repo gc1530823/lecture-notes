@@ -6,7 +6,7 @@ import { Button, Chip, Empty, Fold, Hint, Icon, NoteSection, PostIt, TermCard, T
 import { back, go } from "../router";
 import { NotesPdf, StudyNotePdf } from "./LectureExtras";
 import Study, { ConceptExplain, Organize } from "./Study";
-import { StoryEntry } from "./Story";
+import { StoryEntry, jumpToMoment } from "./Story";
 import { Skeleton } from "../lib/motion";
 import SlidingTabs from "../components/SlidingTabs";
 import { askYes, tell } from "../components/Dialog";
@@ -106,7 +106,7 @@ function Notes({ doc, sessionId }: { doc: DocumentDetail; sessionId: string }) {
         const heading = (lines.find((l) => (firstCount.get(l) ?? 0) < 3) ?? lines[0] ?? "").replace(/^[▸▶•\-\s]+/, "").slice(0, 44);
         return (
           <section key={p.id} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <h2 className="page-title"><small>{p.page_no}쪽</small>{heading || `${p.page_no}쪽`}</h2>
+            <h2 className="page-title"><button className="page-jump" onClick={() => jumpToMoment(doc.id, sessionId, p.page_no, null)} aria-label={`${p.page_no}쪽 슬라이드 열기`}>{p.page_no}쪽 슬라이드 보기 →</button>{heading || `${p.page_no}쪽`}</h2>
             {pageSummary.get(p.page_no) && <p className="page-sum">{pageSummary.get(p.page_no)}</p>}
             <div className="postit-grid">
               {mine.map((n, i) => (
