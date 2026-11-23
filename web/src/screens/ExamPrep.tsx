@@ -387,7 +387,7 @@ export function PrivacyScreen() {
         <section className="set-group">
           <h3>화면</h3>
           <SettingRow icon="sparkle" title="화면 색" right={<Segmented value={prefs.theme} onChange={(v) => change({ theme: v })}
-            options={[["system", "기기대로"], ["light", "밝게"], ["dark", "어둡게"]]} />} />
+            options={[["system", "해 지면 밤"], ["light", "밝게"], ["dark", "어둡게"]]} />} />
           <SettingRow icon="book-open-text" title="글자 크기" right={<Segmented value={prefs.text} onChange={(v) => change({ text: v })}
             options={[["normal", "보통"], ["large", "크게"], ["xlarge", "아주 크게"]]} />} />
           <SettingRow icon="waveform" title="움직임 줄이기" sub="화면 전환·카드 효과를 끄고 바로 보여 줘요"

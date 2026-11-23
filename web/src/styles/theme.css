@@ -477,8 +477,8 @@
 .qz-start, .qz-start * { text-align: left; } .qz-start .btn { justify-content: center; }
 
 /* ════════ 3차: 완성도 ════════ */
-/* 타이포 역할: 숫자·영문 메타는 Space Grotesk, 제목·본문은 Noto Sans KR */
-:root { --font-num: "Space Grotesk", "Noto Sans KR", system-ui, sans-serif; }
+/* 타이포 역할: 숫자·영문 메타는 Nunito(둥근 숫자), 제목·본문은 Noto Sans KR */
+:root { --font-num: "Nunito", "Noto Sans KR", system-ui, sans-serif; }
 .home-date > b, .agenda-head > b, .lec-no, .qz-count b, .qz-progress-top b, .qz-score, .qz-pct, .tasks-head h2 b, .task-date b, .cal-day .n, .rec-clock, .qz-go-n, .prep em, .tasks-card .task-date b { font-family: var(--font-num) !important; font-variant-numeric: tabular-nums; }
 .home-date > b { font-weight: 600 !important; font-size: 52px !important; letter-spacing: -.05em !important; }
 .sig-copy small, .qz-kick { font-family: var(--font-num) !important; font-weight: 600 !important; letter-spacing: .18em !important; text-transform: uppercase; }
@@ -937,3 +937,47 @@
 .empty-moon .moon-dark { fill: color-mix(in srgb, var(--accent-primary) 7%, transparent); }
 .empty-moon .moon-crater { display: none; }
 .intro-copy .btn { background: var(--accent-3) !important; color: #30202D !important; }
+
+/* ════════ 밤하늘 맞춤: 과목 색 · 홈 위 밤하늘 띠 · 별 반짝임 ════════ */
+/* 과목 색은 밤하늘 네 가지(플럼 · 라벤더 · 로즈 · 버터)의 짙고 옅은 두 벌 안에서만 */
+:root {
+  --blk0: #EBDDE6; --blk0-ink: #5B2E4F;  --blk1: #E4E0F7; --blk1-ink: #4A3F8F;
+  --blk2: #F8DCDA; --blk2-ink: #8E3B3A;  --blk3: #F7EACB; --blk3-ink: #7A5714;
+  --blk4: #DCD3E0; --blk4-ink: #3D2537;  --blk5: #EFEAF9; --blk5-ink: #5E55A6;
+  --blk6: #F4E3E0; --blk6-ink: #7C4A47;  --blk7: #FBF1DB; --blk7-ink: #6B5222;
+}
+:root[data-theme="dark"] {
+  --blk0: #4A2B41; --blk0-ink: #F3DDEB;  --blk1: #36305E; --blk1-ink: #DEDAFA;
+  --blk2: #5A2F31; --blk2-ink: #F8D3D1;  --blk3: #4F4022; --blk3-ink: #F6E3B4;
+  --blk4: #3A2B35; --blk4-ink: #E8DCE4;  --blk5: #2F2B4A; --blk5-ink: #CFC9F4;
+  --blk6: #4A3333; --blk6-ink: #F2DAD6;  --blk7: #463A24; --blk7-ink: #F3E6C4;
+}
+
+/* 홈 맨 위는 늘 밤하늘: 플럼에서 라벤더빛으로 번지다 바탕으로 녹는다. 달이 그 위에 뜬다 */
+.home-head { --sky-ink: #F8F2EA; color: var(--sky-ink); isolation: isolate; padding-bottom: 34px !important; }
+.home-head::after { content: ""; position: absolute; inset: 0 0 0 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(1.2px 1.2px at 14% 22%, #fff 50%, transparent 52%), radial-gradient(1px 1px at 38% 12%, #fffc 50%, transparent 52%),
+    radial-gradient(1.4px 1.4px at 62% 30%, #fff 50%, transparent 52%), radial-gradient(1px 1px at 24% 58%, #fff9 50%, transparent 52%),
+    radial-gradient(1px 1px at 48% 46%, #fffa 50%, transparent 52%), radial-gradient(1.2px 1.2px at 8% 74%, #fff8 50%, transparent 52%),
+    linear-gradient(180deg, #2A1B27 0%, #3D2838 42%, #6E5070 78%, color-mix(in srgb, #8E7BB0 55%, var(--bg-paper)) 100%);
+  border-radius: 0 0 34px 34px; }
+.home-head h1, .home-head .home-date b, .home-head .home-date, .home-head p, .home-head .home-moon small { color: var(--sky-ink) !important; }
+.home-head .home-date span, .home-head p, .home-head .home-moon small { color: color-mix(in srgb, var(--sky-ink) 82%, transparent) !important; }
+.home-head h1 em { color: var(--accent-3) !important; }
+.home-head .lune-word, .home-head .home-brand { color: var(--sky-ink) !important; fill: var(--sky-ink); }
+.home-head .streak-pill, .home-head .home-top-right button { background: #ffffff1c !important; border-color: #ffffff2a !important; color: var(--sky-ink) !important; box-shadow: none !important; }
+.home-bigmoon .moon-dark { fill: #ffffff10 !important; }
+.home-bigmoon .moon { filter: drop-shadow(0 0 46px color-mix(in srgb, #F3DDA9 55%, transparent)) !important; }
+.home-head + .home-search-wrap, .home-search-wrap { position: relative; margin-top: -22px; z-index: 2; }
+.home-search { box-shadow: 0 8px 24px #30202D1f !important; }
+
+/* 축하: 색종이 대신 별이 반짝 */
+.starfall { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
+.starfall i { position: absolute; background: #F3DDA9; opacity: 0;
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  animation: star-twinkle ease-out both; filter: drop-shadow(0 0 4px #F3DDA9); }
+.starfall i.big { background: #fff; }
+@keyframes star-twinkle { 0% { opacity: 0; transform: scale(.2) translateY(0) rotate(0); } 30% { opacity: 1; transform: scale(1.15) translateY(-6px) rotate(20deg); } 100% { opacity: 0; transform: scale(.6) translateY(-40px) rotate(45deg); } }
+.streak-hero small, .streak-sub.lit { color: var(--text-secondary) !important; }
+.home-head .streak-pill, .home-head .home-top-right button { background: #30202D66 !important; backdrop-filter: blur(6px); }

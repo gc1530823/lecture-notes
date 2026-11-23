@@ -19,10 +19,17 @@ export function getPrefs(): Prefs {
 
 const realVibrate = typeof navigator !== "undefined" && navigator.vibrate ? navigator.vibrate.bind(navigator) : null;
 
+let skyTimer = 0;
+export function isNight(d = new Date()): boolean { const h = d.getHours(); return h >= 19 || h < 6; }
+
 /** 설정을 화면에 적용한다: 색 · 글자 크기 · 움직임 · 진동 */
 export function applyPrefs(p: Prefs = getPrefs()) {
   const root = document.documentElement;
-  if (p.theme === "system") delete root.dataset.theme; else root.dataset.theme = p.theme;
+  // 자동: 진짜 하늘처럼 낮엔 크림, 해가 지면(저녁 7시~아침 6시) 밤하늘
+  root.dataset.theme = p.theme === "system" ? (isNight() ? "dark" : "light") : p.theme;
+  root.dataset.hour = isNight() ? "night" : "day";
+  window.clearTimeout(skyTimer);
+  skyTimer = window.setTimeout(() => applyPrefs(getPrefs()), 60_000);
   root.dataset.text = p.text;
   root.dataset.motion = p.motion;
   if (realVibrate) navigator.vibrate = p.vibrate ? realVibrate : () => false;

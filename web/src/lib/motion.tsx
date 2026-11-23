@@ -26,21 +26,19 @@ export function Count({ to, suffix = "" }: { to: number; suffix?: string }) {
   return <>{useCountUp(to)}{suffix}</>;
 }
 
-const CONFETTI = ["--note-exam-ink", "--note-explanation-ink", "--note-example-ink", "--note-tip-ink", "--accent-primary", "--note-qa-ink"];
 
 /** 위에서 흩날리는 색종이 (한 번만) */
 export function Confetti({ count = 36 }: { count?: number }) {
+  // 축하는 색종이 대신 밤하늘 별: 여기저기서 반짝이며 천천히 떠오른다
   if (reduced()) return null;
+  const n = Math.min(count, 28);
   return (
-    <div className="confetti" aria-hidden="true">
-      {Array.from({ length: count }, (_, i) => {
-        const style = {
-          left: `${(i * 37) % 100}%`, background: `var(${CONFETTI[i % CONFETTI.length]})`,
-          animationDelay: `${(i % 12) * 60}ms`, animationDuration: `${1600 + ((i * 53) % 900)}ms`,
-          "--drift": `${((i * 29) % 80) - 40}px`, "--spin": `${360 + ((i * 71) % 540)}deg`,
-          width: 6 + (i % 3) * 3, height: 10 + (i % 4) * 3,
-        } as CSSProperties;
-        return <i key={i} style={style} />;
+    <div className="starfall" aria-hidden="true">
+      {Array.from({ length: n }, (_, i) => {
+        const size = 6 + ((i * 7) % 4) * 3;
+        const style = { left: `${(i * 37 + 11) % 96}%`, top: `${(i * 53 + 7) % 78}%`, width: size, height: size,
+          animationDelay: `${(i % 9) * 110}ms`, animationDuration: `${1400 + ((i * 61) % 900)}ms` } as CSSProperties;
+        return <i key={i} style={style} className={i % 4 === 0 ? "big" : ""} />;
       })}
     </div>
   );

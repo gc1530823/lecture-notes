@@ -202,10 +202,10 @@ interface Streak { streak: number; best: number; today: boolean; week: { date: s
   carrots?: number; level?: number; level_name?: string; level_from?: number; next_at?: number | null }
 
 function Carrot() {
-  return <span className="carrot"><Icon name="fire" art size={24} /></span>;
+  return <span className="carrot"><Moon size={22} phase={0.5} /></span>;
 }
 
-/** 홈 맨 위 작은 불꽃 알약: 🔥 연속 일수. 오늘 했으면 켜지고, 누르면 이번 주 · 레벨 시트 (매일 눈에 띄되 자리는 차지하지 않게) */
+/** 홈 맨 위 작은 달 알약: 연속 일수. 오늘 했으면 켜지고, 누르면 이번 주 · 레벨 시트 (매일 눈에 띄되 자리는 차지하지 않게) */
 export function StreakBadge() {
   const [data, setData] = useState<Streak | null>(null);
   const [open, setOpen] = useState(false);
@@ -239,7 +239,7 @@ export function StreakBadge() {
               <div className="streak-level">
                 <span className="streak-lv">Lv.{data.level}</span>
                 <span className="grow"><b>{data.level_name}</b><span className="level-bar"><i style={{ width: `${pct}%` }} /></span></span>
-                <span className="streak-next"><Icon name="fire" size={13} />{data.next_at ? data.next_at - (data.carrots ?? 0) : "MAX"}</span>
+                <span className="streak-next"><Moon size={13} phase={0.5} />{data.next_at ? data.next_at - (data.carrots ?? 0) : "MAX"}</span>
               </div>
             )}
             <div className="streak-how">
@@ -254,7 +254,7 @@ export function StreakBadge() {
   );
 }
 
-/** 연속 공부: 강의를 듣거나 복습한 날마다 불꽃 하나 (며칠째 이어 가는지), 불꽃이 모이면 레벨 업 */
+/** 연속 공부: 강의를 듣거나 복습한 날마다 달 한 칸 (며칠째 이어 가는지), 달이 모이면 레벨 업 */
 export function StreakCard() {
   const [data, setData] = useState<Streak | null>(null);
   useEffect(() => { getJSON<Streak>(`/streak?tz=${-new Date().getTimezoneOffset()}`).then(setData).catch(() => setData(null)); }, []);
@@ -265,7 +265,7 @@ export function StreakCard() {
       <div className="row carrots-top">
         <span>
           <b><Count to={data.streak} /><small>일째</small></b>
-          <span className={`streak-sub${data.today ? " lit" : ""}`}>{data.today ? "오늘 달이 한 칸 찼어요" : data.streak > 0 ? "오늘도 공부하면 불꽃 하나 더" : `최고 기록 ${data.best}일`}</span>
+          <span className={`streak-sub${data.today ? " lit" : ""}`}>{data.today ? "오늘 달이 한 칸 찼어요" : data.streak > 0 ? "오늘도 공부하면 달이 한 칸 더" : `최고 기록 ${data.best}일`}</span>
         </span>
         <span className="carrot-row" aria-label="이번 주 기록">
           {data.week.map((d, i) => (
