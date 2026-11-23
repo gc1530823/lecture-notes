@@ -587,7 +587,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
   };
 
   return (
-    <div className={`screen lecture${recording ? " night-rec" : ""}`}>
+    <div className={`screen lecture${recording ? " night-rec" : ""}${!recording && serverStatus?.status && ["transcribing", "processing"].includes(serverStatus.status) ? " analyzing" : ""}${!recording && serverStatus?.analysis?.page === page ? " analyzing-here" : ""}${justDone ? " just-done" : ""}`}>
       <TopBar title={doc.title} onBack={back} home={false} action={
         <div className="row" style={{ gap: 0 }}>
           <button className="top-bar-back" aria-label={`용어 사전 ${terms.length}개`} onClick={() => setSheet("glossary")} style={{ position: "relative" }}>
@@ -741,7 +741,7 @@ export default function Lecture({ docId, sessionId: initialSession }: { docId: s
                 <div className="aw-pages" aria-label="쪽마다 정리 상태">
                   {doc.pages.map((p) => {
                     const state = p.page_no === nowPage && st !== "done" ? "now" : notedPages.has(p.page_no) ? "done" : "wait";
-                    return <button key={p.id} className={`aw-p ${state}${p.page_no === page ? " here" : ""}`} onClick={() => goTo(p.page_no)}
+                    return <button key={p.id} className={`aw-p ${state}${p.page_no === page ? " here" : ""}`} style={{ ["--k" as string]: p.page_no }} onClick={() => goTo(p.page_no)}
                       aria-label={`${p.page_no}쪽, ${state === "done" ? "정리 끝" : state === "now" ? "정리 중" : "기다리는 중"}`} />;
                   })}
                 </div>
