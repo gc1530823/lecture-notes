@@ -1037,3 +1037,10 @@
   opacity: .72 !important; mix-blend-mode: multiply; }
 .moon-date i { display: block; width: 22px; height: 2px; margin: 8px 0 7px 3px; border-radius: 2px; background: #E9A1A0; }
 .moon-date small { margin: 0 !important; padding-left: 3px; font: 800 11.5px/1 var(--font-sans) !important; letter-spacing: .06em; color: #30202D !important; opacity: .62 !important; mix-blend-mode: multiply; }
+/* 홈 머리 v6: 날짜는 왼쪽 밤하늘에, 달은 비워 둔다 */
+.home-head .home-hello { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; padding-top: 22px !important; }
+.sky-date { display: flex; align-items: flex-end; gap: 12px; color: #F8F2EA; }
+.sky-date b { font: 800 64px/.82 var(--font-num); letter-spacing: -.05em; color: #F8F2EA; }
+.sky-date > span { display: flex; flex-direction: column; gap: 7px; padding-bottom: 3px; }
+.sky-date i { display: block; width: 20px; height: 2px; border-radius: 2px; background: #E9A1A0; }
+.sky-date small { font: 800 12.5px/1.35 var(--font-sans); color: #F3DDA9; letter-spacing: .02em; }
