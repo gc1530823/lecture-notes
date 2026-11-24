@@ -1068,3 +1068,8 @@
 .top-bar .icon.lune { color: inherit; --duo-op: 0; }
 .top-bar-moon { right: -48px; top: -46px; width: 92px; height: 92px; }
 .top-bar .top-menu > .top-bar-back, .top-bar > button:last-child:not(.top-bar-back:first-of-type), .top-bar .lec-tools button { background: #2A1B27b3 !important; border-radius: 50%; }
+/* 맨 위 제목은 왼쪽 버튼 수와 상관없이 항상 화면 가운데 */
+.top-bar { position: sticky; }
+.top-bar-title { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: calc(100% - 176px); flex: none !important; pointer-events: none; }
+.top-bar > :last-child:not(.top-bar-title):not(.top-bar-back):not(.top-bar-moon) { margin-left: auto; }
+.top-bar > .top-bar-title + * { margin-left: auto !important; }
