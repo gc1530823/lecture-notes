@@ -1,0 +1,59 @@
+INFO:     Started server process [3564]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:34940 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34946 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34946 - "POST /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34946 - "POST /sessions/from-audio HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34946 - "GET /sessions/52f289a223d741f1acc78132960f8853/summary HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/audio/transcriptions "HTTP/1.1 401 Unauthorized"
+WARNING:app.groq:Groq 받아쓰기 오류 401: {"error":{"message":"Invalid API Key","type":"invalid_request_error","code":"invalid_api_key"}} (파일 part000.mp3, 2401383바이트, 프롬프트 179자)
+WARNING:app.groq:받아쓰기 조각 0 다시 시도 (힌트 없이): Groq 받아쓰기 오류 (401): {"error":{"message":"Invalid API Key","type":"invalid_request_error","code":"invalid_api_key"}}
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/audio/transcriptions "HTTP/1.1 401 Unauthorized"
+WARNING:app.groq:Groq 받아쓰기 오류 401: {"error":{"message":"Invalid API Key","type":"invalid_request_error","code":"invalid_api_key"}} (파일 part000.mp3, 2401383바이트, 프롬프트 19자)
+ERROR:app.main:녹음 파일 받아쓰기 실패
+Traceback (most recent call last):
+  File "/home/runner/work/lecture-notes/lecture-notes/server/app/groq.py", line 372, in transcribe
+    segments = self._request(os.path.basename(part), data, hint, settings.groq_whisper_model, patient, language)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/lecture-notes/lecture-notes/server/app/groq.py", line 335, in _request
+    raise LLMError(f"Groq 받아쓰기 오류 ({response.status_code}): {detail}")
+app.llm.LLMError: Groq 받아쓰기 오류 (401): {"error":{"message":"Invalid API Key","type":"invalid_request_error","code":"invalid_api_key"}}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/runner/work/lecture-notes/lecture-notes/server/app/main.py", line 870, in _process_audio
+    segments = await asyncio.to_thread(
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/lecture-notes/lecture-notes/server/app/groq.py", line 392, in transcribe
+    segments = self._request(os.path.basename(part), data, "", settings.groq_whisper_model, patient, language)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/lecture-notes/lecture-notes/server/app/groq.py", line 335, in _request
+    raise LLMError(f"Groq 받아쓰기 오류 ({response.status_code}): {detail}")
+app.llm.LLMError: Groq 받아쓰기 오류 (401): {"error":{"message":"Invalid API Key","type":"invalid_request_error","code":"invalid_api_key"}}
+INFO:     127.0.0.1:34946 - "GET /sessions/52f289a223d741f1acc78132960f8853/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34946 - "GET /sessions/52f289a223d741f1acc78132960f8853/transcript HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34946 - "GET /sessions/52f289a223d741f1acc78132960f8853/annotations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34946 - "GET /sessions/52f289a223d741f1acc78132960f8853/tasks HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: GET https://api.groq.com/openai/v1/models "HTTP/1.1 401 Unauthorized"
+INFO:httpx:HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+ERROR:app.main:질문 답변 실패
+Traceback (most recent call last):
+  File "/home/runner/work/lecture-notes/lecture-notes/server/app/main.py", line 1468, in ask
+    result = await app.state.llm.ask(question, page, recent)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/lecture-notes/lecture-notes/server/app/ollama_llm.py", line 361, in ask
+    return await self._chat(ASK_SYSTEM, _ask_prompt(question, page, recent_speech), ASK_SCHEMA,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/lecture-notes/lecture-notes/server/app/groq.py", line 169, in _chat
+    raise LLMError("GROQ_API_KEY가 올바르지 않습니다.")
+app.llm.LLMError: GROQ_API_KEY가 올바르지 않습니다.
+INFO:     127.0.0.1:34946 - "POST /sessions/52f289a223d741f1acc78132960f8853/ask HTTP/1.1" 502 Bad Gateway
