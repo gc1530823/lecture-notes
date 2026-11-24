@@ -44,7 +44,7 @@ export function JokboScreen({ docId }: { docId: string }) {
         {data && data.lectures > 0 && (
           <>
             <header className="jokbo-head">
-              <div className="meta-chips"><span className="meta-chip strong">강의 {data.lectures}번 모음</span><span className="meta-chip">AI가 지어내지 않고 수업에서 나온 것만</span></div>
+              <div className="meta-chips"><span className="meta-chip strong">강의 {data.lectures}번 모음</span></div>
               <h1 className="t-title-l">{data.title}</h1>
             </header>
 
@@ -529,7 +529,7 @@ function ShareBox({ docId, friends }: { docId: string; friends: string[] }) {
         <span className="list-item-icon is-art"><Icon name="users" art size={40} /></span>
         <span className="grow">
           <strong className="t-title-s" style={{ display: "block" }}>함께 만드는 족보</strong>
-          <span className="t-caption muted">{friends.length ? `${friends.join(", ")}의 족보를 합쳤어요` : "LUNE 친구는 같은 PDF 로 들은 족보가 저절로 합쳐져요. 친구가 아니면 파일로 주고받아요"}</span>
+          <span className="t-caption muted">{friends.length ? `${friends.join(", ")}의 족보를 합쳤어요` : "같은 자료를 들은 친구와 합쳐져요"}</span>
         </span>
       </div>
       <button className="link-row" onClick={() => go({ name: "friends" })}>

@@ -162,7 +162,7 @@ function SemesterTutor() {
   };
   return (
     <>
-      <Hint icon="chats-circle">지금까지 들은 모든 강의(슬라이드·교수님 설명·필기)에서 가까운 부분을 찾아 답해요</Hint>
+      <Hint icon="chats-circle">들은 강의 전체에서 찾아 답해요</Hint>
       {messages.length === 0 && (
         <div className="scroll-x" style={{ flexWrap: "wrap" }}>
           {["지금까지 배운 것 한 번에 정리해 줘", "앞 강의랑 이번 강의가 어떻게 이어져?", "시험 범위에서 제일 중요한 개념 3개는?"].map((q) => (

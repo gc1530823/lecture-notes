@@ -299,7 +299,6 @@ export default function Home() {
             <div className="sheet-bg" onClick={() => setPicker(null)} />
             <div className="sheet" role="dialog" aria-modal="true" aria-label="강의자료 고르기">
               <h3 className="t-title-m">{picker === "record" ? "어느 강의자료로 녹음할까요?" : "어느 강의자료에 녹음을 붙일까요?"}</h3>
-              <p className="t-caption muted">강의자료를 고르면 필기가 그 쪽 옆에 붙어요</p>
               <EnglishToggle docId={null} onChange={(v) => { pickEn.current = v; }} />
               {(docs ?? []).filter((d) => d.kind !== "meeting").map((d) => (
                 <ListItem key={d.id} icon={d.kind === "notebook" ? "notebook" : "file-pdf"} title={d.title} subtitle={subtitleOf(d)} onClick={() => choose(d.id)} />

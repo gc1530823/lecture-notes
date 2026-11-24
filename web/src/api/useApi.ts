@@ -3,10 +3,19 @@ import { useCallback, useEffect, useState } from "react";
 
 const BASE = import.meta.env.VITE_API_URL ?? "";
 
+// PDF에서 뽑은 글에 섞여 오는 깨진 글자(사용자 정의 영역 · 대체 문자)를 화면에 닿기 전에 걷어낸다
+const BROKEN = /[\uE000-\uF8FF\uFFFD]/g;
+function scrub<T>(v: T): T {
+  if (typeof v === "string") return v.replace(BROKEN, "") as T;
+  if (Array.isArray(v)) return v.map(scrub) as T;
+  if (v && typeof v === "object") { for (const k of Object.keys(v)) (v as Record<string, unknown>)[k] = scrub((v as Record<string, unknown>)[k]); }
+  return v;
+}
+
 export async function getJSON<T>(path: string): Promise<T> {
   const res = await fetch(BASE + path);
   if (!res.ok) throw new Error(await errorText(res));
-  return res.json() as Promise<T>;
+  return scrub(await res.json()) as T;
 }
 
 export async function postJSON<T>(path: string, body?: unknown): Promise<T> {
@@ -16,7 +25,7 @@ export async function postJSON<T>(path: string, body?: unknown): Promise<T> {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await errorText(res));
-  return res.json() as Promise<T>;
+  return scrub(await res.json()) as T;
 }
 
 async function errorText(res: Response): Promise<string> {
