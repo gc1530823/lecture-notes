@@ -13,7 +13,6 @@ import { TasksCard } from "./Tasks";
 import { IosInstallHint } from "../components/IosHint";
 import { Skeleton } from "../lib/motion";
 import { courseTone } from "../lib/course";
-import { useWaves, Wave } from "../lib/wave";
 import { go } from "../router";
 import { getPrefs } from "../lib/prefs";
 import { refreshNotices } from "../lib/notices";
@@ -21,9 +20,19 @@ import { LuneMark, LuneWordmark } from "../components/Brand";
 import { askText, tell } from "../components/Dialog";
 
 
-export function subtitleOf(doc: DocumentBrief): string {
-  const kind = doc.kind === "meeting" ? `회의, 안건 ${doc.page_count}개` : doc.kind === "notebook" ? `노트, 주제 ${doc.page_count}개` : `슬라이드 ${doc.page_count}쪽`;
-  return `${doc.kind === "meeting" || doc.kind === "notebook" ? kind : `${doc.page_count}쪽`} · ${doc.sessions.length ? `${doc.sessions.length}강` : "녹음 전"} · ${relativeDay(doc.created_at)}`;
+export function subtitleOf(doc: DocumentBrief) {
+  const pages = doc.kind === "meeting" ? `회의, 안건 ${doc.page_count}개`
+    : doc.kind === "notebook" ? `노트, 주제 ${doc.page_count}개`
+    : `${doc.page_count}쪽`;
+  const pageIcon = doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-text";
+  const sessions = doc.sessions.length ? `${doc.sessions.length}강` : "녹음 전";
+  return (
+    <span className="doc-meta">
+      <span><Icon name={pageIcon} size={13} />{pages}</span>
+      <span><Icon name="microphone" size={13} />{sessions}</span>
+      <span><Icon name="calendar-dots" size={13} />{relativeDay(doc.created_at)}</span>
+    </span>
+  );
 }
 
 export function relativeDay(seconds: number): string {
@@ -92,7 +101,6 @@ function FirstSteps({ docs, onDoc, onRecord }: { docs: DocumentBrief[]; onDoc: (
 export default function Home() {
   const { data: docs, error, loading, reload } = useApi<DocumentBrief[]>("/documents");
   useReminder();
-  const waves = useWaves();
   // 처음 쓰는 사람은 소개 화면부터 (데모가 아닐 때)
   useEffect(() => {
     try { if (!localStorage.getItem("ln.onboarded") && !sessionStorage.getItem("ln.introSeen")) { sessionStorage.setItem("ln.introSeen", "1"); go({ name: "intro" }); } } catch { /* 괜찮다 */ }
@@ -276,7 +284,7 @@ export default function Home() {
               <h3 className={`course-title ${courseTone(course)}`}><span>{course || "과목 없음"}</span> <small>{list.length}</small></h3>
             )}
             {list.map((doc, i) => (
-              <ListItem key={doc.id} index={i} tone={courseTone(doc.course)} art={doc.sessions[0] && waves[doc.sessions[0].id]?.w ? <Wave data={waves[doc.sessions[0].id]} /> : undefined} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
+              <ListItem key={doc.id} index={i} tone={courseTone(doc.course)} icon={doc.kind === "meeting" ? "users" : doc.kind === "notebook" ? "notebook" : "file-pdf"} title={doc.title}
                 subtitle={subtitleOf(doc)} onClick={() => go({ name: "doc", docId: doc.id })} />
             ))}
           </section>
