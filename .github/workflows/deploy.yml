@@ -1,0 +1,51 @@
+name: Deploy to Hugging Face
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build web dist
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup Python and huggingface_hub
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Upload build to Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          pip install -q huggingface_hub
+          python - <<'EOF'
+          import os
+          from huggingface_hub import HfApi
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          repo_id = "kimheejin0823/lune-server"
+          api.create_repo(repo_id=repo_id, repo_type="model", private=True, exist_ok=True)
+          api.upload_folder(
+              folder_path="web/dist",
+              path_in_repo="web/dist",
+              repo_id=repo_id,
+              repo_type="model",
+          )
+          EOF
