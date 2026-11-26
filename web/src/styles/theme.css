@@ -665,7 +665,9 @@
 /* 시험 준비: 퀴즈·약점 노트에 쌓이는 느낌 */
 .prep-sub { position: relative; overflow: hidden; }
 .prep-sub em { display: block; }
-.prep-sub.quiz::after, .prep-sub.weak::after { content: ""; position: absolute; right: 14px; top: 14px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid currentColor; opacity: .25; }
+.prep-arrow { position: absolute; right: 14px; top: 14px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; }
+.prep-sub.quiz .prep-arrow { background: var(--text-on-accent); color: var(--accent-primary); }
+.prep-sub.weak .prep-arrow { background: var(--text-primary); color: var(--bg-card); }
 
 @media (prefers-reduced-motion: reduce) { .aw-p.now, .aw-check, .caption-text.hot, .agenda, .qz-choice.ans:not(.given), .qz-choices.done .qz-choice { animation: none !important; } .aw-bar i { transition: none; } }
 .aw-flow .aw-lines { width: 26px; } .aw-flow { gap: 5px; } .aw-text b, .aw-text small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .aw-text b { font-size: 14.5px; }
@@ -1073,3 +1075,14 @@
 .top-bar-title { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: calc(100% - 176px); flex: none !important; pointer-events: none; }
 .top-bar > :last-child:not(.top-bar-title):not(.top-bar-back):not(.top-bar-moon) { margin-left: auto; }
 .top-bar > .top-bar-title + * { margin-left: auto !important; }
+
+/* 시험 준비 칸 정렬: 세 칸 모두 같은 여백 20px · 제목 왼쪽 아래 · 화살표 오른쪽 위 같은 크기·같은 자리 */
+.prep { gap: 10px; }
+.prep .prep-main, .prep .prep-sub { position: relative; min-height: 112px; padding: 20px; justify-content: flex-end; gap: 4px; }
+.prep .prep-main { min-height: 96px; }
+.prep b { font: 800 21px/26px var(--font-sans); letter-spacing: -.04em; padding-right: 44px; }
+.prep em { display: block; margin: 0 !important; font: 700 13px/18px var(--font-sans) !important; }
+.prep-sub.quiz em { color: var(--text-on-accent); opacity: .85; }
+.prep .prep-arrow { position: absolute; top: 18px; right: 18px; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-style: normal; transition: transform .3s cubic-bezier(.2,.9,.2,1); }
+.prep-main .prep-arrow { background: var(--accent-primary); color: var(--text-on-accent); }
+.prep button:active .prep-arrow { transform: translateX(4px); }

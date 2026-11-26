@@ -118,11 +118,11 @@ export default function DocDetail({ docId }: { docId: string }) {
                 <h2 className="t-title-s section-title">시험 준비</h2>
                 <div className="prep">
                   <button className="prep-main" onClick={() => go({ name: "jokbo", docId })}>
+                    <i className="prep-arrow"><Icon name="arrow-right" size={18} /></i>
                     <b>족보 노트</b>
-                    <i className="prep-go"><Icon name="arrow-right" size={18} /></i>
                   </button>
-                  <button className="prep-sub quiz" onClick={() => go({ name: "quiz", docId })}><b>퀴즈</b></button>
-                  <button className="prep-sub weak" onClick={() => go({ name: "weak", docId })}><b>약점 노트</b>{weakN != null && <em>{weakN ? `${weakN}개 모였어요` : "아직 없어요"}</em>}</button>
+                  <button className="prep-sub quiz" onClick={() => go({ name: "quiz", docId })}><i className="prep-arrow"><Icon name="arrow-right" size={18} /></i><b>퀴즈</b><em>바로 풀어 보기</em></button>
+                  <button className="prep-sub weak" onClick={() => go({ name: "weak", docId })}><i className="prep-arrow"><Icon name="arrow-right" size={18} /></i><b>약점 노트</b>{weakN != null && <em>{weakN ? `${weakN}개 모였어요` : "아직 없어요"}</em>}</button>
                 </div>
                 <button className="link-row" onClick={() => { window.location.href = `${API}/documents/${docId}/anki.txt`; }}>
                   <Icon name="export" size={16} /> Anki 로 내보내기

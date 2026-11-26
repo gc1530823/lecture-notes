@@ -73,14 +73,13 @@ export function Timetable({ onPick, slot = "top" }: { courses?: string[]; onPick
   return (
     <section className="timetable" aria-label="시간표">
       {now && (
-        <button className={`list-item class-now ${courseTone(now.row.course)}${now.live ? " live" : ""}`} onClick={() => onPick(now.row.course)}>
-          <span className="list-item-icon is-art"><Icon name="chalkboard-teacher" art size={40} /></span>
-          <span className="grow">
-            <span className="class-tag">{now.live && <i />}{now.live ? "지금 수업" : "다음 수업"} <span className="num">{now.row.start}~{now.row.end}</span></span>
-            <span className="t-title-m" style={{ display: "block" }}>{now.row.course}</span>
-            <span className="list-item-sub">{now.row.place ? `${now.row.place}, ` : ""}눌러서 이 과목 열기</span>
+        <button className={`class-now ${courseTone(now.row.course)}${now.live ? " live" : ""}`} onClick={() => onPick(now.row.course)}>
+          <span className="cn-time"><small>{now.live ? "지금" : "다음"}</small><b>{now.row.start}</b><em>~{now.row.end}</em></span>
+          <span className="cn-body">
+            <b>{now.row.course}</b>
+            {now.row.place && <span>{now.row.place}</span>}
           </span>
-          <span className="list-item-chev"><Icon name="caret-right" size={18} /></span>
+          <Icon name="caret-right" size={18} />
         </button>
       )}
       {now && next[now.row.course] && (
@@ -98,7 +97,7 @@ export function Timetable({ onPick, slot = "top" }: { courses?: string[]; onPick
           <span className="grow tt-link-chips">
             {!later.length && <span className="tt-link-done">오늘 마지막 수업이에요</span>}
             {later.map((r) => (
-              <span key={r.id} className={`tt-link-chip ${courseTone(r.course)}`}><i />{r.course}<em>{r.start}</em></span>
+              <span key={r.id} className={`tt-link-chip ${courseTone(r.course)}`}><span className="mark">{r.course}</span><em>{r.start}</em></span>
             ))}
           </span>
           <span className="tt-link-go">시간표 <Icon name="caret-right" size={12} /></span>
