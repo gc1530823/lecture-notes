@@ -129,7 +129,7 @@ export function NotesPdf({ sessionId }: { sessionId: string }) {
         <span className="list-item-icon is-art"><Icon name="file-pdf" art size={40} /></span>
         <span className="grow">
           <strong className="t-title-s" style={{ display: "block" }}>필기 붙은 슬라이드 PDF</strong>
-          <span className="t-caption muted">슬라이드에 형광펜과 필기를 붙인 그대로, 끝에 과제와 용어 사전</span>
+          <span className="mini-tags"><span>형광펜·필기</span><span>용어 사전</span></span>
         </span>
       </div>
       {error && <p className="t-caption" style={{ color: "var(--accent-record)" }}>{error}</p>}
@@ -180,7 +180,7 @@ export function StudyNotePdf({ sessionId }: { sessionId: string }) {
         <span className="list-item-icon is-art"><Icon name="notebook" art size={40} /></span>
         <span className="grow">
           <strong className="t-title-s" style={{ display: "block" }}>정리 노트 PDF</strong>
-          <span className="t-caption muted">AI가 오늘 배운 내용을 주제별로 다시 정리해요. 핵심과 설명, 예시, 시험 포인트, 용어, 확인 문제까지요</span>
+          <span className="mini-tags"><span>핵심 요약</span><span>예시</span><span>확인 문제</span></span>
         </span>
       </div>
       {(error || state?.error) && <p className="t-caption" style={{ color: "var(--accent-record)" }}>{error || state?.error}</p>}
@@ -220,8 +220,7 @@ export function LectureMore({ sessionId, onDeleted }: { sessionId: string; onDel
       <h3 className="t-title-m">더보기</h3>
       <StudyNotePdf sessionId={sessionId} />
       <NotesPdf sessionId={sessionId} />
-      <Button block variant="secondary" icon="arrows-clockwise" onClick={() => void redo()} disabled={busy}>녹음부터 다시 받아쓰기</Button>
-      <span className="t-caption muted">받아쓰기가 이상할 때 (예: 한국어 강의가 영어로 나왔을 때). 내가 쓴 필기는 그대로예요.</span>
+      <Button block variant="secondary" icon="arrows-clockwise" onClick={() => void redo()} disabled={busy}>녹음부터 다시 받아쓰기 <small className="btn-tag">필기 유지</small></Button>
       <Button block variant="record" icon="trash" onClick={() => void remove()} disabled={busy}>{busy ? "지우는 중…" : "이 강의 지우기"}</Button>
     </>
   );

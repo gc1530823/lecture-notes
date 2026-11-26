@@ -158,7 +158,7 @@ export function TrashPanel() {
   return (
     <>
       <Row icon="trash" title="휴지통" open={open} onClick={() => setOpen(!open)}
-        sub={items?.length ? `${items.length}개 있어요. 지운 뒤 7일 동안 되살릴 수 있어요` : "비어 있어요. 지운 강의자료는 7일 동안 여기 있어요"} />
+        sub={items?.length ? `${items.length}개 · 7일 내 복구 가능` : "비어 있음 · 7일 보관"} />
       {open && (
         <div className="set-panel">
           {!items?.length && <p className="t-caption muted" style={{ margin: 0 }}>휴지통이 비어 있어요.</p>}
@@ -226,7 +226,11 @@ export function UsagePanel() {
               </div>
             ))}
           </div>
-          <p className="t-caption muted" style={{ margin: 0 }}>강의자료 {u.documents}개, 강의 {u.lectures}개{u.trash ? `, 휴지통 ${u.trash}개` : ""}. 무료 서버라 공간이 넉넉하지 않아요. 안 보는 강의자료는 지워 주세요.</p>
+          <div className="usage-stats">
+            <div><b>{u.documents}</b><span>강의자료</span></div>
+            <div><b>{u.lectures}</b><span>강의</span></div>
+            <div><b>{u.trash}</b><span>휴지통</span></div>
+          </div>
         </div>
       )}
     </>

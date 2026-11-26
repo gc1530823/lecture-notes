@@ -160,7 +160,6 @@ function NextDocs({ courses }: { courses: string[] }) {
           <div className="mark-row">
             {without.map((c) => <span key={c} className={`mark ${courseTone(c)}`}>{c}</span>)}
           </div>
-          <p className="next-tip">자료를 올릴 때 과목을 맞춰 두면 여기 붙어요</p>
         </div>
       )}
     </section>
@@ -209,7 +208,6 @@ export function TimetableEditor({ onPick }: { onPick: (course: string) => void }
             <button className={`tt-tile${adding ? " on" : ""}`} onClick={() => setAdding(!adding)} aria-expanded={adding}>
               <span className="tt-tile-ic edit"><Icon name="note-pencil" size={20} /></span>
               <b>직접 고치기</b>
-              <small>한 과목씩 넣고 빼기</small>
             </button>
           </div>
         </section>
@@ -320,7 +318,7 @@ function ImportFromImage({ hasRows, onSaved, compact = false }: { hasRows: boole
         <button className="tt-tile" onClick={() => input.current?.click()} disabled={state === "reading"}>
           <span className="tt-tile-ic shot">{state === "reading" ? <span className="spin" aria-hidden /> : <Icon name="camera" size={20} />}</span>
           <b>{state === "reading" ? "읽는 중…" : "캡처로 넣기"}</b>
-          <small>{state === "reading" ? "10초쯤 걸려요" : "에타나 포털 시간표 사진"}</small>
+          {state === "reading" && <small>10초쯤 걸려요</small>}
         </button>
       )}
       {!compact && state !== "check" && state !== "saving" && (
@@ -328,7 +326,7 @@ function ImportFromImage({ hasRows, onSaved, compact = false }: { hasRows: boole
           <span className="tt-shot-ic"><Icon name="camera" art size={26} /></span>
           <span className="grow">
             <b>{state === "reading" ? "시간표를 읽는 중…" : "시간표 캡처로 넣기"}</b>
-            <small>{state === "reading" ? "AI가 요일·시간·과목을 옮기고 있어요 (10초쯤)" : "에브리타임이나 학교 포털 시간표 캡처"}</small>
+            {state === "reading" && <small>AI가 요일·시간·과목을 옮기고 있어요 (10초쯤)</small>}
           </span>
           {state === "reading" ? <span className="spin" aria-hidden /> : <Icon name="caret-right" size={16} />}
         </button>

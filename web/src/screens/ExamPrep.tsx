@@ -211,9 +211,14 @@ export function ReviewScreen() {
           </Empty>
         )}
         {today && today.total > 0 && !card && (
-          <Empty icon="check-circle" mood="happy">
-            <strong className="t-title-s">오늘 복습 끝! {done ? `${done}장 봤어요` : ""}</strong><br />
-            {today.next_due_at ? `다음 복습: ${new Date(today.next_due_at * 1000).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}
+          <Empty icon="check-circle" mood="happy" action={{ label: "강의 보러 가기", icon: "notebook", onClick: () => go({ name: "home" }) }}>
+            <strong className="t-title-s">오늘 복습 끝! {done ? `${done}장 봤어요` : ""}</strong>
+            {today.next_due_at ? (
+              <span className="next-review-pill">
+                <Icon name="calendar-dots" size={14} />
+                다음 복습 · {new Date(today.next_due_at * 1000).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}
+              </span>
+            ) : null}
           </Empty>
         )}
         {card && (
@@ -474,7 +479,6 @@ export function ConfusedPane({ sessionId }: { sessionId: string }) {
   if (marks.length === 0) return <Empty icon="hand-palm">수업 중 "모르겠어요"를 누른 곳이 여기에 모여요</Empty>;
   return (
     <>
-      <p className="t-caption muted">설명을 만든 것은 오늘의 복습 카드로도 나와요</p>
       {marks.map((m) => (
         <div key={m.id} className="banner">
           <span className="t-caption faint">{m.page_no}쪽, {Math.floor(m.at_ms / 60000)}분쯤</span>
@@ -529,7 +533,7 @@ function ShareBox({ docId, friends }: { docId: string; friends: string[] }) {
         <span className="list-item-icon is-art"><Icon name="users" art size={40} /></span>
         <span className="grow">
           <strong className="t-title-s" style={{ display: "block" }}>함께 만드는 족보</strong>
-          <span className="t-caption muted">{friends.length ? `${friends.join(", ")}의 족보를 합쳤어요` : "같은 자료를 들은 친구와 합쳐져요"}</span>
+          <span className="mini-tags"><span>{friends.length ? `${friends.join(", ")} 족보 합쳐짐` : "친구 족보 자동 연결"}</span></span>
         </span>
       </div>
       <button className="link-row" onClick={() => go({ name: "friends" })}>

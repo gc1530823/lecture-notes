@@ -177,7 +177,9 @@ export default function QuizCards({ makePath, onPage }: { makePath: string; scop
           <span className="qz-moon"><Moon size={112} phase={Math.max(0.035, pct / 200)} /></span>
           <span className="qz-pct">{pct >= 100 ? "보름달이 떴어요 · " : ""}정답률 {pct}%</span>
           <strong className="qz-score">{set.score % 1 ? set.score.toFixed(1) : set.score} / {total}</strong>
-          <span className="t-caption muted">{pct >= 80 ? "아주 잘했어요. 이 강의는 거의 다 이해했어요" : pct >= 50 ? "절반 넘게 맞았어요. 틀린 카드를 다시 넘겨 보세요" : "틀린 카드의 해설을 읽고 한 번 더 풀어 봐요"}</span>
+          <span className={`qz-badge ${pct >= 80 ? "high" : pct >= 50 ? "mid" : "low"}`}>
+            {pct >= 80 ? "거의 다 이해했어요" : pct >= 50 ? "절반 넘게 맞았어요" : "틀린 카드 다시 보기 추천"}
+          </span>
           {missed.length > 0 && (
             <div className="qz-weak">
               <span>다시 볼 개념</span>

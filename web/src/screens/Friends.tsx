@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getJSON, postJSON } from "../api/useApi";
 import SlidingTabs from "../components/SlidingTabs";
-import { Button, Icon, TopBar } from "../components/ui";
+import { Empty, Button, Icon, TopBar } from "../components/ui";
 import { go } from "../router";
 import { Switch } from "./ExamPrep";
 import { WeekGrid, type ClassRow } from "./Timetable";
@@ -221,7 +221,7 @@ function FriendsTab({ data, reload, onSettings, onBecameFriends }: { data: Frien
             ))}
           </div>
         )}
-        {data.friends.length === 0 && <p className="friend-empty">아직 친구가 없어요. 같은 수업 듣는 친구의 코드를 넣어 보세요.</p>}
+        {data.friends.length === 0 && <Empty icon="users"><strong className="t-title-s">아직 친구가 없어요</strong><br />위에서 친구 코드를 입력해 보세요</Empty>}
         {data.friends.map((f) => (
           <div key={f.id} className={`friend-card${open === f.id ? " open" : ""}`}>
             <button className="set-row" onClick={() => setOpen(open === f.id ? null : f.id)} aria-expanded={open === f.id}>
@@ -295,14 +295,17 @@ function JokboTab({ prefs, onSettings }: { prefs: Prefs; onSettings: () => void 
   };
   return (
     <>
-      <p className="friend-lead">
-        같은 강의자료(같은 PDF)로 들은 친구가 있으면 족보가 저절로 합쳐져요.
-        {!prefs.share_jokbo && " 지금 내 족보는 친구에게 비공개예요."}
-        {!prefs.merge_jokbo && " 지금 친구 족보 합치기를 꺼 뒀어요."}
-        {(!prefs.share_jokbo || !prefs.merge_jokbo) && <button className="link" onClick={onSettings}> 공개 설정 바꾸기</button>}
-      </p>
+      {(!prefs.share_jokbo || !prefs.merge_jokbo) && (
+        <div className="jokbo-status-card">
+          <Icon name="shield-check" size={18} />
+          <span className="grow">
+            {!prefs.share_jokbo ? "내 족보 비공개 중" : "친구 족보 합치기 꺼짐"}
+          </span>
+          <button className="chip chip-accent" onClick={onSettings}>공개 설정</button>
+        </div>
+      )}
       {!docs && <Skeleton />}
-      {docs && docs.length === 0 && <p className="friend-empty">아직 녹음한 강의가 없어요.</p>}
+      {docs && docs.length === 0 && <Empty icon="notebook"><strong className="t-title-s">아직 녹음한 강의가 없어요</strong></Empty>}
       {docs?.map((d) => (
         <section key={d.doc_id} className="jokbo-doc">
           <div className="row">
@@ -336,9 +339,9 @@ function PrivacyTab({ prefs, courses, onSaved }: { prefs: Prefs; courses: string
     try { onSaved(await patch("/friends/settings", change)); } catch { setP(p); }
   };
   const toggleItem = (k: string) => void save({ items: p.items.includes(k) ? p.items.filter((x) => x !== k) : [...p.items, k] });
-  const Row = ({ title, sub, on, k }: { title: string; sub: string; on: boolean; k: keyof Prefs }) => (
+  const Row = ({ title, sub, on, k }: { title: string; sub?: string; on: boolean; k: keyof Prefs }) => (
     <div className="set-row">
-      <span className="grow set-text"><b>{title}</b><small>{sub}</small></span>
+      <span className="grow set-text"><b>{title}</b>{sub && <small>{sub}</small>}</span>
       <Switch on={on} onChange={(v) => void save({ [k]: v })} label={title} />
     </div>
   );
@@ -350,7 +353,7 @@ function PrivacyTab({ prefs, courses, onSaved }: { prefs: Prefs; courses: string
       </section>
       <section className="set-group">
         <h3>친구에게 공개</h3>
-        <Row k="share_timetable" on={p.share_timetable} title="내 시간표 공개" sub="친구가 내 시간표를 볼 수 있어요" />
+        <Row k="share_timetable" on={p.share_timetable} title="내 시간표 공개" />
       </section>
       {p.share_jokbo && (
         <section className="set-group">
@@ -362,15 +365,13 @@ function PrivacyTab({ prefs, courses, onSaved }: { prefs: Prefs; courses: string
               </button>
             ))}
           </div>
-          <p className="friend-note">녹음, 받아쓰기, 내 필기 전체는 언제나 보이지 않아요.</p>
         </section>
       )}
       <section className="set-group">
         <h3>받기</h3>
-        <Row k="merge_jokbo" on={p.merge_jokbo} title="친구 족보 합치기" sub="끄면 내 족보에는 내 표시만 보여요" />
-        <Row k="allow_requests" on={p.allow_requests} title="친구 신청 받기" sub="끄면 내 코드로 새 신청을 할 수 없어요" />
+        <Row k="merge_jokbo" on={p.merge_jokbo} title="친구 족보 합치기" />
+        <Row k="allow_requests" on={p.allow_requests} title="친구 신청 받기" />
       </section>
-      <p className="friend-note">친구 한 명씩 숨기거나 합치기를 끄려면 친구 탭에서 그 친구를 누르세요. 강의자료마다는 족보 탭에서 바꿀 수 있어요.</p>
     </>
   );
 }
@@ -387,7 +388,7 @@ function ShareCourses({ prefs, courses, onSaved, hideTimetable }: { prefs: Prefs
   return (
     <div className="share-courses">
       {courses.length === 0 ? (
-        <p className="friend-empty">아직 과목이 정해진 강의자료가 없어요. 강의자료 화면에서 과목을 정하면 여기에 나와요.</p>
+        <Empty icon="folder-simple-plus"><strong className="t-title-s">과목이 정해진 강의자료가 없어요</strong></Empty>
       ) : (
         <div className="item-picks">
           {courses.map((c) => (
@@ -397,7 +398,6 @@ function ShareCourses({ prefs, courses, onSaved, hideTimetable }: { prefs: Prefs
           ))}
         </div>
       )}
-      <p className="friend-note">{chosen.length ? `${chosen.join(", ")} 족보가 같은 PDF 로 들은 친구와 합쳐져요.` : "지금은 어떤 족보도 공유하지 않아요."} 녹음·받아쓰기·필기 전체는 언제나 보이지 않아요.</p>
       {!hideTimetable && (
         <label className="set-line"><span className="grow">내 시간표도 보여 주기</span>
           <Switch on={timetable} onChange={(v) => { setTimetable(v); void save({ share_timetable: v }); }} label="시간표 공개" /></label>
