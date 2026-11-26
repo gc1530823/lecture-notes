@@ -94,6 +94,334 @@
         }
       }
     },
+    "/account/recovery-code": {
+      "post": {
+        "summary": "Make Recovery Code",
+        "description": "복구 코드 새로 만들기 (로그인한 사람). 한 번만 보여 준다 — 예전 코드는 못 쓴다",
+        "operationId": "make_recovery_code_account_recovery_code_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/recovery": {
+      "get": {
+        "summary": "Recovery Status",
+        "operationId": "recovery_status_account_recovery_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/reset": {
+      "post": {
+        "summary": "Reset Password",
+        "description": "비밀번호를 잊었을 때: 이름 + 복구 코드(또는 서버 주인의 초기화 코드) + 새 비밀번호 → 바꾸고 바로 로그인",
+        "operationId": "reset_password_auth_reset_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/password": {
+      "post": {
+        "summary": "Change Password",
+        "description": "로그인한 채로 비밀번호 바꾸기 (지금 비밀번호 확인). 다른 기기 로그인은 끊기고 이 기기는 다시 로그인된다",
+        "operationId": "change_password_account_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/email": {
+      "get": {
+        "summary": "My Email",
+        "operationId": "my_email_account_email_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Start Email",
+        "description": "이메일 등록: 그 주소로 6자리 인증번호를 보낸다 (10분)",
+        "operationId": "start_email_account_email_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailSet"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove Email",
+        "operationId": "remove_email_account_email_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/account/email/verify": {
+      "post": {
+        "summary": "Verify Email",
+        "operationId": "verify_email_account_email_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailVerify"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/forgot": {
+      "post": {
+        "summary": "Forgot Password",
+        "description": "비밀번호 찾기: 이름이나 이메일로 → 등록·확인된 이메일로 6자리 인증번호 (10분). 계정이 있는지는 알려 주지 않는다",
+        "operationId": "forgot_password_auth_forgot_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/mail": {
+      "get": {
+        "summary": "Mail Setting",
+        "operationId": "mail_setting_admin_mail_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Set Mail",
+        "description": "관리자: 메일 보내기용 Gmail 계정 + 앱 비밀번호. 저장하기 전에 그 주소로 시험 메일을 보낸다",
+        "operationId": "set_mail_admin_mail_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MailSetting"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/reset-code": {
+      "post": {
+        "summary": "Issue Reset Code",
+        "description": "관리자가 비밀번호를 잊은 사람에게 내주는 초기화 코드 (24시간)",
+        "operationId": "issue_reset_code_admin_reset_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetFor"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/logout": {
       "post": {
         "summary": "Auth Logout",
@@ -262,6 +590,7 @@
       },
       "delete": {
         "summary": "Delete Document",
+        "description": "지우기: 휴지통에 넣고 7일 뒤 완전히 지운다. purge=true 면 바로 완전히 (내 자료 모두 지우기)",
         "operationId": "delete_document_documents__doc_id__delete",
         "parameters": [
           {
@@ -271,6 +600,16 @@
             "schema": {
               "type": "string",
               "title": "Doc Id"
+            }
+          },
+          {
+            "name": "purge",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Purge"
             }
           }
         ],
@@ -373,6 +712,145 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/NotebookRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trash": {
+      "get": {
+        "summary": "List Trash",
+        "operationId": "list_trash_trash_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trash/{doc_id}/restore": {
+      "post": {
+        "summary": "Restore Trash",
+        "operationId": "restore_trash_trash__doc_id__restore_post",
+        "parameters": [
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Doc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trash/{doc_id}": {
+      "delete": {
+        "summary": "Purge Trash",
+        "operationId": "purge_trash_trash__doc_id__delete",
+        "parameters": [
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Doc Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/usage": {
+      "get": {
+        "summary": "My Usage",
+        "description": "내 사용량: 강의자료·강의 수, 녹음 길이, 서버에서 차지하는 크기 (녹음·자료·사진)",
+        "operationId": "my_usage_account_usage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/delete": {
+      "post": {
+        "summary": "Delete Account",
+        "description": "계정 삭제: 비밀번호를 한 번 더 받고, 강의자료·녹음·필기·시간표·친구·로그인을 모두 지운다 (되돌릴 수 없음)",
+        "operationId": "delete_account_account_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDelete"
               }
             }
           },
@@ -581,11 +1059,125 @@
         }
       }
     },
+    "/sessions/{session_id}/snapshot": {
+      "get": {
+        "summary": "Note Snapshot",
+        "description": "다시 만들기 전 필기가 남아 있으면: 그때 필기 수와 지금 필기 수 (되돌리기 버튼에 쓴다)",
+        "operationId": "note_snapshot_sessions__session_id__snapshot_get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{session_id}/undo-renote": {
+      "post": {
+        "summary": "Undo Renote",
+        "description": "필기 다시 만들기·다시 받아쓰기를 되돌린다: 그 전의 AI 필기·받아쓰기·요약으로 (내가 쓰거나 고친 필기는 그대로)",
+        "operationId": "undo_renote_sessions__session_id__undo_renote_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sessions/{session_id}/retry": {
       "post": {
         "summary": "Retry Session",
         "description": "정리 실패한 강의를 다시: 받아쓴 글이 없으면 저장된 녹음부터, 있으면 필기·요약만 다시",
         "operationId": "retry_session_sessions__session_id__retry_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{session_id}/retranscribe": {
+      "post": {
+        "summary": "Retranscribe",
+        "description": "녹음부터 다시 받아쓰기 (예: 한국어 강의가 영어로 받아써졌을 때). AI 필기·받아쓰기는 새로, 내가 쓴 필기는 그대로",
+        "operationId": "retranscribe_sessions__session_id__retranscribe_post",
         "parameters": [
           {
             "name": "session_id",
@@ -789,6 +1381,92 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/MyNote"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{session_id}/received": {
+      "get": {
+        "summary": "Received Audio",
+        "description": "서버가 받은 실시간 녹음 길이 (ms). 폰이 가진 전체 녹음과 견줘 빠진 곳이 있는지 본다",
+        "operationId": "received_audio_sessions__session_id__received_get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{session_id}/full-audio": {
+      "post": {
+        "summary": "Full Audio",
+        "description": "녹음 오프라인 저장: 수업 중 연결이 끊겨 서버가 못 받은 소리가 있으면, 폰이 모아 둔 전체 녹음을 올린다.\n그 파일을 이 강의의 녹음으로 삼아 처음부터 다시 받아쓰고 정리한다 (내가 쓴 필기는 그대로).",
+        "operationId": "full_audio_sessions__session_id__full_audio_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_full_audio_sessions__session_id__full_audio_post"
               }
             }
           }
@@ -1037,6 +1715,44 @@
             "schema": {
               "type": "integer",
               "title": "Set Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{doc_id}/weak": {
+      "get": {
+        "summary": "Weak Notes",
+        "description": "약점 노트: 퀴즈에서 틀린 문제 + 수업 중 '모르겠어요' + 복습에서 자주 틀린 카드 (많이 틀린 것부터)",
+        "operationId": "weak_notes_documents__doc_id__weak_get",
+        "parameters": [
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Doc Id"
             }
           }
         ],
@@ -1333,7 +2049,7 @@
     "/sessions/{session_id}/tutor": {
       "post": {
         "summary": "Tutor",
-        "description": "AI 튜터: 질문과 가까운 쪽들의 슬라이드·설명·필기를 근거로 답한다. 대화 기록은 앱이 들고 있다가 보낸다.",
+        "description": "AI 튜터: 질문과 가까운 쪽들의 슬라이드·설명·필기를 근거로 답한다. 대화 기록은 앱이 들고 있다가 보낸다.\nscope 로 범위를 넓힐 수 있다: course = 이 강의자료 과목의 모든 강의, all = 학기 전체",
         "operationId": "tutor_sessions__session_id__tutor_post",
         "parameters": [
           {
@@ -1502,6 +2218,16 @@
               "type": "string",
               "title": "Session Id"
             }
+          },
+          {
+            "name": "download",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Download"
+            }
           }
         ],
         "responses": {
@@ -1574,6 +2300,16 @@
             "schema": {
               "type": "string",
               "title": "Session Id"
+            }
+          },
+          {
+            "name": "download",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Download"
             }
           }
         ],
@@ -1743,6 +2479,37 @@
                 "schema": {}
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Task",
+        "description": "AI 가 잘못 찾은 과제 지우기",
+        "operationId": "delete_task_tasks__task_id__delete",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -2257,7 +3024,7 @@
     "/semester/tutor": {
       "post": {
         "summary": "Semester Tutor",
-        "description": "여러 강의를 넘나드는 질문 (\"3주차랑 7주차 차이가 뭐야?\"): 모든 강의의 쪽 중에서 가까운 것만 근거로",
+        "description": "여러 강의를 넘나드는 질문 (\"3주차랑 7주차 차이가 뭐야?\"): 모든 강의의 쪽 중에서 가까운 것만 근거로. course 를 주면 그 과목만",
         "operationId": "semester_tutor_semester_tutor_post",
         "requestBody": {
           "content": {
@@ -2488,6 +3255,131 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ClassCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/timetable/next": {
+      "get": {
+        "summary": "Next Docs",
+        "description": "과목마다 다음 수업에 쓸 강의자료 (미리 연결). 고른 게 없으면 그 과목에서 아직 녹음 안 한 가장 새 자료를 쓴다.",
+        "operationId": "next_docs_timetable_next_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Set Next Doc",
+        "operationId": "set_next_doc_timetable_next_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NextDoc"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/timetable/from-image": {
+      "post": {
+        "summary": "Timetable From Image",
+        "description": "시간표 캡처(에브리타임·학교 포털·종이 사진)를 읽어 수업 목록을 돌려준다. 저장은 사람이 확인한 뒤 /timetable/bulk 로",
+        "operationId": "timetable_from_image_timetable_from_image_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_timetable_from_image_timetable_from_image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/timetable/bulk": {
+      "post": {
+        "summary": "Add Timetable Bulk",
+        "description": "사진에서 읽고 사람이 확인한 수업을 한 번에 넣는다",
+        "operationId": "add_timetable_bulk_timetable_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassBulk"
               }
             }
           },
@@ -2914,6 +3806,753 @@
         }
       }
     },
+    "/friends/settings": {
+      "patch": {
+        "summary": "Update Friend Settings",
+        "description": "친구 설정: 내 족보 공개 · 내 시간표 공개 · 친구 족보 합치기 · 공개할 족보 항목 · 친구 신청 받기",
+        "operationId": "update_friend_settings_friends_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FriendPrefsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friends/{other}/settings": {
+      "patch": {
+        "summary": "Update Pair",
+        "description": "친구 한 명에 대한 설정: 이 친구에게 내 것 보여 주기 · 이 친구 족보 합치기",
+        "operationId": "update_pair_friends__other__settings_patch",
+        "parameters": [
+          {
+            "name": "other",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Other"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{doc_id}/friends": {
+      "patch": {
+        "summary": "Update Doc Friends",
+        "description": "이 강의자료의 족보를 친구에게 공개할지 · 친구 족보를 여기에 합칠지",
+        "operationId": "update_doc_friends_documents__doc_id__friends_patch",
+        "parameters": [
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Doc Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocFriendUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friends/{other}/timetable": {
+      "get": {
+        "summary": "Friend Timetable",
+        "description": "친구 시간표 보기 (친구가 공개했을 때만)",
+        "operationId": "friend_timetable_friends__other__timetable_get",
+        "parameters": [
+          {
+            "name": "other",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Other"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/status": {
+      "get": {
+        "summary": "Admin Status",
+        "operationId": "admin_status_admin_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/setup": {
+      "post": {
+        "summary": "Admin Setup",
+        "description": "처음 한 번: 초대 코드로 관리자 비밀번호를 정한다",
+        "operationId": "admin_setup_admin_setup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/login": {
+      "post": {
+        "summary": "Admin Login",
+        "operationId": "admin_login_admin_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/logout": {
+      "post": {
+        "summary": "Admin Logout",
+        "operationId": "admin_logout_admin_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/password": {
+      "post": {
+        "summary": "Admin Password",
+        "operationId": "admin_password_admin_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPassword"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/overview": {
+      "get": {
+        "summary": "Admin Overview",
+        "description": "서버 상태 · AI 진단 · 사람 목록",
+        "operationId": "admin_overview_admin_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/a1": {
+      "get": {
+        "summary": "A1 Status",
+        "operationId": "a1_status_admin_a1_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "A1 Set",
+        "description": "빈 칸은 예전 값을 그대로 둔다 (키를 다시 안 넣고 켜고 끄기만 할 수 있게)",
+        "operationId": "a1_set_admin_a1_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/A1Settings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/a1/reset": {
+      "post": {
+        "summary": "A1 Reset",
+        "description": "만든 뒤 다시 처음부터 (새 서버를 지웠을 때)",
+        "operationId": "a1_reset_admin_a1_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/backup": {
+      "get": {
+        "summary": "Backup Status",
+        "operationId": "backup_status_admin_backup_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Backup Setup",
+        "description": "허깅페이스 쓰기 토큰 + 저장소 이름 (예: 아이디/lune-backup). 저장하기 전에 토큰이 맞는지 확인한다",
+        "operationId": "backup_setup_admin_backup_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupSetting"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/backup/run": {
+      "post": {
+        "summary": "Backup Now",
+        "operationId": "backup_now_admin_backup_run_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/invite": {
+      "put": {
+        "summary": "Admin Invite",
+        "description": "초대 코드 바꾸기 (새로 가입할 때만 쓰인다. 이미 가입한 사람은 그대로)",
+        "operationId": "admin_invite_admin_invite_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users/{user_id}/logout": {
+      "post": {
+        "summary": "Admin Logout User",
+        "description": "그 사람의 모든 기기 로그인 끊기",
+        "operationId": "admin_logout_user_admin_users__user_id__logout_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/migrate": {
+      "post": {
+        "summary": "Migrate Code",
+        "description": "옮기기 코드 (2일 동안 쓸 수 있다). 관리자만",
+        "operationId": "migrate_code_admin_migrate_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/migrate/export": {
+      "get": {
+        "summary": "Migrate Export",
+        "description": "새 서버가 가져가는 자료 묶음: DB(로그인 표 빼고) + 올린 파일들(강의자료·녹음·사진) (tar.gz)",
+        "operationId": "migrate_export_migrate_export_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/diag/ai": {
+      "get": {
+        "summary": "Diag Ai",
+        "description": "AI 연결 진단 (로그인한 사람만): Groq 에 닿는지, 사진 읽는 모델이 있는지, 받아쓰기가 어디로 가는지. 키 값은 보여 주지 않는다",
+        "operationId": "diag_ai_diag_ai_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friends/jokbo": {
+      "get": {
+        "summary": "Friends Jokbo",
+        "description": "족보 관리: 내 강의자료마다 함께 합쳐지는 친구와, 파일로 받은 족보",
+        "operationId": "friends_jokbo_friends_jokbo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friends": {
+      "get": {
+        "summary": "List Friends",
+        "operationId": "list_friends_friends_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add Friend",
+        "operationId": "add_friend_friends_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FriendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friends/{other}/accept": {
+      "post": {
+        "summary": "Accept Friend",
+        "operationId": "accept_friend_friends__other__accept_post",
+        "parameters": [
+          {
+            "name": "other",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Other"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friends/{other}": {
+      "delete": {
+        "summary": "Remove Friend",
+        "operationId": "remove_friend_friends__other__delete",
+        "parameters": [
+          {
+            "name": "other",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Other"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/documents/{doc_id}/share": {
       "get": {
         "summary": "Export Share",
@@ -3094,6 +4733,96 @@
   },
   "components": {
     "schemas": {
+      "A1Settings": {
+        "properties": {
+          "user": {
+            "type": "string",
+            "title": "User",
+            "default": ""
+          },
+          "fingerprint": {
+            "type": "string",
+            "title": "Fingerprint",
+            "default": ""
+          },
+          "tenancy": {
+            "type": "string",
+            "title": "Tenancy",
+            "default": ""
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "default": ""
+          },
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "default": ""
+          },
+          "init": {
+            "type": "string",
+            "title": "Init",
+            "default": ""
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "A1Settings"
+      },
+      "AccountDelete": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "AccountDelete"
+      },
+      "AdminLogin": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "invite": {
+            "type": "string",
+            "title": "Invite",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "AdminLogin"
+      },
+      "AdminPassword": {
+        "properties": {
+          "current": {
+            "type": "string",
+            "title": "Current"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current",
+          "password"
+        ],
+        "title": "AdminPassword"
+      },
       "AnnotationUpdate": {
         "properties": {
           "text": {
@@ -3122,6 +4851,17 @@
             "type": "boolean",
             "title": "Confirm",
             "default": false
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
           }
         },
         "type": "object",
@@ -3159,6 +4899,11 @@
             "type": "string",
             "title": "Invite",
             "default": ""
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "default": ""
           }
         },
         "type": "object",
@@ -3167,6 +4912,24 @@
           "password"
         ],
         "title": "AuthRequest"
+      },
+      "BackupSetting": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "repo": {
+            "type": "string",
+            "title": "Repo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "repo"
+        ],
+        "title": "BackupSetting"
       },
       "Body_add_photo_sessions__session_id__photo_post": {
         "properties": {
@@ -3203,6 +4966,11 @@
             "type": "string",
             "title": "Title",
             "default": ""
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": ""
           }
         },
         "type": "object",
@@ -3210,6 +4978,20 @@
           "file"
         ],
         "title": "Body_document_from_audio_documents_from_audio_post"
+      },
+      "Body_full_audio_sessions__session_id__full_audio_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_full_audio_sessions__session_id__full_audio_post"
       },
       "Body_session_from_audio_sessions_from_audio_post": {
         "properties": {
@@ -3221,6 +5003,11 @@
             "type": "string",
             "contentMediaType": "application/octet-stream",
             "title": "File"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": ""
           }
         },
         "type": "object",
@@ -3229,6 +5016,20 @@
           "file"
         ],
         "title": "Body_session_from_audio_sessions_from_audio_post"
+      },
+      "Body_timetable_from_image_timetable_from_image_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_timetable_from_image_timetable_from_image_post"
       },
       "Body_upload_document_documents_post": {
         "properties": {
@@ -3270,6 +5071,27 @@
         },
         "type": "object",
         "title": "CatchUpRequest"
+      },
+      "ClassBulk": {
+        "properties": {
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/ClassCreate"
+            },
+            "type": "array",
+            "title": "Classes"
+          },
+          "replace": {
+            "type": "boolean",
+            "title": "Replace",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "classes"
+        ],
+        "title": "ClassBulk"
       },
       "ClassCreate": {
         "properties": {
@@ -3319,6 +5141,34 @@
         ],
         "title": "ConfusedRequest"
       },
+      "DocFriendUpdate": {
+        "properties": {
+          "share": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share"
+          },
+          "merge": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merge"
+          }
+        },
+        "type": "object",
+        "title": "DocFriendUpdate"
+      },
       "DocumentUpdate": {
         "properties": {
           "title": {
@@ -3347,6 +5197,32 @@
         "type": "object",
         "title": "DocumentUpdate"
       },
+      "EmailSet": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "EmailSet"
+      },
+      "EmailVerify": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "EmailVerify"
+      },
       "ExamCreate": {
         "properties": {
           "title": {
@@ -3372,6 +5248,110 @@
           "doc_ids"
         ],
         "title": "ExamCreate"
+      },
+      "ForgotRequest": {
+        "properties": {
+          "who": {
+            "type": "string",
+            "title": "Who"
+          }
+        },
+        "type": "object",
+        "required": [
+          "who"
+        ],
+        "title": "ForgotRequest"
+      },
+      "FriendPrefsUpdate": {
+        "properties": {
+          "share_courses": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Courses"
+          },
+          "share_jokbo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Jokbo"
+          },
+          "share_timetable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Timetable"
+          },
+          "merge_jokbo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merge Jokbo"
+          },
+          "allow_requests": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allow Requests"
+          },
+          "items": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "title": "FriendPrefsUpdate"
+      },
+      "FriendRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "FriendRequest"
       },
       "GradeRequest": {
         "properties": {
@@ -3404,6 +5384,37 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "InviteChange": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "InviteChange"
+      },
+      "MailSetting": {
+        "properties": {
+          "user": {
+            "type": "string",
+            "title": "User"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "password"
+        ],
+        "title": "MailSetting"
+      },
       "MyNote": {
         "properties": {
           "page_no": {
@@ -3427,6 +5438,30 @@
         ],
         "title": "MyNote"
       },
+      "NextDoc": {
+        "properties": {
+          "course": {
+            "type": "string",
+            "title": "Course"
+          },
+          "doc_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "course"
+        ],
+        "title": "NextDoc"
+      },
       "NotebookRequest": {
         "properties": {
           "title": {
@@ -3448,6 +5483,52 @@
         "type": "object",
         "title": "NotebookRequest"
       },
+      "PairUpdate": {
+        "properties": {
+          "share": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share"
+          },
+          "merge": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merge"
+          }
+        },
+        "type": "object",
+        "title": "PairUpdate"
+      },
+      "PasswordChange": {
+        "properties": {
+          "current": {
+            "type": "string",
+            "title": "Current"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current",
+          "password"
+        ],
+        "title": "PasswordChange"
+      },
       "QuizSetRequest": {
         "properties": {
           "count": {
@@ -3458,6 +5539,42 @@
         },
         "type": "object",
         "title": "QuizSetRequest"
+      },
+      "ResetFor": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ResetFor"
+      },
+      "ResetRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "code",
+          "password"
+        ],
+        "title": "ResetRequest"
       },
       "ReviewAnswer": {
         "properties": {
@@ -3477,6 +5594,11 @@
           "document_id": {
             "type": "string",
             "title": "Document Id"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": ""
           }
         },
         "type": "object",
@@ -3507,14 +5629,51 @@
       "TaskUpdate": {
         "properties": {
           "done": {
-            "type": "boolean",
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Done"
+          },
+          "checked": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "due_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due On"
           }
         },
         "type": "object",
-        "required": [
-          "done"
-        ],
         "title": "TaskUpdate"
       },
       "TutorMessage": {
@@ -3543,6 +5702,22 @@
             },
             "type": "array",
             "title": "Messages"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": "lecture"
+          },
+          "course": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Course"
           }
         },
         "type": "object",

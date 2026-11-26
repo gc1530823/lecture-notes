@@ -54,7 +54,8 @@ export function LiveWave({ loud }: { loud?: boolean }) {
     const ctx = c.getContext("2d"); if (!ctx) return;
     const N = 64;
     const levels = new Array<number>(N).fill(0.03);
-    let target = 0.03, cur = 0.03, last = 0, raf = 0, t0 = performance.now();
+    let target = 0.03, cur = 0.03, last = 0, raf = 0;
+    const t0 = performance.now();
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const onLevel = (e: Event) => { last = performance.now(); target = Math.max(0.03, Math.min(1, Math.sqrt((e as CustomEvent<number>).detail) * 1.25)); };
     window.addEventListener("ln-level", onLevel);
