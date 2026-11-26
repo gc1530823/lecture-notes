@@ -4,7 +4,7 @@
    강조색은 그 시간의 하늘 한 가지, 보조색 둘은 아이콘·선택 표시에만. 빨강(녹음·마감 초과)은 의미가 있을 때만. */
 :root, :root[data-sky="dawn"] {
   --bg-paper: #FBF3EA; --bg-card: #FFFBF6;
-  --text-primary: #3A2723; --text-secondary: #654B44; --text-tertiary: #8A6F66; --text-note: #3A2723;
+  --text-primary: #3A2723; --text-secondary: #4A3430; --text-tertiary: #5C443E; --text-note: #3A2723;
   --accent-primary: #CF6A4C; --accent-deep: #B4553A;
   --accent-2: #F0A77E; --accent-2-soft: #FBE1D0; --accent-3: #F2CF7E; --accent-3-soft: #FBEFCF;
   --accent-record: #D2483A;
@@ -13,7 +13,7 @@
 }
 :root[data-sky="day"] {
   --bg-paper: #F2F6F8; --bg-card: #FFFFFF;
-  --text-primary: #1B2A36; --text-secondary: #43586A; --text-tertiary: #667B8C; --text-note: #1B2A36;
+  --text-primary: #1B2A36; --text-secondary: #2C3D4B; --text-tertiary: #3D5163; --text-note: #1B2A36;
   --accent-primary: #2A6FB0; --accent-deep: #1F5A93;
   --accent-2: #7FB8E0; --accent-2-soft: #D9EBF7; --accent-3: #F2C94C; --accent-3-soft: #FCF0C6;
   --accent-record: #E0503F;
@@ -22,7 +22,7 @@
 }
 :root[data-sky="dusk"] {
   --bg-paper: #F8EEEE; --bg-card: #FFFAF9;
-  --text-primary: #35202D; --text-secondary: #634756; --text-tertiary: #8B6D7B; --text-note: #35202D;
+  --text-primary: #35202D; --text-secondary: #4A3240; --text-tertiary: #5A4150; --text-note: #35202D;
   --accent-primary: #A04468; --accent-deep: #84344F;
   --accent-2: #E9A1A0; --accent-2-soft: #F6DCDC; --accent-3: #F1C38E; --accent-3-soft: #FAE8D3;
   --accent-record: #D9483F;
@@ -31,7 +31,7 @@
 }
 :root[data-sky="night"] {
   --bg-paper: #15132A; --bg-card: #1F1C38;
-  --text-primary: #EFEBFA; --text-secondary: #C3BDDC; --text-tertiary: #9790B6; --text-note: #EFEBFA;
+  --text-primary: #EFEBFA; --text-secondary: #DDD8EE; --text-tertiary: #C9C3E0; --text-note: #EFEBFA;
   --accent-primary: #F3D27A; --accent-deep: #E0BC5C; --text-on-accent: #1A1730;
   --accent-2: #8F86DA; --accent-2-soft: #2C2752; --accent-3: #F3D27A; --accent-3-soft: #352F4A;
   --accent-record: #F07A6A;
@@ -42,7 +42,7 @@
 /* 브랜드 팔레트 (기본): 플럼 · 로즈 · 버터 · 페이퍼. 강조색은 화면마다 바뀌지 않는다 */
 :root[data-sky="brand"] {
   --bg-paper: #F8F2EA; --bg-card: #FFFCF8;
-  --text-primary: #30202D; --text-secondary: #4B3343; --text-tertiary: #6C5262; --text-note: #30202D;
+  --text-primary: #30202D; --text-secondary: #3D2838; --text-tertiary: #4B3343; --text-note: #30202D;
   --accent-primary: #30202D; --accent-deep: #1F141D; --text-on-accent: #FFFCF8;
   --accent-2: #E9A1A0; --accent-2-soft: #F6DEDD; --accent-3: #F3DDA9; --accent-3-soft: #FAF0D6;
   --accent-record: #E66C59;
@@ -50,11 +50,11 @@
   --sky-1: #F6DEDD; --sky-2: #F8EDE6; --moon-lit: #F3DDA9; --moon-dark: #F2E9E2;
 }
 @media (prefers-color-scheme: dark) { :root[data-sky="brand"]:not([data-theme="light"]) {
-  --bg-paper: #1B1419; --bg-card: #251C22; --text-primary: #F3E8EE; --text-secondary: #E4D4DD; --text-tertiary: #C2ADB9; --text-note: #F3E8EE;
+  --bg-paper: #1B1419; --bg-card: #251C22; --text-primary: #F3E8EE; --text-secondary: #EADDE5; --text-tertiary: #DCCBD5; --text-note: #F3E8EE;
   --accent-primary: #E9A1A0; --accent-deep: #D4807F; --text-on-accent: #1B1419; --accent-2-soft: #3B262B; --accent-3-soft: #3A3122;
   --border-line: #3A2E36; --line-deep: #0E0A0D; --fill-soft: #2F242B; --sky-1: #2A1E25; --sky-2: #1E161B; --moon-dark: #2F242B; color-scheme: dark; } }
 :root[data-sky="brand"][data-theme="dark"] {
-  --bg-paper: #1B1419; --bg-card: #251C22; --text-primary: #F3E8EE; --text-secondary: #E4D4DD; --text-tertiary: #C2ADB9; --text-note: #F3E8EE;
+  --bg-paper: #1B1419; --bg-card: #251C22; --text-primary: #F3E8EE; --text-secondary: #EADDE5; --text-tertiary: #DCCBD5; --text-note: #F3E8EE;
   --accent-primary: #E9A1A0; --accent-deep: #D4807F; --text-on-accent: #1B1419; --accent-2-soft: #3B262B; --accent-3-soft: #3A3122;
   --border-line: #3A2E36; --line-deep: #0E0A0D; --fill-soft: #2F242B; --sky-1: #2A1E25; --sky-2: #1E161B; --moon-dark: #2F242B; color-scheme: dark; }
 .home-hello { padding-right: 0 !important; }
@@ -112,8 +112,8 @@
 .qz-type { background: none !important; border: 0 !important; padding: 0 !important; color: var(--accent-primary); }
 .lang-toggle .lang-tag, .lang-toggle.on .lang-tag { background: none !important; padding: 0; color: var(--text-tertiary); }
 .postit-tag { background: none !important; padding: 0 !important; opacity: .7; }
-.hint { background: none !important; border-left: 2px solid var(--accent-2); border-radius: 0 !important; padding: 2px 0 2px 12px !important; }
-.hint > svg, .hint > .icon { display: none; }
+.hint { background: none !important; border: 0; border-radius: 0 !important; padding: 0 2px !important; align-items: center; color: var(--text-primary) !important; font-weight: 600 !important; }
+.hint > svg { margin-top: 0 !important; color: var(--accent-deep) !important; }
 .note-line { padding: 6px 0; border-bottom: 1px solid var(--border-line); }
 .note-line:last-child { border-bottom: 0; }
 
@@ -160,7 +160,7 @@
 /* 녹음 중에는 시간과 상관없이 화면이 밤하늘로 (집중) */
 .screen.lecture { transition: background-color .9s ease; }
 .screen.lecture.night-rec, :root:has(.screen.lecture.night-rec) {
-  --bg-paper: #15132A; --bg-card: #1F1C38; --text-primary: #EFEBFA; --text-secondary: #C3BDDC; --text-tertiary: #9790B6; --text-note: #EFEBFA;
+  --bg-paper: #15132A; --bg-card: #1F1C38; --text-primary: #EFEBFA; --text-secondary: #DDD8EE; --text-tertiary: #C9C3E0; --text-note: #EFEBFA;
   --accent-primary: #F3D27A; --accent-2: #8F86DA; --border-line: #2E2A4C; --fill-soft: #272347;
   background: #15132A radial-gradient(1px 1px at 14% 12%, #fff8 50%, transparent 51%) , radial-gradient(1px 1px at 72% 20%, #fff6 50%, transparent 51%), radial-gradient(1.5px 1.5px at 44% 6%, #fff9 50%, transparent 51%);
   color: var(--text-primary);

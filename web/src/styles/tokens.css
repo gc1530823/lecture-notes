@@ -4,8 +4,8 @@
   --bg-paper: #f6f5fb;
   --bg-card: #ffffff;
   --text-primary: #1d1b2e;
-  --text-secondary: #5d5b72;
-  --text-tertiary: #6e6c84;   /* 읽혀야 하는 보조 글: 바탕 위 4.5:1 이상 */
+  --text-secondary: #3a384e;
+  --text-tertiary: #4a4860;   /* 읽혀야 하는 보조 글: 바탕 위 4.5:1 이상 */
   --text-on-accent: #ffffff;
   --text-note: #211f1c;
   --accent-primary: #6b5cf6;
@@ -67,8 +67,8 @@
     --bg-paper: #121220;
     --bg-card: #1c1c2e;
     --text-primary: #f2f1fa;
-    --text-secondary: #adabc4;
-    --text-tertiary: #8f8da8;
+    --text-secondary: #d3d1e6;
+    --text-tertiary: #bdbbd2;
     --text-on-accent: #ffffff;
     --accent-primary: #8b7fff;
     --accent-record: #ff5e61;
@@ -101,8 +101,8 @@
     --bg-paper: #121220;
     --bg-card: #1c1c2e;
     --text-primary: #f2f1fa;
-    --text-secondary: #adabc4;
-    --text-tertiary: #8f8da8;
+    --text-secondary: #d3d1e6;
+    --text-tertiary: #bdbbd2;
     --text-on-accent: #ffffff;
     --accent-primary: #8b7fff;
     --accent-record: #ff5e61;

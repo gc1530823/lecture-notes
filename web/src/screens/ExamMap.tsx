@@ -15,7 +15,7 @@ export default function ExamMap({ docId }: { docId: string }) {
         {data && data.lectures === 0 && <Empty icon="target">강의를 한 번 이상 녹음하면 지도가 생겨요</Empty>}
         {data && data.lectures > 0 && (
           <>
-            <Hint icon="fire">강의 <b>{data.lectures}번</b>을 모았어요. 교수님이 강조한 쪽일수록 <b>진한 색</b>이에요</Hint>
+            <Hint icon="fire">강의 <b>{data.lectures}번</b> · 강조된 쪽일수록 <b>진하게</b></Hint>
             <div className="heat-grid" role="list">
               {data.pages.map((p) => (
                 <div key={p.page_no} role="listitem" className="heat-cell" data-i={p.page_no} title={p.reasons.join(", ") || "언급 적음"}

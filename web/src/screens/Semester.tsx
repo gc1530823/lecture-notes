@@ -92,9 +92,9 @@ function ConceptMap() {
 
   return (
     <>
-      <Hint icon="tree-structure">용어 <b>{data.nodes.length}개</b>예요. 함께 설명됐거나 뜻에 서로 나오면 이어요. 누르면 그 강의 그 순간으로 갈 수 있어요.</Hint>
-      <div className="scroll-x" style={{ flexWrap: "wrap" }}>
-        {docs.map((d) => <span key={d} className="chip chip-default"><span className="dot" style={{ background: docColor(d) }} /> {titles.get(d)}</span>)}
+      <Hint icon="tree-structure">용어 <b>{data.nodes.length}개</b> · 누르면 그 강의 그 순간으로</Hint>
+      <div className="mark-row">
+        {docs.map((d) => <span key={d} className="mark" style={{ ["--mk" as string]: `color-mix(in srgb, ${docColor(d)} 45%, transparent)` }}>{titles.get(d)}</span>)}
       </div>
       <svg className="concept-map" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="학기 개념 지도">
         {edges.map((e, i) => {

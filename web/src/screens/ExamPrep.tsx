@@ -119,7 +119,7 @@ export function JokboScreen({ docId }: { docId: string }) {
               </Section>
             )}
             {data.predicted.length === 0 && (
-              <div className="no-print"><Hint>시험 예상 지도에서 <b>예상 문제 만들기</b>를 누르면 예상 문제도 여기에 같이 나와요</Hint></div>
+              <div className="no-print"><Hint><b>예상 문제 만들기</b>를 누르면 여기에도 나와요</Hint></div>
             )}
 
             {data.notice.length > 0 && (
@@ -220,9 +220,9 @@ export function ReviewScreen() {
           <>
             {done === 0 && !flipped && guideLeft && (
               <ol className="review-guide">
-                <li>질문의 답을 머릿속으로 떠올려 보고</li>
-                <li>카드를 눌러 답을 확인한 뒤</li>
-                <li>얼마나 기억났는지 고르면, 잊어버릴 때쯤 다시 보여 줘요</li>
+                <li>떠올리기</li>
+                <li>확인</li>
+                <li>기억난 만큼 고르기</li>
               </ol>
             )}
             <div className="review-meta">

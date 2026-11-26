@@ -138,8 +138,8 @@ function NextDocs({ courses }: { courses: string[] }) {
   return (
     <section className="next-docs" aria-label="다음 수업 자료">
       <div className="next-head">
-        <span className="next-ic"><Icon name="microphone" size={18} /></span>
-        <span className="grow"><b>다음 수업 자료</b><small>골라 두면 수업 시간에 홈에서 바로 녹음해요</small></span>
+        <b className="grow">다음 수업 자료</b>
+        <span className="next-count">{withDocs.length}<i>/{courses.length}</i></span>
       </div>
       {withDocs.map((c) => {
         const mine = docs.filter((d) => (d.course || "") === c);
@@ -157,11 +157,11 @@ function NextDocs({ courses }: { courses: string[] }) {
       })}
       {without.length > 0 && (
         <div className="next-missing">
-          <span className="next-missing-label">{withDocs.length ? "자료 없는 과목" : "아직 연결된 자료가 없어요"} <em>{without.length}</em></span>
-          <div className="next-chips">
-            {without.map((c) => <span key={c} className={`next-chip ${courseTone(c)}`}><i />{c}</span>)}
+          {withDocs.length > 0 && <span className="next-missing-label">자료 없음</span>}
+          <div className="mark-row">
+            {without.map((c) => <span key={c} className={`mark ${courseTone(c)}`}>{c}</span>)}
           </div>
-          <p className="next-tip"><Icon name="lightbulb" size={15} /><span>강의자료를 올릴 때 <b>과목</b>을 시간표와 같은 이름으로 고르면 자동으로 연결돼요</span></p>
+          <p className="next-tip">자료를 올릴 때 과목을 맞춰 두면 여기 붙어요</p>
         </div>
       )}
     </section>

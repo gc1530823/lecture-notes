@@ -1706,21 +1706,16 @@ html, body { overscroll-behavior-y: contain; }   /* 브라우저 자체 당겨�
 
 /* ── 회색 작은 글씨 다듬기: 다음 수업 자료 · 시간표 고치기 · 오늘 수업 줄 · 복습 머리 · 불꽃 ── */
 .next-docs { gap: 12px; padding: 16px; border: 0; box-shadow: var(--shadow-card); border-radius: var(--radius-xl); }
-.next-head { display: flex; align-items: center; gap: 12px; }
-.next-ic { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--fill-soft); color: var(--accent-primary); }
-.next-head b { display: block; font: 800 16px/21px var(--font-sans); letter-spacing: -.02em; color: var(--text-primary); }
-.next-head small { display: block; margin-top: 1px; font: 500 13px/18px var(--font-sans); color: var(--text-secondary); }
-.next-missing { display: flex; flex-direction: column; gap: 9px; padding-top: 12px; border-top: 1px dashed var(--border-line); }
+.next-head { display: flex; align-items: baseline; gap: 12px; }
+.next-head b { font: 800 17px/22px var(--font-sans); letter-spacing: -.02em; color: var(--text-primary); }
+.next-count { font: 900 20px/22px Nunito, var(--font-sans); color: var(--accent-deep); }
+.next-count i { font-style: normal; font-size: 14px; color: var(--text-primary); opacity: .55; }
+.next-missing { display: flex; flex-direction: column; gap: 10px; }
 .next-missing-label { font: 700 13px/18px var(--font-sans); color: var(--text-primary); }
-.next-missing-label em { font-style: normal; margin-left: 4px; padding: 0 7px; border-radius: 99px; background: var(--fill-soft); color: var(--accent-deep); font-size: 12px; }
 .next-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.next-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px 6px 9px; border-radius: 99px; font: 600 13px/17px var(--font-sans);
-  color: var(--text-primary); background: color-mix(in srgb, var(--blk, var(--accent-primary)) 18%, var(--bg-card)); }
-.next-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--blk-ink, var(--accent-primary)); }
-.next-tip { display: flex; align-items: flex-start; gap: 7px; margin: 2px 0 0; padding: 10px 12px; border-radius: 12px;
-  background: color-mix(in srgb, var(--accent-primary) 7%, var(--bg-card)); font: 500 12.5px/18px var(--font-sans); color: var(--text-secondary); }
-.next-tip > svg { flex: none; margin-top: 1px; color: var(--ico-yellow); }
-.next-tip b { color: var(--accent-deep); font-weight: 700; }
+.next-chip { padding: 7px 12px 7px 10px; border-radius: 8px; border-left: 3px solid var(--blk-ink, var(--accent-primary)); font: 600 13.5px/17px var(--font-sans);
+  color: var(--text-primary); background: color-mix(in srgb, var(--blk, var(--accent-primary)) 22%, var(--bg-card)); }
+.next-tip { margin: 0; font: 500 13px/18px var(--font-sans); color: var(--text-primary); }
 
 .tt-tools { display: flex; flex-direction: column; gap: 10px; }
 .tt-tools-title { font: 800 16px/21px var(--font-sans); letter-spacing: -.02em; color: var(--text-primary); padding: 2px 2px 0; }
@@ -1818,3 +1813,14 @@ html, body { overscroll-behavior-y: contain; }   /* 브라우저 자체 당겨�
 .streak-how > span { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border-radius: 99px; background: var(--bg-card); color: var(--text-primary); font: 600 13px/17px var(--font-sans); }
 .streak-how > span svg { color: var(--accent-primary); }
 .streak-how small { flex-basis: 100%; text-align: center; font: 500 13px/18px var(--font-sans); color: var(--text-secondary); }
+
+/* 복습 안내: 세 단계를 한 줄 칩으로 */
+.review-guide { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; padding: 0; background: none; list-style: none; counter-reset: rg; }
+.review-guide li { counter-increment: rg; display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px 5px 5px; border-radius: 99px; background: var(--fill-soft); color: var(--text-primary); font: 700 13px/18px var(--font-sans); }
+.review-guide li::before { content: counter(rg); display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-primary); color: var(--text-on-accent); font: 900 12px/1 Nunito, var(--font-sans); }
+.review-src { color: var(--text-primary); }
+
+/* 형광펜 밑줄 표시: 색 점·둥근 박스 대신 글자 아래 색 띠 */
+.mark-row { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.mark { --mk: var(--blk, var(--accent-primary)); font: 700 14px/20px var(--font-sans); color: var(--text-primary);
+  background: linear-gradient(transparent 58%, color-mix(in srgb, var(--mk) 75%, transparent) 58%, color-mix(in srgb, var(--mk) 75%, transparent) 92%, transparent 92%); padding: 0 2px; }
