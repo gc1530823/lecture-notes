@@ -1086,3 +1086,28 @@
 .prep .prep-arrow { position: absolute; top: 18px; right: 18px; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-style: normal; transition: transform .3s cubic-bezier(.2,.9,.2,1); }
 .prep-main .prep-arrow { background: var(--accent-primary); color: var(--text-on-accent); }
 .prep button:active .prep-arrow { transform: translateX(4px); }
+
+/* ── 홈 블록화: 선으로만 나누던 곳을 둥근 카드 블록으로 ── */
+.record-sub { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px !important; margin-top: 10px !important; border: 0 !important; background: none !important; }
+.record-sub > button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 54px; border: 0 !important; border-radius: 16px !important;
+  background: var(--bg-card) !important; box-shadow: var(--shadow-card); font: 700 15px/20px var(--font-sans) !important; color: var(--text-primary) !important; }
+.record-sub > button + button { border-left: 0 !important; }
+.record-sub > button svg { color: var(--accent-deep); }
+
+.course-group { background: var(--bg-card); border-radius: 20px; padding: 6px 4px; box-shadow: var(--shadow-card); margin-bottom: 12px; border: 0 !important; }
+.course-group .course-title { display: flex; align-items: center; gap: 8px; margin: 8px 14px 2px !important; padding: 0 !important; border: 0 !important; }
+.course-group .course-title::before, .course-group .course-title::after { display: none !important; }
+.course-group .course-title span { font: 800 15px/20px var(--font-sans); color: var(--text-primary);
+  background: linear-gradient(transparent 58%, color-mix(in srgb, var(--blk, var(--accent-primary)) 75%, transparent) 58%, color-mix(in srgb, var(--blk, var(--accent-primary)) 75%, transparent) 92%, transparent 92%); padding: 0 2px; }
+.course-group .course-title small { margin-left: auto; font: 800 13px/1 Nunito, var(--font-sans); color: var(--text-primary); }
+.course-group .list-item { border: 0 !important; border-radius: 14px; box-shadow: none !important; background: transparent !important; }
+.course-group .list-item + .list-item { border-top: 1px solid var(--border-line) !important; border-radius: 0; }
+
+.home-links { display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 10px !important; border: 0 !important; background: none !important; margin-top: 8px; }
+.home-links > button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 88px; border: 0 !important;
+  border-radius: 18px !important; background: var(--bg-card) !important; box-shadow: var(--shadow-card); font: 700 14px/18px var(--font-sans); color: var(--text-primary); }
+.home-links > button + button { border-left: 0 !important; }
+.home-links > button svg { color: var(--accent-deep); }
+.course-group .list-item::before { display: none !important; }
+.tt-invite { background: var(--bg-card) !important; border: 0 !important; border-radius: 16px !important; padding: 16px 18px !important; box-shadow: var(--shadow-card) !important; }
+.tt-invite + *, .timetable .tt-invite ~ * { border-top: 0 !important; }
