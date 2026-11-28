@@ -1145,3 +1145,7 @@
 .mini-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
 .mini-tags > span { padding: 3px 8px; border-radius: 8px; background: var(--bg-page); font: 600 11.5px/15px var(--font-sans); color: var(--text-secondary); }
 .btn-tag { margin-left: 6px; padding: 2px 7px; border-radius: 999px; background: var(--bg-page); font: 600 11px/14px var(--font-sans); color: var(--text-secondary); }
+/* 과목 앞 색 동그라미 없애기: 과목 색은 글자 아래 형광펜 밑줄로만 */
+.pick i, .course-title::before, .tt-link-chip i, .task-dot { display: none !important; }
+.pick .mark { background-size: 100% 100%; }
+.next-row { grid-template-columns: minmax(0, 7em) 1fr !important; }

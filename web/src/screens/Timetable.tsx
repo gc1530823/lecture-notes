@@ -145,8 +145,7 @@ function NextDocs({ courses }: { courses: string[] }) {
         const cur = next[c];
         return (
           <label key={c} className={`next-row ${courseTone(c)}`}>
-            <i />
-            <span className="next-course">{c}</span>
+            <span className="next-course"><span className="mark">{c}</span></span>
             <select className="input" value={cur && !cur.auto ? cur.doc_id : ""} onChange={(e) => void pick(c, e.target.value)} aria-label={`${c} 다음 수업 자료`}>
               <option value="">{cur?.auto ? `자동: ${cur.title}` : "자동 (새로 올린 자료)"}</option>
               {mine.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
